@@ -10,33 +10,52 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LaunchkitTemplatesRouteImport } from './routes/launchkit.templates'
+import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaunchkitTemplatesRoute = LaunchkitTemplatesRouteImport.update({
+  id: '/launchkit/templates',
+  path: '/launchkit/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => LaunchkitTemplatesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/launchkit/templates': typeof LaunchkitTemplatesRouteWithChildren
+  '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/launchkit/templates': typeof LaunchkitTemplatesRouteWithChildren
+  '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/launchkit/templates': typeof LaunchkitTemplatesRouteWithChildren
+  '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/launchkit/templates' | '/launchkit/templates/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/launchkit/templates' | '/launchkit/templates/$id'
+  id: '__root__' | '/' | '/launchkit/templates' | '/launchkit/templates/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LaunchkitTemplatesRoute: typeof LaunchkitTemplatesRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,12 +67,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/launchkit/templates': {
+      id: '/launchkit/templates'
+      path: '/launchkit/templates'
+      fullPath: '/launchkit/templates'
+      preLoaderRoute: typeof LaunchkitTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/templates/$id': {
+      id: '/launchkit/templates/$id'
+      path: '/$id'
+      fullPath: '/launchkit/templates/$id'
+      preLoaderRoute: typeof LaunchkitTemplatesIdRouteImport
+      parentRoute: typeof LaunchkitTemplatesRoute
+    }
   }
 }
 
+interface LaunchkitTemplatesRouteChildren {
+  LaunchkitTemplatesIdRoute: typeof LaunchkitTemplatesIdRoute
+}
+
+const LaunchkitTemplatesRouteChildren: LaunchkitTemplatesRouteChildren = {
+  LaunchkitTemplatesIdRoute: LaunchkitTemplatesIdRoute,
+}
+
+const LaunchkitTemplatesRouteWithChildren =
+  LaunchkitTemplatesRoute._addFileChildren(LaunchkitTemplatesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LaunchkitTemplatesRoute: LaunchkitTemplatesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
