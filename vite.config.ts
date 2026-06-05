@@ -7,16 +7,24 @@
 import process from "node:process";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-// Deploy target. The Lovable config defaults to the Cloudflare Workers preset,
-// whose output layout Vercel can't serve as an SSR app — the static client gets
-// served but the server entry isn't wired as a Vercel function, so SSR never
-// runs and deep links / refreshes 404. Pinning the `vercel` preset makes Nitro
-// emit `.vercel/output` (static assets + a serverless SSR function that routes
-// every path), fixing both the blank render and refresh-on-any-route.
+// Deploy target selection.
 //
-// Override with NITRO_PRESET (e.g. "cloudflare-module", "node-server") to target
-// another host without editing this file.
-const preset = process.env.NITRO_PRESET || "vercel";
+// The Lovable config defaults to the Cloudflare Workers preset, whose output
+// layout neither Vercel nor Netlify can serve as an SSR app — the static client
+// is served but the SSR server isn't wired as a function, so deep links and
+// refreshes 404 and pages don't render.
+//
+// We auto-detect the host from its build-time env var and pick the matching
+// Nitro preset, which emits that host's expected output (static assets + an SSR
+// function with a catch-all route for every path). Set NITRO_PRESET to override
+// (e.g. "node-server", "cloudflare-module", "bun") for self-hosting.
+const env = process.env;
+const preset =
+  env.NITRO_PRESET ||
+  (env.NETLIFY ? "netlify" : undefined) ||
+  (env.VERCEL ? "vercel" : undefined) ||
+  // Default for manual/local production builds. Change if your primary host differs.
+  "vercel";
 
 export default defineConfig({
   nitro: { preset },

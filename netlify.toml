@@ -1,0 +1,22 @@
+# Netlify deploy config for the DevStation SSR (TanStack Start / Nitro) app.
+#
+# The Nitro `netlify` preset (auto-selected via the NETLIFY env var in
+# vite.config.ts) emits the SSR server function to
+# .netlify/functions-internal/server (it self-declares `path: "/*"`) and the
+# static client to dist/. Netlify must be told where both live, otherwise it
+# serves dist/ with no index and 404s every route ("Page not found").
+
+[build]
+  command = "bun run build"
+  publish = "dist"
+
+[functions]
+  directory = ".netlify/functions-internal"
+  # The Nitro server bundle ships its own deps; don't let Netlify re-bundle.
+  node_bundler = "none"
+
+# Long-cache hashed assets.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    cache-control = "public, max-age=31536000, immutable"

@@ -1,0 +1,5 @@
+# SSR fallback: any path that isn't a static file in dist/ is handled by the
+# Nitro server function (200 = rewrite, URL preserved). This is what makes deep
+# links and page refreshes render instead of returning Netlify's 404.
+# Static assets in /assets/* are matched from the filesystem before this rule.
+/*  /.netlify/functions/server  200
