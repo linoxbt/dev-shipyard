@@ -1,20 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Rocket, Search, ArrowRight, ExternalLink } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useProjects } from "@/lib/mock/projects";
 import { TEMPLATES } from "@/lib/mock/templates";
-import { CHAIN, GAS_PRICE_GWEI, ORACLE_RATE_USD } from "@/lib/chain";
+import { CHAIN, GAS_PRICE_GWEI } from "@/lib/chain";
 import { DEMO_TXS } from "@/lib/mock/transactions";
+import { useNetworkStatus } from "@/hooks/useChainData";
 import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "DevStation — Overview" },
-      { name: "description", content: "Your QIE builder console: deployments, network status, and quick tools." },
+      {
+        name: "description",
+        content: "Your QIE builder console: deployments, network status, and quick tools.",
+      },
     ],
   }),
   component: Overview,
@@ -22,14 +26,14 @@ export const Route = createFileRoute("/")({
 
 function Overview() {
   const projects = useProjects((s) => s.projects);
-  const [block, setBlock] = useState(4_318_287);
   const [quickTemplate, setQuickTemplate] = useState(TEMPLATES[0].id);
   const [quickHash, setQuickHash] = useState("");
 
-  useEffect(() => {
-    const i = setInterval(() => setBlock((b) => b + 1), 3000);
-    return () => clearInterval(i);
-  }, []);
+  const { data: net } = useNetworkStatus();
+
+  const block = net?.blockNumber ?? 0;
+  const gasGwei = net?.gasPriceGwei ?? GAS_PRICE_GWEI;
+  const online = net?.status === "online";
 
   return (
     <div>
@@ -48,15 +52,15 @@ function Overview() {
             sub={`across ${new Set(projects.map((p) => p.templateId)).size} templates`}
           />
           <Stat
-            value={block.toLocaleString()}
+            value={online ? block.toLocaleString() : "—"}
             label="Current Block"
-            sub={`${CHAIN.name} · Chain ${CHAIN.id}`}
-            pulse
+            sub={online ? `${CHAIN.name} · Chain ${CHAIN.id}` : "RPC offline"}
+            pulse={online}
           />
           <Stat
-            value={`${GAS_PRICE_GWEI} Gwei`}
+            value={`${gasGwei.toFixed(2)} Gwei`}
             label="Gas Price"
-            sub={`≈ $${(GAS_PRICE_GWEI * 21000 * 1e-9 * ORACLE_RATE_USD).toFixed(6)} per tx`}
+            sub={`≈ ${(gasGwei * 21000 * 1e-9).toFixed(6)} QIE per tx`}
           />
           <Stat
             value={TEMPLATES.length.toString()}
@@ -68,7 +72,17 @@ function Overview() {
         <div className="grid gap-6 lg:grid-cols-5">
           {/* Left: activity */}
           <div className="space-y-6 lg:col-span-3">
-            <Panel title="Your Deployments" action={<Link to="/launchkit/projects" className="font-mono text-xs text-primary hover:underline">View all →</Link>}>
+            <Panel
+              title="Your Deployments"
+              action={
+                <Link
+                  to="/launchkit/projects"
+                  className="font-mono text-xs text-primary hover:underline"
+                >
+                  View all →
+                </Link>
+              }
+            >
               {projects.length === 0 ? (
                 <Empty>No deployments yet. Start with a template.</Empty>
               ) : (
@@ -90,9 +104,23 @@ function Overview() {
                         <td className="px-3 py-2 text-muted-foreground">
                           {formatDistanceToNow(p.deployedAt, { addSuffix: true })}
                         </td>
-                        <td className="px-3 py-2"><StatusBadge kind={p.status === "VERIFIED" ? "VERIFIED" : p.status === "PENDING" ? "PENDING" : "FAILED"} /></td>
+                        <td className="px-3 py-2">
+                          <StatusBadge
+                            kind={
+                              p.status === "VERIFIED"
+                                ? "VERIFIED"
+                                : p.status === "PENDING"
+                                  ? "PENDING"
+                                  : "FAILED"
+                            }
+                          />
+                        </td>
                         <td className="px-3 py-2 text-right">
-                          <Link to="/routebook/$txHash" params={{ txHash: p.txHash }} className="text-meta hover:text-primary">
+                          <Link
+                            to="/routebook/$txHash"
+                            params={{ txHash: p.txHash }}
+                            className="text-meta hover:text-primary"
+                          >
                             <ArrowRight className="inline h-3.5 w-3.5" />
                           </Link>
                         </td>
@@ -175,14 +203,16 @@ function Overview() {
 
             <Panel title="Network Status">
               <div className="space-y-2 p-3 font-mono text-xs">
-                <Row label="Block height" value={block.toLocaleString()} />
-                <Row label="Block time" value="~2.1s" />
+                <Row label="Block height" value={online ? block.toLocaleString() : "—"} />
+                <Row label="Gas price" value={`${gasGwei.toFixed(2)} Gwei`} />
                 <Row
                   label="RPC"
                   value={
                     <span className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                      <span className="text-muted-foreground">rpc1testnet.qie.digital</span>
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${online ? "bg-success" : "bg-danger"}`}
+                      />
+                      <span className="text-muted-foreground">{new URL(CHAIN.rpc).host}</span>
                     </span>
                   }
                 />
@@ -199,7 +229,6 @@ function Overview() {
                     </a>
                   }
                 />
-                <Row label="Oracle" value={`1 QIE = $${ORACLE_RATE_USD.toFixed(2)}`} />
               </div>
             </Panel>
           </div>
@@ -209,10 +238,22 @@ function Overview() {
   );
 }
 
-function Stat({ value, label, sub, pulse }: { value: string; label: string; sub: string; pulse?: boolean }) {
+function Stat({
+  value,
+  label,
+  sub,
+  pulse,
+}: {
+  value: string;
+  label: string;
+  sub: string;
+  pulse?: boolean;
+}) {
   return (
     <div className="rounded border border-border bg-surface p-4">
-      <div className={`font-mono text-2xl font-bold text-foreground ${pulse ? "animate-pulse-soft" : ""}`}>
+      <div
+        className={`font-mono text-2xl font-bold text-foreground ${pulse ? "animate-pulse-soft" : ""}`}
+      >
         {value}
       </div>
       <div className="mt-1 font-mono text-[10px] uppercase tracking-wider text-meta">{label}</div>
@@ -221,7 +262,15 @@ function Stat({ value, label, sub, pulse }: { value: string; label: string; sub:
   );
 }
 
-function Panel({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+function Panel({
+  title,
+  children,
+  action,
+}: {
+  title: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   return (
     <div className="overflow-hidden rounded border border-border bg-surface">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">

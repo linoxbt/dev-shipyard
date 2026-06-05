@@ -9,7 +9,10 @@ export const Route = createFileRoute("/routebook/")({
   head: () => ({
     meta: [
       { title: "Routebook — DevStation" },
-      { name: "description", content: "Turn any QIE transaction hash into a human-readable execution map." },
+      {
+        name: "description",
+        content: "Turn any QIE transaction hash into a human-readable execution map.",
+      },
     ],
   }),
   component: RoutebookHome,

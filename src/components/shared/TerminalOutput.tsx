@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 export interface TerminalLine {
   text: string;
-  status?: "info" | "pending" | "success" | "error";
+  status?: "info" | "pending" | "success" | "error" | "warning";
 }
 
 interface Props {
@@ -49,9 +49,13 @@ export function TerminalOutput({ lines, speedMs = 450, className, onDone }: Prop
 
 function colorFor(s?: TerminalLine["status"]) {
   switch (s) {
-    case "success": return "text-success";
-    case "error": return "text-danger";
-    case "pending": return "text-warning";
-    default: return "text-muted-foreground";
+    case "success":
+      return "text-success";
+    case "error":
+      return "text-danger";
+    case "pending":
+      return "text-warning";
+    default:
+      return "text-muted-foreground";
   }
 }

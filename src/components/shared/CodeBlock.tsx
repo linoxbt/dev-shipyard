@@ -10,12 +10,23 @@ interface Props {
   maxHeight?: string;
 }
 
-export function CodeBlock({ code, language = "solidity", showLineNumbers = true, className, maxHeight }: Props) {
+export function CodeBlock({
+  code,
+  language = "solidity",
+  showLineNumbers = true,
+  className,
+  maxHeight,
+}: Props) {
   const [copied, setCopied] = useState(false);
   const lines = code.split("\n");
 
   return (
-    <div className={cn("group relative overflow-hidden rounded border border-border bg-background", className)}>
+    <div
+      className={cn(
+        "group relative overflow-hidden rounded border border-border bg-background",
+        className,
+      )}
+    >
       <div className="flex items-center justify-between border-b border-border bg-surface px-3 py-1.5">
         <span className="font-mono text-[10px] uppercase tracking-wider text-meta">{language}</span>
         <button
@@ -67,7 +78,10 @@ function highlightLine(line: string, lang: string): string {
     s = s.replace(/\b(true|false|null)\b/g, '<span style="color:var(--color-primary)">$1</span>');
     s = s.replace(/\b(-?\d+\.?\d*)\b/g, '<span style="color:var(--color-code-number)">$1</span>');
   } else if (lang === "env") {
-    s = s.replace(/^([A-Z_][A-Z0-9_]*)(=)/g, '<span style="color:var(--color-primary)">$1</span>$2');
+    s = s.replace(
+      /^([A-Z_][A-Z0-9_]*)(=)/g,
+      '<span style="color:var(--color-primary)">$1</span>$2',
+    );
     s = s.replace(/=(.+)$/g, '=<span style="color:var(--color-code-string)">$1</span>');
     s = s.replace(/(#[^\n]*)/g, '<span style="color:var(--color-code-comment)">$1</span>');
   }
@@ -75,8 +89,5 @@ function highlightLine(line: string, lang: string): string {
 }
 
 function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

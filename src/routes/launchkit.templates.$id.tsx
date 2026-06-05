@@ -51,7 +51,9 @@ function TemplateDetail() {
         <aside className="space-y-4 lg:col-span-2">
           <div className="rounded border border-border bg-surface p-4">
             <div className="mb-3 flex items-center gap-2">
-              <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${categoryColor(tpl.category)}`}>
+              <span
+                className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${categoryColor(tpl.category)}`}
+              >
                 {tpl.category}
               </span>
               {tpl.verified && (
@@ -69,7 +71,10 @@ function TemplateDetail() {
             </dl>
             <div className="mt-4 flex flex-wrap gap-1">
               {tpl.tags.map((t: string) => (
-                <span key={t} className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                <span
+                  key={t}
+                  className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                >
                   {t}
                 </span>
               ))}
@@ -86,7 +91,11 @@ function TemplateDetail() {
             </button>
             {abiOpen && (
               <div className="border-t border-border p-3">
-                <CodeBlock code={JSON.stringify(JSON.parse(tpl.abi), null, 2)} language="json" maxHeight="320px" />
+                <CodeBlock
+                  code={JSON.stringify(JSON.parse(tpl.abi), null, 2)}
+                  language="json"
+                  maxHeight="320px"
+                />
               </div>
             )}
           </div>

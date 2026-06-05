@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { storage } from "@/lib/storage";
 
 export interface DeployedProject {
   id: string;
@@ -36,7 +37,12 @@ const SEED: DeployedProject[] = [
     blockNumber: 4_318_154,
     deployedAt: Date.now() - 1000 * 60 * 60 * 24,
     status: "VERIFIED",
-    constructorArgs: { name_: "Genesis Pass", symbol_: "GPASS", baseURI_: "ipfs://bafy.../", maxSupply_: "10000" },
+    constructorArgs: {
+      name_: "Genesis Pass",
+      symbol_: "GPASS",
+      baseURI_: "ipfs://bafy.../",
+      maxSupply_: "10000",
+    },
   },
   {
     id: "p3",
@@ -49,7 +55,8 @@ const SEED: DeployedProject[] = [
     deployedAt: Date.now() - 1000 * 60 * 60 * 48,
     status: "PENDING",
     constructorArgs: {
-      _owners: "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB,0x4B2a8c2FbB3a2cC5F6e7d2B91A4d8e7C5b3F1a92",
+      _owners:
+        "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB,0x4B2a8c2FbB3a2cC5F6e7d2B91A4d8e7C5b3F1a92",
       _required: "2",
     },
   },
@@ -59,10 +66,33 @@ interface ProjectsState {
   projects: DeployedProject[];
   add: (p: DeployedProject) => void;
   remove: (id: string) => void;
+  hydrated: boolean;
+  /** Load persisted deployments on the client (call once after mount). */
+  hydrate: () => void;
 }
 
+// SSR starts from the deterministic SEED set; the client replaces it with
+// persisted data in hydrate() to avoid hydration mismatches.
 export const useProjects = create<ProjectsState>((set) => ({
   projects: SEED,
-  add: (p) => set((s) => ({ projects: [p, ...s.projects] })),
-  remove: (id) => set((s) => ({ projects: s.projects.filter((x) => x.id !== id) })),
+  hydrated: false,
+  hydrate: () =>
+    set(() => {
+      const stored = storage.loadProjects();
+      return stored.length
+        ? { projects: stored as DeployedProject[], hydrated: true }
+        : { hydrated: true };
+    }),
+  add: (p) =>
+    set((s) => {
+      const next = [p, ...s.projects];
+      storage.saveProjects(next);
+      return { projects: next };
+    }),
+  remove: (id) =>
+    set((s) => {
+      const next = s.projects.filter((x) => x.id !== id);
+      storage.saveProjects(next);
+      return { projects: next };
+    }),
 }));

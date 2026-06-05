@@ -1,14 +1,23 @@
 // Pre-decoded demo transactions for Routebook.
 export type CallType = "user" | "internal" | "view" | "failed";
 
-export interface DecodedArg { name: string; type: string; value: string; display?: string }
-export interface DecodedEvent { name: string; args: DecodedArg[]; isApproval?: boolean }
+export interface DecodedArg {
+  name: string;
+  type: string;
+  value: string;
+  display?: string;
+}
+export interface DecodedEvent {
+  name: string;
+  args: DecodedArg[];
+  isApproval?: boolean;
+}
 export interface RouteCall {
   id: string;
   type: CallType;
   contractAddress: string;
   contractName?: string; // resolved label, optional
-  fn: string;            // e.g. swapExactTokensForTokens(uint256,uint256,address[],address,uint256)
+  fn: string; // e.g. swapExactTokensForTokens(uint256,uint256,address[],address,uint256)
   args: DecodedArg[];
   returns?: DecodedArg[];
   events: DecodedEvent[];
@@ -17,12 +26,12 @@ export interface RouteCall {
 }
 
 export interface TokenTransfer {
-  token: string;        // address
+  token: string; // address
   tokenSymbol: string;
   from: string;
   to: string;
-  amount: string;       // human readable
-  raw: string;          // wei
+  amount: string; // human readable
+  raw: string; // wei
 }
 
 export interface ApprovalRecord {
@@ -103,8 +112,16 @@ export const DEMO_TXS: DecodedTx[] = [
             {
               name: "Transfer",
               args: [
-                { name: "from", type: "address", value: "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB" },
-                { name: "to", type: "address", value: "0xBEEF0000000000000000000000000000000B0001" },
+                {
+                  name: "from",
+                  type: "address",
+                  value: "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB",
+                },
+                {
+                  name: "to",
+                  type: "address",
+                  value: "0xBEEF0000000000000000000000000000000B0001",
+                },
                 { name: "amount", type: "uint256", value: "5.0 QIE" },
               ],
             },
@@ -128,7 +145,11 @@ export const DEMO_TXS: DecodedTx[] = [
             {
               name: "Swap",
               args: [
-                { name: "sender", type: "address", value: "0xDEX0000000000000000000000000000000000001" },
+                {
+                  name: "sender",
+                  type: "address",
+                  value: "0xDEX0000000000000000000000000000000000001",
+                },
                 { name: "amountIn", type: "uint256", value: "5.0 QIE" },
                 { name: "amountOut", type: "uint256", value: "1.88 USDQ" },
               ],
@@ -143,15 +164,27 @@ export const DEMO_TXS: DecodedTx[] = [
               contractName: "USDQ",
               fn: "transfer(address,uint256)",
               args: [
-                { name: "to", type: "address", value: "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB" },
+                {
+                  name: "to",
+                  type: "address",
+                  value: "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB",
+                },
                 { name: "amount", type: "uint256", value: "1882350000", display: "1.88 USDQ" },
               ],
               events: [
                 {
                   name: "Transfer",
                   args: [
-                    { name: "from", type: "address", value: "0xBEEF0000000000000000000000000000000B0001" },
-                    { name: "to", type: "address", value: "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB" },
+                    {
+                      name: "from",
+                      type: "address",
+                      value: "0xBEEF0000000000000000000000000000000B0001",
+                    },
+                    {
+                      name: "to",
+                      type: "address",
+                      value: "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB",
+                    },
                     { name: "amount", type: "uint256", value: "1.88 USDQ" },
                   ],
                 },
@@ -176,8 +209,22 @@ export const DEMO_TXS: DecodedTx[] = [
       ],
     },
     tokenTransfers: [
-      { token: "0x5747AB1E0000000000000000000000000000ST1", tokenSymbol: "QIE", from: "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB", to: "0xBEEF0000000000000000000000000000000B0001", amount: "5.0", raw: "5000000000000000000" },
-      { token: "0xUSDQ000000000000000000000000000000000001", tokenSymbol: "USDQ", from: "0xBEEF0000000000000000000000000000000B0001", to: "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB", amount: "1.88", raw: "1882350000" },
+      {
+        token: "0x5747AB1E0000000000000000000000000000ST1",
+        tokenSymbol: "QIE",
+        from: "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB",
+        to: "0xBEEF0000000000000000000000000000000B0001",
+        amount: "5.0",
+        raw: "5000000000000000000",
+      },
+      {
+        token: "0xUSDQ000000000000000000000000000000000001",
+        tokenSymbol: "USDQ",
+        from: "0xBEEF0000000000000000000000000000000B0001",
+        to: "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB",
+        amount: "1.88",
+        raw: "1882350000",
+      },
     ],
     approvals: [],
   },
@@ -217,7 +264,12 @@ export const DEMO_TXS: DecodedTx[] = [
           args: [
             { name: "from", type: "address", value: "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB" },
             { name: "to", type: "address", value: "0x9a3F1c2D4e5B6a7C8d9E0f1A2b3C4d5E6f7A8b9C" },
-            { name: "amount", type: "uint256", value: "1000000000000000000", display: "1.0 QIE Stable" },
+            {
+              name: "amount",
+              type: "uint256",
+              value: "1000000000000000000",
+              display: "1.0 QIE Stable",
+            },
           ],
           events: [],
           gasUsed: 12_104,
@@ -237,8 +289,7 @@ export function findDemoTx(hash: string) {
 
 export const REVERT_PATTERNS: Record<string, { explain: string; fix: string }> = {
   "ERC20: insufficient allowance": {
-    explain:
-      "A contract tried to spend tokens on your behalf, but you haven't approved enough.",
+    explain: "A contract tried to spend tokens on your behalf, but you haven't approved enough.",
     fix: "Call approve() on the token with a sufficient amount, then retry.",
   },
   "ERC20: transfer amount exceeds balance": {

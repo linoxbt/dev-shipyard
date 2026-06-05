@@ -142,9 +142,29 @@ export const TEMPLATES: Template[] = [
     solidity: ERC20_SRC,
     abi: '[{"inputs":[{"name":"name_","type":"string"},{"name":"symbol_","type":"string"},{"name":"initialSupply_","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"}]',
     args: [
-      { name: "name_", label: "Token Name", type: "string", placeholder: "e.g. My QIE Token", helper: "The full name of your token. This is permanent." },
-      { name: "symbol_", label: "Token Symbol", type: "string", placeholder: "e.g. MQT", maxLength: 8, uppercase: true, helper: "Ticker symbol. Conventionally 3-5 characters." },
-      { name: "initialSupply_", label: "Initial Supply", type: "uint", placeholder: "1000000", helper: "Whole tokens to mint at deploy. Contract handles 18 decimals." },
+      {
+        name: "name_",
+        label: "Token Name",
+        type: "string",
+        placeholder: "e.g. My QIE Token",
+        helper: "The full name of your token. This is permanent.",
+      },
+      {
+        name: "symbol_",
+        label: "Token Symbol",
+        type: "string",
+        placeholder: "e.g. MQT",
+        maxLength: 8,
+        uppercase: true,
+        helper: "Ticker symbol. Conventionally 3-5 characters.",
+      },
+      {
+        name: "initialSupply_",
+        label: "Initial Supply",
+        type: "uint",
+        placeholder: "1000000",
+        helper: "Whole tokens to mint at deploy. Contract handles 18 decimals.",
+      },
     ],
     author: "DevStation",
     version: "1.0.0",
@@ -165,8 +185,21 @@ export const TEMPLATES: Template[] = [
     abi: '[{"inputs":[{"name":"name_","type":"string"},{"name":"symbol_","type":"string"},{"name":"baseURI_","type":"string"},{"name":"maxSupply_","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"}]',
     args: [
       { name: "name_", label: "Collection Name", type: "string", placeholder: "e.g. QIE Genesis" },
-      { name: "symbol_", label: "Symbol", type: "string", placeholder: "QGEN", maxLength: 8, uppercase: true },
-      { name: "baseURI_", label: "Base URI", type: "string", placeholder: "ipfs://CID/", helper: "Token metadata base. Trailing slash recommended." },
+      {
+        name: "symbol_",
+        label: "Symbol",
+        type: "string",
+        placeholder: "QGEN",
+        maxLength: 8,
+        uppercase: true,
+      },
+      {
+        name: "baseURI_",
+        label: "Base URI",
+        type: "string",
+        placeholder: "ipfs://CID/",
+        helper: "Token metadata base. Trailing slash recommended.",
+      },
       { name: "maxSupply_", label: "Max Supply", type: "uint", placeholder: "10000" },
     ],
     author: "DevStation",
@@ -177,16 +210,29 @@ export const TEMPLATES: Template[] = [
     id: "multisig-wallet",
     name: "MultiSigWallet",
     category: "Governance",
-    description: "A multi-signature wallet requiring M of N owner approvals to execute any transaction.",
-    longDescription: "Secure treasury management for teams and DAOs. Each owner can submit and confirm transactions; execution requires the configured threshold.",
+    description:
+      "A multi-signature wallet requiring M of N owner approvals to execute any transaction.",
+    longDescription:
+      "Secure treasury management for teams and DAOs. Each owner can submit and confirm transactions; execution requires the configured threshold.",
     tags: ["Multisig", "Treasury", "DAO"],
     verified: true,
     deployCount: 31,
     solidity: MULTISIG_SRC,
     abi: '[{"inputs":[{"name":"_owners","type":"address[]"},{"name":"_required","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"}]',
     args: [
-      { name: "_owners", label: "Owners", type: "address[]", helper: "Addresses authorized to confirm transactions." },
-      { name: "_required", label: "Required Confirmations", type: "uint", placeholder: "2", helper: "Must be ≤ number of owners." },
+      {
+        name: "_owners",
+        label: "Owners",
+        type: "address[]",
+        helper: "Addresses authorized to confirm transactions.",
+      },
+      {
+        name: "_required",
+        label: "Required Confirmations",
+        type: "uint",
+        placeholder: "2",
+        helper: "Must be ≤ number of owners.",
+      },
     ],
     author: "DevStation",
     version: "1.0.0",
@@ -197,7 +243,8 @@ export const TEMPLATES: Template[] = [
     name: "TokenVesting",
     category: "DeFi",
     description: "Linear token vesting with configurable cliff and vesting duration.",
-    longDescription: "Beneficiaries claim tokens proportionally after the cliff. Used for team allocations and investor unlocks.",
+    longDescription:
+      "Beneficiaries claim tokens proportionally after the cliff. Used for team allocations and investor unlocks.",
     tags: ["Vesting", "Token", "DeFi"],
     verified: true,
     deployCount: 28,
@@ -227,7 +274,12 @@ export const TEMPLATES: Template[] = [
     args: [
       { name: "stakingToken", label: "Staking Token", type: "address" },
       { name: "rewardToken", label: "Reward Token", type: "address" },
-      { name: "rewardRatePerBlock", label: "Reward Rate / Block", type: "uint", placeholder: "1000000000000000000" },
+      {
+        name: "rewardRatePerBlock",
+        label: "Reward Rate / Block",
+        type: "uint",
+        placeholder: "1000000000000000000",
+      },
     ],
     author: "DevStation",
     version: "1.0.0",
@@ -238,14 +290,20 @@ export const TEMPLATES: Template[] = [
     name: "TimelockController",
     category: "Governance",
     description: "Enforces a mandatory delay between proposing and executing on-chain actions.",
-    longDescription: "Used by DAOs to give token holders time to react before significant changes take effect.",
+    longDescription:
+      "Used by DAOs to give token holders time to react before significant changes take effect.",
     tags: ["Timelock", "DAO", "Governance"],
     verified: true,
     deployCount: 19,
     solidity: `// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract TimelockController { /* ... */ }`,
     abi: "[]",
     args: [
-      { name: "minDelaySeconds", label: "Min Delay (seconds)", type: "uint", placeholder: "172800" },
+      {
+        name: "minDelaySeconds",
+        label: "Min Delay (seconds)",
+        type: "uint",
+        placeholder: "172800",
+      },
       { name: "proposers", label: "Proposers", type: "address[]" },
       { name: "executors", label: "Executors", type: "address[]" },
     ],
@@ -266,7 +324,14 @@ export const TEMPLATES: Template[] = [
     abi: "[]",
     args: [
       { name: "name_", label: "Name", type: "string", placeholder: "QIE Builder Badge" },
-      { name: "symbol_", label: "Symbol", type: "string", maxLength: 8, uppercase: true, placeholder: "QBB" },
+      {
+        name: "symbol_",
+        label: "Symbol",
+        type: "string",
+        maxLength: 8,
+        uppercase: true,
+        placeholder: "QBB",
+      },
     ],
     author: "DevStation",
     version: "1.0.0",
@@ -277,7 +342,8 @@ export const TEMPLATES: Template[] = [
     name: "PaymentSplitter",
     category: "Utility",
     description: "Automatically splits incoming payments among recipients by configurable shares.",
-    longDescription: "Pull-based claiming. Each recipient claims their share proportional to their allocation.",
+    longDescription:
+      "Pull-based claiming. Each recipient claims their share proportional to their allocation.",
     tags: ["Payment", "Splits", "Utility"],
     verified: true,
     deployCount: 23,
@@ -309,11 +375,17 @@ export const CATEGORIES: ("All" | TemplateCategory)[] = [
 
 export function categoryColor(cat: TemplateCategory): string {
   switch (cat) {
-    case "Token Standards": return "text-cat-token border-cat-token/40 bg-cat-token/10";
-    case "DeFi": return "text-cat-defi border-cat-defi/40 bg-cat-defi/10";
-    case "Governance": return "text-cat-gov border-cat-gov/40 bg-cat-gov/10";
-    case "Utility": return "text-cat-util border-cat-util/40 bg-cat-util/10";
-    case "NFT": return "text-cat-nft border-cat-nft/40 bg-cat-nft/10";
-    case "Custom": return "text-cat-custom border-cat-custom/40 bg-cat-custom/10";
+    case "Token Standards":
+      return "text-cat-token border-cat-token/40 bg-cat-token/10";
+    case "DeFi":
+      return "text-cat-defi border-cat-defi/40 bg-cat-defi/10";
+    case "Governance":
+      return "text-cat-gov border-cat-gov/40 bg-cat-gov/10";
+    case "Utility":
+      return "text-cat-util border-cat-util/40 bg-cat-util/10";
+    case "NFT":
+      return "text-cat-nft border-cat-nft/40 bg-cat-nft/10";
+    case "Custom":
+      return "text-cat-custom border-cat-custom/40 bg-cat-custom/10";
   }
 }

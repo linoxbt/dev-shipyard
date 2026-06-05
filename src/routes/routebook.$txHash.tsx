@@ -1,6 +1,14 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useState } from "react";
-import { ChevronDown, ChevronRight, AlertTriangle, ArrowRight, Share2, Download, Zap } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import {
+  ChevronDown,
+  ChevronRight,
+  AlertTriangle,
+  ArrowRight,
+  Share2,
+  Download,
+  Zap,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { AddressChip } from "@/components/shared/AddressChip";
@@ -9,18 +17,32 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { CodeBlock } from "@/components/shared/CodeBlock";
 import { findDemoTx, type RouteCall, type DecodedArg } from "@/lib/mock/transactions";
 import { findLabel } from "@/lib/mock/labels";
-import { CHAIN, ORACLE_RATE_USD, formatUsd } from "@/lib/chain";
+import { CHAIN } from "@/lib/chain";
+import { decodeTransaction } from "@/lib/api/decode.functions";
+import { storage } from "@/lib/storage";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/routebook/$txHash")({
-  loader: ({ params }) => {
-    const tx = findDemoTx(params.txHash);
-    if (!tx) {
-      // Synthesize an "unknown tx" placeholder
-      return { tx: null, hash: params.txHash };
+  // Demo hashes resolve from the bundled samples; everything else is decoded
+  // live from the QIE RPC server-side.
+  loader: async ({ params }) => {
+    const demo = findDemoTx(params.txHash);
+    if (demo) return { tx: demo, hash: params.txHash, error: null as string | null };
+    if (!/^0x[a-fA-F0-9]{64}$/.test(params.txHash)) {
+      return {
+        tx: null,
+        hash: params.txHash,
+        error: "That doesn't look like a valid transaction hash.",
+      };
     }
-    return { tx, hash: params.txHash };
+    const res = await decodeTransaction({ data: { txHash: params.txHash } });
+    if (res.status === "success") return { tx: res.tx, hash: params.txHash, error: null };
+    return {
+      tx: null,
+      hash: params.txHash,
+      error: res.status === "notfound" ? "Transaction not found on this network." : res.error,
+    };
   },
   head: ({ params }) => ({
     meta: [{ title: `Routebook · ${params.txHash.slice(0, 10)}… — DevStation` }],
@@ -29,8 +51,13 @@ export const Route = createFileRoute("/routebook/$txHash")({
 });
 
 function TxView() {
-  const { tx, hash } = Route.useLoaderData();
+  const { tx, hash, error } = Route.useLoaderData();
   const [tab, setTab] = useState<"route" | "gas">("route");
+
+  // Record successful inspections for the history list.
+  useEffect(() => {
+    if (tx) storage.addInspection(hash);
+  }, [tx, hash]);
 
   if (!tx) {
     return (
@@ -39,11 +66,11 @@ function TxView() {
         <div className="p-6">
           <div className="rounded border border-border bg-surface p-8 text-center">
             <div className="font-mono text-sm text-muted-foreground">
-              No decoded data found for this hash in DevStation's cache.
+              {error ?? "No decoded data found for this hash."}
             </div>
             <TxHashChip hash={hash} className="mt-3 inline-flex" />
             <p className="mt-4 text-xs text-meta">
-              Live RPC decoding is wired up post-MVP. Try one of the demo transactions for now.
+              Paste any QIE transaction hash, or try one of the demo transactions.
             </p>
             <Link
               to="/routebook"
@@ -106,15 +133,16 @@ function TxView() {
             </span>
           </div>
           <dl className="grid grid-cols-2 gap-3 font-mono text-xs lg:grid-cols-4">
-            <OverviewField label="From"><AddressChip address={tx.from} /></OverviewField>
-            <OverviewField label="To"><AddressChip address={tx.to} /></OverviewField>
+            <OverviewField label="From">
+              <AddressChip address={tx.from} />
+            </OverviewField>
+            <OverviewField label="To">
+              <AddressChip address={tx.to} />
+            </OverviewField>
             <OverviewField label="Value">{tx.value} QIE</OverviewField>
             <OverviewField label="Gas Used">{tx.gasUsed.toLocaleString()}</OverviewField>
             <OverviewField label="Gas Price">{tx.gasPriceGwei} Gwei</OverviewField>
-            <OverviewField label="Gas Cost">
-              {tx.gasCostQIE.toFixed(6)} QIE
-              <span className="ml-1 text-meta">({formatUsd(tx.gasCostQIE * ORACLE_RATE_USD)})</span>
-            </OverviewField>
+            <OverviewField label="Gas Cost">{tx.gasCostQIE.toFixed(6)} QIE</OverviewField>
             <OverviewField label="Network">{CHAIN.name}</OverviewField>
             <OverviewField label="Chain ID">{CHAIN.id}</OverviewField>
           </dl>
@@ -138,13 +166,17 @@ function TxView() {
               </div>
               {tx.revertExplain && (
                 <div>
-                  <div className="text-[10px] uppercase tracking-wider text-meta">What this means</div>
+                  <div className="text-[10px] uppercase tracking-wider text-meta">
+                    What this means
+                  </div>
                   <p className="mt-1 text-muted-foreground">{tx.revertExplain}</p>
                 </div>
               )}
               {tx.revertFix && (
                 <div>
-                  <div className="text-[10px] uppercase tracking-wider text-meta">Suggested fix</div>
+                  <div className="text-[10px] uppercase tracking-wider text-meta">
+                    Suggested fix
+                  </div>
                   <p className="mt-1 text-foreground">{tx.revertFix}</p>
                 </div>
               )}
@@ -155,8 +187,12 @@ function TxView() {
         {/* Tabs */}
         <div>
           <div className="mb-3 flex gap-1 border-b border-border">
-            <TabBtn active={tab === "route"} onClick={() => setTab("route")}>Route Graph</TabBtn>
-            <TabBtn active={tab === "gas"} onClick={() => setTab("gas")}>Gas Breakdown</TabBtn>
+            <TabBtn active={tab === "route"} onClick={() => setTab("route")}>
+              Route Graph
+            </TabBtn>
+            <TabBtn active={tab === "gas"} onClick={() => setTab("gas")}>
+              Gas Breakdown
+            </TabBtn>
           </div>
 
           {tab === "route" ? (
@@ -171,49 +207,54 @@ function TxView() {
                     <Empty>No token transfers in this transaction.</Empty>
                   ) : (
                     <div className="divide-y divide-border">
-                      {tx.tokenTransfers.map((t: import("@/lib/mock/transactions").TokenTransfer, i: number) => (
-                        <div key={i} className="px-4 py-3 font-mono text-xs">
-                          <div className="mb-1 flex items-center gap-2">
-                            <span className="font-bold text-foreground">{t.amount} {t.tokenSymbol}</span>
+                      {tx.tokenTransfers.map(
+                        (t: import("@/lib/mock/transactions").TokenTransfer, i: number) => (
+                          <div key={i} className="px-4 py-3 font-mono text-xs">
+                            <div className="mb-1 flex items-center gap-2">
+                              <span className="font-bold text-foreground">
+                                {t.amount} {t.tokenSymbol}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-meta">
+                              <AddressChip address={t.from} />
+                              <ArrowRight className="h-3 w-3" />
+                              <AddressChip address={t.to} />
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-meta">
-                            <AddressChip address={t.from} />
-                            <ArrowRight className="h-3 w-3" />
-                            <AddressChip address={t.to} />
-                          </div>
-                        </div>
-                      ))}
+                        ),
+                      )}
                     </div>
                   )}
                 </Panel>
 
                 {/* Approvals */}
                 {tx.approvals.length > 0 && (
-                  <Panel
-                    title={
-                      <span className="text-warning">⚠ Approvals Detected</span>
-                    }
-                  >
+                  <Panel title={<span className="text-warning">⚠ Approvals Detected</span>}>
                     <div className="divide-y divide-border">
-                      {tx.approvals.map((a: import("@/lib/mock/transactions").ApprovalRecord, i: number) => (
-                        <div key={i} className="px-4 py-3 font-mono text-xs">
-                          <div className="text-foreground">
-                            {a.tokenSymbol}: {a.unlimited ? "UNLIMITED" : a.amount}
+                      {tx.approvals.map(
+                        (a: import("@/lib/mock/transactions").ApprovalRecord, i: number) => (
+                          <div key={i} className="px-4 py-3 font-mono text-xs">
+                            <div className="text-foreground">
+                              {a.tokenSymbol}: {a.unlimited ? "UNLIMITED" : a.amount}
+                            </div>
+                            <div className="mt-1 text-meta">
+                              spender: <AddressChip address={a.spender} />
+                            </div>
+                            <div
+                              className={cn(
+                                "mt-1 text-[10px] uppercase",
+                                a.risk === "High"
+                                  ? "text-danger"
+                                  : a.risk === "Medium"
+                                    ? "text-warning"
+                                    : "text-success",
+                              )}
+                            >
+                              Risk: {a.risk}
+                            </div>
                           </div>
-                          <div className="mt-1 text-meta">
-                            spender:{" "}
-                            <AddressChip address={a.spender} />
-                          </div>
-                          <div
-                            className={cn(
-                              "mt-1 text-[10px] uppercase",
-                              a.risk === "High" ? "text-danger" : a.risk === "Medium" ? "text-warning" : "text-success",
-                            )}
-                          >
-                            Risk: {a.risk}
-                          </div>
-                        </div>
-                      ))}
+                        ),
+                      )}
                     </div>
                   </Panel>
                 )}
@@ -239,10 +280,10 @@ function RouteNode({ call, depth }: { call: RouteCall; depth: number }) {
     call.type === "user"
       ? "border-l-primary"
       : call.type === "failed"
-      ? "border-l-danger"
-      : call.type === "view"
-      ? "border-l-meta border-dashed"
-      : "border-l-border";
+        ? "border-l-danger"
+        : call.type === "view"
+          ? "border-l-meta border-dashed"
+          : "border-l-border";
 
   return (
     <div className={cn("ml-0 mt-2 first:mt-0", depth > 0 && "ml-5")}>
@@ -252,7 +293,11 @@ function RouteNode({ call, depth }: { call: RouteCall; depth: number }) {
           className="flex w-full items-start gap-2 px-3 py-2 text-left"
         >
           {hasChildren ? (
-            open ? <ChevronDown className="mt-0.5 h-3 w-3 text-meta" /> : <ChevronRight className="mt-0.5 h-3 w-3 text-meta" />
+            open ? (
+              <ChevronDown className="mt-0.5 h-3 w-3 text-meta" />
+            ) : (
+              <ChevronRight className="mt-0.5 h-3 w-3 text-meta" />
+            )
           ) : (
             <span className="mt-0.5 h-3 w-3" />
           )}
@@ -261,18 +306,27 @@ function RouteNode({ call, depth }: { call: RouteCall; depth: number }) {
               {label ? (
                 <span className="font-mono text-sm font-bold text-info">{label.name}</span>
               ) : call.contractName ? (
-                <span className="font-mono text-sm font-bold text-primary">{call.contractName}</span>
+                <span className="font-mono text-sm font-bold text-primary">
+                  {call.contractName}
+                </span>
               ) : (
-                <span className="font-mono text-sm font-bold text-danger" title={call.contractAddress}>
+                <span
+                  className="font-mono text-sm font-bold text-danger"
+                  title={call.contractAddress}
+                >
                   [Unknown Contract]
                 </span>
               )}
               <span className="font-mono text-xs text-code break-all">.{call.fn}</span>
               {call.type === "view" && (
-                <span className="font-mono text-[9px] uppercase tracking-wider text-meta">view</span>
+                <span className="font-mono text-[9px] uppercase tracking-wider text-meta">
+                  view
+                </span>
               )}
               {call.type === "failed" && (
-                <span className="font-mono text-[9px] uppercase tracking-wider text-danger">reverted</span>
+                <span className="font-mono text-[9px] uppercase tracking-wider text-danger">
+                  reverted
+                </span>
               )}
               <span className="ml-auto font-mono text-[10px] text-meta">
                 {call.gasUsed.toLocaleString()} gas
@@ -287,8 +341,12 @@ function RouteNode({ call, depth }: { call: RouteCall; depth: number }) {
             )}
             {open && call.returns && call.returns.length > 0 && (
               <div className="mt-1.5 border-t border-border pt-1.5">
-                <div className="font-mono text-[10px] uppercase tracking-wider text-meta">returns</div>
-                {call.returns.map((a, i) => <ArgLine key={i} arg={a} />)}
+                <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+                  returns
+                </div>
+                {call.returns.map((a, i) => (
+                  <ArgLine key={i} arg={a} />
+                ))}
               </div>
             )}
           </div>
@@ -298,11 +356,11 @@ function RouteNode({ call, depth }: { call: RouteCall; depth: number }) {
           <div className="border-t border-border bg-background/40 px-3 py-2">
             {call.events.map((ev, i) => (
               <div key={i} className="flex items-start gap-2 py-0.5 font-mono text-xs">
-                <Zap className={cn("mt-0.5 h-3 w-3", ev.isApproval ? "text-warning" : "text-success")} />
+                <Zap
+                  className={cn("mt-0.5 h-3 w-3", ev.isApproval ? "text-warning" : "text-success")}
+                />
                 <div className="min-w-0 flex-1">
-                  <span className={ev.isApproval ? "text-warning" : "text-success"}>
-                    {ev.name}
-                  </span>
+                  <span className={ev.isApproval ? "text-warning" : "text-success"}>{ev.name}</span>
                   <span className="text-meta">(</span>
                   <span className="text-muted-foreground">
                     {ev.args.map((a, j) => (
@@ -378,10 +436,7 @@ function GasBreakdown({ call, totalGas }: { call: RouteCall; totalGas: number })
                 </span>
               </div>
               <div className="mt-1 h-1.5 w-full overflow-hidden rounded bg-background">
-                <div
-                  className="h-full bg-primary"
-                  style={{ width: `${Math.max(pct, 1)}%` }}
-                />
+                <div className="h-full bg-primary" style={{ width: `${Math.max(pct, 1)}%` }} />
               </div>
             </div>
           );
@@ -392,11 +447,21 @@ function GasBreakdown({ call, totalGas }: { call: RouteCall; totalGas: number })
         <table className="w-full font-mono text-xs">
           <thead className="bg-surface-2 text-meta">
             <tr>
-              <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">Contract</th>
-              <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">Function</th>
-              <th className="px-3 py-2 text-right text-[10px] font-normal uppercase tracking-wider">Gas</th>
-              <th className="px-3 py-2 text-right text-[10px] font-normal uppercase tracking-wider">%</th>
-              <th className="px-3 py-2 text-right text-[10px] font-normal uppercase tracking-wider">USD</th>
+              <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                Contract
+              </th>
+              <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                Function
+              </th>
+              <th className="px-3 py-2 text-right text-[10px] font-normal uppercase tracking-wider">
+                Gas
+              </th>
+              <th className="px-3 py-2 text-right text-[10px] font-normal uppercase tracking-wider">
+                %
+              </th>
+              <th className="px-3 py-2 text-right text-[10px] font-normal uppercase tracking-wider">
+                QIE
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -408,18 +473,24 @@ function GasBreakdown({ call, totalGas }: { call: RouteCall; totalGas: number })
                     {c.contractName ?? c.contractAddress.slice(0, 10)}
                   </td>
                   <td className="px-3 py-1.5 text-code">{c.fn.split("(")[0]}</td>
-                  <td className="px-3 py-1.5 text-right text-muted-foreground">{c.gasUsed.toLocaleString()}</td>
-                  <td className="px-3 py-1.5 text-right text-muted-foreground">{((c.gasUsed/totalGas)*100).toFixed(1)}%</td>
-                  <td className="px-3 py-1.5 text-right text-meta">{formatUsd(qie * ORACLE_RATE_USD)}</td>
+                  <td className="px-3 py-1.5 text-right text-muted-foreground">
+                    {c.gasUsed.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-1.5 text-right text-muted-foreground">
+                    {((c.gasUsed / totalGas) * 100).toFixed(1)}%
+                  </td>
+                  <td className="px-3 py-1.5 text-right text-meta">{qie.toFixed(6)}</td>
                 </tr>
               );
             })}
             <tr className="border-t border-border bg-surface-2 font-bold">
-              <td className="px-3 py-2 text-foreground" colSpan={2}>Total</td>
+              <td className="px-3 py-2 text-foreground" colSpan={2}>
+                Total
+              </td>
               <td className="px-3 py-2 text-right text-foreground">{totalGas.toLocaleString()}</td>
               <td className="px-3 py-2 text-right text-muted-foreground">100%</td>
               <td className="px-3 py-2 text-right text-foreground">
-                {formatUsd((totalGas * 1.2 / 1e9) * ORACLE_RATE_USD)}
+                {((totalGas * 1.2) / 1e9).toFixed(6)}
               </td>
             </tr>
           </tbody>
@@ -431,7 +502,15 @@ function GasBreakdown({ call, totalGas }: { call: RouteCall; totalGas: number })
 
 /* ─────── tiny helpers ─────── */
 
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function TabBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}

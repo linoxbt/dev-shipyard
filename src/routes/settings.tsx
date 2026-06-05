@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { CHAIN, ORACLE_RATE_USD } from "@/lib/chain";
-import { useWallet } from "@/lib/wallet";
+import { CHAIN } from "@/lib/chain";
+import { WalletProfile } from "@/components/web3/WalletProfile";
+import { storage } from "@/lib/storage";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings — DevStation" }] }),
@@ -11,7 +12,6 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const wallet = useWallet();
   const [rpc, setRpc] = useState(CHAIN.rpc);
   const [oracleEnabled, setOracleEnabled] = useState(true);
   const [oracleInterval, setOracleInterval] = useState("30");
@@ -26,6 +26,12 @@ function SettingsPage() {
         subtitle="Configure network, oracle, display, and registry preferences."
       />
       <div className="grid gap-6 p-6 lg:grid-cols-2">
+        <div className="lg:col-span-2">
+          <Section title="Wallet & Profile">
+            <WalletProfile />
+          </Section>
+        </div>
+
         <Section title="Network Configuration">
           <Row label="Current Network">
             <span className="flex items-center gap-1.5">
@@ -69,13 +75,17 @@ function SettingsPage() {
             </select>
           </Row>
           <Row label="Display currency">USD</Row>
-          <Row label="Current rate">1 QIE = ${ORACLE_RATE_USD.toFixed(2)} USD</Row>
         </Section>
 
         <Section title="Contract Label Registry">
-          <Toggle label="Auto-register deployed contracts" value={autoLabel} onChange={setAutoLabel} />
+          <Toggle
+            label="Auto-register deployed contracts"
+            value={autoLabel}
+            onChange={setAutoLabel}
+          />
           <p className="text-xs text-meta">
-            When on, contracts you deploy through DevStation are automatically registered in ContractLabelRegistry so they appear with your project name in Routebook.
+            When on, contracts you deploy through DevStation are automatically registered in
+            ContractLabelRegistry so they appear with your project name in Routebook.
           </p>
         </Section>
 
@@ -87,7 +97,9 @@ function SettingsPage() {
                   key={v}
                   onClick={() => setAddressFormat(v)}
                   className={`rounded border px-2 py-1 font-mono text-[11px] ${
-                    addressFormat === v ? "border-primary text-primary" : "border-border text-muted-foreground"
+                    addressFormat === v
+                      ? "border-primary text-primary"
+                      : "border-border text-muted-foreground"
                   }`}
                 >
                   {v}
@@ -96,33 +108,27 @@ function SettingsPage() {
             </div>
           </Row>
           <Row label="Theme">
-            <span className="text-muted-foreground">Dark <span className="text-meta">(only option — this is a dev tool)</span></span>
+            <span className="text-muted-foreground">
+              Dark <span className="text-meta">(only option — this is a dev tool)</span>
+            </span>
           </Row>
-        </Section>
-
-        <Section title="QIE Pass">
-          {wallet.qiePassVerified ? (
-            <div className="rounded border border-success/40 bg-success/5 p-3 font-mono text-xs text-success">
-              ✓ QIE Pass Verified
-              <div className="mt-1 text-meta">Pass holder since 2026-02-14</div>
-            </div>
-          ) : (
-            <div className="rounded border border-danger/40 bg-danger/5 p-3 font-mono text-xs text-danger">
-              ✗ QIE Pass not detected
-              <div className="mt-1 text-meta">Required to submit templates and labels.</div>
-            </div>
-          )}
         </Section>
 
         <Section title="Clear Data">
           <button
-            onClick={() => toast.success("Inspection history cleared")}
+            onClick={() => {
+              storage.clearInspections();
+              toast.success("Inspection history cleared");
+            }}
             className="block w-full rounded border border-border px-3 py-2 text-left font-mono text-xs text-muted-foreground hover:border-danger hover:text-danger"
           >
             Clear Inspection History
           </button>
           <button
-            onClick={() => toast.success("Project cache cleared")}
+            onClick={() => {
+              storage.clearProjects();
+              toast.success("Project cache cleared");
+            }}
             className="block w-full rounded border border-border px-3 py-2 text-left font-mono text-xs text-muted-foreground hover:border-danger hover:text-danger"
           >
             Clear Project Cache
@@ -155,7 +161,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <label className="flex cursor-pointer items-center justify-between font-mono text-xs">
       <span className="text-foreground">{label}</span>

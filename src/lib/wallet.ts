@@ -1,30 +1,40 @@
-// Mock wallet/network state. Replace with wagmi later.
-import { create } from "zustand";
+// Real wallet/network state, backed by wagmi. `useWallet` keeps the same shape
+// the UI already consumes so existing call sites work unchanged.
+import { useCallback } from "react";
+import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
+import { qieTestnet } from "./chains";
 
-interface WalletState {
+export const QIE_CHAIN_ID = qieTestnet.id;
+
+export interface WalletView {
   connected: boolean;
-  address: string | null;
+  address: `0x${string}` | null;
   chainId: number;
-  qiePassVerified: boolean;
   connect: () => void;
   disconnect: () => void;
   switchToQIE: () => void;
-  setChainId: (id: number) => void;
 }
 
-const MOCK_ADDRESS = "0x742d35Cc6634C0532925a3b844Bc9e7595f7E8aB";
-export const QIE_CHAIN_ID = 1983;
+export function useWallet(): WalletView {
+  const { address, isConnected, chainId } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+  const { switchChain } = useSwitchChain();
 
-export const useWallet = create<WalletState>((set) => ({
-  connected: true,
-  address: MOCK_ADDRESS,
-  chainId: QIE_CHAIN_ID,
-  qiePassVerified: true,
-  connect: () => set({ connected: true, address: MOCK_ADDRESS, chainId: QIE_CHAIN_ID }),
-  disconnect: () => set({ connected: false, address: null }),
-  switchToQIE: () => set({ chainId: QIE_CHAIN_ID }),
-  setChainId: (id) => set({ chainId: id }),
-}));
+  const doConnect = useCallback(() => {
+    const injectedConnector = connectors.find((c) => c.type === "injected") ?? connectors[0];
+    if (injectedConnector) connect({ connector: injectedConnector });
+  }, [connect, connectors]);
+
+  return {
+    connected: isConnected,
+    address: address ?? null,
+    chainId: chainId ?? QIE_CHAIN_ID,
+    connect: doConnect,
+    disconnect: () => disconnect(),
+    switchToQIE: () => switchChain({ chainId: QIE_CHAIN_ID }),
+  };
+}
 
 export function truncateAddress(addr: string, head = 6, tail = 4) {
   if (!addr) return "";

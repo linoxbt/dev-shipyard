@@ -7,6 +7,7 @@ import { AddressChip } from "@/components/shared/AddressChip";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useProjects, type DeployedProject } from "@/lib/mock/projects";
+import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { CHAIN } from "@/lib/chain";
 
 export const Route = createFileRoute("/launchkit/projects")({
@@ -15,9 +16,30 @@ export const Route = createFileRoute("/launchkit/projects")({
 });
 
 function ProjectsPage() {
-  const projects = useProjects((s) => s.projects);
+  const storeProjects = useProjects((s) => s.projects);
   const remove = useProjects((s) => s.remove);
+  const { deployments: registryProjects, onChain } = useProjectRegistry();
   const [selected, setSelected] = useState<DeployedProject | null>(null);
+
+  // Merge on-chain registry deployments with the local store, deduped by txHash.
+  const seen = new Set(storeProjects.map((p) => p.txHash));
+  const extra = registryProjects
+    .filter((p) => !seen.has(p.txHash))
+    .map(
+      (p): DeployedProject => ({
+        id: p.id,
+        name: p.name,
+        templateId: p.templateId,
+        templateName: p.templateName,
+        address: p.address,
+        txHash: p.txHash,
+        blockNumber: p.blockNumber,
+        deployedAt: p.deployedAt,
+        status: p.status,
+        constructorArgs: p.constructorArgs,
+      }),
+    );
+  const projects = [...extra, ...storeProjects];
 
   return (
     <div>
@@ -36,6 +58,12 @@ function ProjectsPage() {
       />
 
       <div className="p-6">
+        {onChain && (
+          <div className="mb-3 flex items-center gap-1.5 font-mono text-[10px] text-success">
+            <span className="h-1.5 w-1.5 rounded-full bg-success" /> Reading from on-chain
+            ProjectRegistry
+          </div>
+        )}
         {projects.length === 0 ? (
           <div className="rounded border border-border bg-surface p-10 text-center">
             <p className="font-mono text-xs text-meta">No deployments yet.</p>
@@ -51,11 +79,21 @@ function ProjectsPage() {
             <table className="w-full font-mono text-xs">
               <thead>
                 <tr className="border-b border-border bg-surface-2 text-meta">
-                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">Name</th>
-                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">Template</th>
-                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">Address</th>
-                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">Deployed</th>
-                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">Status</th>
+                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">
+                    Name
+                  </th>
+                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">
+                    Template
+                  </th>
+                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">
+                    Address
+                  </th>
+                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">
+                    Deployed
+                  </th>
+                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">
+                    Status
+                  </th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
@@ -108,7 +146,9 @@ function ProjectsPage() {
           <aside className="w-full max-w-md overflow-y-auto border-l border-border bg-surface p-6">
             <div className="mb-4 flex items-start justify-between">
               <div>
-                <div className="font-mono text-[10px] uppercase tracking-wider text-meta">Project</div>
+                <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+                  Project
+                </div>
                 <h2 className="font-mono text-lg font-bold text-foreground">{selected.name}</h2>
               </div>
               <button
@@ -121,7 +161,9 @@ function ProjectsPage() {
 
             <dl className="space-y-3 font-mono text-xs">
               <Field label="Template">{selected.templateName}</Field>
-              <Field label="Status"><StatusBadge kind={selected.status} /></Field>
+              <Field label="Status">
+                <StatusBadge kind={selected.status} />
+              </Field>
               <Field label="Contract Address">
                 <AddressChip address={selected.address} showLabel={false} full />
               </Field>
@@ -129,9 +171,7 @@ function ProjectsPage() {
                 <TxHashChip hash={selected.txHash} />
               </Field>
               <Field label="Block">#{selected.blockNumber.toLocaleString()}</Field>
-              <Field label="Deployed">
-                {new Date(selected.deployedAt).toUTCString()}
-              </Field>
+              <Field label="Deployed">{new Date(selected.deployedAt).toUTCString()}</Field>
             </dl>
 
             <div className="mt-6">
@@ -165,7 +205,10 @@ function ProjectsPage() {
                 Open on Explorer <ExternalLink className="h-3 w-3" />
               </a>
               <button
-                onClick={() => { remove(selected.id); setSelected(null); }}
+                onClick={() => {
+                  remove(selected.id);
+                  setSelected(null);
+                }}
                 className="rounded border border-border px-3 py-2 font-mono text-xs text-muted-foreground hover:border-danger hover:text-danger"
               >
                 Remove from History

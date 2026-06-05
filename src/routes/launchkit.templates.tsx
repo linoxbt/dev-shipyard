@@ -8,7 +8,10 @@ export const Route = createFileRoute("/launchkit/templates")({
   head: () => ({
     meta: [
       { title: "Templates — DevStation LaunchKit" },
-      { name: "description", content: "Verified Solidity contract templates ready to deploy on QIE Testnet." },
+      {
+        name: "description",
+        content: "Verified Solidity contract templates ready to deploy on QIE Testnet.",
+      },
     ],
   }),
   component: TemplateGallery,
@@ -90,7 +93,13 @@ function TemplateGallery() {
         {filtered.length === 0 ? (
           <div className="rounded border border-border bg-surface p-10 text-center font-mono text-xs text-meta">
             No templates found matching your filter.
-            <button onClick={() => { setCat("All"); setQuery(""); }} className="ml-2 text-primary hover:underline">
+            <button
+              onClick={() => {
+                setCat("All");
+                setQuery("");
+              }}
+              className="ml-2 text-primary hover:underline"
+            >
               Reset
             </button>
           </div>
@@ -102,7 +111,9 @@ function TemplateGallery() {
                 className="flex flex-col rounded border border-border bg-surface p-4 transition hover:border-primary/40"
               >
                 <div className="mb-3 flex items-start justify-between">
-                  <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${categoryColor(t.category)}`}>
+                  <span
+                    className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${categoryColor(t.category)}`}
+                  >
                     {t.category}
                   </span>
                   {t.verified && (
@@ -127,7 +138,10 @@ function TemplateGallery() {
 
                 <div className="mt-2 flex flex-wrap gap-1">
                   {t.tags.map((tag) => (
-                    <span key={tag} className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    <span
+                      key={tag}
+                      className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                    >
                       {tag}
                     </span>
                   ))}

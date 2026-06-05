@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CodeBlock } from "@/components/shared/CodeBlock";
 import { TerminalOutput, type TerminalLine } from "@/components/shared/TerminalOutput";
-import { OracleRateBadge } from "@/components/shared/OracleRateBadge";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { AddressChip } from "@/components/shared/AddressChip";
 import {
@@ -16,7 +15,7 @@ import {
   type Template,
   type ConstructorArg,
 } from "@/lib/mock/templates";
-import { CHAIN, GAS_PRICE_GWEI, ORACLE_RATE_USD, formatUsd } from "@/lib/chain";
+import { CHAIN, GAS_PRICE_GWEI } from "@/lib/chain";
 import { useProjects } from "@/lib/mock/projects";
 import { useWallet } from "@/lib/wallet";
 
@@ -49,7 +48,7 @@ function DeployWizard() {
     block: number;
   }>(null);
 
-  const template = templateId ? getTemplate(templateId) ?? null : null;
+  const template = templateId ? (getTemplate(templateId) ?? null) : null;
 
   const filteredTemplates = useMemo(() => {
     const q = filter.toLowerCase();
@@ -221,7 +220,8 @@ function DeployWizard() {
                   className="mt-1 w-full rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
                 />
                 <span className="mt-1 block text-[10px] text-meta">
-                  This name will appear in Routebook whenever this contract is involved in a transaction.
+                  This name will appear in Routebook whenever this contract is involved in a
+                  transaction.
                 </span>
               </label>
             </div>
@@ -237,22 +237,14 @@ function DeployWizard() {
                 <PreviewRow label="Template" value={template.name} />
                 <PreviewRow label="Network" value={`${CHAIN.name} (Chain ${CHAIN.id})`} />
                 <PreviewRow label="Compiler" value="Solidity 0.8.20" />
-                <PreviewRow label="Est. Gas" value={`~${template.estimatedGas.toLocaleString()} units`} />
                 <PreviewRow
-                  label="Est. Cost"
-                  value={
-                    <span>
-                      ~{gasQIE.toFixed(6)} QIE{" "}
-                      <span className="text-meta">({formatUsd(gasQIE * ORACLE_RATE_USD)})</span>
-                    </span>
-                  }
+                  label="Est. Gas"
+                  value={`~${template.estimatedGas.toLocaleString()} units`}
                 />
+                <PreviewRow label="Est. Cost" value={<span>~{gasQIE.toFixed(6)} QIE</span>} />
                 <PreviewRow label="Verification" value="Automatic" />
                 <PreviewRow label="Registry" value={projectName || template.name} />
               </dl>
-              <div className="mt-3">
-                <OracleRateBadge qieAmount={gasQIE} />
-              </div>
             </div>
 
             <div>
@@ -263,7 +255,9 @@ function DeployWizard() {
                 language="json"
                 showLineNumbers={false}
                 code={JSON.stringify(
-                  Object.fromEntries(template.args.map((a) => [a.name, args[a.name] || `<${a.type}>`])),
+                  Object.fromEntries(
+                    template.args.map((a) => [a.name, args[a.name] || `<${a.type}>`]),
+                  ),
                   null,
                   2,
                 )}
@@ -296,12 +290,21 @@ function DeployWizard() {
       { text: "[DevStation] Compiling SimpleERC20.sol with solc 0.8.20...", status: "pending" },
       { text: "[DevStation] ✓ Compiled (no warnings)", status: "success" },
       { text: "[DevStation] Estimating gas via QIE RPC...", status: "pending" },
-      { text: `[DevStation] ✓ Estimated ${template.estimatedGas.toLocaleString()} gas units`, status: "success" },
-      { text: `[DevStation] Submitting deployment transaction to ${CHAIN.name}...`, status: "pending" },
+      {
+        text: `[DevStation] ✓ Estimated ${template.estimatedGas.toLocaleString()} gas units`,
+        status: "success",
+      },
+      {
+        text: `[DevStation] Submitting deployment transaction to ${CHAIN.name}...`,
+        status: "pending",
+      },
       { text: "[DevStation] ✓ Transaction broadcast", status: "success" },
       { text: "[DevStation] Waiting for confirmation (block #4,318,302)...", status: "pending" },
       { text: "[DevStation] ✓ Confirmed in 2 blocks", status: "success" },
-      { text: "[DevStation] Submitting source for verification at testnet.qie.digital...", status: "pending" },
+      {
+        text: "[DevStation] Submitting source for verification at testnet.qie.digital...",
+        status: "pending",
+      },
       { text: "[DevStation] ✓ Verification successful", status: "success" },
       { text: "[DevStation] Registering label in ContractLabelRegistry...", status: "pending" },
       { text: `[DevStation] ✓ Registered as "${projectName || template.name}"`, status: "success" },
@@ -342,7 +345,9 @@ function DeployWizard() {
                 <Check className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <h2 className="font-mono text-lg font-bold text-success">Contract Deployed & Verified</h2>
+                <h2 className="font-mono text-lg font-bold text-success">
+                  Contract Deployed & Verified
+                </h2>
                 <dl className="mt-3 grid grid-cols-1 gap-2 font-mono text-xs sm:grid-cols-2">
                   <SuccessRow label="Project" value={projectName || template.name} />
                   <SuccessRow label="Template" value={template.name} />
@@ -371,7 +376,12 @@ function DeployWizard() {
                 </button>
               }
             >
-              <CodeBlock code={envContent} language="env" maxHeight="220px" showLineNumbers={false} />
+              <CodeBlock
+                code={envContent}
+                language="env"
+                maxHeight="220px"
+                showLineNumbers={false}
+              />
             </ResultCard>
 
             {/* Submission */}
@@ -389,7 +399,12 @@ function DeployWizard() {
                 </button>
               }
             >
-              <CodeBlock code={submission} language="env" maxHeight="220px" showLineNumbers={false} />
+              <CodeBlock
+                code={submission}
+                language="env"
+                maxHeight="220px"
+                showLineNumbers={false}
+              />
               <p className="mt-2 text-[10px] text-meta">
                 Pre-filled from your deployment. Add your GitHub and demo URL before submitting.
               </p>
@@ -409,9 +424,15 @@ function DeployWizard() {
               }
             >
               <div className="space-y-2 rounded border border-border bg-background p-3 font-mono text-xs">
-                <div className="text-muted-foreground">→ <span className="text-primary">{template.name}</span>.deploy()</div>
-                <div className="ml-3 text-muted-foreground">→ <span className="text-info">ContractLabelRegistry</span>.register(...)</div>
-                <div className="ml-3 text-muted-foreground">→ <span className="text-info">ProjectRegistry</span>.record(...)</div>
+                <div className="text-muted-foreground">
+                  → <span className="text-primary">{template.name}</span>.deploy()
+                </div>
+                <div className="ml-3 text-muted-foreground">
+                  → <span className="text-info">ContractLabelRegistry</span>.register(...)
+                </div>
+                <div className="ml-3 text-muted-foreground">
+                  → <span className="text-info">ProjectRegistry</span>.record(...)
+                </div>
                 <div className="text-success">✓ Success</div>
               </div>
             </ResultCard>

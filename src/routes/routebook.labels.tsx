@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { AddressChip } from "@/components/shared/AddressChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { LABELS, type ContractLabel } from "@/lib/mock/labels";
-import { useWallet } from "@/lib/wallet";
+import { useContractLabels } from "@/hooks/useContractLabels";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/routebook/labels")({
@@ -14,7 +14,19 @@ export const Route = createFileRoute("/routebook/labels")({
   component: LabelRegistry,
 });
 
-const FILTERS = ["All", "Verified", "Community", "Auto-labeled", "DeFi", "Token", "NFT", "Infrastructure", "Gaming", "Identity", "Governance"];
+const FILTERS = [
+  "All",
+  "Verified",
+  "Community",
+  "Auto-labeled",
+  "DeFi",
+  "Token",
+  "NFT",
+  "Infrastructure",
+  "Gaming",
+  "Identity",
+  "Governance",
+];
 
 function LabelRegistry() {
   const [q, setQ] = useState("");
@@ -23,7 +35,12 @@ function LabelRegistry() {
 
   const filtered = useMemo(() => {
     return LABELS.filter((l) => {
-      if (q && !l.name.toLowerCase().includes(q.toLowerCase()) && !l.address.toLowerCase().includes(q.toLowerCase())) return false;
+      if (
+        q &&
+        !l.name.toLowerCase().includes(q.toLowerCase()) &&
+        !l.address.toLowerCase().includes(q.toLowerCase())
+      )
+        return false;
       if (filter === "All") return true;
       if (filter === "Verified") return l.source === "VERIFIED";
       if (filter === "Community") return l.source === "COMMUNITY";
@@ -92,12 +109,24 @@ function LabelRegistry() {
           <table className="w-full font-mono text-xs">
             <thead className="bg-surface-2 text-meta">
               <tr>
-                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">Contract</th>
-                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">Label</th>
-                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">Category</th>
-                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">Source</th>
-                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">Submitter</th>
-                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">Date</th>
+                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                  Contract
+                </th>
+                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                  Label
+                </th>
+                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                  Source
+                </th>
+                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                  Submitter
+                </th>
+                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                  Date
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -124,12 +153,18 @@ function LabelRegistry() {
 function Row({ label }: { label: ContractLabel }) {
   return (
     <tr className="border-t border-border">
-      <td className="px-3 py-2"><AddressChip address={label.address} showLabel={false} /></td>
+      <td className="px-3 py-2">
+        <AddressChip address={label.address} showLabel={false} />
+      </td>
       <td className="px-3 py-2 text-info">{label.name}</td>
       <td className="px-3 py-2 text-muted-foreground">{label.category}</td>
-      <td className="px-3 py-2"><StatusBadge kind={label.source} /></td>
+      <td className="px-3 py-2">
+        <StatusBadge kind={label.source} />
+      </td>
       <td className="px-3 py-2 text-muted-foreground">{label.submitter}</td>
-      <td className="px-3 py-2 text-meta">{formatDistanceToNow(label.submittedAt, { addSuffix: true })}</td>
+      <td className="px-3 py-2 text-meta">
+        {formatDistanceToNow(label.submittedAt, { addSuffix: true })}
+      </td>
     </tr>
   );
 }
@@ -144,19 +179,42 @@ function Stat({ value, label }: { value: number; label: string }) {
 }
 
 function SubmitLabelModal({ onClose }: { onClose: () => void }) {
-  const wallet = useWallet();
+  const { submitLabel, onChain } = useContractLabels();
   const [addr, setAddr] = useState("");
   const [name, setName] = useState("");
   const [cat, setCat] = useState("DeFi");
   const [desc, setDesc] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     if (!addr || !name) {
       toast.error("Address and label name are required");
       return;
     }
-    toast.success("Label submitted · 0.5 QIE Stable fee paid · awaiting review");
-    onClose();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) {
+      toast.error("Enter a valid contract address");
+      return;
+    }
+    if (!onChain) {
+      toast.success("Label submitted · awaiting review");
+      onClose();
+      return;
+    }
+    setBusy(true);
+    try {
+      await submitLabel({
+        contractAddress: addr as `0x${string}`,
+        name,
+        category: cat,
+        description: desc,
+      });
+      toast.success("Label submitted on-chain · awaiting approval");
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Submission failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -164,14 +222,10 @@ function SubmitLabelModal({ onClose }: { onClose: () => void }) {
       <div className="w-full max-w-md rounded border border-border bg-surface p-6">
         <div className="mb-4 flex items-start justify-between">
           <h2 className="font-mono text-base font-bold text-foreground">Submit a Contract Label</h2>
-          <button onClick={onClose} className="text-meta hover:text-foreground"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} className="text-meta hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
         </div>
-
-        {!wallet.qiePassVerified && (
-          <div className="mb-3 rounded border border-warning/40 bg-warning/10 p-2 font-mono text-[11px] text-warning">
-            QIE Pass verification required to submit labels.
-          </div>
-        )}
 
         <div className="space-y-3 font-mono text-xs">
           <Field label="Contract Address">
@@ -196,9 +250,13 @@ function SubmitLabelModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setCat(e.target.value)}
               className="w-full rounded border border-border bg-background px-3 py-2 text-foreground focus:border-primary focus:outline-none"
             >
-              {["DeFi", "Token", "Gaming", "Identity", "Infrastructure", "DAO", "Other"].map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
+              {["DeFi", "Token", "Gaming", "Identity", "Infrastructure", "DAO", "Other"].map(
+                (c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ),
+              )}
             </select>
           </Field>
           <Field label="Description (optional)">
@@ -213,20 +271,19 @@ function SubmitLabelModal({ onClose }: { onClose: () => void }) {
           </Field>
         </div>
 
-        <div className="mt-4 rounded border border-info/30 bg-info/5 p-3 font-mono text-[11px]">
-          <span className="text-info">QIE Stable Fee:</span>{" "}
-          <span className="text-foreground">0.5 USDQ</span>
-          <p className="mt-1 text-meta">
-            This fee is burned. It prevents spam and ensures quality.
-          </p>
-        </div>
-
         <div className="mt-4 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded border border-border px-3 py-2 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary">
+          <button
+            onClick={onClose}
+            className="rounded border border-border px-3 py-2 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
+          >
             Cancel
           </button>
-          <button onClick={submit} className="rounded bg-primary px-4 py-2 font-mono text-xs font-bold text-primary-foreground hover:bg-primary-hover">
-            Submit Label
+          <button
+            onClick={submit}
+            disabled={busy}
+            className="rounded bg-primary px-4 py-2 font-mono text-xs font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
+          >
+            {busy ? "Submitting…" : onChain ? "Submit On-Chain" : "Submit Label"}
           </button>
         </div>
       </div>

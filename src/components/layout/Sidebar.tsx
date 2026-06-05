@@ -8,15 +8,14 @@ import {
   Tags,
   Settings,
   BookOpen,
-  Terminal,
-  Copy,
-  Check,
+  Code2,
 } from "lucide-react";
-import { useState } from "react";
-import { useWallet, truncateAddress } from "@/lib/wallet";
+import { useWallet } from "@/lib/wallet";
 import { QIE_CHAIN_ID } from "@/lib/wallet";
 import { CHAIN } from "@/lib/chain";
 import { cn } from "@/lib/utils";
+import { WalletPanel } from "@/components/web3/WalletPanel";
+import { Logo } from "@/components/shared/Logo";
 
 const NAV = [
   { to: "/", label: "Overview", icon: Home, exact: true },
@@ -24,6 +23,7 @@ const NAV = [
     section: "LaunchKit",
     items: [
       { to: "/launchkit/templates", label: "Templates", icon: Package },
+      { to: "/launchkit/editor", label: "Contract Editor", icon: Code2 },
       { to: "/launchkit/deploy", label: "Deploy", icon: Rocket },
       { to: "/launchkit/projects", label: "Projects", icon: FolderGit2 },
     ],
@@ -41,14 +41,6 @@ const NAV = [
 export function Sidebar() {
   const wallet = useWallet();
   const path = useRouterState({ select: (r) => r.location.pathname });
-  const [copied, setCopied] = useState(false);
-
-  const copyAddr = () => {
-    if (!wallet.address) return;
-    navigator.clipboard.writeText(wallet.address);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
 
   const isActive = (to: string, exact?: boolean) =>
     exact ? path === to : path === to || path.startsWith(to + "/");
@@ -57,53 +49,12 @@ export function Sidebar() {
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-surface md:flex">
       {/* Brand */}
       <div className="border-b border-border px-4 py-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded bg-primary/15 text-primary">
-            <Terminal className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="font-mono text-sm font-bold text-foreground">DevStation</div>
-            <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
-              QIE Builder Console
-            </div>
-          </div>
-        </div>
+        <Logo />
       </div>
 
       {/* Wallet */}
       <div className="border-b border-border px-4 py-3">
-        {wallet.connected && wallet.address ? (
-          <>
-            <button
-              onClick={copyAddr}
-              className="group flex w-full items-center gap-2 rounded border border-border bg-background px-2 py-1.5 text-left transition hover:border-primary/50"
-            >
-              <span className="h-2 w-2 rounded-full bg-success" />
-              <span className="font-mono text-xs text-foreground">
-                {truncateAddress(wallet.address)}
-              </span>
-              {copied ? (
-                <Check className="ml-auto h-3 w-3 text-success" />
-              ) : (
-                <Copy className="ml-auto h-3 w-3 text-meta group-hover:text-muted-foreground" />
-              )}
-            </button>
-            <div className="mt-2 flex items-center gap-1.5">
-              {wallet.qiePassVerified ? (
-                <span className="font-mono text-[10px] text-success">✓ QIE Pass Verified</span>
-              ) : (
-                <span className="font-mono text-[10px] text-danger">✗ QIE Pass Required</span>
-              )}
-            </div>
-          </>
-        ) : (
-          <button
-            onClick={wallet.connect}
-            className="w-full rounded bg-primary px-3 py-1.5 font-mono text-xs font-medium text-primary-foreground hover:bg-primary-hover"
-          >
-            Connect Wallet
-          </button>
-        )}
+        <WalletPanel />
       </div>
 
       {/* Nav */}
@@ -160,8 +111,7 @@ export function Sidebar() {
           />
           {wallet.chainId === QIE_CHAIN_ID ? (
             <div className="font-mono text-[11px] text-foreground">
-              {CHAIN.name}{" "}
-              <span className="text-meta">· {CHAIN.id}</span>
+              {CHAIN.name} <span className="text-meta">· {CHAIN.id}</span>
             </div>
           ) : (
             <div className="flex items-center gap-2 font-mono text-[11px]">

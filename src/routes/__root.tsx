@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppShell } from "@/components/layout/AppShell";
+import { Web3Provider } from "@/components/web3/Web3Provider";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -58,17 +59,35 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "DevStation — QIE Builder Console" },
-      { name: "description", content: "Unified deploy & debug console for the QIE blockchain. LaunchKit + Routebook." },
+      {
+        name: "description",
+        content: "Unified deploy & debug console for the QIE blockchain. LaunchKit + Routebook.",
+      },
       { property: "og:title", content: "DevStation — QIE Builder Console" },
-      { property: "og:description", content: "Unified deploy & debug console for the QIE blockchain. LaunchKit + Routebook." },
+      {
+        property: "og:description",
+        content: "Unified deploy & debug console for the QIE blockchain. LaunchKit + Routebook.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "DevStation — QIE Builder Console" },
-      { name: "twitter:description", content: "Unified deploy & debug console for the QIE blockchain. LaunchKit + Routebook." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/ecdf74d6-e099-4fd5-81aa-f3d3e6c333fe" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/ecdf74d6-e099-4fd5-81aa-f3d3e6c333fe" },
+      {
+        name: "twitter:description",
+        content: "Unified deploy & debug console for the QIE blockchain. LaunchKit + Routebook.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/ecdf74d6-e099-4fd5-81aa-f3d3e6c333fe",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/ecdf74d6-e099-4fd5-81aa-f3d3e6c333fe",
+      },
     ],
     links: [
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
@@ -103,10 +122,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell>
-        <Outlet />
-      </AppShell>
-      <Toaster />
+      <Web3Provider>
+        <AppShell>
+          <Outlet />
+        </AppShell>
+        <Toaster />
+      </Web3Provider>
     </QueryClientProvider>
   );
 }

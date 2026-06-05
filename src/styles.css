@@ -79,26 +79,26 @@
 :root {
   --radius: 4px;
 
-  --background: oklch(0.165 0.013 240);   /* #0a0e13 */
-  --surface: oklch(0.19 0.014 240);       /* #0d1117 */
-  --surface-2: oklch(0.225 0.013 240);    /* #161b22 */
-  --border: oklch(0.285 0.018 240);       /* #1e2a38 */
+  --background: oklch(0.165 0.013 240); /* #0a0e13 */
+  --surface: oklch(0.19 0.014 240); /* #0d1117 */
+  --surface-2: oklch(0.225 0.013 240); /* #161b22 */
+  --border: oklch(0.285 0.018 240); /* #1e2a38 */
   --input: oklch(0.19 0.014 240);
   --ring: oklch(0.7 0.16 55);
 
-  --foreground: oklch(0.93 0.012 250);    /* #e2e8f0 */
+  --foreground: oklch(0.93 0.012 250); /* #e2e8f0 */
   --muted: oklch(0.225 0.013 240);
   --muted-foreground: oklch(0.7 0.025 250); /* #94a3b8 */
-  --meta: oklch(0.52 0.02 250);            /* #4a5568 */
+  --meta: oklch(0.52 0.02 250); /* #4a5568 */
 
   --card: oklch(0.19 0.014 240);
   --card-foreground: oklch(0.93 0.012 250);
   --popover: oklch(0.19 0.014 240);
   --popover-foreground: oklch(0.93 0.012 250);
 
-  --primary: oklch(0.69 0.17 55);          /* #e67e22 amber */
+  --primary: oklch(0.69 0.17 55); /* #e67e22 amber */
   --primary-foreground: oklch(0.98 0 0);
-  --primary-hover: oklch(0.62 0.18 50);    /* #d35400 */
+  --primary-hover: oklch(0.62 0.18 50); /* #d35400 */
 
   --secondary: oklch(0.225 0.013 240);
   --secondary-foreground: oklch(0.93 0.012 250);
@@ -106,14 +106,14 @@
   --accent: oklch(0.69 0.17 55);
   --accent-foreground: oklch(0.98 0 0);
 
-  --success: oklch(0.66 0.16 150);         /* #27ae60 */
-  --warning: oklch(0.78 0.15 80);          /* #f6a623 */
-  --danger: oklch(0.62 0.22 25);           /* #e53e3e */
-  --info: oklch(0.6 0.1 200);              /* #1294a9 QIE teal */
+  --success: oklch(0.66 0.16 150); /* #27ae60 */
+  --warning: oklch(0.78 0.15 80); /* #f6a623 */
+  --danger: oklch(0.62 0.22 25); /* #e53e3e */
+  --info: oklch(0.6 0.1 200); /* #1294a9 QIE teal */
 
-  --code: oklch(0.83 0.1 235);             /* #7dd3fc */
-  --code-string: oklch(0.85 0.16 150);     /* #86efac */
-  --code-number: oklch(0.78 0.13 20);      /* #fca5a5 */
+  --code: oklch(0.83 0.1 235); /* #7dd3fc */
+  --code-string: oklch(0.85 0.16 150); /* #86efac */
+  --code-number: oklch(0.78 0.13 20); /* #fca5a5 */
   --code-comment: oklch(0.52 0.02 250);
 
   --cat-token: oklch(0.7 0.1 195);
@@ -136,7 +136,9 @@
     border-color: var(--color-border);
   }
 
-  html, body, #app {
+  html,
+  body,
+  #app {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
@@ -144,7 +146,9 @@
   }
 
   body {
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 
   ::selection {
@@ -153,10 +157,20 @@
   }
 
   /* Sharper scrollbar */
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-track { background: var(--color-background); }
-  ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--color-meta); }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-background);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-meta);
+  }
 }
 
 @utility font-mono {
@@ -178,5 +192,7 @@
 }
 
 @keyframes blink {
-  to { visibility: hidden; }
+  to {
+    visibility: hidden;
+  }
 }
