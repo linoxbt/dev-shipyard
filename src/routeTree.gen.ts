@@ -9,38 +9,152 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RoutebookIndexRouteImport } from './routes/routebook.index'
+import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
+import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
+import { Route as LaunchkitTemplatesRouteImport } from './routes/launchkit.templates'
+import { Route as LaunchkitProjectsRouteImport } from './routes/launchkit.projects'
+import { Route as LaunchkitDeployRouteImport } from './routes/launchkit.deploy'
+import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RoutebookIndexRoute = RoutebookIndexRouteImport.update({
+  id: '/routebook/',
+  path: '/routebook/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoutebookLabelsRoute = RoutebookLabelsRouteImport.update({
+  id: '/routebook/labels',
+  path: '/routebook/labels',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoutebookTxHashRoute = RoutebookTxHashRouteImport.update({
+  id: '/routebook/$txHash',
+  path: '/routebook/$txHash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitTemplatesRoute = LaunchkitTemplatesRouteImport.update({
+  id: '/launchkit/templates',
+  path: '/launchkit/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitProjectsRoute = LaunchkitProjectsRouteImport.update({
+  id: '/launchkit/projects',
+  path: '/launchkit/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitDeployRoute = LaunchkitDeployRouteImport.update({
+  id: '/launchkit/deploy',
+  path: '/launchkit/deploy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => LaunchkitTemplatesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/settings': typeof SettingsRoute
+  '/launchkit/deploy': typeof LaunchkitDeployRoute
+  '/launchkit/projects': typeof LaunchkitProjectsRoute
+  '/launchkit/templates': typeof LaunchkitTemplatesRouteWithChildren
+  '/routebook/$txHash': typeof RoutebookTxHashRoute
+  '/routebook/labels': typeof RoutebookLabelsRoute
+  '/routebook/': typeof RoutebookIndexRoute
+  '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/settings': typeof SettingsRoute
+  '/launchkit/deploy': typeof LaunchkitDeployRoute
+  '/launchkit/projects': typeof LaunchkitProjectsRoute
+  '/launchkit/templates': typeof LaunchkitTemplatesRouteWithChildren
+  '/routebook/$txHash': typeof RoutebookTxHashRoute
+  '/routebook/labels': typeof RoutebookLabelsRoute
+  '/routebook': typeof RoutebookIndexRoute
+  '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/settings': typeof SettingsRoute
+  '/launchkit/deploy': typeof LaunchkitDeployRoute
+  '/launchkit/projects': typeof LaunchkitProjectsRoute
+  '/launchkit/templates': typeof LaunchkitTemplatesRouteWithChildren
+  '/routebook/$txHash': typeof RoutebookTxHashRoute
+  '/routebook/labels': typeof RoutebookLabelsRoute
+  '/routebook/': typeof RoutebookIndexRoute
+  '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/settings'
+    | '/launchkit/deploy'
+    | '/launchkit/projects'
+    | '/launchkit/templates'
+    | '/routebook/$txHash'
+    | '/routebook/labels'
+    | '/routebook/'
+    | '/launchkit/templates/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/settings'
+    | '/launchkit/deploy'
+    | '/launchkit/projects'
+    | '/launchkit/templates'
+    | '/routebook/$txHash'
+    | '/routebook/labels'
+    | '/routebook'
+    | '/launchkit/templates/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/settings'
+    | '/launchkit/deploy'
+    | '/launchkit/projects'
+    | '/launchkit/templates'
+    | '/routebook/$txHash'
+    | '/routebook/labels'
+    | '/routebook/'
+    | '/launchkit/templates/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SettingsRoute: typeof SettingsRoute
+  LaunchkitDeployRoute: typeof LaunchkitDeployRoute
+  LaunchkitProjectsRoute: typeof LaunchkitProjectsRoute
+  LaunchkitTemplatesRoute: typeof LaunchkitTemplatesRouteWithChildren
+  RoutebookTxHashRoute: typeof RoutebookTxHashRoute
+  RoutebookLabelsRoute: typeof RoutebookLabelsRoute
+  RoutebookIndexRoute: typeof RoutebookIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +162,79 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/routebook/': {
+      id: '/routebook/'
+      path: '/routebook'
+      fullPath: '/routebook/'
+      preLoaderRoute: typeof RoutebookIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/routebook/labels': {
+      id: '/routebook/labels'
+      path: '/routebook/labels'
+      fullPath: '/routebook/labels'
+      preLoaderRoute: typeof RoutebookLabelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/routebook/$txHash': {
+      id: '/routebook/$txHash'
+      path: '/routebook/$txHash'
+      fullPath: '/routebook/$txHash'
+      preLoaderRoute: typeof RoutebookTxHashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/templates': {
+      id: '/launchkit/templates'
+      path: '/launchkit/templates'
+      fullPath: '/launchkit/templates'
+      preLoaderRoute: typeof LaunchkitTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/projects': {
+      id: '/launchkit/projects'
+      path: '/launchkit/projects'
+      fullPath: '/launchkit/projects'
+      preLoaderRoute: typeof LaunchkitProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/deploy': {
+      id: '/launchkit/deploy'
+      path: '/launchkit/deploy'
+      fullPath: '/launchkit/deploy'
+      preLoaderRoute: typeof LaunchkitDeployRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/templates/$id': {
+      id: '/launchkit/templates/$id'
+      path: '/$id'
+      fullPath: '/launchkit/templates/$id'
+      preLoaderRoute: typeof LaunchkitTemplatesIdRouteImport
+      parentRoute: typeof LaunchkitTemplatesRoute
+    }
   }
 }
 
+interface LaunchkitTemplatesRouteChildren {
+  LaunchkitTemplatesIdRoute: typeof LaunchkitTemplatesIdRoute
+}
+
+const LaunchkitTemplatesRouteChildren: LaunchkitTemplatesRouteChildren = {
+  LaunchkitTemplatesIdRoute: LaunchkitTemplatesIdRoute,
+}
+
+const LaunchkitTemplatesRouteWithChildren =
+  LaunchkitTemplatesRoute._addFileChildren(LaunchkitTemplatesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SettingsRoute: SettingsRoute,
+  LaunchkitDeployRoute: LaunchkitDeployRoute,
+  LaunchkitProjectsRoute: LaunchkitProjectsRoute,
+  LaunchkitTemplatesRoute: LaunchkitTemplatesRouteWithChildren,
+  RoutebookTxHashRoute: RoutebookTxHashRoute,
+  RoutebookLabelsRoute: RoutebookLabelsRoute,
+  RoutebookIndexRoute: RoutebookIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
