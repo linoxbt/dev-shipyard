@@ -171,7 +171,7 @@ function TxView() {
                     <Empty>No token transfers in this transaction.</Empty>
                   ) : (
                     <div className="divide-y divide-border">
-                      {tx.tokenTransfers.map((t, i) => (
+                      {tx.tokenTransfers.map((t: import("@/lib/mock/transactions").TokenTransfer, i: number) => (
                         <div key={i} className="px-4 py-3 font-mono text-xs">
                           <div className="mb-1 flex items-center gap-2">
                             <span className="font-bold text-foreground">{t.amount} {t.tokenSymbol}</span>
@@ -195,7 +195,7 @@ function TxView() {
                     }
                   >
                     <div className="divide-y divide-border">
-                      {tx.approvals.map((a, i) => (
+                      {tx.approvals.map((a: import("@/lib/mock/transactions").ApprovalRecord, i: number) => (
                         <div key={i} className="px-4 py-3 font-mono text-xs">
                           <div className="text-foreground">
                             {a.tokenSymbol}: {a.unlimited ? "UNLIMITED" : a.amount}
