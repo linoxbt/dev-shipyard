@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useWallet, truncateAddress } from "@/lib/wallet";
-import { CHAIN, QIE_CHAIN_ID } from "@/lib/wallet";
+import { QIE_CHAIN_ID } from "@/lib/wallet";
+import { CHAIN } from "@/lib/chain";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -107,8 +108,8 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-3">
-        {NAV.map((entry, i) => {
-          if ("section" in entry) {
+        {NAV.map((entry) => {
+          if ("section" in entry && entry.section && entry.items) {
             return (
               <div key={entry.section} className="mt-3 first:mt-0">
                 <div className="px-2 pb-1 font-mono text-[10px] uppercase tracking-wider text-meta">
@@ -117,19 +118,22 @@ export function Sidebar() {
                 {entry.items.map((item) => (
                   <SidebarLink
                     key={item.to}
-                    {...item}
+                    to={item.to}
+                    label={item.label}
+                    icon={item.icon}
                     active={isActive(item.to)}
                   />
                 ))}
               </div>
             );
           }
+          if (!("to" in entry) || !entry.to) return null;
           return (
             <SidebarLink
               key={entry.to}
               to={entry.to}
-              label={entry.label}
-              icon={entry.icon}
+              label={entry.label!}
+              icon={entry.icon!}
               active={isActive(entry.to, entry.exact)}
             />
           );
