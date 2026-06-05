@@ -68,7 +68,7 @@ function TemplateDetail() {
               <Meta label="License" value="MIT" />
             </dl>
             <div className="mt-4 flex flex-wrap gap-1">
-              {tpl.tags.map((t) => (
+              {tpl.tags.map((t: string) => (
                 <span key={t} className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                   {t}
                 </span>
