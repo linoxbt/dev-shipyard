@@ -1,13 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Rocket, Search, ArrowRight, ExternalLink } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useProjects } from "@/lib/mock/projects";
 import { TEMPLATES } from "@/lib/mock/templates";
-import { CHAIN, GAS_PRICE_GWEI } from "@/lib/chain";
-import { DEMO_TXS } from "@/lib/mock/transactions";
+import { GAS_PRICE_GWEI } from "@/lib/chain";
+import { useActiveChain } from "@/hooks/useActiveChain";
+import { storage } from "@/lib/storage";
 import { useNetworkStatus } from "@/hooks/useChainData";
 import { formatDistanceToNow } from "date-fns";
 
@@ -29,7 +30,10 @@ function Overview() {
   const [quickTemplate, setQuickTemplate] = useState(TEMPLATES[0].id);
   const [quickHash, setQuickHash] = useState("");
 
-  const { data: net } = useNetworkStatus();
+  const { chainId, chain, config } = useActiveChain();
+  const { data: net } = useNetworkStatus(chainId);
+  const [inspections, setInspections] = useState<string[]>([]);
+  useEffect(() => setInspections(storage.loadInspections()), []);
 
   const block = net?.blockNumber ?? 0;
   const gasGwei = net?.gasPriceGwei ?? GAS_PRICE_GWEI;
@@ -54,7 +58,7 @@ function Overview() {
           <Stat
             value={online ? block.toLocaleString() : "—"}
             label="Current Block"
-            sub={online ? `${CHAIN.name} · Chain ${CHAIN.id}` : "RPC offline"}
+            sub={online ? `${chain.name} · Chain ${chain.id}` : "RPC offline"}
             pulse={online}
           />
           <Stat
@@ -132,23 +136,24 @@ function Overview() {
             </Panel>
 
             <Panel title="Recent Inspections">
-              <ul className="divide-y divide-border">
-                {DEMO_TXS.map((tx) => (
-                  <li key={tx.hash} className="flex items-center justify-between px-3 py-2.5">
-                    <div className="flex items-center gap-3">
-                      <TxHashChip hash={tx.hash} />
-                      <span className="font-mono text-xs text-muted-foreground">{tx.toName}</span>
-                    </div>
-                    <Link
-                      to="/routebook/$txHash"
-                      params={{ txHash: tx.hash }}
-                      className="font-mono text-xs text-primary hover:underline"
-                    >
-                      Re-open →
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              {inspections.length === 0 ? (
+                <Empty>No inspections yet. Decode a transaction in Routebook.</Empty>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {inspections.map((hash) => (
+                    <li key={hash} className="flex items-center justify-between px-3 py-2.5">
+                      <TxHashChip hash={hash} />
+                      <Link
+                        to="/routebook/$txHash"
+                        params={{ txHash: hash }}
+                        className="font-mono text-xs text-primary hover:underline"
+                      >
+                        Re-open →
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Panel>
           </div>
 
@@ -189,15 +194,25 @@ function Overview() {
                   placeholder="Paste transaction hash..."
                   className="w-full rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
                 />
-                <Link
-                  to="/routebook/$txHash"
-                  params={{ txHash: quickHash || DEMO_TXS[0].hash }}
-                  className="flex w-full items-center justify-center gap-2 rounded border border-primary bg-transparent px-3 py-2 font-mono text-xs font-medium text-primary hover:bg-primary/10"
-                >
-                  <Search className="h-3.5 w-3.5" />
-                  Decode Transaction
-                </Link>
-                <p className="text-[10px] text-meta">Works with any QIE Testnet transaction.</p>
+                {quickHash.trim() ? (
+                  <Link
+                    to="/routebook/$txHash"
+                    params={{ txHash: quickHash.trim() }}
+                    className="flex w-full items-center justify-center gap-2 rounded border border-primary bg-transparent px-3 py-2 font-mono text-xs font-medium text-primary hover:bg-primary/10"
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                    Decode Transaction
+                  </Link>
+                ) : (
+                  <button
+                    disabled
+                    className="flex w-full items-center justify-center gap-2 rounded border border-border bg-transparent px-3 py-2 font-mono text-xs font-medium text-meta opacity-50"
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                    Decode Transaction
+                  </button>
+                )}
+                <p className="text-[10px] text-meta">Works with any QIE transaction.</p>
               </div>
             </Panel>
 
@@ -212,7 +227,7 @@ function Overview() {
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${online ? "bg-success" : "bg-danger"}`}
                       />
-                      <span className="text-muted-foreground">{new URL(CHAIN.rpc).host}</span>
+                      <span className="text-muted-foreground">{new URL(config.rpcUrl).host}</span>
                     </span>
                   }
                 />
@@ -220,12 +235,12 @@ function Overview() {
                   label="Explorer"
                   value={
                     <a
-                      href={CHAIN.explorer}
+                      href={config.explorerUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"
                     >
-                      testnet.qie.digital <ExternalLink className="h-3 w-3" />
+                      {new URL(config.explorerUrl).host} <ExternalLink className="h-3 w-3" />
                     </a>
                   }
                 />

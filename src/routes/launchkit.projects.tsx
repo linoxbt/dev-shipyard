@@ -8,7 +8,7 @@ import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useProjects, type DeployedProject } from "@/lib/mock/projects";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
-import { CHAIN } from "@/lib/chain";
+import { useActiveChain } from "@/hooks/useActiveChain";
 
 export const Route = createFileRoute("/launchkit/projects")({
   head: () => ({ meta: [{ title: "My Projects — DevStation" }] }),
@@ -19,6 +19,7 @@ function ProjectsPage() {
   const storeProjects = useProjects((s) => s.projects);
   const remove = useProjects((s) => s.remove);
   const { deployments: registryProjects, onChain } = useProjectRegistry();
+  const { config } = useActiveChain();
   const [selected, setSelected] = useState<DeployedProject | null>(null);
 
   // Merge on-chain registry deployments with the local store, deduped by txHash.
@@ -197,7 +198,7 @@ function ProjectsPage() {
                 Inspect in Routebook
               </Link>
               <a
-                href={`${CHAIN.explorer}/address/${selected.address}`}
+                href={`${config.explorerUrl}/address/${selected.address}`}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center justify-center gap-2 rounded border border-border px-3 py-2 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"

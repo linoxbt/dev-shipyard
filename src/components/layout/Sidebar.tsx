@@ -9,13 +9,13 @@ import {
   Settings,
   BookOpen,
   Code2,
+  X,
 } from "lucide-react";
-import { useWallet } from "@/lib/wallet";
-import { QIE_CHAIN_ID } from "@/lib/wallet";
-import { CHAIN } from "@/lib/chain";
 import { cn } from "@/lib/utils";
 import { WalletPanel } from "@/components/web3/WalletPanel";
+import { NetworkSelector } from "@/components/web3/NetworkSelector";
 import { Logo } from "@/components/shared/Logo";
+import { useUi } from "@/lib/ui-state";
 
 const NAV = [
   { to: "/", label: "Overview", icon: Home, exact: true },
@@ -38,26 +38,29 @@ const NAV = [
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function Sidebar() {
-  const wallet = useWallet();
+// The sidebar content, shared by the desktop fixed rail and the mobile drawer.
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const path = useRouterState({ select: (r) => r.location.pathname });
-
   const isActive = (to: string, exact?: boolean) =>
     exact ? path === to : path === to || path.startsWith(to + "/");
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-surface md:flex">
-      {/* Brand */}
-      <div className="border-b border-border px-4 py-4">
+    <>
+      <div className="flex items-center justify-between border-b border-border px-4 py-4">
         <Logo />
+        <button
+          onClick={onNavigate}
+          className="rounded p-1 text-meta hover:text-foreground md:hidden"
+          aria-label="Close menu"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
-      {/* Wallet */}
       <div className="border-b border-border px-4 py-3">
         <WalletPanel />
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-3">
         {NAV.map((entry) => {
           if ("section" in entry && entry.section && entry.items) {
@@ -73,6 +76,7 @@ export function Sidebar() {
                     label={item.label}
                     icon={item.icon}
                     active={isActive(item.to)}
+                    onClick={onNavigate}
                   />
                 ))}
               </div>
@@ -86,6 +90,7 @@ export function Sidebar() {
               label={entry.label!}
               icon={entry.icon!}
               active={isActive(entry.to, entry.exact)}
+              onClick={onNavigate}
             />
           );
         })}
@@ -100,31 +105,39 @@ export function Sidebar() {
         </a>
       </nav>
 
-      {/* Footer */}
       <div className="border-t border-border px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "h-2 w-2 rounded-full",
-              wallet.chainId === QIE_CHAIN_ID ? "bg-success" : "bg-danger",
-            )}
-          />
-          {wallet.chainId === QIE_CHAIN_ID ? (
-            <div className="font-mono text-[11px] text-foreground">
-              {CHAIN.name} <span className="text-meta">· {CHAIN.id}</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 font-mono text-[11px]">
-              <span className="text-danger">Wrong Network</span>
-              <button onClick={wallet.switchToQIE} className="text-primary hover:underline">
-                Switch
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="mt-1 font-mono text-[10px] text-meta">DevStation v1.0</div>
+        <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-meta">Network</div>
+        <NetworkSelector />
+        <div className="mt-2 font-mono text-[10px] text-meta">DevStation v1.0</div>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export function Sidebar() {
+  const { mobileNavOpen, closeMobileNav } = useUi();
+
+  return (
+    <>
+      {/* Desktop fixed rail */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-surface md:flex">
+        <SidebarContent />
+      </aside>
+
+      {/* Mobile drawer */}
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div className="flex w-72 max-w-[85%] flex-col border-r border-border bg-surface">
+            <SidebarContent onNavigate={closeMobileNav} />
+          </div>
+          <button
+            className="flex-1 bg-background/60 backdrop-blur-sm"
+            onClick={closeMobileNav}
+            aria-label="Close menu overlay"
+          />
+        </div>
+      )}
+    </>
   );
 }
 
@@ -133,15 +146,18 @@ function SidebarLink({
   label,
   icon: Icon,
   active,
+  onClick,
 }: {
   to: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   active?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <Link
       to={to}
+      onClick={onClick}
       className={cn(
         "flex items-center gap-2 rounded px-2 py-1.5 font-mono text-xs transition",
         active

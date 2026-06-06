@@ -15,20 +15,19 @@ import { AddressChip } from "@/components/shared/AddressChip";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { CodeBlock } from "@/components/shared/CodeBlock";
-import { findDemoTx, type RouteCall, type DecodedArg } from "@/lib/mock/transactions";
+import { type RouteCall, type DecodedArg } from "@/lib/mock/transactions";
 import { findLabel } from "@/lib/mock/labels";
-import { CHAIN } from "@/lib/chain";
+import { SUPPORTED_CHAINS } from "@/lib/chains";
 import { decodeTransaction } from "@/lib/api/decode.functions";
 import { storage } from "@/lib/storage";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/routebook/$txHash")({
-  // Demo hashes resolve from the bundled samples; everything else is decoded
-  // live from the QIE RPC server-side.
+  // Every transaction is decoded LIVE from the QIE RPC. We try each supported
+  // chain (testnet + mainnet) so a hash resolves regardless of which network
+  // the user is on.
   loader: async ({ params }) => {
-    const demo = findDemoTx(params.txHash);
-    if (demo) return { tx: demo, hash: params.txHash, error: null as string | null };
     if (!/^0x[a-fA-F0-9]{64}$/.test(params.txHash)) {
       return {
         tx: null,
@@ -36,12 +35,14 @@ export const Route = createFileRoute("/routebook/$txHash")({
         error: "That doesn't look like a valid transaction hash.",
       };
     }
-    const res = await decodeTransaction({ data: { txHash: params.txHash } });
-    if (res.status === "success") return { tx: res.tx, hash: params.txHash, error: null };
+    for (const c of SUPPORTED_CHAINS) {
+      const res = await decodeTransaction({ data: { txHash: params.txHash, chainId: c.id } });
+      if (res.status === "success") return { tx: res.tx, hash: params.txHash, error: null };
+    }
     return {
       tx: null,
       hash: params.txHash,
-      error: res.status === "notfound" ? "Transaction not found on this network." : res.error,
+      error: "Transaction not found on QIE Testnet or Mainnet.",
     };
   },
   head: ({ params }) => ({
@@ -143,8 +144,6 @@ function TxView() {
             <OverviewField label="Gas Used">{tx.gasUsed.toLocaleString()}</OverviewField>
             <OverviewField label="Gas Price">{tx.gasPriceGwei} Gwei</OverviewField>
             <OverviewField label="Gas Cost">{tx.gasCostQIE.toFixed(6)} QIE</OverviewField>
-            <OverviewField label="Network">{CHAIN.name}</OverviewField>
-            <OverviewField label="Chain ID">{CHAIN.id}</OverviewField>
           </dl>
         </div>
 

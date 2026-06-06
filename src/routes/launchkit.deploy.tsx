@@ -1,8 +1,9 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { ArrowLeft, ArrowRight, Check, Download, Copy, Rocket } from "lucide-react";
 import { toast } from "sonner";
+import { useAccount, useDeployContract, usePublicClient } from "wagmi";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CodeBlock } from "@/components/shared/CodeBlock";
 import { TerminalOutput, type TerminalLine } from "@/components/shared/TerminalOutput";
@@ -15,9 +16,10 @@ import {
   type Template,
   type ConstructorArg,
 } from "@/lib/mock/templates";
-import { CHAIN, GAS_PRICE_GWEI } from "@/lib/chain";
-import { useProjects } from "@/lib/mock/projects";
-import { useWallet } from "@/lib/wallet";
+import { GAS_PRICE_GWEI } from "@/lib/chain";
+import { useActiveChain } from "@/hooks/useActiveChain";
+import { useProjectRegistry } from "@/hooks/useProjectRegistry";
+import { compile } from "@/lib/compiler";
 
 const search = z.object({ template: z.string().optional() });
 
@@ -33,15 +35,18 @@ type Stage = "select" | "configure" | "deploying" | "success";
 
 function DeployWizard() {
   const { template: presetId } = Route.useSearch();
-  const navigate = useNavigate();
-  const wallet = useWallet();
-  const addProject = useProjects((s) => s.add);
+  const { address, isConnected } = useAccount();
+  const { chain, config } = useActiveChain();
+  const { recordDeployment } = useProjectRegistry();
+  const { deployContractAsync } = useDeployContract();
+  const publicClient = usePublicClient();
 
   const [stage, setStage] = useState<Stage>(presetId ? "configure" : "select");
   const [templateId, setTemplateId] = useState<string | null>(presetId ?? null);
   const [filter, setFilter] = useState("");
   const [args, setArgs] = useState<Record<string, string>>({});
   const [projectName, setProjectName] = useState("");
+  const [deployLines, setDeployLines] = useState<TerminalLine[]>([]);
   const [deployResult, setDeployResult] = useState<null | {
     address: string;
     txHash: string;
@@ -68,30 +73,76 @@ function DeployWizard() {
     setStage("configure");
   };
 
-  const startDeploy = () => {
-    if (!template) return;
-    setStage("deploying");
-  };
+  const log = (text: string, status: TerminalLine["status"] = "pending") =>
+    setDeployLines((p) => [...p, { text, status }]);
 
-  const onDeployComplete = () => {
-    if (!template) return;
-    const address = "0x" + randomHex(40);
-    const txHash = "0x" + randomHex(64);
-    const block = 4_318_300 + Math.floor(Math.random() * 100);
-    setDeployResult({ address, txHash, block });
-    addProject({
-      id: "p" + Date.now(),
-      name: projectName || template.name,
-      templateId: template.id,
-      templateName: template.name,
-      address,
-      txHash,
-      blockNumber: block,
-      deployedAt: Date.now(),
-      status: "VERIFIED",
-      constructorArgs: args,
-    });
-    setStage("success");
+  // Real on-chain deploy: compile in-browser, send the creation tx through the
+  // connected wallet, wait for the receipt, and record it.
+  const startDeploy = async () => {
+    if (!template || !address || !publicClient) return;
+    setStage("deploying");
+    setDeployLines([]);
+    const ts = () => new Date().toLocaleTimeString();
+
+    try {
+      log(`[${ts()}] [Compiler] Compiling ${template.name}.sol with solc 0.8.20...`);
+      const result = await compile({
+        sources: { [`${template.name}.sol`]: template.solidity },
+        version: "0.8.20",
+        mainFile: `${template.name}.sol`,
+      });
+      if (result.status === "error") {
+        for (const e of result.errors) log(`[${ts()}] [Error] ${e.formattedMessage}`, "error");
+        toast.error("Compilation failed");
+        return;
+      }
+      const contract = result.contracts[template.name];
+      if (!contract) {
+        log(`[${ts()}] [Error] Compiled output missing ${template.name}`, "error");
+        return;
+      }
+      log(
+        `[${ts()}] [Compiler] ✓ Compiled (${(contract.bytecode.length - 2) / 2} bytes)`,
+        "success",
+      );
+
+      // Encode constructor args from the template's declared arg list.
+      const encodedArgs = parseArgs(template.args, args);
+      log(`[${ts()}] [Deploy] Submitting deployment to ${chain.name} (chain ${chain.id})...`);
+      const hash = await deployContractAsync({
+        abi: contract.abi as [],
+        bytecode: contract.bytecode,
+        args: encodedArgs.length > 0 ? encodedArgs : undefined,
+        chainId: chain.id,
+      });
+      log(`[${ts()}] [Deploy] Transaction submitted: ${hash}`, "success");
+      log(`[${ts()}] [Deploy] Waiting for confirmation...`);
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      const deployedAddr = receipt.contractAddress as `0x${string}`;
+      if (!deployedAddr) {
+        log(`[${ts()}] [Error] No contract address in receipt`, "error");
+        return;
+      }
+      log(`[${ts()}] [Deploy] ✓ Confirmed in block ${receipt.blockNumber}`, "success");
+      log(`[${ts()}] [Deploy] ✓ Contract deployed at ${deployedAddr}`, "success");
+
+      await recordDeployment({
+        contractAddress: deployedAddr,
+        templateId: template.id,
+        projectName: projectName || template.name,
+        network: chain.name,
+        txHash: hash,
+        chainId: chain.id,
+      }).catch(() => {});
+
+      setDeployResult({ address: deployedAddr, txHash: hash, block: Number(receipt.blockNumber) });
+      setStage("success");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Deploy failed";
+      log(`[${new Date().toLocaleTimeString()}] [Error] ${msg}`, "error");
+      toast.error(msg);
+    }
   };
 
   /* ─────── STAGE: SELECT ─────── */
@@ -235,14 +286,14 @@ function DeployWizard() {
               </h3>
               <dl className="space-y-2 font-mono text-xs">
                 <PreviewRow label="Template" value={template.name} />
-                <PreviewRow label="Network" value={`${CHAIN.name} (Chain ${CHAIN.id})`} />
+                <PreviewRow label="Network" value={`${chain.name} (Chain ${chain.id})`} />
                 <PreviewRow label="Compiler" value="Solidity 0.8.20" />
                 <PreviewRow
                   label="Est. Gas"
                   value={`~${template.estimatedGas.toLocaleString()} units`}
                 />
                 <PreviewRow label="Est. Cost" value={<span>~{gasQIE.toFixed(6)} QIE</span>} />
-                <PreviewRow label="Verification" value="Automatic" />
+                <PreviewRow label="Compiled" value="In-browser (solc)" />
                 <PreviewRow label="Registry" value={projectName || template.name} />
               </dl>
             </div>
@@ -274,10 +325,12 @@ function DeployWizard() {
           </button>
           <button
             onClick={startDeploy}
-            disabled={!wallet.connected}
+            disabled={!isConnected}
+            title={isConnected ? undefined : "Connect a wallet to deploy"}
             className="flex items-center gap-2 rounded bg-primary px-5 py-2 font-mono text-xs font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
           >
-            <Rocket className="h-3.5 w-3.5" /> Deploy Contract
+            <Rocket className="h-3.5 w-3.5" />
+            {isConnected ? "Deploy Contract" : "Connect Wallet to Deploy"}
           </button>
         </div>
       </div>
@@ -286,40 +339,24 @@ function DeployWizard() {
 
   /* ─────── STAGE: DEPLOYING ─────── */
   if (stage === "deploying" && template) {
-    const lines: TerminalLine[] = [
-      { text: "[DevStation] Compiling SimpleERC20.sol with solc 0.8.20...", status: "pending" },
-      { text: "[DevStation] ✓ Compiled (no warnings)", status: "success" },
-      { text: "[DevStation] Estimating gas via QIE RPC...", status: "pending" },
-      {
-        text: `[DevStation] ✓ Estimated ${template.estimatedGas.toLocaleString()} gas units`,
-        status: "success",
-      },
-      {
-        text: `[DevStation] Submitting deployment transaction to ${CHAIN.name}...`,
-        status: "pending",
-      },
-      { text: "[DevStation] ✓ Transaction broadcast", status: "success" },
-      { text: "[DevStation] Waiting for confirmation (block #4,318,302)...", status: "pending" },
-      { text: "[DevStation] ✓ Confirmed in 2 blocks", status: "success" },
-      {
-        text: "[DevStation] Submitting source for verification at testnet.qie.digital...",
-        status: "pending",
-      },
-      { text: "[DevStation] ✓ Verification successful", status: "success" },
-      { text: "[DevStation] Registering label in ContractLabelRegistry...", status: "pending" },
-      { text: `[DevStation] ✓ Registered as "${projectName || template.name}"`, status: "success" },
-      { text: "[DevStation] Deployment complete.", status: "success" },
-    ];
-
+    const hasError = deployLines.some((l) => l.status === "error");
     return (
       <div>
         <PageHeader
           breadcrumb={["DevStation", "LaunchKit", "Deploy", template.name]}
-          title="Deploying..."
-          subtitle="Step 3 of 3 — Compile, broadcast, verify, register."
+          title="Deploying…"
+          subtitle="Step 3 of 3 — Compile, sign in your wallet, broadcast, confirm."
         />
-        <div className="p-6">
-          <TerminalOutput lines={lines} speedMs={650} onDone={onDeployComplete} />
+        <div className="space-y-4 p-6">
+          <TerminalOutput lines={deployLines} instant />
+          {hasError && (
+            <button
+              onClick={() => setStage("configure")}
+              className="rounded border border-border px-4 py-2 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
+            >
+              ← Back to configuration
+            </button>
+          )}
         </div>
       </div>
     );
@@ -327,15 +364,22 @@ function DeployWizard() {
 
   /* ─────── STAGE: SUCCESS ─────── */
   if (stage === "success" && template && deployResult) {
-    const envContent = generateEnv(template, deployResult, projectName);
-    const submission = generateSubmission(template, deployResult, projectName);
+    const envContent = generateEnv(template, deployResult, projectName, config, chain.id);
+    const submission = generateSubmission(
+      template,
+      deployResult,
+      projectName,
+      chain.name,
+      chain.id,
+      config,
+    );
 
     return (
       <div>
         <PageHeader
           breadcrumb={["DevStation", "LaunchKit", "Deploy", template.name]}
           title="Deployed"
-          subtitle="Your contract is live, verified, and labeled."
+          subtitle="Your contract is live on-chain."
         />
         <div className="space-y-6 p-6">
           {/* Success banner */}
@@ -345,13 +389,11 @@ function DeployWizard() {
                 <Check className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <h2 className="font-mono text-lg font-bold text-success">
-                  Contract Deployed & Verified
-                </h2>
+                <h2 className="font-mono text-lg font-bold text-success">Contract Deployed</h2>
                 <dl className="mt-3 grid grid-cols-1 gap-2 font-mono text-xs sm:grid-cols-2">
                   <SuccessRow label="Project" value={projectName || template.name} />
                   <SuccessRow label="Template" value={template.name} />
-                  <SuccessRow label="Network" value={`${CHAIN.name} · ${CHAIN.id}`} />
+                  <SuccessRow label="Network" value={`${chain.name} · ${chain.id}`} />
                   <SuccessRow label="Block" value={`#${deployResult.block.toLocaleString()}`} />
                   <SuccessRow
                     label="Address"
@@ -617,25 +659,48 @@ function ResultCard({
 
 /* ─────── helpers ─────── */
 
-function randomHex(len: number) {
-  const chars = "0123456789abcdef";
-  let out = "";
-  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * 16)];
-  return out;
+interface ChainCfg {
+  rpcUrl: string;
+  explorerUrl: string;
+  name: string;
+}
+
+// Map a template's declared args + the user's form values to real,
+// abi-encodable constructor arguments (in declaration order).
+function parseArgs(defs: ConstructorArg[], values: Record<string, string>): unknown[] {
+  return defs.map((a) => {
+    const raw = (values[a.name] ?? "").trim();
+    switch (a.type) {
+      case "uint":
+        return BigInt(raw || "0");
+      case "bool":
+        return raw === "true";
+      case "address":
+        return raw as `0x${string}`;
+      case "address[]":
+        return raw ? raw.split(",").map((s) => s.trim() as `0x${string}`) : [];
+      case "uint[]":
+        return raw ? raw.split(",").map((s) => BigInt(s.trim())) : [];
+      default:
+        return raw;
+    }
+  });
 }
 
 function generateEnv(
   template: Template,
   result: { address: string; txHash: string; block: number },
   projectName: string,
+  config: ChainCfg,
+  chainId: number,
 ) {
   return `# Generated by DevStation
 # Project: ${projectName || template.name}
 # Template: ${template.name}
 
-QIE_RPC_URL=${CHAIN.rpc}
-QIE_CHAIN_ID=${CHAIN.id}
-QIE_EXPLORER=${CHAIN.explorer}
+QIE_RPC_URL=${config.rpcUrl}
+QIE_CHAIN_ID=${chainId}
+QIE_EXPLORER=${config.explorerUrl}
 
 CONTRACT_ADDRESS=${result.address}
 DEPLOY_TX_HASH=${result.txHash}
@@ -647,15 +712,17 @@ function generateSubmission(
   template: Template,
   result: { address: string; txHash: string; block: number },
   projectName: string,
+  networkName: string,
+  chainId: number,
+  config: ChainCfg,
 ) {
   return `Project Name: ${projectName || template.name}
-Track: Infrastructure & Tools
 Template: ${template.name}
-Network: ${CHAIN.name} (Chain ${CHAIN.id})
+Network: ${networkName} (Chain ${chainId})
 Contract: ${result.address}
 Tx Hash: ${result.txHash}
 Block: ${result.block}
-Explorer: ${CHAIN.explorer}/address/${result.address}
+Explorer: ${config.explorerUrl}/address/${result.address}
 
 GitHub: <add your repo URL>
 Demo: <add your demo URL>

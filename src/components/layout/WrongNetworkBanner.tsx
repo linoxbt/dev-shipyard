@@ -1,17 +1,20 @@
 import { AlertTriangle } from "lucide-react";
-import { useWallet, QIE_CHAIN_ID } from "@/lib/wallet";
+import { useActiveChain } from "@/hooks/useActiveChain";
 
+// Shows only when the connected wallet is on a chain DevStation doesn't support
+// (i.e. neither QIE Testnet nor Mainnet). It does NOT force a specific QIE
+// network — it offers to switch to the user's currently-selected one.
 export function WrongNetworkBanner() {
-  const { connected, chainId, switchToQIE } = useWallet();
-  if (!connected || chainId === QIE_CHAIN_ID) return null;
+  const { walletOnWrongNetwork, chain, select, chainId } = useActiveChain();
+  if (!walletOnWrongNetwork) return null;
   return (
-    <div className="flex items-center gap-2 border-b border-warning/40 bg-warning/10 px-4 py-2 font-mono text-xs text-warning">
-      <AlertTriangle className="h-3.5 w-3.5" />
+    <div className="flex flex-wrap items-center gap-2 border-b border-warning/40 bg-warning/10 px-4 py-2 font-mono text-xs text-warning">
+      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
       <span>
-        You're connected to chain {chainId}. DevStation requires QIE Testnet (Chain {QIE_CHAIN_ID}).
+        Your wallet is on an unsupported network. DevStation works with QIE Testnet & Mainnet.
       </span>
-      <button onClick={switchToQIE} className="ml-2 text-primary hover:underline">
-        Switch Network
+      <button onClick={() => select(chainId)} className="ml-auto text-primary hover:underline">
+        Switch to {chain.name}
       </button>
     </div>
   );

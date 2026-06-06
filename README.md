@@ -32,16 +32,19 @@ It connects to **QIE Wallet** / MetaMask, includes an in-app password-encrypted 
 ## Features
 
 ### LaunchKit
+
 - **Contract Editor** (`/launchkit/editor`) — Monaco editor with Solidity highlighting + autocomplete, a file explorer (workspace persisted to `localStorage`), a resizable terminal with colored compiler output, and **in-browser compilation** via a `solc` Web Worker (no backend needed). Pick any solc 0.7–0.8.26.
 - **Deploy panel** — compile, fill constructor args from the ABI, and deploy with the connected wallet. Switch between QIE Testnet/Mainnet; deployments are recorded to the on-chain ProjectRegistry.
 - **Template gallery** (`/launchkit/templates`) — ready-to-deploy contract templates with source + ABI viewers.
 - **Projects** (`/launchkit/projects`) — your deployments, merged from the on-chain registry and local history.
 
 ### Routebook
+
 - **Transaction inspector** (`/routebook`) — paste any QIE tx hash; it's decoded server-side via QIE RPC into an execution tree, ERC-20 transfers, approvals (with risk flags), and a human-readable revert reason on failure.
 - **Label registry** (`/routebook/labels`) — human-readable names for contracts; submissions write to the on-chain ContractLabelRegistry.
 
 ### Wallet
+
 - **QIE Wallet / MetaMask** via injected (EIP-6963) discovery — no SDK required.
 - **In-app generated wallet** — a self-custody dev wallet whose mnemonic is **password-encrypted** (AES-GCM + PBKDF2, Web Crypto) and stored only in your browser. View the seed (behind your password), balance, and QUSDC balance in Settings.
 - **Get QIE for gas** — when native balance is low, a link to the QIE DEX surfaces.
@@ -50,14 +53,14 @@ It connects to **QIE Wallet** / MetaMask, includes an in-app password-encrypted 
 
 ## Tech stack
 
-| Layer | Choice |
-| --- | --- |
-| Framework | TanStack Start + TanStack Router (SSR, file-based routing) |
-| UI | React 19, Tailwind v4, shadcn/Radix |
-| Web3 | viem + wagmi 2.x (injected/MetaMask connectors) |
-| Editor | Monaco (`@monaco-editor/react`) + browser `solc` Web Worker |
-| State / data | Zustand, TanStack Query, `localStorage` persistence |
-| Build/runtime | Vite 7, Bun, Nitro (deploy-target presets) |
+| Layer         | Choice                                                      |
+| ------------- | ----------------------------------------------------------- |
+| Framework     | TanStack Start + TanStack Router (SSR, file-based routing)  |
+| UI            | React 19, Tailwind v4, shadcn/Radix                         |
+| Web3          | viem + wagmi 2.x (injected/MetaMask connectors)             |
+| Editor        | Monaco (`@monaco-editor/react`) + browser `solc` Web Worker |
+| State / data  | Zustand, TanStack Query, `localStorage` persistence         |
+| Build/runtime | Vite 7, Bun, Nitro (deploy-target presets)                  |
 
 ---
 
@@ -89,40 +92,40 @@ Copy `.env.example` → `.env.local` for local dev. **`.env.local` is gitignored
 
 ### Network (optional — defaults match QIE docs)
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `VITE_QIE_TESTNET_RPC` | `https://rpc1testnet.qie.digital/` | QIE Testnet RPC endpoint |
-| `VITE_QIE_TESTNET_EXPLORER` | `https://testnet.qie.digital` | Testnet explorer base URL |
-| `VITE_QIE_TESTNET_CHAIN_ID` | `1983` | Testnet chain id |
-| `VITE_QIE_MAINNET_RPC` | `https://rpc1mainnet.qie.digital/` | QIE Mainnet RPC endpoint |
-| `VITE_QIE_MAINNET_EXPLORER` | `https://mainnet.qie.digital` | Mainnet explorer base URL |
-| `VITE_QIE_MAINNET_CHAIN_ID` | `1990` | Mainnet chain id |
-| `VITE_QIE_DEX_URL` | `https://www.swap.dex.qie.digital/swap` | "Get QIE for gas" link |
+| Variable                    | Default                                 | Purpose                   |
+| --------------------------- | --------------------------------------- | ------------------------- |
+| `VITE_QIE_TESTNET_RPC`      | `https://rpc1testnet.qie.digital/`      | QIE Testnet RPC endpoint  |
+| `VITE_QIE_TESTNET_EXPLORER` | `https://testnet.qie.digital`           | Testnet explorer base URL |
+| `VITE_QIE_TESTNET_CHAIN_ID` | `1983`                                  | Testnet chain id          |
+| `VITE_QIE_MAINNET_RPC`      | `https://rpc1mainnet.qie.digital/`      | QIE Mainnet RPC endpoint  |
+| `VITE_QIE_MAINNET_EXPLORER` | `https://mainnet.qie.digital`           | Mainnet explorer base URL |
+| `VITE_QIE_MAINNET_CHAIN_ID` | `1990`                                  | Mainnet chain id          |
+| `VITE_QIE_DEX_URL`          | `https://www.swap.dex.qie.digital/swap` | "Get QIE for gas" link    |
 
 ### DevStation registries (set after you deploy them — see below)
 
-| Variable | Purpose |
-| --- | --- |
+| Variable                        | Purpose                                                                                                           |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `VITE_PROJECT_REGISTRY_ADDRESS` | ProjectRegistry address. When set, Projects reads on-chain + deploys are recorded. Unset → localStorage fallback. |
-| `VITE_LABEL_REGISTRY_ADDRESS` | ContractLabelRegistry address. When set, label submissions write on-chain. Unset → local/mock. |
+| `VITE_LABEL_REGISTRY_ADDRESS`   | ContractLabelRegistry address. When set, label submissions write on-chain. Unset → local/mock.                    |
 
 ### QIE ecosystem (optional)
 
-| Variable | Purpose |
-| --- | --- |
-| `VITE_QUSDC_ADDRESS` | QUSDC (QIE stablecoin) token address. When set, the wallet shows a read-only QUSDC balance. Get it from <https://docs.stable.qie.digital> / the explorer. |
-| `VITE_WALLETCONNECT_PROJECT_ID` | Optional. Reserved for WalletConnect; injected wallets (QIE Wallet/MetaMask) work without it. |
+| Variable                        | Purpose                                                                                                                                                   |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_QUSDC_ADDRESS`            | QUSDC (QIE stablecoin) token address. When set, the wallet shows a read-only QUSDC balance. Get it from <https://docs.stable.qie.digital> / the explorer. |
+| `VITE_WALLETCONNECT_PROJECT_ID` | Optional. Reserved for WalletConnect; injected wallets (QIE Wallet/MetaMask) work without it.                                                             |
 
 ### Server-only (NOT a `VITE_` var, NEVER committed or set on the host)
 
-| Variable | Purpose |
-| --- | --- |
+| Variable      | Purpose                                                                                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PRIVATE_KEY` | Used **only** by `scripts/deploy.ts` to deploy the registry contracts from your machine. Lives in `.env.local`. **Do not** add this to Vercel/Netlify — the app never needs it. |
 
 ### Build-only (CI/host, optional)
 
-| Variable | Purpose |
-| --- | --- |
+| Variable       | Purpose                                                                                                                                                                      |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `NITRO_PRESET` | Override the deploy target preset (`vercel`, `netlify`, `node-server`, `cloudflare-module`, `bun`). Auto-detected on Vercel/Netlify; defaults to `vercel` for manual builds. |
 
 ---
@@ -131,9 +134,9 @@ Copy `.env.example` → `.env.local` for local dev. **`.env.local` is gitignored
 
 Currently deployed on **QIE Testnet (chain 1983)**:
 
-| Contract | Address |
-| --- | --- |
-| ProjectRegistry | `0x75d7b39bc827367c409e1a2bf805bd5f337ca27b` |
+| Contract              | Address                                      |
+| --------------------- | -------------------------------------------- |
+| ProjectRegistry       | `0x75d7b39bc827367c409e1a2bf805bd5f337ca27b` |
 | ContractLabelRegistry | `0x177294293e6e785a83e036a95de1697e3cc04748` |
 
 Set these as `VITE_PROJECT_REGISTRY_ADDRESS` / `VITE_LABEL_REGISTRY_ADDRESS` to enable on-chain reads/writes. (Mainnet not yet deployed.)
@@ -234,14 +237,14 @@ public/_redirects     Netlify SSR catch-all
 
 ## Scripts
 
-| Command | Description |
-| --- | --- |
-| `bun run dev` | Dev server (http://localhost:8080) |
-| `bun run build` | Production build (host-aware preset) |
-| `bun run preview` | Preview the production build |
-| `bun run lint` / `bun run format` | ESLint / Prettier |
-| `bun run contracts:compile` | Compile registries → ABIs + artifacts |
-| `bun run contracts:deploy [mainnet]` | Deploy registries (testnet default) |
+| Command                              | Description                           |
+| ------------------------------------ | ------------------------------------- |
+| `bun run dev`                        | Dev server (http://localhost:8080)    |
+| `bun run build`                      | Production build (host-aware preset)  |
+| `bun run preview`                    | Preview the production build          |
+| `bun run lint` / `bun run format`    | ESLint / Prettier                     |
+| `bun run contracts:compile`          | Compile registries → ABIs + artifacts |
+| `bun run contracts:deploy [mainnet]` | Deploy registries (testnet default)   |
 
 ---
 
@@ -250,4 +253,7 @@ public/_redirects     Netlify SSR catch-all
 - **`.env.local`, `.env*`, and `deployment-output.json` are gitignored.** The deployer private key never enters the repo, the client bundle, or the host env.
 - The in-app generated wallet's mnemonic is **encrypted with your password** (AES-GCM + PBKDF2) before touching `localStorage`, and is only ever revealed behind a password prompt. Browser-stored keys are fine for testnet and small balances — for significant mainnet funds, use a hardware wallet via the injected connector instead.
 - Never set `PRIVATE_KEY` in Vercel/Netlify env — the running app has no use for it.
+
+```
+
 ```

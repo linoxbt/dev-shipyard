@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TxHashChip } from "@/components/shared/TxHashChip";
-import { DEMO_TXS } from "@/lib/mock/transactions";
+import { storage } from "@/lib/storage";
 
 export const Route = createFileRoute("/routebook/")({
   head: () => ({
@@ -20,7 +20,10 @@ export const Route = createFileRoute("/routebook/")({
 
 function RoutebookHome() {
   const [hash, setHash] = useState("");
+  const [recent, setRecent] = useState<string[]>([]);
   const navigate = useNavigate();
+
+  useEffect(() => setRecent(storage.loadInspections()), []);
 
   const submit = () => {
     if (!hash.trim()) return;
@@ -47,7 +50,7 @@ function RoutebookHome() {
                   value={hash}
                   onChange={(e) => setHash(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && submit()}
-                  placeholder="Paste a QIE Testnet transaction hash... 0x..."
+                  placeholder="Paste a QIE transaction hash... 0x..."
                   className="w-full rounded border border-border bg-background py-3 pl-10 pr-3 font-mono text-sm text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
                 />
               </div>
@@ -55,46 +58,37 @@ function RoutebookHome() {
 
             <button
               onClick={submit}
-              className="mt-3 w-full rounded bg-primary px-4 py-2.5 font-mono text-sm font-bold text-primary-foreground hover:bg-primary-hover"
+              disabled={!hash.trim()}
+              className="mt-3 w-full rounded bg-primary px-4 py-2.5 font-mono text-sm font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
             >
               Decode Transaction
             </button>
 
-            <div className="mt-6">
-              <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
-                Or try a pre-decoded demo
+            {recent.length > 0 && (
+              <div className="mt-6">
+                <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+                  Recent inspections
+                </div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {recent.map((h) => (
+                    <Link
+                      key={h}
+                      to="/routebook/$txHash"
+                      params={{ txHash: h }}
+                      className="rounded border border-border bg-background p-3 text-left transition hover:border-primary/40"
+                    >
+                      <TxHashChip hash={h} />
+                    </Link>
+                  ))}
+                </div>
               </div>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                {DEMO_TXS.map((tx) => (
-                  <Link
-                    key={tx.hash}
-                    to="/routebook/$txHash"
-                    params={{ txHash: tx.hash }}
-                    className="rounded border border-border bg-background p-3 text-left transition hover:border-primary/40"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`inline-block h-1.5 w-1.5 rounded-full ${
-                          tx.status === "SUCCESS" ? "bg-success" : "bg-danger"
-                        }`}
-                      />
-                      <span className="font-mono text-xs text-foreground">{tx.toName}</span>
-                      <span className="ml-auto font-mono text-[10px] text-meta">
-                        {tx.status === "SUCCESS" ? "Swap demo" : "Revert demo"}
-                      </span>
-                    </div>
-                    <div className="mt-1 font-mono text-[10px] text-meta">
-                      <TxHashChip hash={tx.hash} />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="mt-6 rounded border border-border bg-surface p-6 text-center font-mono text-xs text-meta">
             <div className="mb-2 text-2xl">{"{ }"}</div>
-            Paste a transaction hash above to render its execution route.
+            Paste any QIE Testnet or Mainnet transaction hash above to decode its execution route,
+            token movements, and approvals — live from the chain.
           </div>
         </div>
       </div>

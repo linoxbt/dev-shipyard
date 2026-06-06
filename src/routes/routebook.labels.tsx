@@ -5,8 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { AddressChip } from "@/components/shared/AddressChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { LABELS, type ContractLabel } from "@/lib/mock/labels";
-import { useContractLabels } from "@/hooks/useContractLabels";
+import { useContractLabels, useAllLabels, type OnChainLabel } from "@/hooks/useContractLabels";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/routebook/labels")({
@@ -32,9 +31,10 @@ function LabelRegistry() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("All");
   const [modal, setModal] = useState(false);
+  const { labels, onChain } = useAllLabels();
 
   const filtered = useMemo(() => {
-    return LABELS.filter((l) => {
+    return labels.filter((l) => {
       if (
         q &&
         !l.name.toLowerCase().includes(q.toLowerCase()) &&
@@ -47,13 +47,13 @@ function LabelRegistry() {
       if (filter === "Auto-labeled") return l.source === "AUTO";
       return l.category === filter;
     });
-  }, [q, filter]);
+  }, [labels, q, filter]);
 
   const stats = {
-    total: LABELS.length,
-    community: LABELS.filter((l) => l.source === "COMMUNITY").length,
-    auto: LABELS.filter((l) => l.source === "AUTO").length,
-    verified: LABELS.filter((l) => l.source === "VERIFIED").length,
+    total: labels.length,
+    community: labels.filter((l) => l.source === "COMMUNITY").length,
+    auto: labels.filter((l) => l.source === "AUTO").length,
+    verified: labels.filter((l) => l.source === "VERIFIED").length,
   };
 
   return (
@@ -61,7 +61,7 @@ function LabelRegistry() {
       <PageHeader
         breadcrumb={["DevStation", "Routebook", "Labels"]}
         title="Contract Label Registry"
-        subtitle="Human-readable names for every contract on QIE Testnet."
+        subtitle="Human-readable names for contracts on QIE — read from the on-chain registry."
         action={
           <button
             onClick={() => setModal(true)}
@@ -136,7 +136,11 @@ function LabelRegistry() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-3 py-8 text-center text-meta">
-                    No labels match this filter.
+                    {!onChain
+                      ? "Label registry not configured for this deployment."
+                      : labels.length === 0
+                        ? "No labels yet — be the first to submit one."
+                        : "No labels match this filter."}
                   </td>
                 </tr>
               )}
@@ -150,7 +154,7 @@ function LabelRegistry() {
   );
 }
 
-function Row({ label }: { label: ContractLabel }) {
+function Row({ label }: { label: OnChainLabel }) {
   return (
     <tr className="border-t border-border">
       <td className="px-3 py-2">
@@ -161,9 +165,11 @@ function Row({ label }: { label: ContractLabel }) {
       <td className="px-3 py-2">
         <StatusBadge kind={label.source} />
       </td>
-      <td className="px-3 py-2 text-muted-foreground">{label.submitter}</td>
+      <td className="px-3 py-2 text-muted-foreground">
+        {label.submitter ? `${label.submitter.slice(0, 6)}…${label.submitter.slice(-4)}` : "—"}
+      </td>
       <td className="px-3 py-2 text-meta">
-        {formatDistanceToNow(label.submittedAt, { addSuffix: true })}
+        {label.submittedAt ? formatDistanceToNow(label.submittedAt, { addSuffix: true }) : "—"}
       </td>
     </tr>
   );

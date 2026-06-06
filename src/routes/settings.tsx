@@ -2,8 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { CHAIN } from "@/lib/chain";
 import { WalletProfile } from "@/components/web3/WalletProfile";
+import { NetworkSelector } from "@/components/web3/NetworkSelector";
+import { useActiveChain } from "@/hooks/useActiveChain";
+import { getNetworkStatus } from "@/lib/api/chain.functions";
 import { storage } from "@/lib/storage";
 
 export const Route = createFileRoute("/settings")({
@@ -12,18 +14,33 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const [rpc, setRpc] = useState(CHAIN.rpc);
-  const [oracleEnabled, setOracleEnabled] = useState(true);
-  const [oracleInterval, setOracleInterval] = useState("30");
+  const { chainId, config } = useActiveChain();
   const [autoLabel, setAutoLabel] = useState(true);
   const [addressFormat, setAddressFormat] = useState<"truncated" | "full">("truncated");
+  const [testing, setTesting] = useState(false);
+
+  const testConnection = async () => {
+    setTesting(true);
+    try {
+      const res = await getNetworkStatus({ data: { chainId } });
+      if (res.status === "online") {
+        toast.success(`RPC online · block ${res.blockNumber.toLocaleString()}`);
+      } else {
+        toast.error("RPC offline or unreachable");
+      }
+    } catch {
+      toast.error("RPC test failed");
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <div>
       <PageHeader
         breadcrumb={["DevStation", "Settings"]}
         title="Settings"
-        subtitle="Configure network, oracle, display, and registry preferences."
+        subtitle="Configure network, display, and registry preferences."
       />
       <div className="grid gap-6 p-6 lg:grid-cols-2">
         <div className="lg:col-span-2">
@@ -33,48 +50,24 @@ function SettingsPage() {
         </div>
 
         <Section title="Network Configuration">
-          <Row label="Current Network">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-success" />
-              <span className="text-foreground">{CHAIN.name}</span>
-              <span className="text-meta">· Chain {CHAIN.id}</span>
-            </span>
+          <Row label="Active Network">
+            <NetworkSelector className="max-w-xs" />
           </Row>
           <Row label="RPC Endpoint">
-            <input
-              value={rpc}
-              onChange={(e) => setRpc(e.target.value)}
-              className="w-full rounded border border-border bg-background px-3 py-1.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
-            />
+            <span className="break-all text-muted-foreground">{config.rpcUrl}</span>
           </Row>
           <Row label="Explorer">
-            <span className="text-muted-foreground">{CHAIN.explorer}</span>
+            <span className="break-all text-muted-foreground">{config.explorerUrl}</span>
           </Row>
           <div>
             <button
-              onClick={() => toast.success("RPC responded in 142ms")}
-              className="rounded border border-primary px-3 py-1.5 font-mono text-xs text-primary hover:bg-primary/10"
+              onClick={testConnection}
+              disabled={testing}
+              className="rounded border border-primary px-3 py-1.5 font-mono text-xs text-primary hover:bg-primary/10 disabled:opacity-40"
             >
-              Test Connection
+              {testing ? "Testing…" : "Test Connection"}
             </button>
           </div>
-        </Section>
-
-        <Section title="Oracle Settings">
-          <Toggle label="Gas cost estimation" value={oracleEnabled} onChange={setOracleEnabled} />
-          <Row label="Refresh interval">
-            <select
-              value={oracleInterval}
-              onChange={(e) => setOracleInterval(e.target.value)}
-              className="rounded border border-border bg-background px-2 py-1 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
-            >
-              <option value="10">Every 10s</option>
-              <option value="30">Every 30s</option>
-              <option value="60">Every 60s</option>
-              <option value="manual">Manual</option>
-            </select>
-          </Row>
-          <Row label="Display currency">USD</Row>
         </Section>
 
         <Section title="Contract Label Registry">

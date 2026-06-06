@@ -27,7 +27,8 @@ import {
   DEFAULT_SOLC_VERSION,
 } from "@/lib/compiler";
 import { WalletPanel } from "@/components/web3/WalletPanel";
-import { qieTestnet, qieMainnet, QIE_DEX_SWAP_URL } from "@/lib/chains";
+import { NetworkSelector } from "@/components/web3/NetworkSelector";
+import { useActiveChain } from "@/hooks/useActiveChain";
 import { cn } from "@/lib/utils";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
 
@@ -56,8 +57,7 @@ function EditorPage() {
   const [deployPanelOpen, setDeployPanelOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const dragRef = useRef<number | null>(null);
-  const [network, setNetwork] = useState<"testnet" | "mainnet">("testnet");
-  const connectedChainId = network === "testnet" ? qieTestnet.id : qieMainnet.id;
+  const { chainId: connectedChainId, isTestnet } = useActiveChain();
 
   const activeSol = ws.activePath.endsWith(".sol") ? ws.activeContent : "";
 
@@ -214,21 +214,14 @@ function EditorPage() {
         <div className="flex-1" />
 
         {/* Network */}
-        <select
-          value={network}
-          onChange={(e) => setNetwork(e.target.value as "testnet" | "mainnet")}
-          className="rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground"
-        >
-          <option value="testnet">● QIE Testnet</option>
-          <option value="mainnet">● QIE Mainnet</option>
-        </select>
+        <NetworkSelector className="w-44" />
 
         {/* Wallet status */}
         <WalletPanel />
       </div>
 
       {/* Mainnet warning */}
-      {network === "mainnet" && (
+      {!isTestnet && (
         <div className="flex items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-1 font-mono text-[11px] text-warning">
           ⚠ QIE Mainnet. Transactions cost real gas.
         </div>

@@ -11,19 +11,25 @@ interface Props {
   speedMs?: number;
   className?: string;
   onDone?: () => void;
+  /** Render all lines immediately (for real, already-streaming output) rather
+   *  than animating them like a typewriter. */
+  instant?: boolean;
 }
 
-export function TerminalOutput({ lines, speedMs = 450, className, onDone }: Props) {
+export function TerminalOutput({ lines, speedMs = 450, className, onDone, instant }: Props) {
   const [shown, setShown] = useState(0);
 
   useEffect(() => {
+    if (instant) return;
     if (shown >= lines.length) {
       onDone?.();
       return;
     }
     const t = setTimeout(() => setShown((n) => n + 1), speedMs);
     return () => clearTimeout(t);
-  }, [shown, lines.length, speedMs, onDone]);
+  }, [shown, lines.length, speedMs, onDone, instant]);
+
+  const visible = instant ? lines.length : shown;
 
   return (
     <div
@@ -32,17 +38,17 @@ export function TerminalOutput({ lines, speedMs = 450, className, onDone }: Prop
         className,
       )}
     >
-      {lines.slice(0, shown).map((line, i) => (
+      {lines.slice(0, visible).map((line, i) => (
         <div key={i} className={colorFor(line.status)}>
           {line.text}
         </div>
       ))}
-      {shown < lines.length && (
+      {!instant && shown < lines.length && (
         <div className="text-warning">
           {lines[shown].text.replace(/✓|✗/, "...")} <span className="terminal-cursor" />
         </div>
       )}
-      {shown >= lines.length && <span className="terminal-cursor" />}
+      {(instant || shown >= lines.length) && <span className="terminal-cursor" />}
     </div>
   );
 }
