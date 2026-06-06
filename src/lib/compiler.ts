@@ -8,6 +8,11 @@ export interface CompileError {
   sourceLocation?: { file: string; start: number; end: number };
 }
 
+export interface ResolvedImport {
+  path: string;
+  via: "cdn";
+}
+
 export interface CompileOutput {
   status: "success" | "error";
   contracts: Record<
@@ -16,6 +21,10 @@ export interface CompileOutput {
   >;
   errors: CompileError[];
   warnings: CompileError[];
+  /** External imports (e.g. OpenZeppelin) resolved before compiling. */
+  resolvedImports: ResolvedImport[];
+  /** Import paths that could not be resolved. */
+  importErrors: string[];
   timeMs: number;
 }
 
@@ -57,6 +66,8 @@ export function compile({
         output?: Record<string, unknown>;
         errors?: CompileError[];
         warnings?: CompileError[];
+        resolvedImports?: ResolvedImport[];
+        importErrors?: string[];
         timeMs?: number;
         message?: string;
       }>,
@@ -104,6 +115,8 @@ export function compile({
         contracts,
         errors: e.data.errors ?? [],
         warnings: e.data.warnings ?? [],
+        resolvedImports: e.data.resolvedImports ?? [],
+        importErrors: e.data.importErrors ?? [],
         timeMs: e.data.timeMs ?? 0,
       });
     };

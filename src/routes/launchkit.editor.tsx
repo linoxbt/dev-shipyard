@@ -88,6 +88,19 @@ function EditorPage() {
           optimizerRuns: 200,
         });
         setLastResult(result);
+
+        // Import resolution feedback (OpenZeppelin, etc.)
+        for (const imp of result.resolvedImports) {
+          logT({ text: `[${ts}] [Compiler] ✓ Resolved ${imp.path} via CDN (OpenZeppelin v5.0.2)`, status: "success" });
+        }
+        for (const bad of result.importErrors) {
+          logT({ text: `[${ts}] [Error] Failed to resolve import: ${bad}`, status: "error" });
+          logT({
+            text: `[${ts}] [Hint] Check the path matches OpenZeppelin v5.0.2 exactly (case-sensitive). Browse: github.com/OpenZeppelin/openzeppelin-contracts/tree/v5.0.2/contracts`,
+            status: "warning",
+          });
+        }
+
         if (result.status === "error") {
           for (const err of result.errors) {
             logT({ text: `[${ts}] [Error] ${err.formattedMessage}`, status: "error" });

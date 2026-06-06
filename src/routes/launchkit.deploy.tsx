@@ -91,6 +91,9 @@ function DeployWizard() {
         version: "0.8.20",
         mainFile: `${template.name}.sol`,
       });
+      for (const imp of result.resolvedImports) {
+        log(`[${ts()}] [Compiler] ✓ Resolved ${imp.path} via CDN`, "success");
+      }
       if (result.status === "error") {
         for (const e of result.errors) log(`[${ts()}] [Error] ${e.formattedMessage}`, "error");
         toast.error("Compilation failed");
