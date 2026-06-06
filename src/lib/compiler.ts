@@ -41,9 +41,10 @@ let worker: Worker | null = null;
 
 function getWorker(): Worker {
   if (!worker) {
-    // Vite ?worker-aware — the URL import works with the bundler to emit a
-    // separate worker chunk.
-    worker = new Worker(new URL("./compiler.worker.ts", import.meta.url), { type: "module" });
+    // CLASSIC worker (not module): solc's soljson bundle is loaded with
+    // importScripts(), which is only available in classic workers. A module
+    // worker throws "Module scripts don't support importScripts()".
+    worker = new Worker(new URL("./compiler.worker.ts", import.meta.url), { type: "classic" });
   }
   return worker;
 }
