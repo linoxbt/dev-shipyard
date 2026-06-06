@@ -10,6 +10,16 @@
   command = "bun run build"
   publish = "dist"
 
+[build.environment]
+  # This app's dependency graph (wagmi + walletconnect + reown/appkit + coinbase
+  # /metamask SDKs + monaco) exceeds Node's default ~2 GB old-space during the
+  # final Nitro bundling step, causing "JavaScript heap out of memory" (SIGABRT).
+  # Raise the heap so the bundle completes on Netlify's build VM.
+  NODE_OPTIONS = "--max-old-space-size=8192"
+  # Auto-detected anyway, but pin it so a stray host build command can't fall
+  # back to the wrong (Cloudflare/Vercel) preset.
+  NITRO_PRESET = "netlify"
+
 [functions]
   directory = ".netlify/functions-internal"
   # The Nitro server bundle ships its own deps; don't let Netlify re-bundle.
