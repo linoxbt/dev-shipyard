@@ -10,6 +10,7 @@ import {
   BookOpen,
   Code2,
   Sparkles,
+  Compass,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,7 +38,9 @@ const NAV = [
       { to: "/routebook/labels", label: "Label Registry", icon: Tags },
     ],
   },
+  { to: "/explorer", label: "QIE Explorer", icon: Compass },
   { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/docs", label: "Docs", icon: BookOpen },
 ];
 
 // The sidebar content, shared by the desktop fixed rail and the mobile drawer.
@@ -96,15 +99,6 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             />
           );
         })}
-        <a
-          href="https://docs.qie.digital"
-          target="_blank"
-          rel="noreferrer"
-          className="mt-1 flex items-center gap-2 rounded px-2 py-1.5 font-mono text-xs text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-        >
-          <BookOpen className="h-3.5 w-3.5" />
-          Docs
-        </a>
       </nav>
 
       <div className="border-t border-border px-4 py-3">

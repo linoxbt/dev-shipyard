@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ExplorerRouteImport } from './routes/explorer'
+import { Route as DocsRouteImport } from './routes/docs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RoutebookIndexRouteImport } from './routes/routebook.index'
 import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
@@ -25,6 +27,16 @@ import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.tem
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExplorerRoute = ExplorerRouteImport.update({
+  id: '/explorer',
+  path: '/explorer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -85,6 +97,8 @@ const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/docs': typeof DocsRoute
+  '/explorer': typeof ExplorerRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
@@ -99,6 +113,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/docs': typeof DocsRoute
+  '/explorer': typeof ExplorerRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
@@ -114,6 +130,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/docs': typeof DocsRoute
+  '/explorer': typeof ExplorerRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
@@ -130,6 +148,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/docs'
+    | '/explorer'
     | '/settings'
     | '/api/ai'
     | '/launchkit/ai'
@@ -144,6 +164,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/docs'
+    | '/explorer'
     | '/settings'
     | '/api/ai'
     | '/launchkit/ai'
@@ -158,6 +180,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/docs'
+    | '/explorer'
     | '/settings'
     | '/api/ai'
     | '/launchkit/ai'
@@ -173,6 +197,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DocsRoute: typeof DocsRoute
+  ExplorerRoute: typeof ExplorerRoute
   SettingsRoute: typeof SettingsRoute
   ApiAiRoute: typeof ApiAiRoute
   LaunchkitAiRoute: typeof LaunchkitAiRoute
@@ -192,6 +218,20 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/explorer': {
+      id: '/explorer'
+      path: '/explorer'
+      fullPath: '/explorer'
+      preLoaderRoute: typeof ExplorerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -287,6 +327,8 @@ const LaunchkitTemplatesRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DocsRoute: DocsRoute,
+  ExplorerRoute: ExplorerRoute,
   SettingsRoute: SettingsRoute,
   ApiAiRoute: ApiAiRoute,
   LaunchkitAiRoute: LaunchkitAiRoute,
