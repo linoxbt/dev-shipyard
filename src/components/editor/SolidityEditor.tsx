@@ -13,9 +13,11 @@ interface Props {
   filename: string;
   onChange: (value: string) => void;
   diagnostics?: CompileDiagnostic[];
+  /** Reveal + place the cursor on a line. Bump `nonce` to re-trigger the same line. */
+  gotoLine?: { line: number; nonce: number };
 }
 
-export function SolidityEditor({ value, filename, onChange, diagnostics }: Props) {
+export function SolidityEditor({ value, filename, onChange, diagnostics, gotoLine }: Props) {
   const monaco = useMonaco();
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const modelRef = useRef<editor.ITextModel | null>(null);
@@ -250,6 +252,15 @@ export function SolidityEditor({ value, filename, onChange, diagnostics }: Props
       });
     monaco.editor.setModelMarkers(model, "solidity", markers);
   }, [monaco, diagnostics]);
+
+  // Jump to a line when asked (Inspector / error card clicks).
+  useEffect(() => {
+    const ed = editorRef.current;
+    if (!ed || !gotoLine || gotoLine.line < 1) return;
+    ed.revealLineInCenter(gotoLine.line);
+    ed.setPosition({ lineNumber: gotoLine.line, column: 1 });
+    ed.focus();
+  }, [gotoLine]);
 
   return (
     <Editor

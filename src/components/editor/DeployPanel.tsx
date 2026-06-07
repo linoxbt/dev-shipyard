@@ -4,6 +4,7 @@ import { useDeployContract, useWaitForTransactionReceipt } from "wagmi";
 import { useAccount } from "wagmi";
 import { toast } from "sonner";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
+import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import { chainConfig } from "@/lib/chains";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
 
@@ -107,6 +108,7 @@ export function DeployPanel({ contracts, chainId, onClose, onLog }: Props) {
       network: cfg.name,
       txHash,
       chainId,
+      abi: contract?.abi,
     })
       .then(() => {
         if (onChain) {
@@ -119,13 +121,13 @@ export function DeployPanel({ contracts, chainId, onClose, onLog }: Props) {
           status: "warning",
         });
       });
-  }, [receipt, txHash, chainId, selected, recordDeployment, onChain, onLog]);
+  }, [receipt, txHash, chainId, selected, contract, recordDeployment, onChain, onLog]);
 
   const [copied, setCopied] = useState(false);
   const cfg = chainConfig(chainId);
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-[320px] border-l border-border bg-surface shadow-lg">
+    <div className="fixed inset-y-0 right-0 z-50 w-[400px] max-w-[92vw] border-l border-border bg-surface shadow-lg">
       <div className="flex h-full flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -244,6 +246,20 @@ export function DeployPanel({ contracts, chainId, onClose, onLog }: Props) {
                   Explorer <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
+            </div>
+          )}
+
+          {/* Post-deploy contract interaction */}
+          {deployed && contract?.abi && contract.abi.length > 0 && (
+            <div className="border-t border-border pt-3">
+              <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-meta">
+                Interact
+              </div>
+              <ContractInteractor
+                contractAddress={deployed.addr}
+                abi={contract.abi}
+                chainId={chainId}
+              />
             </div>
           )}
         </div>

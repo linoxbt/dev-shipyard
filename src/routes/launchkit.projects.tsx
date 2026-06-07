@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Rocket, ExternalLink, X } from "lucide-react";
+import { Rocket, ExternalLink, X, Cpu } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { AddressChip } from "@/components/shared/AddressChip";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import { useProjects, type DeployedProject } from "@/lib/mock/projects";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useActiveChain } from "@/hooks/useActiveChain";
@@ -19,8 +20,9 @@ function ProjectsPage() {
   const storeProjects = useProjects((s) => s.projects);
   const remove = useProjects((s) => s.remove);
   const { deployments: registryProjects, onChain } = useProjectRegistry();
-  const { config } = useActiveChain();
+  const { config, chainId } = useActiveChain();
   const [selected, setSelected] = useState<DeployedProject | null>(null);
+  const [interact, setInteract] = useState<DeployedProject | null>(null);
 
   // Merge on-chain registry deployments with the local store, deduped by txHash.
   const seen = new Set(storeProjects.map((p) => p.txHash));
@@ -38,6 +40,8 @@ function ProjectsPage() {
         deployedAt: p.deployedAt,
         status: p.status,
         constructorArgs: p.constructorArgs,
+        abi: p.abi,
+        chainId: p.chainId,
       }),
     );
   const projects = [...extra, ...storeProjects];
@@ -120,14 +124,27 @@ function ProjectsPage() {
                       <StatusBadge kind={p.status} />
                     </td>
                     <td className="px-3 py-2.5 text-right">
-                      <Link
-                        to="/routebook/$txHash"
-                        params={{ txHash: p.txHash }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="font-mono text-primary hover:underline"
-                      >
-                        Inspect →
-                      </Link>
+                      <div className="flex items-center justify-end gap-3">
+                        {p.abi && p.abi.length > 0 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInteract(p);
+                            }}
+                            className="flex items-center gap-1 font-mono text-info hover:underline"
+                          >
+                            <Cpu className="h-3 w-3" /> Interact
+                          </button>
+                        )}
+                        <Link
+                          to="/routebook/$txHash"
+                          params={{ txHash: p.txHash }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-mono text-primary hover:underline"
+                        >
+                          Inspect →
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -215,6 +232,44 @@ function ProjectsPage() {
                 Remove from History
               </button>
             </div>
+          </aside>
+        </div>
+      )}
+      {/* Interact panel */}
+      {interact && (
+        <div className="fixed inset-0 z-50 flex">
+          <div
+            className="flex-1 bg-background/60 backdrop-blur-sm"
+            onClick={() => setInteract(null)}
+          />
+          <aside className="w-full max-w-md overflow-y-auto border-l border-border bg-surface p-5">
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+                  Interact
+                </div>
+                <h2 className="font-mono text-lg font-bold text-foreground">{interact.name}</h2>
+                <AddressChip address={interact.address} showLabel={false} full />
+              </div>
+              <button
+                onClick={() => setInteract(null)}
+                className="rounded p-1 text-meta hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {interact.abi && interact.abi.length > 0 ? (
+              <ContractInteractor
+                contractAddress={interact.address as `0x${string}`}
+                abi={interact.abi}
+                chainId={interact.chainId ?? chainId}
+              />
+            ) : (
+              <p className="font-mono text-xs text-meta">
+                No ABI stored for this contract — interaction is only available for contracts
+                deployed locally through DevStation.
+              </p>
+            )}
           </aside>
         </div>
       )}

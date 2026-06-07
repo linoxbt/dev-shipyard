@@ -12,6 +12,9 @@ export interface DeployedProject {
   deployedAt: number; // ms
   status: "VERIFIED" | "PENDING" | "FAILED";
   constructorArgs: Record<string, string>;
+  /** Compiled ABI, when available (local deployments) — powers the Interact panel. */
+  abi?: unknown[];
+  chainId?: number;
 }
 
 interface ProjectsState {

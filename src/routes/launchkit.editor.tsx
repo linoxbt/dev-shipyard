@@ -14,6 +14,9 @@ import {
   Code2,
   Sparkles,
   Wrench,
+  ShieldCheck,
+  AlertTriangle,
+  Info,
 } from "lucide-react";
 import { useAccount } from "wagmi";
 import { toast } from "sonner";
@@ -36,6 +39,11 @@ import { useActiveChain } from "@/hooks/useActiveChain";
 import { useEditorIntake } from "@/lib/editor-intake";
 import { useAiIntake } from "@/lib/ai-intake";
 import { diffLines, diffStats } from "@/lib/diff";
+import {
+  runStaticAnalysis,
+  STATIC_ANALYSIS_CHECK_COUNT,
+  type AnalysisFinding,
+} from "@/lib/staticAnalysis";
 import { cn } from "@/lib/utils";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
 
@@ -80,6 +88,13 @@ function EditorPage() {
   // Code block the user asked to apply from the AI panel, awaiting confirm
   // before it overwrites a non-empty file.
   const [pendingApply, setPendingApply] = useState<string | null>(null);
+  // Static-analysis findings (Inspector), bottom-panel tab, and line-jump nonce.
+  const [findings, setFindings] = useState<AnalysisFinding[]>([]);
+  const [bottomTab, setBottomTab] = useState<"terminal" | "inspector">("terminal");
+  const [gotoLine, setGotoLine] = useState<{ line: number; nonce: number }>();
+  const jumpToLine = (line?: number) => {
+    if (line) setGotoLine({ line, nonce: Date.now() });
+  };
   const dragRef = useRef<number | null>(null);
   const aiDragRef = useRef<number | null>(null);
   const { chainId: connectedChainId, isTestnet } = useActiveChain();
@@ -133,6 +148,7 @@ function EditorPage() {
           for (const err of result.errors) {
             logT({ text: `[${ts}] [Error] ${err.formattedMessage}`, status: "error" });
           }
+          setFindings([]); // static analysis only runs after a successful compile
         } else {
           const count = Object.keys(result.contracts).length;
           logT({
@@ -141,6 +157,32 @@ function EditorPage() {
           });
           for (const w of result.warnings) {
             logT({ text: `[${ts}] [Warning] ${w.formattedMessage}`, status: "warning" });
+          }
+
+          // ── Static analysis (Inspector) — runs after a successful compile ──
+          const found = runStaticAnalysis(src, ws.activePath);
+          setFindings(found);
+          logT({
+            text: `[${ts}] [Inspector] Running static analysis — ${STATIC_ANALYSIS_CHECK_COUNT} checks...`,
+            status: "pending",
+          });
+          if (found.length === 0) {
+            logT({
+              text: `[${ts}] [Inspector] ✓ Static analysis complete — ${STATIC_ANALYSIS_CHECK_COUNT} checks passed`,
+              status: "success",
+            });
+          } else {
+            for (const f of found) {
+              const icon = f.severity === "error" ? "✗" : f.severity === "warning" ? "⚠" : "ℹ";
+              const status =
+                f.severity === "error" ? "error" : f.severity === "warning" ? "warning" : "info";
+              const loc = f.line ? ` (line ${f.line})` : "";
+              logT({
+                text: `[${ts}] [Inspector] ${icon}  [${f.code}] ${f.title}${loc}`,
+                status,
+              });
+              logT({ text: `[${ts}] [Inspector]    ${f.description}`, status: "info" });
+            }
           }
         }
       } catch (err) {
@@ -414,6 +456,7 @@ function EditorPage() {
                   filename={ws.activePath}
                   onChange={(v) => ws.setContent(ws.activePath, v)}
                   diagnostics={diagnostics}
+                  gotoLine={gotoLine}
                 />
               </ClientOnly>
             ) : (
@@ -432,10 +475,40 @@ function EditorPage() {
             <GripHorizontal className="h-3 w-3 text-meta" />
           </div>
 
-          {/* Terminal */}
+          {/* Terminal + Inspector (tabbed) */}
           {!terminalCollapsed && (
-            <div style={{ height: terminalHeight }} className="shrink-0">
-              <EditorTerminal lines={lines} onClear={clearTerminal} onCollapse={toggleTerminal} />
+            <div style={{ height: terminalHeight }} className="flex shrink-0 flex-col">
+              {/* Tab bar */}
+              <div className="flex shrink-0 items-center gap-1 border-t border-border bg-[#0a0e13] px-2 pt-1">
+                <BottomTab
+                  active={bottomTab === "terminal"}
+                  onClick={() => setBottomTab("terminal")}
+                >
+                  Terminal
+                </BottomTab>
+                <BottomTab
+                  active={bottomTab === "inspector"}
+                  onClick={() => setBottomTab("inspector")}
+                >
+                  Inspector
+                  {findings.length > 0 && (
+                    <span className="ml-1 rounded-full bg-[#c084fc]/20 px-1.5 text-[9px] text-[#c084fc]">
+                      {findings.length}
+                    </span>
+                  )}
+                </BottomTab>
+              </div>
+              <div className="min-h-0 flex-1">
+                {bottomTab === "terminal" ? (
+                  <EditorTerminal
+                    lines={lines}
+                    onClear={clearTerminal}
+                    onCollapse={toggleTerminal}
+                  />
+                ) : (
+                  <InspectorPanel findings={findings} onJump={jumpToLine} />
+                )}
+              </div>
             </div>
           )}
           {terminalCollapsed && (
@@ -547,6 +620,100 @@ function DiffView({ ops }: { ops: ReturnType<typeof diffLines> }) {
         </div>
       ))}
     </div>
+  );
+}
+
+/* ── Bottom-panel tab button ── */
+function BottomTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center rounded-t px-3 py-1 font-mono text-[10px] uppercase tracking-wider transition",
+        active ? "bg-[#0a0e13] text-foreground" : "text-meta hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ── Inspector (static analysis findings) ── */
+function InspectorPanel({
+  findings,
+  onJump,
+}: {
+  findings: AnalysisFinding[];
+  onJump: (line?: number) => void;
+}) {
+  if (findings.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 bg-[#0a0e13] font-mono text-[11px] text-meta">
+        <ShieldCheck className="h-5 w-5 text-success" />
+        No static-analysis findings. Compile a contract to run the inspector.
+      </div>
+    );
+  }
+  return (
+    <div className="h-full space-y-2 overflow-y-auto bg-[#0a0e13] p-3">
+      {findings.map((f, i) => (
+        <FindingCard key={`${f.code}-${i}`} finding={f} onJump={onJump} />
+      ))}
+    </div>
+  );
+}
+
+function FindingCard({
+  finding,
+  onJump,
+}: {
+  finding: AnalysisFinding;
+  onJump: (line?: number) => void;
+}) {
+  const sev =
+    finding.severity === "error"
+      ? { label: "ERROR", cls: "text-danger", Icon: AlertTriangle }
+      : finding.severity === "warning"
+        ? { label: "WARNING", cls: "text-warning", Icon: AlertTriangle }
+        : { label: "INFO", cls: "text-meta", Icon: Info };
+  return (
+    <button
+      onClick={() => onJump(finding.line)}
+      className={cn(
+        "block w-full rounded border border-border bg-background p-2.5 text-left transition hover:border-primary",
+        finding.line ? "cursor-pointer" : "cursor-default",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className="rounded bg-[#c084fc]/15 px-1.5 py-0.5 font-mono text-[9px] text-[#c084fc]">
+          {finding.code}
+        </span>
+        <span className={cn("flex items-center gap-1 font-mono text-[9px]", sev.cls)}>
+          <sev.Icon className="h-3 w-3" />
+          {sev.label}
+        </span>
+        {finding.line && (
+          <span className="ml-auto font-mono text-[9px] text-meta">line {finding.line}</span>
+        )}
+      </div>
+      <div className="mt-1.5 font-mono text-[11px] font-semibold text-foreground">
+        {finding.title}
+      </div>
+      <p className="mt-1 font-mono text-[10px] leading-relaxed text-muted-foreground">
+        {finding.description}
+      </p>
+      <p className="mt-1.5 whitespace-pre-wrap font-mono text-[10px] leading-relaxed text-primary">
+        Fix: {finding.hint}
+      </p>
+    </button>
   );
 }
 
