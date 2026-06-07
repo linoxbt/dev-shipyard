@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
-import { Search, CheckCircle2 } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Search, CheckCircle2, Plus, User } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TEMPLATES, CATEGORIES, categoryColor, type TemplateCategory } from "@/lib/mock/templates";
+import { useUserTemplates } from "@/lib/user-templates";
 
 export const Route = createFileRoute("/launchkit/templates")({
   head: () => ({
@@ -24,8 +25,14 @@ function TemplateGallery() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"deploys" | "newest" | "alpha">("deploys");
 
+  const userTemplates = useUserTemplates((s) => s.templates);
+  const hydrate = useUserTemplates((s) => s.hydrate);
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
   const filtered = useMemo(() => {
-    let list = [...TEMPLATES];
+    let list = [...userTemplates, ...TEMPLATES];
     if (cat !== "All") list = list.filter((t) => t.category === cat);
     if (query) {
       const q = query.toLowerCase();
@@ -35,8 +42,9 @@ function TemplateGallery() {
     }
     if (sort === "deploys") list.sort((a, b) => b.deployCount - a.deployCount);
     else if (sort === "alpha") list.sort((a, b) => a.name.localeCompare(b.name));
+    else if (sort === "newest") list.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
     return list;
-  }, [cat, query, sort]);
+  }, [cat, query, sort, userTemplates]);
 
   return (
     <div>
@@ -45,9 +53,12 @@ function TemplateGallery() {
         title="Template Gallery"
         subtitle="Verified contracts. Configure and ship in 60 seconds."
         action={
-          <button className="rounded border border-border bg-transparent px-3 py-1.5 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary">
-            + Submit a Template
-          </button>
+          <Link
+            to="/launchkit/templates/submit"
+            className="flex items-center gap-1.5 rounded border border-border bg-transparent px-3 py-1.5 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
+          >
+            <Plus className="h-3.5 w-3.5" /> Submit a Template
+          </Link>
         }
       />
 
@@ -116,12 +127,17 @@ function TemplateGallery() {
                   >
                     {t.category}
                   </span>
-                  {t.verified && (
+                  {t.verified ? (
                     <span className="flex items-center gap-1 font-mono text-[10px] text-success">
                       <CheckCircle2 className="h-3 w-3" />
                       VERIFIED
                     </span>
-                  )}
+                  ) : t.submitter ? (
+                    <span className="flex items-center gap-1 font-mono text-[10px] text-info">
+                      <User className="h-3 w-3" />
+                      COMMUNITY
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="flex items-baseline justify-between gap-2">

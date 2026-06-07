@@ -22,6 +22,7 @@ import { Route as LaunchkitEditorRouteImport } from './routes/launchkit.editor'
 import { Route as LaunchkitDeployRouteImport } from './routes/launchkit.deploy'
 import { Route as LaunchkitAiRouteImport } from './routes/launchkit.ai'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
+import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
 import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -89,6 +90,12 @@ const ApiAiRoute = ApiAiRouteImport.update({
   path: '/api/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaunchkitTemplatesSubmitRoute =
+  LaunchkitTemplatesSubmitRouteImport.update({
+    id: '/submit',
+    path: '/submit',
+    getParentRoute: () => LaunchkitTemplatesRoute,
+  } as any)
 const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -110,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/routebook/labels': typeof RoutebookLabelsRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
+  '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -126,6 +134,7 @@ export interface FileRoutesByTo {
   '/routebook/labels': typeof RoutebookLabelsRoute
   '/routebook': typeof RoutebookIndexRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
+  '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -143,6 +152,7 @@ export interface FileRoutesById {
   '/routebook/labels': typeof RoutebookLabelsRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
+  '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/routebook/labels'
     | '/routebook/'
     | '/launchkit/templates/$id'
+    | '/launchkit/templates/submit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/routebook/labels'
     | '/routebook'
     | '/launchkit/templates/$id'
+    | '/launchkit/templates/submit'
   id:
     | '__root__'
     | '/'
@@ -193,6 +205,7 @@ export interface FileRouteTypes {
     | '/routebook/labels'
     | '/routebook/'
     | '/launchkit/templates/$id'
+    | '/launchkit/templates/submit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -304,6 +317,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/launchkit/templates/submit': {
+      id: '/launchkit/templates/submit'
+      path: '/submit'
+      fullPath: '/launchkit/templates/submit'
+      preLoaderRoute: typeof LaunchkitTemplatesSubmitRouteImport
+      parentRoute: typeof LaunchkitTemplatesRoute
+    }
     '/launchkit/templates/$id': {
       id: '/launchkit/templates/$id'
       path: '/$id'
@@ -316,10 +336,12 @@ declare module '@tanstack/react-router' {
 
 interface LaunchkitTemplatesRouteChildren {
   LaunchkitTemplatesIdRoute: typeof LaunchkitTemplatesIdRoute
+  LaunchkitTemplatesSubmitRoute: typeof LaunchkitTemplatesSubmitRoute
 }
 
 const LaunchkitTemplatesRouteChildren: LaunchkitTemplatesRouteChildren = {
   LaunchkitTemplatesIdRoute: LaunchkitTemplatesIdRoute,
+  LaunchkitTemplatesSubmitRoute: LaunchkitTemplatesSubmitRoute,
 }
 
 const LaunchkitTemplatesRouteWithChildren =

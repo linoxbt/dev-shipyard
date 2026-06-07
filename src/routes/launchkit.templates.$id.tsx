@@ -1,17 +1,17 @@
-import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { Rocket, ChevronDown, ChevronRight, Code2 } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Rocket, ChevronDown, ChevronRight, Code2, Pencil } from "lucide-react";
+import { useAccount } from "wagmi";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CodeBlock } from "@/components/shared/CodeBlock";
-import { getTemplate, categoryColor } from "@/lib/mock/templates";
+import { getTemplate, categoryColor, type Template } from "@/lib/mock/templates";
+import { useUserTemplates } from "@/lib/user-templates";
 import { useEditorIntake } from "@/lib/editor-intake";
 
 export const Route = createFileRoute("/launchkit/templates/$id")({
-  loader: ({ params }) => {
-    const tpl = getTemplate(params.id);
-    if (!tpl) throw notFound();
-    return { tpl };
-  },
+  // Built-ins resolve here (SSR). Community templates live in localStorage and
+  // are resolved client-side, so we don't 404 in the loader.
+  loader: ({ params }) => ({ tpl: getTemplate(params.id) ?? null, id: params.id }),
   head: ({ loaderData }) => ({
     meta: [
       { title: loaderData?.tpl ? `${loaderData.tpl.name} — DevStation` : "Template — DevStation" },
@@ -22,15 +22,60 @@ export const Route = createFileRoute("/launchkit/templates/$id")({
 });
 
 function TemplateDetail() {
-  const { tpl } = Route.useLoaderData();
+  const { tpl: builtin, id } = Route.useLoaderData();
   const [abiOpen, setAbiOpen] = useState(false);
   const navigate = useNavigate();
   const setPending = useEditorIntake((s) => s.setPending);
+  const { address } = useAccount();
+
+  const userTemplates = useUserTemplates((s) => s.templates);
+  const hydrated = useUserTemplates((s) => s.hydrated);
+  const hydrate = useUserTemplates((s) => s.hydrate);
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  const tpl: Template | null = useMemo(
+    () => builtin ?? userTemplates.find((t) => t.id === id) ?? null,
+    [builtin, userTemplates, id],
+  );
+
+  if (!tpl) {
+    // Built-in miss + store hydrated and still nothing → genuinely not found.
+    return (
+      <div>
+        <PageHeader breadcrumb={["DevStation", "LaunchKit", "Templates"]} title="Template" />
+        <div className="p-6">
+          <div className="rounded border border-border bg-surface p-10 text-center font-mono text-xs text-meta">
+            {hydrated ? (
+              <>
+                Template not found.
+                <Link to="/launchkit/templates" className="ml-2 text-primary hover:underline">
+                  Back to gallery →
+                </Link>
+              </>
+            ) : (
+              "Loading…"
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const canEdit = !!tpl.submitter && tpl.submitter === address;
 
   const openInEditor = () => {
     setPending(`${tpl.name}.sol`, tpl.solidity);
     navigate({ to: "/launchkit/editor" });
   };
+
+  let parsedAbi = "[]";
+  try {
+    parsedAbi = JSON.stringify(JSON.parse(tpl.abi), null, 2);
+  } catch {
+    parsedAbi = tpl.abi || "[]";
+  }
 
   return (
     <div>
@@ -40,6 +85,15 @@ function TemplateDetail() {
         subtitle={tpl.description}
         action={
           <div className="flex items-center gap-2">
+            {canEdit && (
+              <Link
+                to="/launchkit/templates/submit"
+                search={{ edit: tpl.id }}
+                className="flex items-center gap-1.5 rounded border border-border px-2.5 py-1.5 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
+              >
+                <Pencil className="h-3 w-3" /> Edit
+              </Link>
+            )}
             <button
               onClick={openInEditor}
               className="flex items-center gap-1.5 rounded border border-border px-2.5 py-1.5 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
@@ -65,13 +119,15 @@ function TemplateDetail() {
               >
                 {tpl.category}
               </span>
-              {tpl.verified && (
+              {tpl.verified ? (
                 <span className="font-mono text-[10px] text-success">✓ VERIFIED</span>
-              )}
+              ) : tpl.submitter ? (
+                <span className="font-mono text-[10px] text-info">COMMUNITY</span>
+              ) : null}
             </div>
             <p className="text-sm text-muted-foreground">{tpl.longDescription}</p>
             <dl className="mt-4 grid grid-cols-2 gap-3 font-mono text-xs">
-              <Meta label="Author" value={tpl.author} />
+              <Meta label="Author" value={shortAuthor(tpl.author)} />
               <Meta label="Version" value={tpl.version} />
               <Meta label="Deploys" value={tpl.deployCount.toString()} />
               <Meta label="Args" value={tpl.args.length.toString()} />
@@ -100,11 +156,7 @@ function TemplateDetail() {
             </button>
             {abiOpen && (
               <div className="border-t border-border p-3">
-                <CodeBlock
-                  code={JSON.stringify(JSON.parse(tpl.abi), null, 2)}
-                  language="json"
-                  maxHeight="320px"
-                />
+                <CodeBlock code={parsedAbi} language="json" maxHeight="320px" />
               </div>
             )}
           </div>
@@ -123,11 +175,15 @@ function TemplateDetail() {
   );
 }
 
+function shortAuthor(a: string): string {
+  return /^0x[a-fA-F0-9]{40}$/.test(a) ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
+}
+
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-[10px] uppercase tracking-wider text-meta">{label}</dt>
-      <dd className="text-foreground">{value}</dd>
+      <dd className="truncate text-foreground">{value}</dd>
     </div>
   );
 }

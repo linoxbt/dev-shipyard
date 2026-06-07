@@ -31,6 +31,19 @@ export interface Template {
   author: string;
   version: string;
   estimatedGas: number;
+  /** Whether the deploy flow should offer an image upload (e.g. NFT collections). */
+  requiresImage?: boolean;
+  /** Wallet address of a community submitter. Built-in templates leave this unset;
+   *  only the submitter may edit a user-submitted template. */
+  submitter?: string;
+  /** Epoch ms a community template was submitted. */
+  createdAt?: number;
+}
+
+// Does the deploy flow show the image upload for this template? Community
+// templates set the flag explicitly; built-ins default to NFT collections.
+export function templateNeedsImage(t: Template): boolean {
+  return t.requiresImage ?? t.category === "NFT";
 }
 
 // All sources are self-contained (NO imports) so they compile with the

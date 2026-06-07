@@ -32,6 +32,28 @@ declare function importScripts(...urls: string[]): void;
 let cachedVersion = "";
 let solc: unknown = null;
 
+// solc builds on binaries.soliditylang.org are named with a commit hash, e.g.
+// `soljson-v0.8.20+commit.a1b79de6.js` — there is NO `soljson-v0.8.20.js` or
+// `+commit.latest.js`. The canonical bin/list.json maps each version to its
+// exact filename, so we resolve through it (cached) before importScripts.
+let releaseMap: Record<string, string> | null = null;
+
+async function resolveSolcUrl(version: string): Promise<string> {
+  if (!releaseMap) {
+    const resp = await fetch("https://binaries.soliditylang.org/bin/list.json");
+    if (!resp.ok) throw new Error(`Could not load solc version list (${resp.status})`);
+    const data = (await resp.json()) as { releases?: Record<string, string> };
+    releaseMap = data.releases ?? {};
+  }
+  const file = releaseMap[version];
+  if (!file) {
+    throw new Error(
+      `solc ${version} is not available on binaries.soliditylang.org. Pick another version.`,
+    );
+  }
+  return `https://binaries.soliditylang.org/bin/${file}`;
+}
+
 // ─── Import resolution ──────────────────────────────────────────────────────
 // The browser worker has no filesystem/node_modules, so external imports
 // (notably @openzeppelin/contracts) are fetched from a CDN. Resolved files are
@@ -151,13 +173,8 @@ async function collectImports(userSources: Record<string, string>): Promise<{
 async function loadVersion(version: string): Promise<unknown> {
   if (version === cachedVersion && solc) return solc;
 
-  const url = `https://binaries.soliditylang.org/wasm/soljson-v${version}+commit.latest.js`;
-  try {
-    importScripts(url);
-  } catch {
-    // Version may use different commit hash format; try the direct version
-    importScripts(`https://binaries.soliditylang.org/wasm/soljson-v${version}.js`);
-  }
+  const url = await resolveSolcUrl(version);
+  importScripts(url);
 
   // soljson registers Module globally; Vite bundler may shadow this so we
   // access via the global scope.

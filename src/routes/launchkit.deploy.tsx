@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
-import { ArrowLeft, ArrowRight, Check, Download, Copy, Rocket } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Download, Copy, Rocket, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useAccount, useDeployContract, usePublicClient } from "wagmi";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -13,6 +13,7 @@ import {
   TEMPLATES,
   getTemplate,
   categoryColor,
+  templateNeedsImage,
   type Template,
   type ConstructorArg,
 } from "@/lib/mock/templates";
@@ -20,6 +21,8 @@ import { DEFAULT_GAS_GWEI } from "@/lib/chains";
 import { chainById } from "@/lib/active-chain";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
+import { useContractLabels } from "@/hooks/useContractLabels";
+import { useUserTemplates } from "@/lib/user-templates";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
 import { compile } from "@/lib/compiler";
 
@@ -40,6 +43,12 @@ function DeployWizard() {
   const { address, isConnected } = useAccount();
   const { chain, config, walletMismatch, walletChainId, syncWallet } = useActiveChain();
   const { recordDeployment } = useProjectRegistry();
+  const { submitLabel, onChain: labelsOnChain } = useContractLabels();
+  const userTemplates = useUserTemplates((s) => s.templates);
+  const hydrateTemplates = useUserTemplates((s) => s.hydrate);
+  useEffect(() => {
+    hydrateTemplates();
+  }, [hydrateTemplates]);
   const { deployContractAsync } = useDeployContract();
   const publicClient = usePublicClient();
   const [mismatchOpen, setMismatchOpen] = useState(false);
@@ -58,7 +67,9 @@ function DeployWizard() {
     block: number;
   }>(null);
 
-  const template = templateId ? (getTemplate(templateId) ?? null) : null;
+  const template = templateId
+    ? (getTemplate(templateId) ?? userTemplates.find((t) => t.id === templateId) ?? null)
+    : null;
 
   const filteredTemplates = useMemo(() => {
     const q = filter.toLowerCase();
@@ -80,6 +91,19 @@ function DeployWizard() {
 
   const log = (text: string, status: TerminalLine["status"] = "pending") =>
     setDeployLines((p) => [...p, { text, status }]);
+
+  // Read a chosen image file into a data URL stored with the deployment.
+  const onPickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1_500_000) {
+      toast.error("Image too large — keep it under ~1.5 MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setImageUrl(typeof reader.result === "string" ? reader.result : "");
+    reader.readAsDataURL(file);
+  };
 
   // Real on-chain deploy: compile in-browser, send the creation tx through the
   // connected wallet, wait for the receipt, and record it.
@@ -151,6 +175,23 @@ function DeployWizard() {
         imageUrl: imageUrl.trim() || undefined,
         abi: contract.abi as unknown[],
       }).catch(() => {});
+
+      // Verify on-chain: register the contract's name in the ContractLabelRegistry
+      // (a second signature). Non-blocking — deploy already succeeded.
+      if (labelsOnChain) {
+        log(`[${ts()}] [Verify] Registering "${projectName || template.name}" on-chain...`);
+        try {
+          await submitLabel({
+            contractAddress: deployedAddr,
+            name: projectName || template.name,
+            category: template.category,
+            description: template.description,
+          });
+          log(`[${ts()}] [Verify] ✓ Name registered in ContractLabelRegistry`, "success");
+        } catch {
+          log(`[${ts()}] [Verify] Name registration skipped (rejected or unavailable)`, "warning");
+        }
+      }
 
       setDeployResult({ address: deployedAddr, txHash: hash, block: Number(receipt.blockNumber) });
       setStage("success");
@@ -291,28 +332,41 @@ function DeployWizard() {
                   transaction.
                 </span>
               </label>
-              <label className="mt-3 block">
-                <span className="font-mono text-xs text-muted-foreground">
-                  Project Image URL <span className="text-meta">(optional)</span>
-                </span>
-                <input
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://… or ipfs://…"
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
-                />
-                <span className="mt-1 block text-[10px] text-meta">
-                  Logo/banner shown on your project card. Paste an image URL.
-                </span>
-                {imageUrl.trim() && (
-                  <img
-                    src={imageUrl}
-                    alt="Project preview"
-                    className="mt-2 h-16 w-16 rounded border border-border object-cover"
-                    onError={(e) => (e.currentTarget.style.display = "none")}
-                  />
-                )}
-              </label>
+              {templateNeedsImage(template) && (
+                <div className="mt-3">
+                  <span className="font-mono text-xs text-muted-foreground">
+                    Project Image <span className="text-meta">(this template uses an image)</span>
+                  </span>
+                  <div className="mt-1 flex items-center gap-2">
+                    <label className="flex cursor-pointer items-center gap-1.5 rounded border border-border px-3 py-2 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary">
+                      <Upload className="h-3.5 w-3.5" /> Upload Image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={onPickImage}
+                        className="hidden"
+                      />
+                    </label>
+                    <input
+                      value={imageUrl.startsWith("data:") ? "" : imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      placeholder="…or paste an image URL"
+                      className="flex-1 rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  {imageUrl.trim() && (
+                    <img
+                      src={imageUrl}
+                      alt="Project preview"
+                      className="mt-2 h-16 w-16 rounded border border-border object-cover"
+                      onError={(e) => (e.currentTarget.style.display = "none")}
+                    />
+                  )}
+                  <span className="mt-1 block text-[10px] text-meta">
+                    Upload a file or paste a URL. Stored with the deployment record.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
