@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, AlertTriangle } from "lucide-react";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { cn } from "@/lib/utils";
 
 // Network selector. Lets the user choose QIE Testnet or Mainnet — both are
-// fully supported. Switches the connected wallet and records the preference so
-// read-only views also follow the choice. Never forces a network.
+// fully supported. The selection drives the whole app's reads; switching also
+// asks the connected wallet to follow. A ⚠ shows when the wallet is on a
+// different chain than the selection.
 export function NetworkSelector({ className }: { className?: string }) {
-  const { chainId, supported, select, isTestnet } = useActiveChain();
+  const { chainId, supported, select, isTestnet, walletMismatch } = useActiveChain();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -30,6 +31,12 @@ export function NetworkSelector({ className }: { className?: string }) {
       >
         <span className={cn("h-1.5 w-1.5 rounded-full", dotColor)} />
         <span className="truncate">{active?.name ?? "Select network"}</span>
+        {walletMismatch && (
+          <AlertTriangle
+            className="h-3 w-3 text-warning"
+            aria-label="Your wallet is on a different network"
+          />
+        )}
         <ChevronDown className="ml-auto h-3 w-3 text-meta" />
       </button>
 

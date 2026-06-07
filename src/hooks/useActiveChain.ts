@@ -2,20 +2,21 @@ import { useAccount, useSwitchChain } from "wagmi";
 import { useNetworkPref, chainById, qieTestnet, SUPPORTED_CHAINS } from "@/lib/active-chain";
 import { chainConfig } from "@/lib/chains";
 
-// Resolves the active QIE chain without hardcoding or forcing:
-//  - if a wallet is connected to a supported QIE chain, that wins
-//  - otherwise the user's persisted preference
-//  - otherwise testnet
-// `select(chainId)` switches the wallet when connected, and always records the
-// preference so reads use the chosen chain even with no wallet.
+// Resolves the active QIE chain. The user's SELECTED network is authoritative
+// for reads everywhere in the app — it is NOT overridden by the wallet's chain.
+// When a wallet is connected on a different chain, `walletMismatch` is true and
+// write/deploy flows surface a mismatch modal (reads still use the selected
+// chain's RPC). `select(id)` records the preference and also asks the wallet to
+// switch so the two stay in sync; rejecting the wallet switch just leaves a
+// (non-blocking) mismatch.
 export function useActiveChain() {
   const { isConnected, chainId: walletChainId } = useAccount();
-  const { switchChain } = useSwitchChain();
+  const { switchChain, switchChainAsync } = useSwitchChain();
   const { preferredChainId, setPreferred } = useNetworkPref();
 
-  const walletOnSupported = isConnected && SUPPORTED_CHAINS.some((c) => c.id === walletChainId);
-  const activeChainId = walletOnSupported ? (walletChainId as number) : preferredChainId;
+  const activeChainId = preferredChainId;
   const chain = chainById(activeChainId) ?? qieTestnet;
+  const walletOnSupported = isConnected && SUPPORTED_CHAINS.some((c) => c.id === walletChainId);
 
   const select = (chainId: number) => {
     setPreferred(chainId);
@@ -28,6 +29,10 @@ export function useActiveChain() {
     }
   };
 
+  // Switch the connected wallet to the currently selected chain (used by the
+  // mismatch modal). Returns the promise so callers can await + retry.
+  const syncWallet = () => switchChainAsync({ chainId: activeChainId });
+
   return {
     chainId: activeChainId,
     chain,
@@ -35,6 +40,11 @@ export function useActiveChain() {
     isTestnet: chain.testnet === true,
     supported: SUPPORTED_CHAINS,
     select,
+    syncWallet,
+    /** The wallet's current chain id (undefined when disconnected). */
+    walletChainId,
+    /** Wallet connected but on a different chain than the selected one. */
+    walletMismatch: isConnected && walletChainId !== activeChainId,
     /** true when the wallet is connected but on an unsupported chain */
     walletOnWrongNetwork: isConnected && !walletOnSupported,
   };

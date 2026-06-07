@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Copy, Check, Wallet, LogOut, Fuel } from "lucide-react";
 import { useAccount, useBalance, useDisconnect } from "wagmi";
 import { truncateAddress } from "@/lib/wallet";
-import { QIE_DEX_SWAP_URL } from "@/lib/chains";
+import { gasLink } from "@/lib/chains";
+import { useActiveChain } from "@/hooks/useActiveChain";
 import { useQusdcBalance } from "@/hooks/useQusdc";
 import { ConnectModal } from "./ConnectModal";
 
@@ -13,9 +14,10 @@ const LOW_GAS_THRESHOLD = 0.01;
 // then show live native balance, QUSDC reference balance, and a get-gas link.
 export function WalletPanel() {
   const { address, isConnected } = useAccount();
+  const { chainId } = useActiveChain();
   const { disconnect } = useDisconnect();
   const { data: balance } = useBalance({ address, query: { enabled: isConnected } });
-  const qusdc = useQusdcBalance(address);
+  const qusdc = useQusdcBalance(address, chainId);
   const [copied, setCopied] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
 
@@ -41,6 +43,7 @@ export function WalletPanel() {
   }
 
   const lowGas = balance ? Number(balance.formatted) < LOW_GAS_THRESHOLD : false;
+  const gas = gasLink(chainId);
 
   return (
     <>
@@ -74,12 +77,12 @@ export function WalletPanel() {
 
       {lowGas && (
         <a
-          href={QIE_DEX_SWAP_URL}
+          href={gas.url}
           target="_blank"
           rel="noreferrer"
           className="mt-2 flex items-center justify-center gap-1 rounded border border-warning/40 bg-warning/10 px-2 py-1 font-mono text-[10px] text-warning hover:bg-warning/20"
         >
-          <Fuel className="h-3 w-3" /> Get QIE for gas
+          <Fuel className="h-3 w-3" /> {gas.label}
         </a>
       )}
 

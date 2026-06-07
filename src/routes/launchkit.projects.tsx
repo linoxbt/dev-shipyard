@@ -10,6 +10,7 @@ import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import { useProjects, type DeployedProject } from "@/lib/mock/projects";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useActiveChain } from "@/hooks/useActiveChain";
+import { qieMainnet } from "@/lib/chains";
 
 export const Route = createFileRoute("/launchkit/projects")({
   head: () => ({ meta: [{ title: "My Projects — DevStation" }] }),
@@ -109,7 +110,12 @@ function ProjectsPage() {
                     onClick={() => setSelected(p)}
                     className="cursor-pointer border-b border-border transition last:border-0 hover:bg-surface-2"
                   >
-                    <td className="px-3 py-2.5 text-foreground">{p.name}</td>
+                    <td className="px-3 py-2.5 text-foreground">
+                      <span className="flex items-center gap-2">
+                        {p.name}
+                        <NetworkBadge chainId={p.chainId} />
+                      </span>
+                    </td>
                     <td className="px-3 py-2.5 text-muted-foreground">{p.templateName}</td>
                     <td className="px-3 py-2.5">
                       <AddressChip address={p.address} showLabel={false} />
@@ -283,5 +289,20 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <dt className="text-[10px] uppercase tracking-wider text-meta">{label}</dt>
       <dd className="mt-0.5 text-foreground">{children}</dd>
     </div>
+  );
+}
+
+// Network the project was deployed to (from its stored chainId; defaults to
+// testnet for records without one). Shown regardless of the selected network.
+function NetworkBadge({ chainId }: { chainId?: number }) {
+  const mainnet = chainId === qieMainnet.id;
+  return (
+    <span
+      className={`rounded px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider ${
+        mainnet ? "bg-info/15 text-info" : "bg-warning/15 text-warning"
+      }`}
+    >
+      {mainnet ? "Mainnet" : "Testnet"}
+    </span>
   );
 }

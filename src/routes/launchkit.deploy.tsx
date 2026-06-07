@@ -16,9 +16,11 @@ import {
   type Template,
   type ConstructorArg,
 } from "@/lib/mock/templates";
-import { GAS_PRICE_GWEI } from "@/lib/chain";
+import { DEFAULT_GAS_GWEI } from "@/lib/chains";
+import { chainById } from "@/lib/active-chain";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
+import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
 import { compile } from "@/lib/compiler";
 
 const search = z.object({ template: z.string().optional() });
@@ -36,10 +38,12 @@ type Stage = "select" | "configure" | "deploying" | "success";
 function DeployWizard() {
   const { template: presetId } = Route.useSearch();
   const { address, isConnected } = useAccount();
-  const { chain, config } = useActiveChain();
+  const { chain, config, walletMismatch, walletChainId, syncWallet } = useActiveChain();
   const { recordDeployment } = useProjectRegistry();
   const { deployContractAsync } = useDeployContract();
   const publicClient = usePublicClient();
+  const [mismatchOpen, setMismatchOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
 
   const [stage, setStage] = useState<Stage>(presetId ? "configure" : "select");
   const [templateId, setTemplateId] = useState<string | null>(presetId ?? null);
@@ -81,6 +85,11 @@ function DeployWizard() {
   // connected wallet, wait for the receipt, and record it.
   const startDeploy = async () => {
     if (!template || !address || !publicClient) return;
+    // Selected network must match the wallet's chain before we can broadcast.
+    if (walletMismatch) {
+      setMismatchOpen(true);
+      return;
+    }
     setStage("deploying");
     setDeployLines([]);
     const ts = () => new Date().toLocaleTimeString();
@@ -224,7 +233,7 @@ function DeployWizard() {
 
   /* ─────── STAGE: CONFIGURE ─────── */
   if (stage === "configure" && template) {
-    const gasQIE = (template.estimatedGas * GAS_PRICE_GWEI) / 1e9;
+    const gasQIE = (template.estimatedGas * DEFAULT_GAS_GWEI) / 1e9;
     return (
       <div>
         <PageHeader
@@ -362,6 +371,24 @@ function DeployWizard() {
             {isConnected ? "Deploy Contract" : "Connect Wallet to Deploy"}
           </button>
         </div>
+        <NetworkMismatchModal
+          isOpen={mismatchOpen}
+          onClose={() => setMismatchOpen(false)}
+          switching={switching}
+          targetNetwork={chain.name}
+          walletNetwork={chainById(walletChainId)?.name ?? `Chain ${walletChainId}`}
+          onSwitchNetwork={async () => {
+            setSwitching(true);
+            try {
+              await syncWallet();
+              setMismatchOpen(false);
+            } catch {
+              /* user rejected; leave modal open */
+            } finally {
+              setSwitching(false);
+            }
+          }}
+        />
       </div>
     );
   }

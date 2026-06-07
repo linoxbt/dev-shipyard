@@ -56,3 +56,14 @@ export const CHAIN_CONFIG = {
 export function chainConfig(chainId: number) {
   return CHAIN_CONFIG[chainId as keyof typeof CHAIN_CONFIG] ?? CHAIN_CONFIG[qieTestnet.id];
 }
+
+// Fallback gas price (Gwei) shown before the live RPC value arrives.
+export const DEFAULT_GAS_GWEI = 1.2;
+
+// "Get QIE for gas" target, network-aware: testnet → faucet, mainnet → QIE DEX.
+export function gasLink(chainId: number): { url: string; label: string } {
+  const cfg = chainConfig(chainId);
+  return cfg.faucetUrl
+    ? { url: cfg.faucetUrl, label: "Get test QIE from Faucet" }
+    : { url: QIE_DEX_SWAP_URL, label: "Swap for QIE on QIE DEX" };
+}

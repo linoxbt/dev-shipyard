@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { projectRegistryAbi } from "@/lib/abis/projectRegistry";
 import { DEVSTATION_CONTRACTS, isContractConfigured } from "@/lib/contracts";
+import { useNetworkPref } from "@/lib/active-chain";
 import { storage, type StoredProject } from "@/lib/storage";
 
 interface RecordParams {
@@ -22,6 +23,7 @@ interface RecordParams {
 export function useProjectRegistry() {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const selectedChainId = useNetworkPref((s) => s.preferredChainId);
   const registry = DEVSTATION_CONTRACTS.projectRegistry.address;
   const onChain = isContractConfigured(registry);
 
@@ -30,6 +32,7 @@ export function useProjectRegistry() {
     abi: projectRegistryAbi,
     functionName: "getDeployments",
     args: address ? [address] : undefined,
+    chainId: selectedChainId,
     query: { enabled: onChain && !!address },
   });
 

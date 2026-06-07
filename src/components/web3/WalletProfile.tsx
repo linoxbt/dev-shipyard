@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Copy, Check, Eye, EyeOff, Lock, Trash2, ExternalLink, Wallet, Fuel } from "lucide-react";
+import { Copy, Check, Eye, EyeOff, Lock, Trash2, Wallet, Fuel } from "lucide-react";
 import { toast } from "sonner";
 import { useAccount, useBalance, useConnect } from "wagmi";
 import { useBurner } from "@/lib/burner/store";
-import { useWallet } from "@/lib/wallet";
-import { chainConfig, QIE_DEX_SWAP_URL } from "@/lib/chains";
+import { chainConfig, gasLink } from "@/lib/chains";
+import { useActiveChain } from "@/hooks/useActiveChain";
 import { useQusdcBalance } from "@/hooks/useQusdc";
 import { AddressChip } from "@/components/shared/AddressChip";
 import { GenerateWalletDialog } from "./GenerateWalletDialog";
@@ -17,9 +17,9 @@ const LOW_GAS_THRESHOLD = 0.01;
 // generated wallet.
 export function WalletProfile() {
   const { address, isConnected, connector } = useAccount();
-  const { chainId } = useWallet();
+  const { chainId } = useActiveChain();
   const { data: balance } = useBalance({ address, query: { enabled: isConnected } });
-  const qusdc = useQusdcBalance(address);
+  const qusdc = useQusdcBalance(address, chainId);
   const burner = useBurner();
   const { connect, connectors } = useConnect();
   const [showGenerate, setShowGenerate] = useState(false);
@@ -27,6 +27,7 @@ export function WalletProfile() {
   const cfg = chainConfig(chainId);
   const isBurner = connector?.id === "devstation-burner";
   const lowGas = balance ? Number(balance.formatted) < LOW_GAS_THRESHOLD : false;
+  const gas = gasLink(chainId);
 
   const connectBurner = () => {
     const c = connectors.find((x) => x.id === "devstation-burner");
@@ -65,23 +66,13 @@ export function WalletProfile() {
             </span>
           </Row>
           <div className="flex flex-wrap gap-3">
-            {cfg.faucetUrl && (
-              <a
-                href={cfg.faucetUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline"
-              >
-                Faucet <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
             <a
-              href={QIE_DEX_SWAP_URL}
+              href={gas.url}
               target="_blank"
               rel="noreferrer"
               className={`inline-flex items-center gap-1 font-mono text-xs hover:underline ${lowGas ? "text-warning" : "text-primary"}`}
             >
-              <Fuel className="h-3 w-3" /> {lowGas ? "Get QIE for gas" : "QIE DEX"}
+              <Fuel className="h-3 w-3" /> {gas.label}
             </a>
           </div>
         </div>

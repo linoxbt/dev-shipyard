@@ -1,11 +1,13 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { X, Rocket, ExternalLink, Copy, Check } from "lucide-react";
-import { useDeployContract, useWaitForTransactionReceipt } from "wagmi";
+import { useDeployContract, useWaitForTransactionReceipt, useSwitchChain } from "wagmi";
 import { useAccount } from "wagmi";
 import { toast } from "sonner";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { ContractInteractor } from "@/components/editor/ContractInteractor";
+import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
 import { chainConfig } from "@/lib/chains";
+import { chainById } from "@/lib/active-chain";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
 
 interface ContractInfo {
@@ -25,13 +27,19 @@ export function DeployPanel({ contracts, chainId, onClose, onLog }: Props) {
   const names = Object.keys(contracts);
   const [selected, setSelected] = useState(names[0] ?? "");
   const contract = contracts[selected];
-  const { address } = useAccount();
+  const { address, isConnected, chainId: walletChainId } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
   const { recordDeployment, onChain } = useProjectRegistry();
   const { deployContractAsync } = useDeployContract();
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   const [deploying, setDeploying] = useState(false);
   const [deployed, setDeployed] = useState<{ addr: `0x${string}` } | null>(null);
   const [args, setArgs] = useState<Record<string, string>>({});
+  const [mismatchOpen, setMismatchOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+
+  // Selected network (chainId prop) must match the wallet before broadcasting.
+  const walletMismatch = isConnected && walletChainId !== chainId;
 
   const { data: receipt } = useWaitForTransactionReceipt({
     hash: txHash as `0x${string}` | undefined,
@@ -51,6 +59,10 @@ export function DeployPanel({ contracts, chainId, onClose, onLog }: Props) {
 
   const handleDeploy = async () => {
     if (!contract || !address) return;
+    if (walletMismatch) {
+      setMismatchOpen(true);
+      return;
+    }
     setDeploying(true);
     const ts = new Date().toLocaleTimeString();
     const cfg = chainConfig(chainId);
@@ -72,6 +84,7 @@ export function DeployPanel({ contracts, chainId, onClose, onLog }: Props) {
         abi: contract.abi as [],
         bytecode: contract.bytecode,
         args: parsed.length > 0 ? parsed : undefined,
+        chainId,
       });
       setTxHash(hash);
       onLog({ text: `[${ts}] [Deploy] TX submitted: ${hash}`, status: "success" });
@@ -264,6 +277,24 @@ export function DeployPanel({ contracts, chainId, onClose, onLog }: Props) {
           )}
         </div>
       </div>
+      <NetworkMismatchModal
+        isOpen={mismatchOpen}
+        onClose={() => setMismatchOpen(false)}
+        switching={switching}
+        targetNetwork={chainConfig(chainId).name}
+        walletNetwork={chainById(walletChainId)?.name ?? `Chain ${walletChainId}`}
+        onSwitchNetwork={async () => {
+          setSwitching(true);
+          try {
+            await switchChainAsync({ chainId });
+            setMismatchOpen(false);
+          } catch {
+            /* user rejected; leave modal open */
+          } finally {
+            setSwitching(false);
+          }
+        }}
+      />
     </div>
   );
 }

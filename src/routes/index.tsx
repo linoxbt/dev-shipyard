@@ -6,7 +6,7 @@ import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useProjects } from "@/lib/mock/projects";
 import { TEMPLATES } from "@/lib/mock/templates";
-import { GAS_PRICE_GWEI } from "@/lib/chain";
+import { DEFAULT_GAS_GWEI } from "@/lib/chains";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { storage } from "@/lib/storage";
 import { useNetworkStatus } from "@/hooks/useChainData";
@@ -36,7 +36,7 @@ function Overview() {
   useEffect(() => setInspections(storage.loadInspections()), []);
 
   const block = net?.blockNumber ?? 0;
-  const gasGwei = net?.gasPriceGwei ?? GAS_PRICE_GWEI;
+  const gasGwei = net?.gasPriceGwei ?? DEFAULT_GAS_GWEI;
   const online = net?.status === "online";
 
   return (
