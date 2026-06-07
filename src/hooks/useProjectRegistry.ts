@@ -125,10 +125,10 @@ export function useGlobalDeployStats() {
     abi: projectRegistryAbi,
     functionName: "totalDeployments",
     chainId: selectedChainId,
-    query: { enabled: onChain },
+    query: { enabled: onChain, refetchInterval: 30_000 },
   });
 
-  const { labels } = useAllLabels();
+  const { labels } = useAllLabels({ refetchInterval: 30_000 });
   const uniqueDeployers = new Set(labels.map((l) => l.submitter?.toLowerCase()).filter(Boolean))
     .size;
 

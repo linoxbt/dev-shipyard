@@ -61,7 +61,11 @@ export function useContractLabels() {
 }
 
 // Full on-chain label list (address + struct) for the Label Registry page.
-export function useAllLabels(): { labels: OnChainLabel[]; onChain: boolean; refetch: () => void } {
+export function useAllLabels(opts?: { refetchInterval?: number }): {
+  labels: OnChainLabel[];
+  onChain: boolean;
+  refetch: () => void;
+} {
   const registry = DEVSTATION_CONTRACTS.contractLabelRegistry.address;
   const onChain = isContractConfigured(registry);
 
@@ -69,7 +73,7 @@ export function useAllLabels(): { labels: OnChainLabel[]; onChain: boolean; refe
     address: registry,
     abi: contractLabelRegistryAbi,
     functionName: "getLabeledContracts",
-    query: { enabled: onChain },
+    query: { enabled: onChain, refetchInterval: opts?.refetchInterval },
   });
 
   const addrList = (addresses as readonly `0x${string}`[] | undefined) ?? [];
@@ -81,7 +85,7 @@ export function useAllLabels(): { labels: OnChainLabel[]; onChain: boolean; refe
       functionName: "getLabel" as const,
       args: [a] as const,
     })),
-    query: { enabled: onChain && addrList.length > 0 },
+    query: { enabled: onChain && addrList.length > 0, refetchInterval: opts?.refetchInterval },
   });
 
   const labels: OnChainLabel[] = addrList.map((address, i) => {

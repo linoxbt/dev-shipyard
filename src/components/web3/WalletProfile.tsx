@@ -18,7 +18,11 @@ const LOW_GAS_THRESHOLD = 0.01;
 export function WalletProfile() {
   const { address, isConnected, connector } = useAccount();
   const { chainId } = useActiveChain();
-  const { data: balance } = useBalance({ address, query: { enabled: isConnected } });
+  const { data: balance } = useBalance({
+    address,
+    chainId,
+    query: { enabled: isConnected, refetchInterval: 30_000 },
+  });
   const qusdc = useQusdcBalance(address, chainId);
   const burner = useBurner();
   const { connect, connectors } = useConnect();

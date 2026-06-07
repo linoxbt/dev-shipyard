@@ -1,65 +1,147 @@
 import { create } from "zustand";
 
-// Runtime AI configuration: which provider to use and the per-provider
-// endpoint/key/model. Seeded from public env vars so a deployment can ship a
-// default, then overridable in the UI and persisted to localStorage so the
-// choice survives a refresh. SSR-safe — every storage access guards `window`.
+// Runtime AI configuration. Endpoints + model lists for each provider are
+// hardcoded here; the user picks a provider, picks a model, pastes their API
+// key, and saves. Choices persist to localStorage so they survive refresh /
+// browser sessions until the user clears their cache. SSR-safe.
 
-export type AiProvider = "anthropic" | "openai";
+export type AiProvider = "openai" | "anthropic" | "openrouter" | "freemodel";
+
+export interface ProviderPreset {
+  id: AiProvider;
+  label: string;
+  /** "anthropic" uses the native Messages API; others are OpenAI-compatible. */
+  kind: "anthropic" | "openai";
+  endpoint: string;
+  models: string[];
+  keyPlaceholder: string;
+  keyHint?: string;
+}
+
+// Hardcoded provider presets. Endpoints are fixed; the user only supplies a key.
+export const AI_PROVIDERS: Record<AiProvider, ProviderPreset> = {
+  openai: {
+    id: "openai",
+    label: "OpenAI",
+    kind: "openai",
+    endpoint: "https://api.openai.com/v1/chat/completions",
+    models: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1", "o4-mini"],
+    keyPlaceholder: "sk-...",
+    keyHint: "platform.openai.com/api-keys",
+  },
+  anthropic: {
+    id: "anthropic",
+    label: "Claude (Anthropic)",
+    kind: "anthropic",
+    endpoint: "https://api.anthropic.com",
+    models: ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+    keyPlaceholder: "sk-ant-...",
+    keyHint: "console.anthropic.com/settings/keys",
+  },
+  openrouter: {
+    id: "openrouter",
+    label: "OpenRouter",
+    kind: "openai",
+    endpoint: "https://openrouter.ai/api/v1/chat/completions",
+    models: [
+      "openai/gpt-4o-mini",
+      "anthropic/claude-3.5-sonnet",
+      "google/gemini-2.0-flash-001",
+      "meta-llama/llama-3.3-70b-instruct",
+      "deepseek/deepseek-chat",
+    ],
+    keyPlaceholder: "sk-or-v1-...",
+    keyHint: "openrouter.ai/keys",
+  },
+  freemodel: {
+    id: "freemodel",
+    label: "Freemodel (OpenRouter free tier)",
+    kind: "openai",
+    endpoint: "https://openrouter.ai/api/v1/chat/completions",
+    models: [
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "deepseek/deepseek-chat:free",
+      "google/gemini-2.0-flash-exp:free",
+      "qwen/qwen-2.5-72b-instruct:free",
+    ],
+    keyPlaceholder: "sk-or-v1-... (free OpenRouter key)",
+    keyHint: "openrouter.ai/keys — free models, OpenRouter key still required",
+  },
+};
+
+export const AI_PROVIDER_LIST = Object.values(AI_PROVIDERS);
 
 export interface AiSettings {
   provider: AiProvider;
-  // When true, route requests through this app's server proxy (/api/ai) so the
-  // key stays server-side. Operator-controlled via VITE_AI_PROXY — not a user
-  // toggle, since it requires matching server-only env.
+  /** Selected model id for the active provider. */
+  model: string;
+  /** Per-provider API keys (so switching providers keeps each key). */
+  keys: Partial<Record<AiProvider, string>>;
+  /** Route through the app's /api/ai server proxy (operator-controlled). */
   proxy: boolean;
-  // Anthropic (native Messages API)
-  anthropicEndpoint: string;
-  anthropicApiKey: string;
-  anthropicModel: string;
-  // OpenAI-compatible (/chat/completions)
-  openaiEndpoint: string;
-  openaiApiKey: string;
-  openaiModel: string;
 }
 
-const STORAGE_KEY = "devstation-ai-settings-v1";
-
+const STORAGE_KEY = "devstation-ai-settings-v2";
 const env = import.meta.env;
 
-// Env defaults. VITE_AI_* are the original OpenAI-compatible vars (kept for
-// back-compat); VITE_ANTHROPIC_* configure the Claude path.
-function envDefaults(): AiSettings {
-  const hasAnthropic = !!(env.VITE_ANTHROPIC_API_KEY as string | undefined);
-  const hasOpenAI = !!(env.VITE_AI_API_KEY as string | undefined);
-  const provider =
-    (env.VITE_AI_PROVIDER as AiProvider | undefined) ??
-    // Prefer whichever is configured; tie-break to Anthropic.
-    (hasAnthropic ? "anthropic" : hasOpenAI ? "openai" : "anthropic");
-
+function defaults(): AiSettings {
   return {
-    provider,
+    provider: "openai",
+    model: AI_PROVIDERS.openai.models[0],
+    keys: {},
     proxy: (env.VITE_AI_PROXY as string | undefined) === "true",
-    anthropicEndpoint:
-      (env.VITE_ANTHROPIC_ENDPOINT as string | undefined) || "https://api.anthropic.com",
-    anthropicApiKey: (env.VITE_ANTHROPIC_API_KEY as string | undefined) || "",
-    anthropicModel: (env.VITE_ANTHROPIC_MODEL as string | undefined) || "claude-opus-4-8",
-    openaiEndpoint: (env.VITE_AI_ENDPOINT as string | undefined) || "",
-    openaiApiKey: (env.VITE_AI_API_KEY as string | undefined) || "",
-    openaiModel: (env.VITE_AI_MODEL as string | undefined) || "gpt-4o-mini",
   };
 }
 
 function load(): AiSettings {
-  const defaults = envDefaults();
-  if (typeof window === "undefined" || typeof localStorage === "undefined") return defaults;
+  const base = defaults();
+  if (typeof window === "undefined" || typeof localStorage === "undefined") return base;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaults;
-    // Merge so newly-added fields fall back to env defaults.
-    return { ...defaults, ...(JSON.parse(raw) as Partial<AiSettings>) };
+    if (!raw) {
+      // One-time migration from the old v1 settings shape (single key/model).
+      return migrateV1() ?? base;
+    }
+    const saved = JSON.parse(raw) as Partial<AiSettings>;
+    const provider =
+      saved.provider && AI_PROVIDERS[saved.provider] ? saved.provider : base.provider;
+    const preset = AI_PROVIDERS[provider];
+    const model =
+      saved.model && preset.models.includes(saved.model) ? saved.model : preset.models[0];
+    return { ...base, ...saved, provider, model, keys: saved.keys ?? {} };
   } catch {
-    return defaults;
+    return base;
+  }
+}
+
+// Best-effort import of the previous (v1) settings so users keep their key.
+function migrateV1(): AiSettings | null {
+  try {
+    const raw = localStorage.getItem("devstation-ai-settings-v1");
+    if (!raw) return null;
+    const old = JSON.parse(raw) as {
+      provider?: string;
+      openaiApiKey?: string;
+      anthropicApiKey?: string;
+      openaiEndpoint?: string;
+    };
+    const base = defaults();
+    const keys: AiSettings["keys"] = {};
+    // Map an OpenRouter endpoint to the openrouter preset; else plain openai.
+    if (old.openaiApiKey) {
+      if (old.openaiEndpoint?.includes("openrouter")) keys.openrouter = old.openaiApiKey;
+      else keys.openai = old.openaiApiKey;
+    }
+    if (old.anthropicApiKey) keys.anthropic = old.anthropicApiKey;
+    const provider: AiProvider =
+      old.provider === "anthropic"
+        ? "anthropic"
+        : old.openaiEndpoint?.includes("openrouter")
+          ? "openrouter"
+          : "openai";
+    return { ...base, provider, model: AI_PROVIDERS[provider].models[0], keys };
+  } catch {
+    return null;
   }
 }
 
@@ -68,37 +150,57 @@ function save(s: AiSettings) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
   } catch {
-    /* ignore quota/serialization errors */
+    /* ignore quota errors */
   }
 }
 
 interface AiSettingsStore extends AiSettings {
-  update: (patch: Partial<AiSettings>) => void;
+  setProvider: (p: AiProvider) => void;
+  setModel: (m: string) => void;
+  setKey: (key: string) => void;
   reset: () => void;
 }
 
 export const useAiSettings = create<AiSettingsStore>((set, get) => ({
   ...load(),
-  update: (patch) => {
-    const next = { ...get(), ...patch };
+  // Switching provider snaps the model to that provider's first option unless
+  // the current model is valid for it.
+  setProvider: (p) => {
+    const preset = AI_PROVIDERS[p];
+    const model = preset.models.includes(get().model) ? get().model : preset.models[0];
+    const next = { ...get(), provider: p, model };
     save(next);
-    set(patch);
+    set({ provider: p, model });
+  },
+  setModel: (m) => {
+    const next = { ...get(), model: m };
+    save(next);
+    set({ model: m });
+  },
+  setKey: (key) => {
+    const keys = { ...get().keys, [get().provider]: key };
+    const next = { ...get(), keys };
+    save(next);
+    set({ keys });
   },
   reset: () => {
-    const defaults = envDefaults();
-    save(defaults);
-    set(defaults);
+    const d = defaults();
+    save(d);
+    set(d);
   },
 }));
 
-// Non-reactive snapshot for the chat client (which isn't a React component).
+// Non-reactive snapshot for the chat client (not a React component).
 export function getAiSettings(): AiSettings {
   return useAiSettings.getState();
 }
 
+export function activeKey(s: AiSettings = getAiSettings()): string {
+  return s.keys[s.provider] ?? "";
+}
+
 export function isAiConfigured(): boolean {
   const s = getAiSettings();
-  // The server proxy holds the key; the client doesn't need one.
-  if (s.proxy) return true;
-  return s.provider === "anthropic" ? !!s.anthropicApiKey : !!s.openaiEndpoint && !!s.openaiApiKey;
+  if (s.proxy) return true; // server proxy holds the key
+  return !!activeKey(s);
 }

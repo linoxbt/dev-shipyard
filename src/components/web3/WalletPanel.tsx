@@ -16,7 +16,11 @@ export function WalletPanel() {
   const { address, isConnected } = useAccount();
   const { chainId } = useActiveChain();
   const { disconnect } = useDisconnect();
-  const { data: balance } = useBalance({ address, query: { enabled: isConnected } });
+  const { data: balance } = useBalance({
+    address,
+    chainId,
+    query: { enabled: isConnected, refetchInterval: 30_000 },
+  });
   const qusdc = useQusdcBalance(address, chainId);
   const [copied, setCopied] = useState(false);
   const [showConnect, setShowConnect] = useState(false);

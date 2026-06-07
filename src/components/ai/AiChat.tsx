@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { chatStream, SOLIDITY_SYSTEM_PROMPT, type ChatMessage } from "@/lib/ai";
-import { useAiSettings, type AiProvider } from "@/lib/ai-settings";
+import { useAiSettings, AI_PROVIDERS, AI_PROVIDER_LIST } from "@/lib/ai-settings";
 import { useAiChatStore, type ChatSession } from "@/lib/ai-chat-store";
 import { useAiIntake } from "@/lib/ai-intake";
 import { cn } from "@/lib/utils";
@@ -55,11 +55,7 @@ export function AiChat({ contextLabel, getContext, onUseCode, className, placeho
 
   // Subscribe to settings so config-state changes (provider/key edits) re-render.
   const settings = useAiSettings();
-  const configured =
-    settings.proxy ||
-    (settings.provider === "anthropic"
-      ? !!settings.anthropicApiKey
-      : !!settings.openaiEndpoint && !!settings.openaiApiKey);
+  const configured = settings.proxy || !!(settings.keys[settings.provider] ?? "");
 
   // Send `rawText` to the model. When `attach` is set, the current file is
   // appended as context (used by the composer). Programmatic requests (the
@@ -175,9 +171,7 @@ export function AiChat({ contextLabel, getContext, onUseCode, className, placeho
         <span className="font-mono text-[9px] uppercase tracking-wider text-meta">
           {settings.proxy
             ? "server proxy"
-            : settings.provider === "anthropic"
-              ? "claude"
-              : "openai"}
+            : `${AI_PROVIDERS[settings.provider].label} · ${settings.model}`}
         </span>
         {!configured && (
           <span className="flex items-center gap-1 font-mono text-[10px] text-warning">
@@ -379,20 +373,23 @@ function relTime(ts: number): string {
 // persisted ai-settings store.
 function SettingsPanel({ onClose }: { onClose: () => void }) {
   const s = useAiSettings();
+  const preset = AI_PROVIDERS[s.provider];
+  // Local key draft so the user explicitly Saves (per the request).
+  const [keyDraft, setKeyDraft] = useState(s.keys[s.provider] ?? "");
+  useEffect(() => {
+    setKeyDraft(s.keys[s.provider] ?? "");
+  }, [s.provider, s.keys]);
 
   const fieldCls =
     "w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none";
   const labelCls = "mb-0.5 block font-mono text-[9px] uppercase tracking-wider text-meta";
 
-  // Proxy mode is operator-controlled and holds the key server-side — there's
-  // nothing for the user to configure here.
   if (s.proxy) {
     return (
       <div className="space-y-2 border-b border-border bg-background/40 p-3">
         <div className="rounded border border-primary/30 bg-primary/5 p-2.5 font-mono text-[10px] leading-relaxed text-muted-foreground">
           Requests route through this app's <span className="text-primary">server proxy</span> —
-          your API key stays server-side and is never sent to the browser. Provider and key are set
-          by the deployment.
+          your API key stays server-side and is never sent to the browser.
         </div>
         <div className="flex justify-end">
           <button onClick={onClose} className="font-mono text-[10px] text-primary hover:underline">
@@ -403,93 +400,87 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
     );
   }
 
+  const saveKey = () => {
+    s.setKey(keyDraft.trim());
+    toast.success(keyDraft.trim() ? "API key saved" : "API key cleared");
+    onClose();
+  };
+
   return (
     <div className="space-y-2.5 border-b border-border bg-background/40 p-3">
-      <div className="flex gap-1">
-        {(["anthropic", "openai"] as AiProvider[]).map((p) => (
-          <button
-            key={p}
-            onClick={() => s.update({ provider: p })}
-            className={cn(
-              "flex-1 rounded border px-2 py-1 font-mono text-[10px] transition",
-              s.provider === p
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border text-meta hover:text-foreground",
-            )}
-          >
-            {p === "anthropic" ? "Claude (Anthropic)" : "OpenAI-compatible"}
-          </button>
-        ))}
+      {/* Provider */}
+      <div>
+        <label className={labelCls}>Provider</label>
+        <div className="grid grid-cols-2 gap-1">
+          {AI_PROVIDER_LIST.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => s.setProvider(p.id)}
+              className={cn(
+                "rounded border px-2 py-1 text-left font-mono text-[10px] transition",
+                s.provider === p.id
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-meta hover:text-foreground",
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {s.provider === "anthropic" ? (
-        <>
-          <div>
-            <label className={labelCls}>Model</label>
-            <input
-              className={fieldCls}
-              value={s.anthropicModel}
-              onChange={(e) => s.update({ anthropicModel: e.target.value })}
-              placeholder="claude-opus-4-8"
-            />
-          </div>
-          <div>
-            <label className={labelCls}>API key</label>
-            <input
-              className={fieldCls}
-              type="password"
-              value={s.anthropicApiKey}
-              onChange={(e) => s.update({ anthropicApiKey: e.target.value })}
-              placeholder="sk-ant-…"
-            />
-          </div>
-        </>
-      ) : (
-        <>
-          <div>
-            <label className={labelCls}>Endpoint (/chat/completions)</label>
-            <input
-              className={fieldCls}
-              value={s.openaiEndpoint}
-              onChange={(e) => s.update({ openaiEndpoint: e.target.value })}
-              placeholder="https://api.openai.com/v1/chat/completions"
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Model</label>
-            <input
-              className={fieldCls}
-              value={s.openaiModel}
-              onChange={(e) => s.update({ openaiModel: e.target.value })}
-              placeholder="gpt-4o-mini"
-            />
-          </div>
-          <div>
-            <label className={labelCls}>API key</label>
-            <input
-              className={fieldCls}
-              type="password"
-              value={s.openaiApiKey}
-              onChange={(e) => s.update({ openaiApiKey: e.target.value })}
-              placeholder="sk-…"
-            />
-          </div>
-        </>
-      )}
+      {/* Model (from the provider's hardcoded list) */}
+      <div>
+        <label className={labelCls}>Model</label>
+        <select className={fieldCls} value={s.model} onChange={(e) => s.setModel(e.target.value)}>
+          {preset.models.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Endpoint (read-only, hardcoded per provider) */}
+      <div>
+        <label className={labelCls}>Endpoint</label>
+        <div className="truncate rounded border border-border bg-surface px-2 py-1 font-mono text-[10px] text-meta">
+          {preset.endpoint}
+        </div>
+      </div>
+
+      {/* API key + explicit save */}
+      <div>
+        <label className={labelCls}>API key</label>
+        <input
+          className={fieldCls}
+          type="password"
+          value={keyDraft}
+          onChange={(e) => setKeyDraft(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && saveKey()}
+          placeholder={preset.keyPlaceholder}
+        />
+        {preset.keyHint && (
+          <p className="mt-0.5 font-mono text-[9px] text-meta">Get a key: {preset.keyHint}</p>
+        )}
+      </div>
 
       <p className="font-mono text-[9px] leading-relaxed text-meta">
-        Stored in this browser only. Anyone with access to this build can read it — use a personal
-        key, not a shared production one.
+        Stored in this browser only (until you clear your cache). Use a personal key, not a shared
+        production one.
       </p>
-      <div className="flex justify-between">
+      <div className="flex items-center justify-between">
         <button
           onClick={() => s.reset()}
           className="font-mono text-[10px] text-meta hover:text-foreground"
         >
-          Reset to defaults
+          Reset
         </button>
-        <button onClick={onClose} className="font-mono text-[10px] text-primary hover:underline">
-          Done
+        <button
+          onClick={saveKey}
+          className="rounded bg-primary px-3 py-1 font-mono text-[10px] font-medium text-primary-foreground hover:bg-primary-hover"
+        >
+          Save
         </button>
       </div>
     </div>

@@ -274,6 +274,20 @@ function EditorPage() {
     requestAiFix(prompt);
   }, [lastResult, version, ws.activePath, activeSol, requestAiFix]);
 
+  // Open the right-side AI panel (Remix-style) and ask it to EXPLAIN the latest
+  // compile error in plain language (no rewrite).
+  const explainWithAi = useCallback(() => {
+    if (!lastResult || lastResult.status !== "error") return;
+    const errs = lastResult.errors.map((e) => e.formattedMessage).join("\n\n");
+    const prompt =
+      `Explain this Solidity compile error from the DevStation editor (QIE / EVM, solc ${version}) ` +
+      `in plain language: what it means, why it happens, and how to fix it. Be concise.\n\n` +
+      `Compiler errors:\n${errs}\n\n` +
+      `Contract (${ws.activePath}):\n\`\`\`solidity\n${activeSol}\n\`\`\``;
+    setAiOpen(true);
+    requestAiFix(prompt);
+  }, [lastResult, version, ws.activePath, activeSol, requestAiFix]);
+
   // Applying AI code into the editor. Replacing a non-empty file is destructive,
   // so confirm first; an empty file just gets filled.
   const handleUseCode = (code: string) => {
@@ -348,15 +362,24 @@ function EditorPage() {
           <Rocket className="h-3 w-3" /> Compile & Deploy
         </button>
 
-        {/* Fix with AI — appears when the active compile failed */}
+        {/* AI error actions — appear when the active compile failed */}
         {hasErrors && (
-          <button
-            onClick={fixWithAi}
-            className="flex items-center gap-1 rounded border border-warning px-2.5 py-1 font-mono text-[11px] text-warning hover:bg-warning/10"
-            title="Send the compile errors to the AI assistant"
-          >
-            <Wrench className="h-3 w-3" /> Fix with AI
-          </button>
+          <>
+            <button
+              onClick={explainWithAi}
+              className="flex items-center gap-1 rounded border border-info px-2.5 py-1 font-mono text-[11px] text-info hover:bg-info/10"
+              title="Open the AI panel and explain this error"
+            >
+              <Sparkles className="h-3 w-3" /> Explain Error
+            </button>
+            <button
+              onClick={fixWithAi}
+              className="flex items-center gap-1 rounded border border-warning px-2.5 py-1 font-mono text-[11px] text-warning hover:bg-warning/10"
+              title="Send the compile errors to the AI assistant for a fix"
+            >
+              <Wrench className="h-3 w-3" /> Fix with AI
+            </button>
+          </>
         )}
 
         <div className="flex-1" />

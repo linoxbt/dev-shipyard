@@ -11,7 +11,7 @@
 // key is visible to anyone using the build — for a shared deployment, use the
 // server proxy instead.
 
-import { getAiSettings, isAiConfigured, type AiProvider } from "@/lib/ai-settings";
+import { getAiSettings, isAiConfigured, activeKey, AI_PROVIDERS } from "@/lib/ai-settings";
 
 export { isAiConfigured };
 export type { AiProvider } from "@/lib/ai-settings";
@@ -59,13 +59,12 @@ export async function chatStream({
     throw new Error(
       s.proxy
         ? "AI is not configured on the server."
-        : s.provider === "anthropic"
-          ? "AI is not configured. Add your Anthropic API key in the AI settings."
-          : "AI is not configured. Set an OpenAI-compatible endpoint and API key in the AI settings.",
+        : "AI is not configured. Pick a provider and model, paste your API key, and save in the AI settings.",
     );
   }
   if (s.proxy) return streamProxy({ system, messages, signal, onDelta });
-  return s.provider === "anthropic"
+  const preset = AI_PROVIDERS[s.provider];
+  return preset.kind === "anthropic"
     ? streamAnthropic({ system, messages, signal, onDelta })
     : streamOpenAI({ system, messages, signal, onDelta });
 }
@@ -86,18 +85,19 @@ async function streamAnthropic({
   onDelta,
 }: StreamOptions): Promise<string> {
   const s = getAiSettings();
-  const resp = await fetch(`${s.anthropicEndpoint}/v1/messages`, {
+  const preset = AI_PROVIDERS[s.provider];
+  const resp = await fetch(`${preset.endpoint}/v1/messages`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-api-key": s.anthropicApiKey,
+      "x-api-key": activeKey(s),
       "anthropic-version": ANTHROPIC_VERSION,
       // Required for calls that originate from a browser.
       "anthropic-dangerous-direct-browser-access": "true",
     },
     // Opus 4.x rejects temperature/top_p/top_k — steer via the prompt instead.
     body: JSON.stringify({
-      model: s.anthropicModel,
+      model: s.model,
       max_tokens: MAX_TOKENS,
       system,
       messages,
@@ -120,23 +120,30 @@ async function streamProxy({ system, messages, signal, onDelta }: StreamOptions)
     signal,
   });
   if (!resp.ok || !resp.body) throw await providerError(resp, "AI proxy");
-  // The proxy tags the stream with the upstream provider's delta format.
-  const provider = (resp.headers.get("x-ai-provider") as AiProvider) || "openai";
-  return consumeStream(resp.body, provider, onDelta);
+  // The proxy tags the stream with the upstream format ("anthropic" | "openai").
+  const fmt = resp.headers.get("x-ai-provider") === "anthropic" ? "anthropic" : "openai";
+  return consumeStream(resp.body, fmt, onDelta);
 }
 
 // --- OpenAI-compatible (/chat/completions) ---------------------------------
 
 async function streamOpenAI({ system, messages, signal, onDelta }: StreamOptions): Promise<string> {
   const s = getAiSettings();
-  const resp = await fetch(s.openaiEndpoint, {
+  const preset = AI_PROVIDERS[s.provider];
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${activeKey(s)}`,
+  };
+  // OpenRouter recommends these attribution headers (optional, harmless elsewhere).
+  if (preset.endpoint.includes("openrouter")) {
+    headers["HTTP-Referer"] = "https://devstation.app";
+    headers["X-Title"] = "DevStation";
+  }
+  const resp = await fetch(preset.endpoint, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${s.openaiApiKey}`,
-    },
+    headers,
     body: JSON.stringify({
-      model: s.openaiModel,
+      model: s.model,
       messages: [{ role: "system", content: system }, ...messages],
       temperature: 0.2,
       stream: true,
@@ -144,7 +151,7 @@ async function streamOpenAI({ system, messages, signal, onDelta }: StreamOptions
     signal,
   });
 
-  if (!resp.ok || !resp.body) throw await providerError(resp, "OpenAI");
+  if (!resp.ok || !resp.body) throw await providerError(resp, preset.label);
   return consumeStream(resp.body, "openai", onDelta);
 }
 
@@ -152,12 +159,12 @@ async function streamOpenAI({ system, messages, signal, onDelta }: StreamOptions
 // Anthropic/OpenAI paths and the server proxy (which forwards either format).
 async function consumeStream(
   body: ReadableStream<Uint8Array>,
-  provider: AiProvider,
+  format: "anthropic" | "openai",
   onDelta: (chunk: string) => void,
 ): Promise<string> {
   let out = "";
   for await (const data of sseData(body)) {
-    if (provider === "openai") {
+    if (format === "openai") {
       if (data === "[DONE]") break;
       let chunk: { choices?: Array<{ delta?: { content?: string } }> };
       try {

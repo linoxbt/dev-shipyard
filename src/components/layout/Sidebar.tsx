@@ -11,6 +11,7 @@ import {
   Code2,
   Sparkles,
   Compass,
+  PanelLeftClose,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ const NAV = [
 
 // The sidebar content, shared by the desktop fixed rail and the mobile drawer.
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  const toggleSidebar = useUi((s) => s.toggleSidebar);
   const path = useRouterState({ select: (r) => r.location.pathname });
   const isActive = (to: string, exact?: boolean) =>
     exact ? path === to : path === to || path.startsWith(to + "/");
@@ -53,12 +55,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <>
       <div className="flex items-center justify-between border-b border-border px-4 py-4">
         <Logo />
+        {/* Desktop: collapse the rail. Mobile: close the drawer. */}
         <button
-          onClick={onNavigate}
-          className="rounded p-1 text-meta hover:text-foreground md:hidden"
-          aria-label="Close menu"
+          onClick={onNavigate ?? toggleSidebar}
+          className="rounded p-1 text-meta hover:text-foreground"
+          aria-label={onNavigate ? "Close menu" : "Collapse sidebar"}
+          title={onNavigate ? "Close menu" : "Collapse sidebar"}
         >
-          <X className="h-4 w-4" />
+          {onNavigate ? <X className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
         </button>
       </div>
 
@@ -111,14 +115,16 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function Sidebar() {
-  const { mobileNavOpen, closeMobileNav } = useUi();
+  const { mobileNavOpen, closeMobileNav, sidebarCollapsed } = useUi();
 
   return (
     <>
-      {/* Desktop fixed rail */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-surface md:flex">
-        <SidebarContent />
-      </aside>
+      {/* Desktop fixed rail — hidden when collapsed */}
+      {!sidebarCollapsed && (
+        <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-surface md:flex">
+          <SidebarContent />
+        </aside>
+      )}
 
       {/* Mobile drawer */}
       {mobileNavOpen && (
