@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { TEMPLATES, CATEGORIES, categoryColor, type TemplateCategory } from "@/lib/mock/templates";
 import { useUserTemplates } from "@/lib/user-templates";
 
-export const Route = createFileRoute("/launchkit/templates")({
+export const Route = createFileRoute("/launchkit/templates/")({
   head: () => ({
     meta: [
       { title: "Templates — DevStation LaunchKit" },

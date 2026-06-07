@@ -8,6 +8,7 @@ import { useProjects } from "@/lib/mock/projects";
 import { TEMPLATES } from "@/lib/mock/templates";
 import { DEFAULT_GAS_GWEI } from "@/lib/chains";
 import { useActiveChain } from "@/hooks/useActiveChain";
+import { useGlobalDeployStats } from "@/hooks/useProjectRegistry";
 import { storage } from "@/lib/storage";
 import { useNetworkStatus } from "@/hooks/useChainData";
 import { formatDistanceToNow } from "date-fns";
@@ -32,6 +33,7 @@ function Overview() {
 
   const { chainId, chain, config } = useActiveChain();
   const { data: net } = useNetworkStatus(chainId);
+  const globalStats = useGlobalDeployStats();
   const [inspections, setInspections] = useState<string[]>([]);
   useEffect(() => setInspections(storage.loadInspections()), []);
 
@@ -49,7 +51,21 @@ function Overview() {
 
       <div className="space-y-6 p-6">
         {/* Stat cards */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <Stat
+            value={
+              globalStats.totalDeployments != null
+                ? globalStats.totalDeployments.toLocaleString()
+                : "—"
+            }
+            label="Contracts Deployed"
+            sub={globalStats.onChain ? "on-chain, all users" : "registry not configured"}
+          />
+          <Stat
+            value={globalStats.onChain ? globalStats.uniqueDeployers.toLocaleString() : "—"}
+            label="Total Users"
+            sub="wallets that deployed"
+          />
           <Stat
             value={projects.length.toString()}
             label="Your Deployments"

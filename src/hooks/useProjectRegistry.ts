@@ -3,6 +3,7 @@ import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { projectRegistryAbi } from "@/lib/abis/projectRegistry";
 import { DEVSTATION_CONTRACTS, isContractConfigured } from "@/lib/contracts";
 import { useNetworkPref } from "@/lib/active-chain";
+import { useAllLabels } from "@/hooks/useContractLabels";
 import { storage, type StoredProject } from "@/lib/storage";
 
 interface RecordParams {
@@ -107,4 +108,33 @@ export function useProjectRegistry() {
   }
 
   return { deployments: merged, recordDeployment, onChain };
+}
+
+// App-wide deployment stats for the Overview, read from the on-chain registries:
+//  - totalDeployments: the ProjectRegistry global counter (every recorded deploy)
+//  - uniqueDeployers:  distinct wallets that registered a contract label on
+//    deploy (our best on-chain proxy for "users who deployed", since the
+//    registry doesn't enumerate deployers directly).
+export function useGlobalDeployStats() {
+  const registry = DEVSTATION_CONTRACTS.projectRegistry.address;
+  const onChain = isContractConfigured(registry);
+  const selectedChainId = useNetworkPref((s) => s.preferredChainId);
+
+  const { data: total } = useReadContract({
+    address: registry,
+    abi: projectRegistryAbi,
+    functionName: "totalDeployments",
+    chainId: selectedChainId,
+    query: { enabled: onChain },
+  });
+
+  const { labels } = useAllLabels();
+  const uniqueDeployers = new Set(labels.map((l) => l.submitter?.toLowerCase()).filter(Boolean))
+    .size;
+
+  return {
+    onChain,
+    totalDeployments: total !== undefined ? Number(total as bigint) : null,
+    uniqueDeployers,
+  };
 }

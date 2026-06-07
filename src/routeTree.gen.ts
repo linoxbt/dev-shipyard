@@ -16,12 +16,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as RoutebookIndexRouteImport } from './routes/routebook.index'
 import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
 import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
-import { Route as LaunchkitTemplatesRouteImport } from './routes/launchkit.templates'
 import { Route as LaunchkitProjectsRouteImport } from './routes/launchkit.projects'
 import { Route as LaunchkitEditorRouteImport } from './routes/launchkit.editor'
 import { Route as LaunchkitDeployRouteImport } from './routes/launchkit.deploy'
 import { Route as LaunchkitAiRouteImport } from './routes/launchkit.ai'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
+import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
 import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
 import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
 
@@ -60,11 +60,6 @@ const RoutebookTxHashRoute = RoutebookTxHashRouteImport.update({
   path: '/routebook/$txHash',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LaunchkitTemplatesRoute = LaunchkitTemplatesRouteImport.update({
-  id: '/launchkit/templates',
-  path: '/launchkit/templates',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LaunchkitProjectsRoute = LaunchkitProjectsRouteImport.update({
   id: '/launchkit/projects',
   path: '/launchkit/projects',
@@ -90,16 +85,21 @@ const ApiAiRoute = ApiAiRouteImport.update({
   path: '/api/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaunchkitTemplatesIndexRoute = LaunchkitTemplatesIndexRouteImport.update({
+  id: '/launchkit/templates/',
+  path: '/launchkit/templates/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LaunchkitTemplatesSubmitRoute =
   LaunchkitTemplatesSubmitRouteImport.update({
-    id: '/submit',
-    path: '/submit',
-    getParentRoute: () => LaunchkitTemplatesRoute,
+    id: '/launchkit/templates/submit',
+    path: '/launchkit/templates/submit',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => LaunchkitTemplatesRoute,
+  id: '/launchkit/templates/$id',
+  path: '/launchkit/templates/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -112,12 +112,12 @@ export interface FileRoutesByFullPath {
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
-  '/launchkit/templates': typeof LaunchkitTemplatesRouteWithChildren
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
+  '/launchkit/templates/': typeof LaunchkitTemplatesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -129,12 +129,12 @@ export interface FileRoutesByTo {
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
-  '/launchkit/templates': typeof LaunchkitTemplatesRouteWithChildren
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
   '/routebook': typeof RoutebookIndexRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
+  '/launchkit/templates': typeof LaunchkitTemplatesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -147,12 +147,12 @@ export interface FileRoutesById {
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
-  '/launchkit/templates': typeof LaunchkitTemplatesRouteWithChildren
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
+  '/launchkit/templates/': typeof LaunchkitTemplatesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -166,12 +166,12 @@ export interface FileRouteTypes {
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/projects'
-    | '/launchkit/templates'
     | '/routebook/$txHash'
     | '/routebook/labels'
     | '/routebook/'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
+    | '/launchkit/templates/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -183,12 +183,12 @@ export interface FileRouteTypes {
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/projects'
-    | '/launchkit/templates'
     | '/routebook/$txHash'
     | '/routebook/labels'
     | '/routebook'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
+    | '/launchkit/templates'
   id:
     | '__root__'
     | '/'
@@ -200,12 +200,12 @@ export interface FileRouteTypes {
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/projects'
-    | '/launchkit/templates'
     | '/routebook/$txHash'
     | '/routebook/labels'
     | '/routebook/'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
+    | '/launchkit/templates/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -218,10 +218,12 @@ export interface RootRouteChildren {
   LaunchkitDeployRoute: typeof LaunchkitDeployRoute
   LaunchkitEditorRoute: typeof LaunchkitEditorRoute
   LaunchkitProjectsRoute: typeof LaunchkitProjectsRoute
-  LaunchkitTemplatesRoute: typeof LaunchkitTemplatesRouteWithChildren
   RoutebookTxHashRoute: typeof RoutebookTxHashRoute
   RoutebookLabelsRoute: typeof RoutebookLabelsRoute
   RoutebookIndexRoute: typeof RoutebookIndexRoute
+  LaunchkitTemplatesIdRoute: typeof LaunchkitTemplatesIdRoute
+  LaunchkitTemplatesSubmitRoute: typeof LaunchkitTemplatesSubmitRoute
+  LaunchkitTemplatesIndexRoute: typeof LaunchkitTemplatesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -275,13 +277,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoutebookTxHashRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/launchkit/templates': {
-      id: '/launchkit/templates'
-      path: '/launchkit/templates'
-      fullPath: '/launchkit/templates'
-      preLoaderRoute: typeof LaunchkitTemplatesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/launchkit/projects': {
       id: '/launchkit/projects'
       path: '/launchkit/projects'
@@ -317,35 +312,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/launchkit/templates/': {
+      id: '/launchkit/templates/'
+      path: '/launchkit/templates'
+      fullPath: '/launchkit/templates/'
+      preLoaderRoute: typeof LaunchkitTemplatesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/launchkit/templates/submit': {
       id: '/launchkit/templates/submit'
-      path: '/submit'
+      path: '/launchkit/templates/submit'
       fullPath: '/launchkit/templates/submit'
       preLoaderRoute: typeof LaunchkitTemplatesSubmitRouteImport
-      parentRoute: typeof LaunchkitTemplatesRoute
+      parentRoute: typeof rootRouteImport
     }
     '/launchkit/templates/$id': {
       id: '/launchkit/templates/$id'
-      path: '/$id'
+      path: '/launchkit/templates/$id'
       fullPath: '/launchkit/templates/$id'
       preLoaderRoute: typeof LaunchkitTemplatesIdRouteImport
-      parentRoute: typeof LaunchkitTemplatesRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
-
-interface LaunchkitTemplatesRouteChildren {
-  LaunchkitTemplatesIdRoute: typeof LaunchkitTemplatesIdRoute
-  LaunchkitTemplatesSubmitRoute: typeof LaunchkitTemplatesSubmitRoute
-}
-
-const LaunchkitTemplatesRouteChildren: LaunchkitTemplatesRouteChildren = {
-  LaunchkitTemplatesIdRoute: LaunchkitTemplatesIdRoute,
-  LaunchkitTemplatesSubmitRoute: LaunchkitTemplatesSubmitRoute,
-}
-
-const LaunchkitTemplatesRouteWithChildren =
-  LaunchkitTemplatesRoute._addFileChildren(LaunchkitTemplatesRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -357,10 +346,12 @@ const rootRouteChildren: RootRouteChildren = {
   LaunchkitDeployRoute: LaunchkitDeployRoute,
   LaunchkitEditorRoute: LaunchkitEditorRoute,
   LaunchkitProjectsRoute: LaunchkitProjectsRoute,
-  LaunchkitTemplatesRoute: LaunchkitTemplatesRouteWithChildren,
   RoutebookTxHashRoute: RoutebookTxHashRoute,
   RoutebookLabelsRoute: RoutebookLabelsRoute,
   RoutebookIndexRoute: RoutebookIndexRoute,
+  LaunchkitTemplatesIdRoute: LaunchkitTemplatesIdRoute,
+  LaunchkitTemplatesSubmitRoute: LaunchkitTemplatesSubmitRoute,
+  LaunchkitTemplatesIndexRoute: LaunchkitTemplatesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
