@@ -18,6 +18,9 @@ export interface StoredProject {
   status: "VERIFIED" | "PENDING" | "FAILED";
   constructorArgs: Record<string, string>;
   chainId?: number;
+  imageUrl?: string;
+  /** Compiled ABI, stored so the Projects page can offer contract interaction. */
+  abi?: unknown[];
 }
 
 function hasWindow() {

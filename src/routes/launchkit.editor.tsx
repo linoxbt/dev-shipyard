@@ -6,15 +6,19 @@ import {
   ChevronRight,
   ChevronDown,
   GripHorizontal,
+  GripVertical,
   Rocket,
   Play,
   Plus,
   X,
   Code2,
+  Sparkles,
+  Wrench,
 } from "lucide-react";
 import { useAccount } from "wagmi";
 import { toast } from "sonner";
 import { SolidityEditor } from "@/components/editor/SolidityEditor";
+import { AiChat } from "@/components/ai/AiChat";
 import { ClientOnly } from "@/components/shared/ClientOnly";
 import { EditorTerminal } from "@/components/editor/EditorTerminal";
 import { DeployPanel } from "@/components/editor/DeployPanel";
@@ -29,6 +33,9 @@ import {
 import { WalletPanel } from "@/components/web3/WalletPanel";
 import { NetworkSelector } from "@/components/web3/NetworkSelector";
 import { useActiveChain } from "@/hooks/useActiveChain";
+import { useEditorIntake } from "@/lib/editor-intake";
+import { useAiIntake } from "@/lib/ai-intake";
+import { diffLines, diffStats } from "@/lib/diff";
 import { cn } from "@/lib/utils";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
 
@@ -40,6 +47,18 @@ export const Route = createFileRoute("/launchkit/editor")({
 function EditorPage() {
   const ws = useWorkspace();
   const { isConnected } = useAccount();
+
+  // Consume a pending "Open in Editor" hand-off (e.g. from a template).
+  const consumeIntake = useEditorIntake((s) => s.consume);
+  useEffect(() => {
+    const pending = consumeIntake();
+    if (pending) {
+      const path = `contracts/${pending.filename}`;
+      ws.setContent(path, pending.content);
+      ws.openFile(path);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [version, setVersion] = useState(DEFAULT_SOLC_VERSION);
   const [autoCompile, setAutoCompile] = useState(true);
@@ -56,7 +75,13 @@ function EditorPage() {
   ]);
   const [deployPanelOpen, setDeployPanelOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiWidth, setAiWidth] = useState(340);
+  // Code block the user asked to apply from the AI panel, awaiting confirm
+  // before it overwrites a non-empty file.
+  const [pendingApply, setPendingApply] = useState<string | null>(null);
   const dragRef = useRef<number | null>(null);
+  const aiDragRef = useRef<number | null>(null);
   const { chainId: connectedChainId, isTestnet } = useActiveChain();
 
   const activeSol = ws.activePath.endsWith(".sol") ? ws.activeContent : "";
@@ -91,7 +116,10 @@ function EditorPage() {
 
         // Import resolution feedback (OpenZeppelin, etc.)
         for (const imp of result.resolvedImports) {
-          logT({ text: `[${ts}] [Compiler] ✓ Resolved ${imp.path} via CDN (OpenZeppelin v5.0.2)`, status: "success" });
+          logT({
+            text: `[${ts}] [Compiler] ✓ Resolved ${imp.path} via CDN (OpenZeppelin v5.0.2)`,
+            status: "success",
+          });
         }
         for (const bad of result.importErrors) {
           logT({ text: `[${ts}] [Error] Failed to resolve import: ${bad}`, status: "error" });
@@ -161,6 +189,25 @@ function EditorPage() {
 
   const resetTermHeight = () => setTerminalHeight(220);
 
+  // Horizontal drag to resize the AI panel.
+  const onAiDragStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    aiDragRef.current = e.clientX;
+    const onMove = (ev: PointerEvent) => {
+      if (aiDragRef.current === null) return;
+      const delta = aiDragRef.current - ev.clientX;
+      setAiWidth((w) => Math.min(Math.max(w + delta, 260), window.innerWidth * 0.6));
+      aiDragRef.current = ev.clientX;
+    };
+    const onUp = () => {
+      aiDragRef.current = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, []);
+
   const clearTerminal = () => setLines([]);
 
   const diagnostics: CompileError[] = useMemo(() => {
@@ -169,6 +216,46 @@ function EditorPage() {
   }, [lastResult]);
 
   const contracts = lastResult?.status === "success" ? lastResult.contracts : null;
+  const hasErrors = lastResult?.status === "error" && lastResult.errors.length > 0;
+
+  // Hand the current compile errors + source to the AI panel and open it.
+  const requestAiFix = useAiIntake((s) => s.request);
+  const fixWithAi = useCallback(() => {
+    if (!lastResult || lastResult.status !== "error") return;
+    const errs = lastResult.errors.map((e) => e.formattedMessage).join("\n\n");
+    const prompt =
+      `My Solidity contract failed to compile in the DevStation editor (QIE / EVM, solc ${version}). ` +
+      `Explain what's wrong and return a corrected, complete version.\n\n` +
+      `Compiler errors:\n${errs}\n\n` +
+      `Contract (${ws.activePath}):\n\`\`\`solidity\n${activeSol}\n\`\`\``;
+    setAiOpen(true);
+    requestAiFix(prompt);
+  }, [lastResult, version, ws.activePath, activeSol, requestAiFix]);
+
+  // Applying AI code into the editor. Replacing a non-empty file is destructive,
+  // so confirm first; an empty file just gets filled.
+  const handleUseCode = (code: string) => {
+    if (!activeSol.trim()) {
+      ws.setContent(ws.activePath, code);
+      toast.success(`Inserted into ${ws.activePath}`);
+    } else {
+      setPendingApply(code);
+    }
+  };
+
+  const applyPending = () => {
+    if (pendingApply == null) return;
+    ws.setContent(ws.activePath, pendingApply);
+    setPendingApply(null);
+    toast.success(`Replaced ${ws.activePath}`);
+  };
+
+  // Line diff for the safe-apply confirm (only meaningful while it's open).
+  const applyDiff = useMemo(
+    () => (pendingApply !== null ? diffLines(activeSol, pendingApply) : []),
+    [pendingApply, activeSol],
+  );
+  const applyDiffStats = diffStats(applyDiff);
 
   return (
     <div className="flex flex-col overflow-hidden" style={{ height: "calc(100vh - 0px)" }}>
@@ -219,6 +306,17 @@ function EditorPage() {
           <Rocket className="h-3 w-3" /> Compile & Deploy
         </button>
 
+        {/* Fix with AI — appears when the active compile failed */}
+        {hasErrors && (
+          <button
+            onClick={fixWithAi}
+            className="flex items-center gap-1 rounded border border-warning px-2.5 py-1 font-mono text-[11px] text-warning hover:bg-warning/10"
+            title="Send the compile errors to the AI assistant"
+          >
+            <Wrench className="h-3 w-3" /> Fix with AI
+          </button>
+        )}
+
         <div className="flex-1" />
 
         {/* Active file */}
@@ -228,6 +326,20 @@ function EditorPage() {
 
         {/* Network */}
         <NetworkSelector className="w-44" />
+
+        {/* AI toggle */}
+        <button
+          onClick={() => setAiOpen((o) => !o)}
+          className={cn(
+            "flex items-center gap-1 rounded border px-2.5 py-1 font-mono text-[11px] transition",
+            aiOpen
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border text-muted-foreground hover:border-primary hover:text-primary",
+          )}
+          title="Toggle AI assistant"
+        >
+          <Sparkles className="h-3 w-3" /> AI
+        </button>
 
         {/* Wallet status */}
         <WalletPanel />
@@ -338,6 +450,26 @@ function EditorPage() {
             </div>
           )}
         </div>
+
+        {/* AI assistant panel (resizable, Remix-style) */}
+        {aiOpen && (
+          <>
+            <div
+              onPointerDown={onAiDragStart}
+              className="flex w-[6px] shrink-0 cursor-col-resize items-center justify-center bg-[#1e2a38] hover:bg-primary/30"
+            >
+              <GripVertical className="h-3 w-3 text-meta" />
+            </div>
+            <aside style={{ width: aiWidth }} className="shrink-0 border-l border-border">
+              <AiChat
+                contextLabel={ws.activePath}
+                getContext={() => (ws.activePath.endsWith(".sol") ? activeSol : null)}
+                onUseCode={(code) => handleUseCode(code)}
+                placeholder="Ask about your contract…"
+              />
+            </aside>
+          </>
+        )}
       </div>
 
       {/* Deploy slide-in panel */}
@@ -349,6 +481,71 @@ function EditorPage() {
           onLog={logT}
         />
       )}
+
+      {/* Safe-apply confirm — replacing a non-empty file from the AI panel */}
+      {pendingApply !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setPendingApply(null)}
+        >
+          <div
+            className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border bg-[#0d1117]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+              <Wrench className="h-4 w-4 text-primary" />
+              <span className="font-mono text-xs font-semibold text-foreground">
+                Replace {ws.activePath}?
+              </span>
+            </div>
+            <div className="px-4 py-2 font-mono text-[11px] text-meta">
+              Overwrites the whole file —{" "}
+              <span className="text-success">+{applyDiffStats.added}</span>{" "}
+              <span className="text-danger">−{applyDiffStats.removed}</span> lines. Recoverable only
+              via editor undo.
+            </div>
+            <DiffView ops={applyDiff} />
+            <div className="flex justify-end gap-2 border-t border-border px-4 py-2.5">
+              <button
+                onClick={() => setPendingApply(null)}
+                className="rounded border border-border px-3 py-1 font-mono text-[11px] text-meta hover:text-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={applyPending}
+                className="rounded bg-primary px-3 py-1 font-mono text-[11px] font-medium text-primary-foreground hover:bg-primary-hover"
+              >
+                Replace file
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Diff view (safe-apply confirm) ── */
+function DiffView({ ops }: { ops: ReturnType<typeof diffLines> }) {
+  return (
+    <div className="mx-4 mb-2 flex-1 overflow-auto rounded border border-border bg-background font-mono text-[10px] leading-relaxed">
+      {ops.map((op, i) => (
+        <div
+          key={i}
+          className={cn(
+            "whitespace-pre-wrap px-2",
+            op.type === "add" && "bg-success/10 text-success",
+            op.type === "del" && "bg-danger/10 text-danger",
+            op.type === "ctx" && "text-meta",
+          )}
+        >
+          <span className="select-none opacity-60">
+            {op.type === "add" ? "+ " : op.type === "del" ? "- " : "  "}
+          </span>
+          {op.text || " "}
+        </div>
+      ))}
     </div>
   );
 }

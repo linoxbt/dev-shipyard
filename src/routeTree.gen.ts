@@ -18,6 +18,8 @@ import { Route as LaunchkitTemplatesRouteImport } from './routes/launchkit.templ
 import { Route as LaunchkitProjectsRouteImport } from './routes/launchkit.projects'
 import { Route as LaunchkitEditorRouteImport } from './routes/launchkit.editor'
 import { Route as LaunchkitDeployRouteImport } from './routes/launchkit.deploy'
+import { Route as LaunchkitAiRouteImport } from './routes/launchkit.ai'
+import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -65,6 +67,16 @@ const LaunchkitDeployRoute = LaunchkitDeployRouteImport.update({
   path: '/launchkit/deploy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaunchkitAiRoute = LaunchkitAiRouteImport.update({
+  id: '/launchkit/ai',
+  path: '/launchkit/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiRoute = ApiAiRouteImport.update({
+  id: '/api/ai',
+  path: '/api/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -74,6 +86,8 @@ const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
+  '/api/ai': typeof ApiAiRoute
+  '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
@@ -86,6 +100,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
+  '/api/ai': typeof ApiAiRoute
+  '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
@@ -99,6 +115,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
+  '/api/ai': typeof ApiAiRoute
+  '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
@@ -113,6 +131,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/settings'
+    | '/api/ai'
+    | '/launchkit/ai'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/projects'
@@ -125,6 +145,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/settings'
+    | '/api/ai'
+    | '/launchkit/ai'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/projects'
@@ -137,6 +159,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/settings'
+    | '/api/ai'
+    | '/launchkit/ai'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/projects'
@@ -150,6 +174,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SettingsRoute: typeof SettingsRoute
+  ApiAiRoute: typeof ApiAiRoute
+  LaunchkitAiRoute: typeof LaunchkitAiRoute
   LaunchkitDeployRoute: typeof LaunchkitDeployRoute
   LaunchkitEditorRoute: typeof LaunchkitEditorRoute
   LaunchkitProjectsRoute: typeof LaunchkitProjectsRoute
@@ -224,6 +250,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LaunchkitDeployRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/launchkit/ai': {
+      id: '/launchkit/ai'
+      path: '/launchkit/ai'
+      fullPath: '/launchkit/ai'
+      preLoaderRoute: typeof LaunchkitAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai': {
+      id: '/api/ai'
+      path: '/api/ai'
+      fullPath: '/api/ai'
+      preLoaderRoute: typeof ApiAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/launchkit/templates/$id': {
       id: '/launchkit/templates/$id'
       path: '/$id'
@@ -248,6 +288,8 @@ const LaunchkitTemplatesRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRoute: SettingsRoute,
+  ApiAiRoute: ApiAiRoute,
+  LaunchkitAiRoute: LaunchkitAiRoute,
   LaunchkitDeployRoute: LaunchkitDeployRoute,
   LaunchkitEditorRoute: LaunchkitEditorRoute,
   LaunchkitProjectsRoute: LaunchkitProjectsRoute,

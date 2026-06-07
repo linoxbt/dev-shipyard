@@ -126,7 +126,10 @@ async function collectImports(userSources: Record<string, string>): Promise<{
     if (!fetchPath) {
       if (!rawImport.startsWith(".") && cdnUrlFor(rawImport)) {
         // handled by key path above
-      } else if (!sources[rawImport] && (rawImport.startsWith("@") || rawImport.startsWith("http"))) {
+      } else if (
+        !sources[rawImport] &&
+        (rawImport.startsWith("@") || rawImport.startsWith("http"))
+      ) {
         failed.push(rawImport);
       }
       continue;

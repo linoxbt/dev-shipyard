@@ -7,10 +7,13 @@ import { storage, type StoredProject } from "@/lib/storage";
 interface RecordParams {
   contractAddress: `0x${string}`;
   templateId: string;
+  templateName?: string;
   projectName: string;
   network: string;
   txHash: string;
   chainId: number;
+  imageUrl?: string;
+  abi?: unknown[];
 }
 
 // On-chain ProjectRegistry access. When the registry is deployed (address set),
@@ -37,7 +40,8 @@ export function useProjectRegistry() {
         id: p.txHash,
         name: p.projectName,
         templateId: p.templateId,
-        templateName: p.templateId === "custom" ? "Custom Solidity" : p.templateId,
+        templateName:
+          p.templateName ?? (p.templateId === "custom" ? "Custom Solidity" : p.templateId),
         address: p.contractAddress,
         txHash: p.txHash,
         blockNumber: 0,
@@ -45,6 +49,8 @@ export function useProjectRegistry() {
         status: "VERIFIED",
         constructorArgs: {},
         chainId: p.chainId,
+        imageUrl: p.imageUrl || undefined,
+        abi: p.abi,
       };
       const existing = storage.loadProjects().filter((x) => x.id !== local.id);
       storage.saveProjects([local, ...existing]);

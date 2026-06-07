@@ -9,6 +9,7 @@ import {
   Settings,
   BookOpen,
   Code2,
+  Sparkles,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const NAV = [
     items: [
       { to: "/launchkit/templates", label: "Templates", icon: Package },
       { to: "/launchkit/editor", label: "Contract Editor", icon: Code2 },
+      { to: "/launchkit/ai", label: "Code with AI", icon: Sparkles },
       { to: "/launchkit/deploy", label: "Deploy", icon: Rocket },
       { to: "/launchkit/projects", label: "Projects", icon: FolderGit2 },
     ],

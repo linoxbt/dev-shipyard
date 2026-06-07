@@ -46,6 +46,7 @@ function DeployWizard() {
   const [filter, setFilter] = useState("");
   const [args, setArgs] = useState<Record<string, string>>({});
   const [projectName, setProjectName] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [deployLines, setDeployLines] = useState<TerminalLine[]>([]);
   const [deployResult, setDeployResult] = useState<null | {
     address: string;
@@ -133,10 +134,13 @@ function DeployWizard() {
       await recordDeployment({
         contractAddress: deployedAddr,
         templateId: template.id,
+        templateName: template.name,
         projectName: projectName || template.name,
         network: chain.name,
         txHash: hash,
         chainId: chain.id,
+        imageUrl: imageUrl.trim() || undefined,
+        abi: contract.abi as unknown[],
       }).catch(() => {});
 
       setDeployResult({ address: deployedAddr, txHash: hash, block: Number(receipt.blockNumber) });
@@ -277,6 +281,28 @@ function DeployWizard() {
                   This name will appear in Routebook whenever this contract is involved in a
                   transaction.
                 </span>
+              </label>
+              <label className="mt-3 block">
+                <span className="font-mono text-xs text-muted-foreground">
+                  Project Image URL <span className="text-meta">(optional)</span>
+                </span>
+                <input
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://… or ipfs://…"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
+                />
+                <span className="mt-1 block text-[10px] text-meta">
+                  Logo/banner shown on your project card. Paste an image URL.
+                </span>
+                {imageUrl.trim() && (
+                  <img
+                    src={imageUrl}
+                    alt="Project preview"
+                    className="mt-2 h-16 w-16 rounded border border-border object-cover"
+                    onError={(e) => (e.currentTarget.style.display = "none")}
+                  />
+                )}
               </label>
             </div>
           </div>

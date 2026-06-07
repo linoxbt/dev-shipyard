@@ -1,9 +1,10 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Rocket, ChevronDown, ChevronRight } from "lucide-react";
+import { Rocket, ChevronDown, ChevronRight, Code2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CodeBlock } from "@/components/shared/CodeBlock";
 import { getTemplate, categoryColor } from "@/lib/mock/templates";
+import { useEditorIntake } from "@/lib/editor-intake";
 
 export const Route = createFileRoute("/launchkit/templates/$id")({
   loader: ({ params }) => {
@@ -23,6 +24,14 @@ export const Route = createFileRoute("/launchkit/templates/$id")({
 function TemplateDetail() {
   const { tpl } = Route.useLoaderData();
   const [abiOpen, setAbiOpen] = useState(false);
+  const navigate = useNavigate();
+  const setPending = useEditorIntake((s) => s.setPending);
+
+  const openInEditor = () => {
+    setPending(`${tpl.name}.sol`, tpl.solidity);
+    navigate({ to: "/launchkit/editor" });
+  };
+
   return (
     <div>
       <PageHeader
@@ -31,12 +40,12 @@ function TemplateDetail() {
         subtitle={tpl.description}
         action={
           <div className="flex items-center gap-2">
-            <Link
-              to="/launchkit/templates"
-              className="flex items-center gap-1 rounded border border-border px-2.5 py-1.5 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
+            <button
+              onClick={openInEditor}
+              className="flex items-center gap-1.5 rounded border border-border px-2.5 py-1.5 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
             >
-              <ArrowLeft className="h-3 w-3" /> Back
-            </Link>
+              <Code2 className="h-3 w-3" /> Open in Editor
+            </button>
             <Link
               to="/launchkit/deploy"
               search={{ template: tpl.id }}
