@@ -22,6 +22,7 @@ import { useUi } from "@/lib/ui-state";
 
 const NAV = [
   { to: "/", label: "Overview", icon: Home, exact: true },
+  { to: "/explorer", label: "QIE Explorer", icon: Compass },
   {
     section: "LaunchKit",
     items: [
@@ -39,9 +40,13 @@ const NAV = [
       { to: "/routebook/labels", label: "Label Registry", icon: Tags },
     ],
   },
-  { to: "/explorer", label: "QIE Explorer", icon: Compass },
-  { to: "/settings", label: "Settings", icon: Settings },
-  { to: "/docs", label: "Docs", icon: BookOpen },
+  {
+    section: "General",
+    items: [
+      { to: "/settings", label: "Settings", icon: Settings },
+      { to: "/docs", label: "Docs", icon: BookOpen },
+    ],
+  },
 ];
 
 // The sidebar content, shared by the desktop fixed rail and the mobile drawer.

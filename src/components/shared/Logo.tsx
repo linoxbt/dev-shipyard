@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
 // DevStation brand mark: a terminal prompt chevron + caret inside a rounded
@@ -30,8 +31,9 @@ export function LogoMark({ className }: { className?: string }) {
 }
 
 export function Logo({ compact = false }: { compact?: boolean }) {
+  // Clickable brand — navigates to the Overview (home).
   return (
-    <div className="flex items-center gap-2">
+    <Link to="/" className="flex items-center gap-2" aria-label="DevStation home">
       <LogoMark />
       {!compact && (
         <div>
@@ -43,6 +45,6 @@ export function Logo({ compact = false }: { compact?: boolean }) {
           </div>
         </div>
       )}
-    </div>
+    </Link>
   );
 }

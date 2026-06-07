@@ -17,6 +17,12 @@ import {
   ShieldCheck,
   AlertTriangle,
   Info,
+  FilePlus,
+  FolderPlus,
+  Upload,
+  FolderInput,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { useAccount } from "wagmi";
 import { toast } from "sonner";
@@ -313,6 +319,49 @@ function EditorPage() {
   );
   const applyDiffStats = diffStats(applyDiff);
 
+  // ── File explorer operations (Remix-style) ──
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  const newFileIn = (dir: string) => {
+    const name = window.prompt("New file name", "Untitled.sol");
+    if (!name) return;
+    ws.addFile(dir ? `${dir}/${name}` : name);
+  };
+  const newFolderIn = (dir: string) => {
+    const name = window.prompt("New folder name", "new-folder");
+    if (!name) return;
+    ws.addFolder(dir ? `${dir}/${name}` : name);
+  };
+  const renamePath = (path: string) => {
+    const cur = path.split("/").pop() ?? path;
+    const name = window.prompt("Rename to", cur);
+    if (!name || name === cur) return;
+    const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+    ws.renameFile(path, parent ? `${parent}/${name}` : name);
+  };
+  const deletePath = (path: string, isDir: boolean) => {
+    if (window.confirm(`Delete ${isDir ? "folder" : "file"} "${path}" and its contents?`)) {
+      ws.deleteFile(path);
+    }
+  };
+  const onImport = async (list: FileList | null, asFolder: boolean) => {
+    if (!list || list.length === 0) return;
+    const entries: Array<{ path: string; content: string }> = [];
+    for (const f of Array.from(list)) {
+      // Skip obvious binaries / huge files; the editor is text-only.
+      if (f.size > 1_000_000) continue;
+      const rel =
+        (asFolder ? (f as File & { webkitRelativePath?: string }).webkitRelativePath : "") ||
+        f.name;
+      entries.push({ path: rel, content: await f.text() });
+    }
+    if (entries.length) {
+      ws.importEntries(entries);
+      toast.success(`Imported ${entries.length} file${entries.length !== 1 ? "s" : ""}`);
+    }
+  };
+
   return (
     <div className="flex flex-col overflow-hidden" style={{ height: "calc(100vh - 0px)" }}>
       {/* === TOOLBAR === */}
@@ -428,28 +477,75 @@ function EditorPage() {
               </span>
               <div className="flex gap-0.5">
                 <button
-                  onClick={() => ws.createFile("contracts")}
+                  onClick={() => newFileIn("")}
                   title="New file"
                   className="rounded p-1 text-meta hover:text-foreground"
                 >
-                  <Plus className="h-3 w-3" />
+                  <FilePlus className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => newFolderIn("")}
+                  title="New folder"
+                  className="rounded p-1 text-meta hover:text-foreground"
+                >
+                  <FolderPlus className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Import file(s)"
+                  className="rounded p-1 text-meta hover:text-foreground"
+                >
+                  <Upload className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => folderInputRef.current?.click()}
+                  title="Import folder"
+                  className="rounded p-1 text-meta hover:text-foreground"
+                >
+                  <FolderInput className="h-3 w-3" />
                 </button>
                 <button
                   onClick={() => setSidebarCollapsed(true)}
+                  title="Hide files"
                   className="rounded p-1 text-meta hover:text-foreground"
                 >
                   <X className="h-3 w-3" />
                 </button>
               </div>
             </div>
+            {/* Hidden import inputs */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                void onImport(e.target.files, false);
+                e.target.value = "";
+              }}
+            />
+            <input
+              ref={folderInputRef}
+              type="file"
+              className="hidden"
+              // @ts-expect-error non-standard but widely supported folder upload
+              webkitdirectory=""
+              directory=""
+              multiple
+              onChange={(e) => {
+                void onImport(e.target.files, true);
+                e.target.value = "";
+              }}
+            />
             <div className="flex-1 overflow-y-auto px-1 py-1">
               <FileTree
                 node={ws.tree}
                 activePath={ws.activePath}
                 onOpen={ws.openFile}
-                onDelete={ws.deleteFile}
-                onRename={ws.renameFile}
-                onCreate={ws.createFile}
+                onDelete={deletePath}
+                onRename={renamePath}
+                onNewFile={newFileIn}
+                onNewFolder={newFolderIn}
               />
             </div>
           </aside>
@@ -741,6 +837,22 @@ function FindingCard({
 }
 
 /* ── File Tree ── */
+interface TreeNodeShape {
+  type: "dir" | "file";
+  path: string;
+  children?: TreeNodeShape[];
+}
+interface FileTreeProps {
+  node: TreeNodeShape;
+  depth?: number;
+  activePath: string;
+  onOpen: (p: string) => void;
+  onDelete: (p: string, isDir: boolean) => void;
+  onRename: (p: string) => void;
+  onNewFile: (dir: string) => void;
+  onNewFolder: (dir: string) => void;
+}
+
 function FileTree({
   node,
   depth = 0,
@@ -748,68 +860,104 @@ function FileTree({
   onOpen,
   onDelete,
   onRename,
-  onCreate,
-}: {
-  node: {
-    type: "dir" | "file";
-    path: string;
-    children?: Array<{ type: "dir" | "file"; path: string; children?: unknown[] }>;
-  };
-  depth?: number;
-  activePath: string;
-  onOpen: (p: string) => void;
-  onDelete: (p: string) => void;
-  onRename: (oldP: string, newP: string) => void;
-  onCreate: (p: string) => void;
-}) {
+  onNewFile,
+  onNewFolder,
+}: FileTreeProps) {
   const [open, setOpen] = useState(depth < 2);
   const name = node.path.split("/").pop() ?? node.path;
   const isDir = node.type === "dir";
+  const isRoot = isDir && node.path === "";
   const pad = { paddingLeft: depth * 12 + 4 };
 
-  if (isDir && (!node.children || node.children.length === 0) && node.path !== "") return null;
+  // The root is a transparent container — render only its children.
+  if (isRoot) {
+    return (
+      <div>
+        {(node.children ?? []).map((child) => (
+          <FileTree
+            key={child.path}
+            node={child}
+            depth={depth}
+            activePath={activePath}
+            onOpen={onOpen}
+            onDelete={onDelete}
+            onRename={onRename}
+            onNewFile={onNewFile}
+            onNewFolder={onNewFolder}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  const iconBtn = "rounded p-0.5 text-meta hover:text-foreground";
 
   return (
     <div>
       <div
         className={cn(
-          "flex cursor-pointer items-center gap-1 rounded px-1 py-1 font-mono text-[11px] transition hover:bg-[#161b22]",
+          "group flex cursor-pointer items-center gap-1 rounded px-1 py-1 font-mono text-[11px] transition hover:bg-[#161b22]",
           node.path === activePath && "bg-[#1e2a38]",
         )}
         style={pad}
         onClick={() => (isDir ? setOpen((o) => !o) : onOpen(node.path))}
       >
-        {isDir &&
-          (open ? (
-            <ChevronDown className="h-3 w-3 text-meta" />
-          ) : (
-            <ChevronRight className="h-3 w-3 text-meta" />
-          ))}
         {isDir ? (
-          <Folder className="h-3 w-3 text-amber-500" />
+          open ? (
+            <ChevronDown className="h-3 w-3 shrink-0 text-meta" />
+          ) : (
+            <ChevronRight className="h-3 w-3 shrink-0 text-meta" />
+          )
         ) : (
-          <Code2 className="h-3 w-3 text-info" />
+          <span className="w-3 shrink-0" />
         )}
-        <span className="truncate text-foreground">{name}</span>
+        {isDir ? (
+          <Folder className="h-3 w-3 shrink-0 text-amber-500" />
+        ) : (
+          <Code2 className="h-3 w-3 shrink-0 text-info" />
+        )}
+        <span className="flex-1 truncate text-foreground">{name}</span>
+
+        {/* Per-node actions (revealed on hover) */}
+        <div
+          className="hidden items-center gap-0.5 group-hover:flex"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {isDir && (
+            <>
+              <button onClick={() => onNewFile(node.path)} title="New file" className={iconBtn}>
+                <FilePlus className="h-3 w-3" />
+              </button>
+              <button onClick={() => onNewFolder(node.path)} title="New folder" className={iconBtn}>
+                <FolderPlus className="h-3 w-3" />
+              </button>
+            </>
+          )}
+          <button onClick={() => onRename(node.path)} title="Rename" className={iconBtn}>
+            <Pencil className="h-3 w-3" />
+          </button>
+          <button
+            onClick={() => onDelete(node.path, isDir)}
+            title="Delete"
+            className="rounded p-0.5 text-meta hover:text-danger"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
       </div>
       {open &&
         isDir &&
         (node.children ?? []).map((child) => (
           <FileTree
             key={child.path}
-            node={
-              child as {
-                type: "dir" | "file";
-                path: string;
-                children?: Array<{ type: "dir" | "file"; path: string; children?: unknown[] }>;
-              }
-            }
+            node={child}
             depth={depth + 1}
             activePath={activePath}
             onOpen={onOpen}
             onDelete={onDelete}
             onRename={onRename}
-            onCreate={onCreate}
+            onNewFile={onNewFile}
+            onNewFolder={onNewFolder}
           />
         ))}
     </div>
