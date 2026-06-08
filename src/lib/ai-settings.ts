@@ -56,48 +56,24 @@ export const AI_PROVIDERS: Record<AiProvider, ProviderPreset> = {
   freemodel: {
     id: "freemodel",
     label: "FreeModel",
-    // FreeModel serves Claude models over the native Anthropic API and the
-    // gpt-5.x line over the OpenAI-compatible API. The kind/endpoint here are
-    // the defaults; resolveEndpoint() picks the right pair per selected model.
-    kind: "anthropic",
-    endpoint: "https://cc.freemodel.dev",
-    models: [
-      // Anthropic-format (cc.freemodel.dev)
-      "claude-opus-4-8",
-      "claude-opus-4-7",
-      "claude-sonnet-4-6",
-      "claude-opus-4-6",
-      "claude-haiku-4-5-20251001",
-      // OpenAI-format (api.freemodel.dev)
-      "gpt-5.5",
-      "gpt-5.4",
-      "gpt-5.4-mini",
-      "gpt-5.3-codex",
-    ],
-    keyPlaceholder: "fm-... (FreeModel API key)",
-    keyHint: "freemodel.dev — one key works for both Claude and GPT models",
+    // FreeModel's Claude surface (cc.freemodel.dev) is gated to the Claude Code
+    // CLI and can't be called from a web app, so DevStation uses FreeModel's
+    // OpenAI-compatible surface, which serves the gpt-5.x line.
+    kind: "openai",
+    endpoint: "https://api.freemodel.dev/v1/chat/completions",
+    models: ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex"],
+    keyPlaceholder: "fe_oa_... (FreeModel API key)",
+    keyHint: "freemodel.dev",
   },
 };
 
-// FreeModel exposes two API surfaces. Claude models speak the native Anthropic
-// Messages API (cc.freemodel.dev); the gpt-5.x line speaks the OpenAI-compatible
-// Chat Completions API (api.freemodel.dev).
-const FREEMODEL_ANTHROPIC_ENDPOINT = "https://cc.freemodel.dev";
-const FREEMODEL_OPENAI_ENDPOINT = "https://api.freemodel.dev/v1/chat/completions";
-
-// Resolve the effective endpoint + API kind for the current settings. For most
-// providers this is just the preset's fixed values; FreeModel routes per model.
+// Effective endpoint + API kind for the current settings. Kept as a helper so
+// call sites stay uniform if a provider ever needs per-model routing.
 export function resolveEndpoint(s: AiSettings = getAiSettings()): {
   endpoint: string;
   kind: "anthropic" | "openai";
 } {
   const preset = AI_PROVIDERS[s.provider];
-  if (s.provider === "freemodel") {
-    const isClaude = s.model.startsWith("claude");
-    return isClaude
-      ? { endpoint: FREEMODEL_ANTHROPIC_ENDPOINT, kind: "anthropic" }
-      : { endpoint: FREEMODEL_OPENAI_ENDPOINT, kind: "openai" };
-  }
   return { endpoint: preset.endpoint, kind: preset.kind };
 }
 
