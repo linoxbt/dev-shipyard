@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { chatStream, SOLIDITY_SYSTEM_PROMPT, type ChatMessage } from "@/lib/ai";
-import { useAiSettings, AI_PROVIDERS, AI_PROVIDER_LIST } from "@/lib/ai-settings";
+import { useAiSettings, AI_PROVIDERS, AI_PROVIDER_LIST, resolveEndpoint } from "@/lib/ai-settings";
 import { useAiChatStore, type ChatSession } from "@/lib/ai-chat-store";
 import { useAiIntake } from "@/lib/ai-intake";
 import { cn } from "@/lib/utils";
@@ -441,11 +441,11 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
         </select>
       </div>
 
-      {/* Endpoint (read-only, hardcoded per provider) */}
+      {/* Endpoint (read-only; resolved per model for providers that route by model) */}
       <div>
         <label className={labelCls}>Endpoint</label>
         <div className="truncate rounded border border-border bg-surface px-2 py-1 font-mono text-[10px] text-meta">
-          {preset.endpoint}
+          {resolveEndpoint(s).endpoint}
         </div>
       </div>
 

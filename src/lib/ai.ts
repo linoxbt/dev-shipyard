@@ -11,7 +11,13 @@
 // key is visible to anyone using the build — for a shared deployment, use the
 // server proxy instead.
 
-import { getAiSettings, isAiConfigured, activeKey, AI_PROVIDERS } from "@/lib/ai-settings";
+import {
+  getAiSettings,
+  isAiConfigured,
+  activeKey,
+  AI_PROVIDERS,
+  resolveEndpoint,
+} from "@/lib/ai-settings";
 
 export { isAiConfigured };
 export type { AiProvider } from "@/lib/ai-settings";
@@ -63,8 +69,7 @@ export async function chatStream({
     );
   }
   if (s.proxy) return streamProxy({ system, messages, signal, onDelta });
-  const preset = AI_PROVIDERS[s.provider];
-  return preset.kind === "anthropic"
+  return resolveEndpoint(s).kind === "anthropic"
     ? streamAnthropic({ system, messages, signal, onDelta })
     : streamOpenAI({ system, messages, signal, onDelta });
 }
@@ -85,8 +90,8 @@ async function streamAnthropic({
   onDelta,
 }: StreamOptions): Promise<string> {
   const s = getAiSettings();
-  const preset = AI_PROVIDERS[s.provider];
-  const resp = await fetch(`${preset.endpoint}/v1/messages`, {
+  const { endpoint } = resolveEndpoint(s);
+  const resp = await fetch(`${endpoint}/v1/messages`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -129,17 +134,17 @@ async function streamProxy({ system, messages, signal, onDelta }: StreamOptions)
 
 async function streamOpenAI({ system, messages, signal, onDelta }: StreamOptions): Promise<string> {
   const s = getAiSettings();
-  const preset = AI_PROVIDERS[s.provider];
+  const { endpoint } = resolveEndpoint(s);
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${activeKey(s)}`,
   };
   // OpenRouter recommends these attribution headers (optional, harmless elsewhere).
-  if (preset.endpoint.includes("openrouter")) {
+  if (endpoint.includes("openrouter")) {
     headers["HTTP-Referer"] = "https://devstation.app";
     headers["X-Title"] = "DevStation";
   }
-  const resp = await fetch(preset.endpoint, {
+  const resp = await fetch(endpoint, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -151,7 +156,7 @@ async function streamOpenAI({ system, messages, signal, onDelta }: StreamOptions
     signal,
   });
 
-  if (!resp.ok || !resp.body) throw await providerError(resp, preset.label);
+  if (!resp.ok || !resp.body) throw await providerError(resp, AI_PROVIDERS[s.provider].label);
   return consumeStream(resp.body, "openai", onDelta);
 }
 
