@@ -60,15 +60,18 @@ export function useProjectRegistry() {
       storage.saveProjects([local, ...existing]);
 
       if (!onChain) return;
+      // Link the deployment to DevStation's on-chain ProjectRegistry. Target the
+      // deployment's chain explicitly so it can't land on the wrong network.
       await writeContractAsync({
         address: registry,
         abi: projectRegistryAbi,
         functionName: "recordDeployment",
         args: [p.contractAddress, p.templateId, p.projectName, p.network, p.txHash],
+        chainId: p.chainId ?? selectedChainId,
       });
       refetch();
     },
-    [onChain, registry, writeContractAsync, refetch],
+    [onChain, registry, writeContractAsync, refetch, selectedChainId],
   );
 
   // Merge on-chain + local, dedupe by txHash (on-chain wins).
@@ -84,10 +87,10 @@ export function useProjectRegistry() {
         }>
       | undefined) ?? [];
   const merged: StoredProject[] = [];
-  const seen = new Set<string>();
+  const registeredHashes = new Set<string>();
   for (const d of onChainList) {
-    if (seen.has(d.txHash)) continue;
-    seen.add(d.txHash);
+    if (registeredHashes.has(d.txHash)) continue;
+    registeredHashes.add(d.txHash);
     merged.push({
       id: d.txHash,
       name: d.projectName,
@@ -102,12 +105,43 @@ export function useProjectRegistry() {
     });
   }
   for (const l of storage.loadProjects()) {
-    if (seen.has(l.id)) continue;
-    seen.add(l.id);
+    if (registeredHashes.has(l.id)) continue;
     merged.push(l);
   }
 
-  return { deployments: merged, recordDeployment, onChain };
+  // Back-fill: link an existing (local-only) deployment to the on-chain registry.
+  const registerOnChain = useCallback(
+    async (p: {
+      contractAddress: string;
+      templateId: string;
+      projectName: string;
+      network: string;
+      txHash: string;
+      chainId?: number;
+    }) => {
+      if (!onChain) throw new Error("ProjectRegistry is not configured on this network.");
+      await writeContractAsync({
+        address: registry,
+        abi: projectRegistryAbi,
+        functionName: "recordDeployment",
+        args: [
+          p.contractAddress as `0x${string}`,
+          p.templateId,
+          p.projectName,
+          p.network,
+          p.txHash,
+        ],
+        chainId: p.chainId ?? selectedChainId,
+      });
+      refetch();
+    },
+    [onChain, registry, writeContractAsync, refetch, selectedChainId],
+  );
+
+  // Whether a deployment (by txHash) is already linked on-chain.
+  const isRegistered = (txHash: string) => registeredHashes.has(txHash);
+
+  return { deployments: merged, recordDeployment, registerOnChain, isRegistered, onChain };
 }
 
 // App-wide deployment stats for the Overview, read from the on-chain registries:

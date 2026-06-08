@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Rocket, ExternalLink, X, Cpu } from "lucide-react";
+import { Rocket, ExternalLink, X, Cpu, Link2 } from "lucide-react";
+import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { AddressChip } from "@/components/shared/AddressChip";
@@ -20,10 +21,35 @@ export const Route = createFileRoute("/launchkit/projects")({
 function ProjectsPage() {
   const storeProjects = useProjects((s) => s.projects);
   const remove = useProjects((s) => s.remove);
-  const { deployments: registryProjects, onChain } = useProjectRegistry();
+  const {
+    deployments: registryProjects,
+    onChain,
+    registerOnChain,
+    isRegistered,
+  } = useProjectRegistry();
   const { config, chainId } = useActiveChain();
   const [selected, setSelected] = useState<DeployedProject | null>(null);
   const [interact, setInteract] = useState<DeployedProject | null>(null);
+  const [registering, setRegistering] = useState(false);
+
+  const handleRegister = async (p: DeployedProject) => {
+    setRegistering(true);
+    try {
+      await registerOnChain({
+        contractAddress: p.address,
+        templateId: p.templateId,
+        projectName: p.name,
+        network: config.name,
+        txHash: p.txHash,
+        chainId: p.chainId ?? chainId,
+      });
+      toast.success("Linked to DevStation registry on-chain");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Registration failed");
+    } finally {
+      setRegistering(false);
+    }
+  };
 
   // Merge on-chain registry deployments with the local store, deduped by txHash.
   const seen = new Set(storeProjects.map((p) => p.txHash));
@@ -213,6 +239,18 @@ function ProjectsPage() {
             </div>
 
             <div className="mt-6 flex flex-col gap-2">
+              {/* Link to the on-chain registry if this deploy isn't recorded yet */}
+              {onChain && !isRegistered(selected.txHash) && (
+                <button
+                  onClick={() => handleRegister(selected)}
+                  disabled={registering}
+                  className="flex items-center justify-center gap-2 rounded border border-info bg-info/10 px-3 py-2 font-mono text-xs font-medium text-info hover:bg-info/20 disabled:opacity-50"
+                  title="Record this deployment in DevStation's on-chain ProjectRegistry"
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  {registering ? "Linking…" : "Register on-chain"}
+                </button>
+              )}
               <Link
                 to="/routebook/$txHash"
                 params={{ txHash: selected.txHash }}

@@ -3,8 +3,17 @@
 // live transiently in the connector module after unlock.
 import { create } from "zustand";
 import type { HDAccount } from "viem/accounts";
-import { clearVault, createMnemonic, hasVault, loadVault, saveVault, unlockVault } from "./vault";
+import {
+  accountFromMnemonic,
+  clearVault,
+  createMnemonic,
+  hasVault,
+  loadVault,
+  saveVault,
+  unlockVault,
+} from "./vault";
 import { setBurnerAccount } from "./connector";
+import { clearBurnerSession, loadBurnerSession, saveBurnerSession } from "./session";
 
 interface BurnerState {
   exists: boolean;
@@ -20,6 +29,8 @@ interface BurnerState {
   /** Reveal the decrypted seed phrase (requires the password again). */
   revealMnemonic: (password: string) => Promise<string>;
   refresh: () => void;
+  /** Restore an unlocked session (sessionStorage) after a page refresh. */
+  restoreSession: () => void;
 }
 
 function activate(account: HDAccount) {
@@ -35,6 +46,7 @@ export const useBurner = create<BurnerState>((set) => ({
     const { mnemonic, account } = createMnemonic();
     await saveVault(mnemonic, password);
     activate(account);
+    saveBurnerSession(mnemonic);
     set({ exists: true, unlocked: true, address: account.address });
     return mnemonic;
   },
@@ -43,22 +55,26 @@ export const useBurner = create<BurnerState>((set) => ({
     await saveVault(mnemonic, password);
     const { account } = await unlockVault(password);
     activate(account);
+    saveBurnerSession(mnemonic.trim());
     set({ exists: true, unlocked: true, address: account.address });
   },
 
   unlock: async (password) => {
-    const { account } = await unlockVault(password);
+    const { mnemonic, account } = await unlockVault(password);
     activate(account);
+    saveBurnerSession(mnemonic);
     set({ unlocked: true, address: account.address });
   },
 
   lock: () => {
     setBurnerAccount(null);
+    clearBurnerSession();
     set({ unlocked: false });
   },
 
   remove: () => {
     setBurnerAccount(null);
+    clearBurnerSession();
     clearVault();
     set({ exists: false, unlocked: false, address: null });
   },
@@ -71,5 +87,19 @@ export const useBurner = create<BurnerState>((set) => ({
   refresh: () => {
     const v = loadVault();
     set({ exists: !!v, address: v?.address ?? null });
+  },
+
+  // Re-activate the burner from a persisted session (survives refresh, not
+  // browser close). No password needed — the mnemonic is in sessionStorage.
+  restoreSession: () => {
+    const mnemonic = loadBurnerSession();
+    if (!mnemonic) return;
+    try {
+      const account = accountFromMnemonic(mnemonic);
+      activate(account);
+      set({ exists: true, unlocked: true, address: account.address });
+    } catch {
+      clearBurnerSession();
+    }
   },
 }));
