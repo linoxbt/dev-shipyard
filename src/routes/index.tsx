@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useAccount } from "wagmi";
 import { Rocket, Search, ArrowRight, ExternalLink } from "lucide-react";
 import { HomeHero } from "@/components/home/HomeHero";
 import { TxHashChip } from "@/components/shared/TxHashChip";
@@ -28,7 +29,13 @@ export const Route = createFileRoute("/")({
 });
 
 function Overview() {
-  const projects = useProjects((s) => s.projects);
+  const { address } = useAccount();
+  const allProjects = useProjects((s) => s.projects);
+  // Scope "Your Deployments" to the connected wallet (legacy untagged records
+  // are treated as the current user's).
+  const projects = address
+    ? allProjects.filter((p) => !p.deployer || p.deployer.toLowerCase() === address.toLowerCase())
+    : [];
   const [quickTemplate, setQuickTemplate] = useState(TEMPLATES[0].id);
   const [quickHash, setQuickHash] = useState("");
 
@@ -59,7 +66,7 @@ function Overview() {
                 : "—"
             }
             label="Contracts Deployed"
-            sub={globalStats.onChain ? "on-chain, all users" : "registry not configured"}
+            sub={globalStats.onChain ? "onchain, all users" : "registry not configured"}
           />
           <Stat
             value={globalStats.onChain ? globalStats.uniqueDeployers.toLocaleString() : "—"}

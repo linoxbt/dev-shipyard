@@ -21,6 +21,9 @@ export interface StoredProject {
   imageUrl?: string;
   /** Compiled ABI, stored so the Projects page can offer contract interaction. */
   abi?: unknown[];
+  /** Lowercased wallet address that deployed this, so Projects can scope to the
+   *  connected wallet. Absent on legacy records (pre-per-wallet). */
+  deployer?: string;
 }
 
 function hasWindow() {

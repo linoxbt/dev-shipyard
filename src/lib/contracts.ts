@@ -26,3 +26,10 @@ export const QIE_CONTRACTS = {
 export function isContractConfigured(address: `0x${string}`): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(address);
 }
+
+// Explicit gas limit for registry/label writes. QIE's eth_estimateGas is
+// unreliable for storage-writing calls (it returns ~24k for a call that
+// actually needs ~275k), which silently runs writes out of gas. These writes
+// touch a handful of storage slots; 600k is a safe ceiling and, at QIE's
+// few-wei gas price, costs a negligible fraction of a QIE.
+export const ONCHAIN_WRITE_GAS = 600_000n;

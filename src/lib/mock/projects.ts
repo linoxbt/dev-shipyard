@@ -15,6 +15,8 @@ export interface DeployedProject {
   /** Compiled ABI, when available (local deployments) — powers the Interact panel. */
   abi?: unknown[];
   chainId?: number;
+  /** Lowercased wallet that deployed this (per-wallet scoping). */
+  deployer?: string;
 }
 
 interface ProjectsState {

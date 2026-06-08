@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useAccount } from "wagmi";
 import { Rocket, ExternalLink, X, Cpu, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/launchkit/projects")({
 });
 
 function ProjectsPage() {
+  const { address, isConnected } = useAccount();
   const storeProjects = useProjects((s) => s.projects);
   const remove = useProjects((s) => s.remove);
   const {
@@ -45,7 +47,7 @@ function ProjectsPage() {
         txHash: p.txHash,
         chainId: p.chainId ?? chainId,
       });
-      toast.success("Linked to DevStation registry on-chain");
+      toast.success("Linked to DevStation registry onchain");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Registration failed");
     } finally {
@@ -53,8 +55,13 @@ function ProjectsPage() {
     }
   };
 
-  // Merge on-chain registry deployments with the local store, deduped by txHash.
-  const seen = new Set(storeProjects.map((p) => p.txHash));
+  // Per-wallet only: local deployments made by the connected wallet (legacy
+  // untagged records are treated as the current user's), merged with the
+  // wallet-scoped onchain registry list, deduped by txHash.
+  const myLocal = address
+    ? storeProjects.filter((p) => !p.deployer || p.deployer.toLowerCase() === address.toLowerCase())
+    : [];
+  const seen = new Set(myLocal.map((p) => p.txHash));
   const extra = registryProjects
     .filter((p) => !seen.has(p.txHash))
     .map(
@@ -73,7 +80,7 @@ function ProjectsPage() {
         chainId: p.chainId,
       }),
     );
-  const projects = [...extra, ...storeProjects];
+  const projects = [...extra, ...myLocal];
 
   return (
     <div>
@@ -94,13 +101,22 @@ function ProjectsPage() {
       <div className="p-6">
         {onChain && (
           <div className="mb-3 flex items-center gap-1.5 font-mono text-[10px] text-success">
-            <span className="h-1.5 w-1.5 rounded-full bg-success" /> Reading from on-chain
-            ProjectRegistry
+            <span className="h-1.5 w-1.5 rounded-full bg-success" /> Reading your deployments from
+            the onchain ProjectRegistry
           </div>
         )}
-        {projects.length === 0 ? (
+        {!isConnected ? (
           <div className="rounded border border-border bg-surface p-10 text-center">
-            <p className="font-mono text-xs text-meta">No deployments yet.</p>
+            <p className="font-mono text-xs text-meta">
+              Connect your wallet to see the contracts you have deployed.
+            </p>
+            <p className="mt-1 font-mono text-[10px] text-meta">
+              Projects are scoped to the connected wallet.
+            </p>
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="rounded border border-border bg-surface p-10 text-center">
+            <p className="font-mono text-xs text-meta">No deployments for this wallet yet.</p>
             <Link
               to="/launchkit/templates"
               className="mt-3 inline-block font-mono text-xs text-primary hover:underline"
@@ -254,16 +270,16 @@ function ProjectsPage() {
                   />
                 );
               })()}
-              {/* Link to the on-chain registry if this deploy isn't recorded yet */}
+              {/* Link to the onchain registry if this deploy isn't recorded yet */}
               {onChain && !isRegistered(selected.txHash) && (
                 <button
                   onClick={() => handleRegister(selected)}
                   disabled={registering}
                   className="flex items-center justify-center gap-2 rounded border border-info bg-info/10 px-3 py-2 font-mono text-xs font-medium text-info hover:bg-info/20 disabled:opacity-50"
-                  title="Record this deployment in DevStation's on-chain ProjectRegistry"
+                  title="Record this deployment in DevStation's onchain ProjectRegistry"
                 >
                   <Link2 className="h-3.5 w-3.5" />
-                  {registering ? "Linking…" : "Register on-chain"}
+                  {registering ? "Linking…" : "Register onchain"}
                 </button>
               )}
               <Link

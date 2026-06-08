@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useReadContract, useReadContracts, useWriteContract } from "wagmi";
 import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
-import { DEVSTATION_CONTRACTS, isContractConfigured } from "@/lib/contracts";
+import { DEVSTATION_CONTRACTS, isContractConfigured, ONCHAIN_WRITE_GAS } from "@/lib/contracts";
 import { useNetworkPref } from "@/lib/active-chain";
 
 export interface OnChainLabel {
@@ -45,13 +45,15 @@ export function useContractLabels() {
     async (p: SubmitParams) => {
       if (!onChain) return false;
       // Target the selected chain explicitly so the write can't land on the
-      // wrong network (the registry only exists on testnet right now).
+      // wrong network, and pin an explicit gas limit (QIE's estimator lowballs
+      // storage writes, which would otherwise run out of gas).
       await writeContractAsync({
         address: registry,
         abi: contractLabelRegistryAbi,
         functionName: "submitLabel",
         args: [p.contractAddress, p.name, p.category, p.description, p.autoLabeled ?? false],
         chainId: selectedChainId,
+        gas: ONCHAIN_WRITE_GAS,
       });
       refetch();
       return true;
