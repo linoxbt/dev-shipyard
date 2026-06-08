@@ -65,8 +65,8 @@ function Overview() {
                 ? globalStats.totalDeployments.toLocaleString()
                 : "—"
             }
-            label="Contracts Deployed"
-            sub={globalStats.onChain ? "onchain, all users" : "registry not configured"}
+            label="Total Deployments"
+            sub={globalStats.onChain ? "global, all users" : "registry not configured"}
           />
           <Stat
             value={globalStats.onChain ? globalStats.uniqueDeployers.toLocaleString() : "—"}
@@ -74,9 +74,13 @@ function Overview() {
             sub="wallets that deployed"
           />
           <Stat
-            value={projects.length.toString()}
+            value={address ? projects.length.toString() : "—"}
             label="Your Deployments"
-            sub={`across ${new Set(projects.map((p) => p.templateId)).size} templates`}
+            sub={
+              address
+                ? `across ${new Set(projects.map((p) => p.templateId)).size} templates`
+                : "connect a wallet"
+            }
           />
           <Stat
             value={online ? block.toLocaleString() : "—"}

@@ -14,12 +14,24 @@ import { Route as ExplorerRouteImport } from './routes/explorer'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RoutebookIndexRouteImport } from './routes/routebook.index'
+import { Route as DocsIndexRouteImport } from './routes/docs.index'
 import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
 import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
 import { Route as LaunchkitProjectsRouteImport } from './routes/launchkit.projects'
 import { Route as LaunchkitEditorRouteImport } from './routes/launchkit.editor'
 import { Route as LaunchkitDeployRouteImport } from './routes/launchkit.deploy'
 import { Route as LaunchkitAiRouteImport } from './routes/launchkit.ai'
+import { Route as DocsWalletsRouteImport } from './routes/docs.wallets'
+import { Route as DocsVerificationRouteImport } from './routes/docs.verification'
+import { Route as DocsRoutebookRouteImport } from './routes/docs.routebook'
+import { Route as DocsRegistriesRouteImport } from './routes/docs.registries'
+import { Route as DocsQuickstartRouteImport } from './routes/docs.quickstart'
+import { Route as DocsNetworksRouteImport } from './routes/docs.networks'
+import { Route as DocsLaunchkitRouteImport } from './routes/docs.launchkit'
+import { Route as DocsLabelsRouteImport } from './routes/docs.labels'
+import { Route as DocsFaqRouteImport } from './routes/docs.faq'
+import { Route as DocsEditorRouteImport } from './routes/docs.editor'
+import { Route as DocsAiRouteImport } from './routes/docs.ai'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
 import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
@@ -49,6 +61,11 @@ const RoutebookIndexRoute = RoutebookIndexRouteImport.update({
   id: '/routebook/',
   path: '/routebook/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DocsIndexRoute = DocsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DocsRoute,
 } as any)
 const RoutebookLabelsRoute = RoutebookLabelsRouteImport.update({
   id: '/routebook/labels',
@@ -80,6 +97,61 @@ const LaunchkitAiRoute = LaunchkitAiRouteImport.update({
   path: '/launchkit/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocsWalletsRoute = DocsWalletsRouteImport.update({
+  id: '/wallets',
+  path: '/wallets',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsVerificationRoute = DocsVerificationRouteImport.update({
+  id: '/verification',
+  path: '/verification',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsRoutebookRoute = DocsRoutebookRouteImport.update({
+  id: '/routebook',
+  path: '/routebook',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsRegistriesRoute = DocsRegistriesRouteImport.update({
+  id: '/registries',
+  path: '/registries',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsQuickstartRoute = DocsQuickstartRouteImport.update({
+  id: '/quickstart',
+  path: '/quickstart',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsNetworksRoute = DocsNetworksRouteImport.update({
+  id: '/networks',
+  path: '/networks',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsLaunchkitRoute = DocsLaunchkitRouteImport.update({
+  id: '/launchkit',
+  path: '/launchkit',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsLabelsRoute = DocsLabelsRouteImport.update({
+  id: '/labels',
+  path: '/labels',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsFaqRoute = DocsFaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsEditorRoute = DocsEditorRouteImport.update({
+  id: '/editor',
+  path: '/editor',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsAiRoute = DocsAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => DocsRoute,
+} as any)
 const ApiAiRoute = ApiAiRouteImport.update({
   id: '/api/ai',
   path: '/api/ai',
@@ -104,16 +176,28 @@ const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/docs': typeof DocsRoute
+  '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/docs/ai': typeof DocsAiRoute
+  '/docs/editor': typeof DocsEditorRoute
+  '/docs/faq': typeof DocsFaqRoute
+  '/docs/labels': typeof DocsLabelsRoute
+  '/docs/launchkit': typeof DocsLaunchkitRoute
+  '/docs/networks': typeof DocsNetworksRoute
+  '/docs/quickstart': typeof DocsQuickstartRoute
+  '/docs/registries': typeof DocsRegistriesRoute
+  '/docs/routebook': typeof DocsRoutebookRoute
+  '/docs/verification': typeof DocsVerificationRoute
+  '/docs/wallets': typeof DocsWalletsRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
+  '/docs/': typeof DocsIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
@@ -121,16 +205,27 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/docs': typeof DocsRoute
   '/explorer': typeof ExplorerRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/docs/ai': typeof DocsAiRoute
+  '/docs/editor': typeof DocsEditorRoute
+  '/docs/faq': typeof DocsFaqRoute
+  '/docs/labels': typeof DocsLabelsRoute
+  '/docs/launchkit': typeof DocsLaunchkitRoute
+  '/docs/networks': typeof DocsNetworksRoute
+  '/docs/quickstart': typeof DocsQuickstartRoute
+  '/docs/registries': typeof DocsRegistriesRoute
+  '/docs/routebook': typeof DocsRoutebookRoute
+  '/docs/verification': typeof DocsVerificationRoute
+  '/docs/wallets': typeof DocsWalletsRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
+  '/docs': typeof DocsIndexRoute
   '/routebook': typeof RoutebookIndexRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
@@ -139,16 +234,28 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/docs': typeof DocsRoute
+  '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/docs/ai': typeof DocsAiRoute
+  '/docs/editor': typeof DocsEditorRoute
+  '/docs/faq': typeof DocsFaqRoute
+  '/docs/labels': typeof DocsLabelsRoute
+  '/docs/launchkit': typeof DocsLaunchkitRoute
+  '/docs/networks': typeof DocsNetworksRoute
+  '/docs/quickstart': typeof DocsQuickstartRoute
+  '/docs/registries': typeof DocsRegistriesRoute
+  '/docs/routebook': typeof DocsRoutebookRoute
+  '/docs/verification': typeof DocsVerificationRoute
+  '/docs/wallets': typeof DocsWalletsRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
+  '/docs/': typeof DocsIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
@@ -162,12 +269,24 @@ export interface FileRouteTypes {
     | '/explorer'
     | '/settings'
     | '/api/ai'
+    | '/docs/ai'
+    | '/docs/editor'
+    | '/docs/faq'
+    | '/docs/labels'
+    | '/docs/launchkit'
+    | '/docs/networks'
+    | '/docs/quickstart'
+    | '/docs/registries'
+    | '/docs/routebook'
+    | '/docs/verification'
+    | '/docs/wallets'
     | '/launchkit/ai'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/projects'
     | '/routebook/$txHash'
     | '/routebook/labels'
+    | '/docs/'
     | '/routebook/'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
@@ -175,16 +294,27 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/docs'
     | '/explorer'
     | '/settings'
     | '/api/ai'
+    | '/docs/ai'
+    | '/docs/editor'
+    | '/docs/faq'
+    | '/docs/labels'
+    | '/docs/launchkit'
+    | '/docs/networks'
+    | '/docs/quickstart'
+    | '/docs/registries'
+    | '/docs/routebook'
+    | '/docs/verification'
+    | '/docs/wallets'
     | '/launchkit/ai'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/projects'
     | '/routebook/$txHash'
     | '/routebook/labels'
+    | '/docs'
     | '/routebook'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
@@ -196,12 +326,24 @@ export interface FileRouteTypes {
     | '/explorer'
     | '/settings'
     | '/api/ai'
+    | '/docs/ai'
+    | '/docs/editor'
+    | '/docs/faq'
+    | '/docs/labels'
+    | '/docs/launchkit'
+    | '/docs/networks'
+    | '/docs/quickstart'
+    | '/docs/registries'
+    | '/docs/routebook'
+    | '/docs/verification'
+    | '/docs/wallets'
     | '/launchkit/ai'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/projects'
     | '/routebook/$txHash'
     | '/routebook/labels'
+    | '/docs/'
     | '/routebook/'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
@@ -210,7 +352,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DocsRoute: typeof DocsRoute
+  DocsRoute: typeof DocsRouteWithChildren
   ExplorerRoute: typeof ExplorerRoute
   SettingsRoute: typeof SettingsRoute
   ApiAiRoute: typeof ApiAiRoute
@@ -263,6 +405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoutebookIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/docs/': {
+      id: '/docs/'
+      path: '/'
+      fullPath: '/docs/'
+      preLoaderRoute: typeof DocsIndexRouteImport
+      parentRoute: typeof DocsRoute
+    }
     '/routebook/labels': {
       id: '/routebook/labels'
       path: '/routebook/labels'
@@ -305,6 +454,83 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LaunchkitAiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/docs/wallets': {
+      id: '/docs/wallets'
+      path: '/wallets'
+      fullPath: '/docs/wallets'
+      preLoaderRoute: typeof DocsWalletsRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/verification': {
+      id: '/docs/verification'
+      path: '/verification'
+      fullPath: '/docs/verification'
+      preLoaderRoute: typeof DocsVerificationRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/routebook': {
+      id: '/docs/routebook'
+      path: '/routebook'
+      fullPath: '/docs/routebook'
+      preLoaderRoute: typeof DocsRoutebookRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/registries': {
+      id: '/docs/registries'
+      path: '/registries'
+      fullPath: '/docs/registries'
+      preLoaderRoute: typeof DocsRegistriesRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/quickstart': {
+      id: '/docs/quickstart'
+      path: '/quickstart'
+      fullPath: '/docs/quickstart'
+      preLoaderRoute: typeof DocsQuickstartRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/networks': {
+      id: '/docs/networks'
+      path: '/networks'
+      fullPath: '/docs/networks'
+      preLoaderRoute: typeof DocsNetworksRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/launchkit': {
+      id: '/docs/launchkit'
+      path: '/launchkit'
+      fullPath: '/docs/launchkit'
+      preLoaderRoute: typeof DocsLaunchkitRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/labels': {
+      id: '/docs/labels'
+      path: '/labels'
+      fullPath: '/docs/labels'
+      preLoaderRoute: typeof DocsLabelsRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/faq': {
+      id: '/docs/faq'
+      path: '/faq'
+      fullPath: '/docs/faq'
+      preLoaderRoute: typeof DocsFaqRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/editor': {
+      id: '/docs/editor'
+      path: '/editor'
+      fullPath: '/docs/editor'
+      preLoaderRoute: typeof DocsEditorRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/ai': {
+      id: '/docs/ai'
+      path: '/ai'
+      fullPath: '/docs/ai'
+      preLoaderRoute: typeof DocsAiRouteImport
+      parentRoute: typeof DocsRoute
+    }
     '/api/ai': {
       id: '/api/ai'
       path: '/api/ai'
@@ -336,9 +562,41 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface DocsRouteChildren {
+  DocsAiRoute: typeof DocsAiRoute
+  DocsEditorRoute: typeof DocsEditorRoute
+  DocsFaqRoute: typeof DocsFaqRoute
+  DocsLabelsRoute: typeof DocsLabelsRoute
+  DocsLaunchkitRoute: typeof DocsLaunchkitRoute
+  DocsNetworksRoute: typeof DocsNetworksRoute
+  DocsQuickstartRoute: typeof DocsQuickstartRoute
+  DocsRegistriesRoute: typeof DocsRegistriesRoute
+  DocsRoutebookRoute: typeof DocsRoutebookRoute
+  DocsVerificationRoute: typeof DocsVerificationRoute
+  DocsWalletsRoute: typeof DocsWalletsRoute
+  DocsIndexRoute: typeof DocsIndexRoute
+}
+
+const DocsRouteChildren: DocsRouteChildren = {
+  DocsAiRoute: DocsAiRoute,
+  DocsEditorRoute: DocsEditorRoute,
+  DocsFaqRoute: DocsFaqRoute,
+  DocsLabelsRoute: DocsLabelsRoute,
+  DocsLaunchkitRoute: DocsLaunchkitRoute,
+  DocsNetworksRoute: DocsNetworksRoute,
+  DocsQuickstartRoute: DocsQuickstartRoute,
+  DocsRegistriesRoute: DocsRegistriesRoute,
+  DocsRoutebookRoute: DocsRoutebookRoute,
+  DocsVerificationRoute: DocsVerificationRoute,
+  DocsWalletsRoute: DocsWalletsRoute,
+  DocsIndexRoute: DocsIndexRoute,
+}
+
+const DocsRouteWithChildren = DocsRoute._addFileChildren(DocsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DocsRoute: DocsRoute,
+  DocsRoute: DocsRouteWithChildren,
   ExplorerRoute: ExplorerRoute,
   SettingsRoute: SettingsRoute,
   ApiAiRoute: ApiAiRoute,
