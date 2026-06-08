@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Rocket, Search, ArrowRight, ExternalLink } from "lucide-react";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { HomeHero } from "@/components/home/HomeHero";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useProjects } from "@/lib/mock/projects";
 import { TEMPLATES } from "@/lib/mock/templates";
 import { DEFAULT_GAS_GWEI } from "@/lib/chains";
+import { formatGas } from "@/lib/format-gas";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useGlobalDeployStats } from "@/hooks/useProjectRegistry";
 import { storage } from "@/lib/storage";
@@ -38,16 +39,15 @@ function Overview() {
   useEffect(() => setInspections(storage.loadInspections()), []);
 
   const block = net?.blockNumber ?? 0;
-  const gasGwei = net?.gasPriceGwei ?? DEFAULT_GAS_GWEI;
+  const gas = formatGas(
+    net && "gasPrice" in net ? (net as { gasPrice?: string }).gasPrice : undefined,
+    net?.gasPriceGwei ?? DEFAULT_GAS_GWEI,
+  );
   const online = net?.status === "online";
 
   return (
     <div>
-      <PageHeader
-        breadcrumb={["DevStation"]}
-        title="Overview"
-        subtitle="Deploy contracts. Decode transactions. Ship faster on QIE."
-      />
+      <HomeHero />
 
       <div className="space-y-6 p-6">
         {/* Stat cards */}
@@ -78,9 +78,9 @@ function Overview() {
             pulse={online}
           />
           <Stat
-            value={`${gasGwei.toFixed(2)} Gwei`}
+            value={online ? gas.text : "—"}
             label="Gas Price"
-            sub={`≈ ${(gasGwei * 21000 * 1e-9).toFixed(6)} QIE per tx`}
+            sub={`≈ ${gas.txCostQie.toFixed(gas.txCostQie < 0.0001 ? 9 : 6)} QIE per tx`}
           />
           <Stat
             value={TEMPLATES.length.toString()}
@@ -235,7 +235,7 @@ function Overview() {
             <Panel title="Network Status">
               <div className="space-y-2 p-3 font-mono text-xs">
                 <Row label="Block height" value={online ? block.toLocaleString() : "—"} />
-                <Row label="Gas price" value={`${gasGwei.toFixed(2)} Gwei`} />
+                <Row label="Gas price" value={online ? gas.text : "—"} />
                 <Row
                   label="RPC"
                   value={

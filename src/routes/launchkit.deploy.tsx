@@ -587,6 +587,14 @@ function DeployWizard() {
                 </div>
                 <div className="text-success">✓ Success</div>
               </div>
+              <a
+                href={`${config.explorerUrl}/address/${deployResult.address}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] text-meta hover:text-primary"
+              >
+                Or view on the QIE explorer <ArrowRight className="h-3 w-3" />
+              </a>
             </ResultCard>
           </div>
 
