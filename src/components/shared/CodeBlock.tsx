@@ -62,29 +62,55 @@ export function CodeBlock({
   );
 }
 
+const wrap = (color: string, text: string) => `<span style="color:${color}">${text}</span>`;
+
+const SOL_KEYWORDS =
+  "pragma|solidity|contract|import|function|external|internal|public|private|view|pure|payable|returns|return|memory|storage|calldata|constructor|require|emit|address|uint256|uint|bool|string|bytes|mapping|struct|enum|event|modifier|new|if|else|for|while|true|false|this|super|using|is|override|virtual|abstract";
+
+// Single-pass tokenizers. Crucially the highlighting runs in ONE regex pass over
+// the (already HTML-escaped) text via a replace callback, so the <span> markup
+// we insert is never re-scanned by a later rule (which previously produced
+// `<span style=<span ...>` garbage in the output).
 function highlightLine(line: string, lang: string): string {
-  let s = escapeHtml(line);
+  const s = escapeHtml(line);
+
   if (lang === "solidity") {
-    s = s.replace(
-      /\b(pragma|solidity|contract|import|function|external|internal|public|private|view|pure|payable|returns|return|memory|storage|calldata|constructor|require|emit|address|uint256|uint|bool|string|bytes|mapping|struct|enum|event|modifier|new|if|else|for|while|true|false|this|super|using|is|override|virtual|abstract)\b/g,
-      '<span style="color:var(--color-primary)">$1</span>',
+    const re = new RegExp(`(//[^\\n]*)|("[^"]*")|\\b(${SOL_KEYWORDS})\\b|\\b(\\d+)\\b`, "g");
+    return (
+      s.replace(re, (_m, comment, str, kw, num) => {
+        if (comment) return wrap("var(--color-code-comment)", comment);
+        if (str) return wrap("var(--color-code-string)", str);
+        if (kw) return wrap("var(--color-primary)", kw);
+        return wrap("var(--color-code-number)", num);
+      }) || "&nbsp;"
     );
-    s = s.replace(/(\/\/[^\n]*)/g, '<span style="color:var(--color-code-comment)">$1</span>');
-    s = s.replace(/("[^"]*")/g, '<span style="color:var(--color-code-string)">$1</span>');
-    s = s.replace(/\b(\d+)\b/g, '<span style="color:var(--color-code-number)">$1</span>');
-  } else if (lang === "json") {
-    s = s.replace(/("[^"]+")(\s*:)/g, '<span style="color:var(--color-code)">$1</span>$2');
-    s = s.replace(/:\s*("[^"]*")/g, ': <span style="color:var(--color-code-string)">$1</span>');
-    s = s.replace(/\b(true|false|null)\b/g, '<span style="color:var(--color-primary)">$1</span>');
-    s = s.replace(/\b(-?\d+\.?\d*)\b/g, '<span style="color:var(--color-code-number)">$1</span>');
-  } else if (lang === "env") {
-    s = s.replace(
-      /^([A-Z_][A-Z0-9_]*)(=)/g,
-      '<span style="color:var(--color-primary)">$1</span>$2',
-    );
-    s = s.replace(/=(.+)$/g, '=<span style="color:var(--color-code-string)">$1</span>');
-    s = s.replace(/(#[^\n]*)/g, '<span style="color:var(--color-code-comment)">$1</span>');
   }
+
+  if (lang === "json") {
+    const re = /("[^"]*")(\s*:)?|\b(true|false|null)\b|(-?\d+\.?\d*)/g;
+    return (
+      s.replace(re, (_m, str, colon, lit, num) => {
+        if (str !== undefined)
+          return colon
+            ? wrap("var(--color-code)", str) + colon
+            : wrap("var(--color-code-string)", str);
+        if (lit) return wrap("var(--color-primary)", lit);
+        return wrap("var(--color-code-number)", num);
+      }) || "&nbsp;"
+    );
+  }
+
+  if (lang === "env") {
+    if (/^\s*#/.test(s)) return wrap("var(--color-code-comment)", s) || "&nbsp;";
+    const m = s.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (m) {
+      return (
+        wrap("var(--color-primary)", m[1]) + "=" + wrap("var(--color-code-string)", m[2]) ||
+        "&nbsp;"
+      );
+    }
+  }
+
   return s || "&nbsp;";
 }
 

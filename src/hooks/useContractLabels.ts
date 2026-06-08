@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useReadContract, useReadContracts, useWriteContract } from "wagmi";
 import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
 import { DEVSTATION_CONTRACTS, isContractConfigured } from "@/lib/contracts";
+import { useNetworkPref } from "@/lib/active-chain";
 
 export interface OnChainLabel {
   address: string;
@@ -28,6 +29,7 @@ interface SubmitParams {
 // caller can detect via `onChain`.
 export function useContractLabels() {
   const { writeContractAsync } = useWriteContract();
+  const selectedChainId = useNetworkPref((s) => s.preferredChainId);
   const registry = DEVSTATION_CONTRACTS.contractLabelRegistry.address;
   const onChain = isContractConfigured(registry);
 
@@ -35,22 +37,26 @@ export function useContractLabels() {
     address: registry,
     abi: contractLabelRegistryAbi,
     functionName: "getLabeledContracts",
+    chainId: selectedChainId,
     query: { enabled: onChain },
   });
 
   const submitLabel = useCallback(
     async (p: SubmitParams) => {
       if (!onChain) return false;
+      // Target the selected chain explicitly so the write can't land on the
+      // wrong network (the registry only exists on testnet right now).
       await writeContractAsync({
         address: registry,
         abi: contractLabelRegistryAbi,
         functionName: "submitLabel",
         args: [p.contractAddress, p.name, p.category, p.description, p.autoLabeled ?? false],
+        chainId: selectedChainId,
       });
       refetch();
       return true;
     },
-    [onChain, registry, writeContractAsync, refetch],
+    [onChain, registry, writeContractAsync, refetch, selectedChainId],
   );
 
   return {
@@ -68,11 +74,13 @@ export function useAllLabels(opts?: { refetchInterval?: number }): {
 } {
   const registry = DEVSTATION_CONTRACTS.contractLabelRegistry.address;
   const onChain = isContractConfigured(registry);
+  const selectedChainId = useNetworkPref((s) => s.preferredChainId);
 
   const { data: addresses, refetch } = useReadContract({
     address: registry,
     abi: contractLabelRegistryAbi,
     functionName: "getLabeledContracts",
+    chainId: selectedChainId,
     query: { enabled: onChain, refetchInterval: opts?.refetchInterval },
   });
 
@@ -84,6 +92,7 @@ export function useAllLabels(opts?: { refetchInterval?: number }): {
       abi: contractLabelRegistryAbi,
       functionName: "getLabel" as const,
       args: [a] as const,
+      chainId: selectedChainId,
     })),
     query: { enabled: onChain && addrList.length > 0, refetchInterval: opts?.refetchInterval },
   });

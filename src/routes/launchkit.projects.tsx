@@ -9,6 +9,8 @@ import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import { useProjects, type DeployedProject } from "@/lib/mock/projects";
+import { getTemplate } from "@/lib/mock/templates";
+import { VerifyButton } from "@/components/deploy/VerifyButton";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { qieMainnet } from "@/lib/chains";
@@ -239,6 +241,19 @@ function ProjectsPage() {
             </div>
 
             <div className="mt-6 flex flex-col gap-2">
+              {/* Verify source on the QIE explorer (only when we know the source). */}
+              {(() => {
+                const tmpl = getTemplate(selected.templateId);
+                if (!tmpl) return null;
+                return (
+                  <VerifyButton
+                    chainId={selected.chainId ?? chainId}
+                    address={selected.address as `0x${string}`}
+                    contractName={tmpl.name}
+                    sourceCode={tmpl.solidity}
+                  />
+                );
+              })()}
               {/* Link to the on-chain registry if this deploy isn't recorded yet */}
               {onChain && !isRegistered(selected.txHash) && (
                 <button

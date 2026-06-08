@@ -1,7 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
-import { ArrowLeft, ArrowRight, Check, Download, Copy, Rocket, Upload } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Download,
+  Copy,
+  Rocket,
+  Upload,
+  Search,
+  ExternalLink,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAccount, useDeployContract, usePublicClient } from "wagmi";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -24,6 +34,7 @@ import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useContractLabels } from "@/hooks/useContractLabels";
 import { useUserTemplates } from "@/lib/user-templates";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
+import { VerifyCard } from "@/components/deploy/VerifyCard";
 import { compile } from "@/lib/compiler";
 
 const search = z.object({ template: z.string().optional() });
@@ -186,6 +197,7 @@ function DeployWizard() {
             name: projectName || template.name,
             category: template.category,
             description: template.description,
+            autoLabeled: true,
           });
           log(`[${ts()}] [Verify] ✓ Name registered in ContractLabelRegistry`, "success");
         } catch {
@@ -511,9 +523,48 @@ function DeployWizard() {
                   />
                   <SuccessRow label="Tx Hash" value={<TxHashChip hash={deployResult.txHash} />} />
                 </dl>
+
+                {/* Prominent jump-off links — inbuilt Routebook + the QIE explorer */}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    to="/routebook/$txHash"
+                    params={{ txHash: deployResult.txHash }}
+                    className="inline-flex items-center gap-1.5 rounded bg-info px-3 py-1.5 font-mono text-xs font-medium text-background hover:bg-info/80"
+                  >
+                    <Search className="h-3.5 w-3.5" /> Open in Routebook
+                  </Link>
+                  <a
+                    href={`${config.explorerUrl}/tx/${deployResult.txHash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> Tx on QIE Explorer
+                  </a>
+                  <a
+                    href={`${config.explorerUrl}/address/${deployResult.address}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> Contract on QIE Explorer
+                  </a>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Auto source-verification on the QIE explorer */}
+          <VerifyCard
+            chainId={chain.id}
+            address={deployResult.address as `0x${string}`}
+            contractName={template.name}
+            sourceCode={template.solidity}
+            compilerVersion="0.8.20"
+            optimization={false}
+            optimizationRuns={200}
+            explorerUrl={config.explorerUrl}
+          />
 
           <div className="grid gap-4 lg:grid-cols-3">
             {/* ENV */}
