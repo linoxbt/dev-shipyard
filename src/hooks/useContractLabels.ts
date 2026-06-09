@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useReadContract, useReadContracts, useWriteContract } from "wagmi";
 import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
-import { DEVSTATION_CONTRACTS, isContractConfigured, ONCHAIN_WRITE_GAS } from "@/lib/contracts";
+import { labelRegistryAddress, isContractConfigured, ONCHAIN_WRITE_GAS } from "@/lib/contracts";
 import { useNetworkPref } from "@/lib/active-chain";
 
 export interface OnChainLabel {
@@ -30,7 +30,7 @@ interface SubmitParams {
 export function useContractLabels() {
   const { writeContractAsync } = useWriteContract();
   const selectedChainId = useNetworkPref((s) => s.preferredChainId);
-  const registry = DEVSTATION_CONTRACTS.contractLabelRegistry.address;
+  const registry = labelRegistryAddress(selectedChainId);
   const onChain = isContractConfigured(registry);
 
   const { data: labeledAddresses, refetch } = useReadContract({
@@ -74,9 +74,9 @@ export function useAllLabels(opts?: { refetchInterval?: number }): {
   onChain: boolean;
   refetch: () => void;
 } {
-  const registry = DEVSTATION_CONTRACTS.contractLabelRegistry.address;
-  const onChain = isContractConfigured(registry);
   const selectedChainId = useNetworkPref((s) => s.preferredChainId);
+  const registry = labelRegistryAddress(selectedChainId);
+  const onChain = isContractConfigured(registry);
 
   const { data: addresses, refetch } = useReadContract({
     address: registry,
@@ -132,15 +132,17 @@ export function useAllLabels(opts?: { refetchInterval?: number }): {
   return { labels, onChain, refetch };
 }
 
-// Single label-name lookup, used by Routebook to resolve on-chain labels.
+// Single label-name lookup, used by Routebook to resolve onchain labels.
 export function useLabelName(address: string | undefined) {
-  const registry = DEVSTATION_CONTRACTS.contractLabelRegistry.address;
+  const selectedChainId = useNetworkPref((s) => s.preferredChainId);
+  const registry = labelRegistryAddress(selectedChainId);
   const onChain = isContractConfigured(registry);
   const { data } = useReadContract({
     address: registry,
     abi: contractLabelRegistryAbi,
     functionName: "getLabelName",
     args: address ? [address as `0x${string}`] : undefined,
+    chainId: selectedChainId,
     query: { enabled: onChain && !!address },
   });
   return (data as string | undefined) || null;

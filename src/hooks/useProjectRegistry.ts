@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { projectRegistryAbi } from "@/lib/abis/projectRegistry";
-import { DEVSTATION_CONTRACTS, isContractConfigured, ONCHAIN_WRITE_GAS } from "@/lib/contracts";
+import { projectRegistryAddress, isContractConfigured, ONCHAIN_WRITE_GAS } from "@/lib/contracts";
 import { useNetworkPref } from "@/lib/active-chain";
 import { getEcosystemStats } from "@/lib/api/chain.functions";
 import { storage, type StoredProject } from "@/lib/storage";
@@ -26,7 +26,7 @@ export function useProjectRegistry() {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const selectedChainId = useNetworkPref((s) => s.preferredChainId);
-  const registry = DEVSTATION_CONTRACTS.projectRegistry.address;
+  const registry = projectRegistryAddress(selectedChainId);
   const onChain = isContractConfigured(registry);
 
   const { data: chainDeployments, refetch } = useReadContract({
@@ -162,9 +162,9 @@ export function useProjectRegistry() {
 //  - totalUsers:     distinct wallets that recorded a deployment, counted from
 //    the registry's successful recordDeployment txs (see getEcosystemStats).
 export function useGlobalDeployStats() {
-  const registry = DEVSTATION_CONTRACTS.projectRegistry.address;
-  const onChain = isContractConfigured(registry);
   const selectedChainId = useNetworkPref((s) => s.preferredChainId);
+  const registry = projectRegistryAddress(selectedChainId);
+  const onChain = isContractConfigured(registry);
 
   const { data } = useQuery({
     queryKey: ["ecosystem-stats", selectedChainId, registry],

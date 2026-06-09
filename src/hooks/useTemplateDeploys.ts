@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getTemplateDeployCounts } from "@/lib/api/chain.functions";
-import { DEVSTATION_CONTRACTS, isContractConfigured } from "@/lib/contracts";
+import { projectRegistryAddress, isContractConfigured } from "@/lib/contracts";
 import { useNetworkPref } from "@/lib/active-chain";
 
 // Per-template onchain deploy counts (templateId -> count), read from the
@@ -9,9 +9,9 @@ export function useTemplateDeploys(): {
   counts: Record<string, number>;
   onChain: boolean;
 } {
-  const registry = DEVSTATION_CONTRACTS.projectRegistry.address;
-  const onChain = isContractConfigured(registry);
   const chainId = useNetworkPref((s) => s.preferredChainId);
+  const registry = projectRegistryAddress(chainId);
+  const onChain = isContractConfigured(registry);
 
   const { data } = useQuery({
     queryKey: ["template-deploys", chainId, registry],
