@@ -6,6 +6,7 @@ import { WalletProfile } from "@/components/web3/WalletProfile";
 import { NetworkSelector } from "@/components/web3/NetworkSelector";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { getNetworkStatus } from "@/lib/api/chain.functions";
+import { useTheme, type Theme } from "@/lib/theme";
 import { storage } from "@/lib/storage";
 
 export const Route = createFileRoute("/settings")({
@@ -101,9 +102,7 @@ function SettingsPage() {
             </div>
           </Row>
           <Row label="Theme">
-            <span className="text-muted-foreground">
-              Dark <span className="text-meta">(only option — this is a dev tool)</span>
-            </span>
+            <ThemeToggle />
           </Row>
         </Section>
 
@@ -180,5 +179,32 @@ function Toggle({
         />
       </button>
     </label>
+  );
+}
+
+// Dark / Light theme selector (Appearance).
+function ThemeToggle() {
+  const theme = useTheme((s) => s.theme);
+  const setTheme = useTheme((s) => s.setTheme);
+  const opts: { id: Theme; label: string }[] = [
+    { id: "dark", label: "Dark" },
+    { id: "light", label: "Light" },
+  ];
+  return (
+    <div className="inline-flex rounded border border-border bg-surface p-0.5">
+      {opts.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => setTheme(o.id)}
+          className={`rounded px-3 py-1 font-mono text-xs transition ${
+            theme === o.id
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   );
 }

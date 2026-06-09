@@ -3,6 +3,7 @@ import {
   Outlet,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -13,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppShell } from "@/components/layout/AppShell";
 import { Web3Provider } from "@/components/web3/Web3Provider";
 import { Toaster } from "@/components/ui/sonner";
+import { useTheme } from "@/lib/theme";
 
 function NotFoundComponent() {
   return (
@@ -107,9 +109,16 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark">
       <head>
+        {/* Apply the persisted theme before paint to avoid a flash of dark. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('devstation-theme')==='light'){document.documentElement.classList.add('light');document.documentElement.classList.remove('dark')}}catch(e){}",
+          }}
+        />
         <HeadContent />
       </head>
-      <body className="dark bg-background text-foreground">
+      <body className="bg-background text-foreground">
         {children}
         <Scripts />
       </body>
@@ -119,13 +128,25 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const hydrateTheme = useTheme((s) => s.hydrate);
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const isLanding = pathname === "/";
+
+  // Re-apply the persisted theme on mount (covers client navigation / hydration).
+  useEffect(() => {
+    hydrateTheme();
+  }, [hydrateTheme]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <Web3Provider>
-        <AppShell>
+        {isLanding ? (
           <Outlet />
-        </AppShell>
+        ) : (
+          <AppShell>
+            <Outlet />
+          </AppShell>
+        )}
         <Toaster />
       </Web3Provider>
     </QueryClientProvider>

@@ -12,6 +12,8 @@ import {
   Sparkles,
   Compass,
   Activity,
+  Sun,
+  Moon,
   PanelLeftClose,
   X,
 } from "lucide-react";
@@ -20,9 +22,10 @@ import { WalletPanel } from "@/components/web3/WalletPanel";
 import { NetworkSelector } from "@/components/web3/NetworkSelector";
 import { Logo } from "@/components/shared/Logo";
 import { useUi } from "@/lib/ui-state";
+import { useTheme } from "@/lib/theme";
 
 const NAV = [
-  { to: "/", label: "Overview", icon: Home, exact: true },
+  { to: "/overview", label: "Overview", icon: Home, exact: true },
   { to: "/explorer", label: "QIE Explorer", icon: Compass },
   { to: "/activity", label: "Activity", icon: Activity },
   {
@@ -115,7 +118,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="border-t border-border px-4 py-3">
         <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-meta">Network</div>
         <NetworkSelector />
-        <div className="mt-2 font-mono text-[10px] text-meta">DevStation v1.0</div>
+        <div className="mt-2 flex items-center justify-between">
+          <span className="font-mono text-[10px] text-meta">DevStation v1.0</span>
+          <ThemeButton />
+        </div>
       </div>
     </>
   );
@@ -177,5 +183,22 @@ function SidebarLink({
       <Icon className="h-3.5 w-3.5" />
       {label}
     </Link>
+  );
+}
+
+// Compact dark/light toggle for the sidebar footer.
+function ThemeButton() {
+  const theme = useTheme((s) => s.theme);
+  const toggle = useTheme((s) => s.toggle);
+  return (
+    <button
+      onClick={toggle}
+      className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 font-mono text-[10px] text-meta hover:border-primary hover:text-primary"
+      title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      aria-label="Toggle theme"
+    >
+      {theme === "dark" ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
+      {theme === "dark" ? "Light" : "Dark"}
+    </button>
   );
 }

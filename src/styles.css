@@ -125,10 +125,69 @@
 
   --sidebar: oklch(0.19 0.014 240);
   --sidebar-foreground: oklch(0.93 0.012 250);
+
+  color-scheme: dark;
 }
 
 .dark {
-  /* same — app is dark-only */
+  /* dark is the default (tokens live in :root) */
+}
+
+/*
+ * Light theme — a soft, low-glare white (in the spirit of Etherscan's light
+ * mode): off-white page, white cards, slate text, light borders. Applied by
+ * toggling `light` on <html> (see src/lib/theme.ts).
+ */
+html.light {
+  color-scheme: light;
+
+  --background: oklch(0.985 0.002 250); /* soft off-white page */
+  --surface: oklch(1 0 0); /* white cards */
+  --surface-2: oklch(0.965 0.004 250); /* subtle gray panels */
+  --border: oklch(0.912 0.005 255); /* light gray hairline */
+  --input: oklch(1 0 0);
+  --ring: oklch(0.62 0.18 50);
+
+  --foreground: oklch(0.28 0.02 260); /* slate-800 */
+  --muted: oklch(0.965 0.004 250);
+  --muted-foreground: oklch(0.48 0.02 260); /* slate-500 */
+  --meta: oklch(0.62 0.015 260); /* slate-400 */
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.28 0.02 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.28 0.02 260);
+
+  --primary: oklch(0.62 0.18 50); /* slightly deeper amber for white bg */
+  --primary-foreground: oklch(0.99 0 0);
+  --primary-hover: oklch(0.56 0.19 48);
+
+  --secondary: oklch(0.95 0.004 250);
+  --secondary-foreground: oklch(0.28 0.02 260);
+
+  --accent: oklch(0.62 0.18 50);
+  --accent-foreground: oklch(0.99 0 0);
+
+  --success: oklch(0.55 0.15 150);
+  --warning: oklch(0.66 0.15 70);
+  --danger: oklch(0.55 0.21 25);
+  --destructive: oklch(0.55 0.21 25);
+  --info: oklch(0.5 0.12 215); /* QIE teal, darkened for contrast */
+
+  --code: oklch(0.45 0.13 235);
+  --code-string: oklch(0.5 0.14 150);
+  --code-number: oklch(0.55 0.18 25);
+  --code-comment: oklch(0.62 0.02 260);
+
+  --cat-token: oklch(0.5 0.1 195);
+  --cat-defi: oklch(0.6 0.15 70);
+  --cat-gov: oklch(0.55 0.16 295);
+  --cat-util: oklch(0.5 0.02 260);
+  --cat-nft: oklch(0.6 0.18 350);
+  --cat-custom: oklch(0.55 0.15 240);
+
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.28 0.02 260);
 }
 
 @layer base {
