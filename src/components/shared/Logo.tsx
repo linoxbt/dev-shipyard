@@ -31,9 +31,9 @@ export function LogoMark({ className }: { className?: string }) {
 }
 
 export function Logo({ compact = false }: { compact?: boolean }) {
-  // Clickable brand — navigates to the console Overview.
+  // Clickable brand — navigates back to the landing page.
   return (
-    <Link to="/overview" className="flex items-center gap-2" aria-label="DevStation home">
+    <Link to="/" className="flex items-center gap-2" aria-label="DevStation home">
       <LogoMark />
       {!compact && (
         <div>
