@@ -217,52 +217,6 @@ The AI provider, model, and key are chosen in the app's Settings and stored in t
 
 ---
 
-## Deploying the registry contracts
-
-The two registries (`contracts/*.sol`) are dependency-free Solidity 0.8.x. They are already deployed on both networks (see [Onchain registries](#onchain-registries)); deploy your own copies only if you are forking.
-
-```bash
-# 1. Put a funded deployer key in .env.local (gitignored):
-#    PRIVATE_KEY=0x...
-bun run contracts:compile          # solc -> contracts/out/*.json + src/lib/abis/*.ts
-bun run contracts:deploy           # testnet (chain 1983)
-bun run contracts:deploy mainnet   # mainnet (chain 1990) - spends real QIE, 8s safety delay
-```
-
-The script prints the deployed addresses and the exact `VITE_*` lines to paste into your env, and writes a gitignored `deployment-output.json`. A few QIE covers both deploys (roughly 1 to 2 million gas total).
-
----
-
-## Deploying the app
-
-This is an **SSR app** (server-rendered routes), not a static SPA. The key requirement: **every route must fall through to the SSR server function**, or deep links and refreshes return "Page not found". The build auto-detects the host in `vite.config.ts` and selects the matching Nitro preset.
-
-> In a memory-constrained CI runner, give the build more heap: `NODE_OPTIONS=--max-old-space-size=4096 bun run build`.
-
-### Vercel
-
-Config is in `vercel.json`. Vercel sets `VERCEL=1`, so the build uses the `vercel` Nitro preset and emits `.vercel/output` (static client plus an SSR function with a catch-all route).
-
-1. Import the repo at <https://vercel.com/new>.
-2. Build command `bun run build`, install `bun install`, framework **Other** (set by `vercel.json`).
-3. Add your `VITE_*` env vars under **Settings -> Environment Variables**. Do **not** add `PRIVATE_KEY`.
-4. Because `VITE_*` vars are inlined at build time, **redeploy after changing them**.
-
-### Netlify
-
-Config is in `netlify.toml` plus `public/_redirects`. Netlify sets `NETLIFY=true`, so the build uses the `netlify` preset (SSR function plus a `_redirects` rule that rewrites every non-static path to it).
-
-1. **New site from Git** at <https://app.netlify.com>; build command, publish dir (`dist`), and functions dir are read from `netlify.toml`.
-2. Add your `VITE_*` env vars under **Site configuration -> Environment variables**. Do **not** add `PRIVATE_KEY`.
-3. If Bun is not auto-detected, set `NETLIFY_USE_BUN=true`.
-4. After changing any `VITE_*` var, **clear cache and redeploy** so the new values are inlined.
-
-### Why "Page not found" can happen
-
-A Cloudflare-Workers-style output layout produces a static client with no SSR function and no catch-all redirect, so deep links 404. This repo fixes it: `vite.config.ts` selects the right preset, and `vercel.json` / `netlify.toml` + `public/_redirects` wire the catch-all route to the SSR function. If you fork to another host, set `NITRO_PRESET` and add that host's equivalent catch-all rewrite.
-
----
-
 ## Project structure
 
 ```
@@ -307,14 +261,6 @@ public/_redirects       Netlify SSR catch-all
 | `bun run contracts:compile` | Compile registries to ABIs + artifacts |
 | `bun run contracts:deploy [mainnet]` | Deploy registries (testnet by default) |
 
----
-
-## Security
-
-- **`.env.local`, `.env*`, and `deployment-output.json` are gitignored.** The deployer private key never enters the repo, the client bundle, or a host env.
-- The in-app generated wallet's mnemonic is encrypted with your password (AES-GCM + PBKDF2) before touching `localStorage` and is only revealed behind a password prompt. Browser-stored keys are fine for testnet and small balances; for significant mainnet funds, use a hardware wallet through the injected connector.
-- The AI bring-your-own-key is stored only in your browser. For shared deployments, use the server-proxy mode so the key stays server-side.
-- The explorer server proxy validates request paths against the Blockscout namespace and cannot fetch arbitrary URLs.
 
 ---
 
