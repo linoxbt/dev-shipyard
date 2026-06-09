@@ -3,8 +3,9 @@ import { useState } from "react";
 import { Copy, Check, CheckCircle2, XCircle, FileCode2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shortHash, shortAddr } from "@/lib/explorer/format";
+import { useExplorerNetwork } from "@/lib/explorer/network";
 
-/* ── Links to explorer detail pages ── */
+/* ── Links to explorer detail pages (network-scoped to the URL) ── */
 
 export function TxLink({
   hash,
@@ -15,10 +16,11 @@ export function TxLink({
   short?: boolean;
   className?: string;
 }) {
+  const network = useExplorerNetwork();
   return (
     <Link
-      to="/explorer/tx/$hash"
-      params={{ hash }}
+      to="/explorer/$network/tx/$hash"
+      params={{ network, hash }}
       className={cn("font-mono text-info hover:underline", className)}
     >
       {short ? shortHash(hash) : hash}
@@ -39,10 +41,11 @@ export function AddrLink({
   isContract?: boolean;
   className?: string;
 }) {
+  const network = useExplorerNetwork();
   return (
     <Link
-      to="/explorer/address/$hash"
-      params={{ hash }}
+      to="/explorer/$network/address/$hash"
+      params={{ network, hash }}
       className={cn(
         "inline-flex items-center gap-1 font-mono text-info hover:underline",
         className,
@@ -55,10 +58,11 @@ export function AddrLink({
 }
 
 export function BlockLink({ height, className }: { height: number | string; className?: string }) {
+  const network = useExplorerNetwork();
   return (
     <Link
-      to="/explorer/block/$height"
-      params={{ height: String(height) }}
+      to="/explorer/$network/block/$height"
+      params={{ network, height: String(height) }}
       className={cn("font-mono text-info hover:underline", className)}
     >
       {Number(height).toLocaleString()}
@@ -75,10 +79,11 @@ export function TokenLink({
   label?: string;
   className?: string;
 }) {
+  const network = useExplorerNetwork();
   return (
     <Link
-      to="/explorer/token/$hash"
-      params={{ hash }}
+      to="/explorer/$network/token/$hash"
+      params={{ network, hash }}
       className={cn("font-mono text-info hover:underline", className)}
     >
       {label || shortAddr(hash)}

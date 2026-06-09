@@ -4,6 +4,7 @@ import { Search, CheckCircle2, Plus, User } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TEMPLATES, CATEGORIES, categoryColor, type TemplateCategory } from "@/lib/mock/templates";
 import { useUserTemplates } from "@/lib/user-templates";
+import { useTemplateDeploys } from "@/hooks/useTemplateDeploys";
 
 export const Route = createFileRoute("/launchkit/templates/")({
   head: () => ({
@@ -31,6 +32,10 @@ function TemplateGallery() {
     hydrate();
   }, [hydrate]);
 
+  // Real onchain deploy counts per template, with the static seed as a fallback.
+  const { counts } = useTemplateDeploys();
+  const deploysOf = (t: { id: string; deployCount: number }) => counts[t.id] ?? t.deployCount;
+
   const filtered = useMemo(() => {
     let list = [...userTemplates, ...TEMPLATES];
     if (cat !== "All") list = list.filter((t) => t.category === cat);
@@ -40,11 +45,12 @@ function TemplateGallery() {
         (t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
       );
     }
-    if (sort === "deploys") list.sort((a, b) => b.deployCount - a.deployCount);
+    if (sort === "deploys")
+      list.sort((a, b) => (counts[b.id] ?? b.deployCount) - (counts[a.id] ?? a.deployCount));
     else if (sort === "alpha") list.sort((a, b) => a.name.localeCompare(b.name));
     else if (sort === "newest") list.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
     return list;
-  }, [cat, query, sort, userTemplates]);
+  }, [cat, query, sort, userTemplates, counts]);
 
   return (
     <div>
@@ -142,7 +148,7 @@ function TemplateGallery() {
 
                 <div className="flex items-baseline justify-between gap-2">
                   <h3 className="font-mono text-base font-bold text-foreground">{t.name}</h3>
-                  <span className="font-mono text-[10px] text-meta">{t.deployCount} deploys</span>
+                  <span className="font-mono text-[10px] text-meta">{deploysOf(t)} deploys</span>
                 </div>
 
                 <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">{t.description}</p>

@@ -15,7 +15,7 @@ import {
 import { formatUnits, timeAgo, withCommas } from "@/lib/explorer/format";
 import type { ExToken, ExHolder, ExTokenTransfer } from "@/lib/explorer/types";
 
-export const Route = createFileRoute("/explorer/token/$hash")({
+export const Route = createFileRoute("/explorer/$network/token/$hash")({
   head: () => ({ meta: [{ title: "Token - QIE Explorer" }] }),
   component: TokenPage,
 });

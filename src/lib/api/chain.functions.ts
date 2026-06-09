@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createPublicClient, http, formatUnits } from "viem";
+import { createPublicClient, http, formatUnits, decodeFunctionData } from "viem";
 import { qieTestnet, SUPPORTED_CHAINS, chainConfig } from "@/lib/chains";
 import { projectRegistryAbi } from "@/lib/abis/projectRegistry";
 
@@ -99,4 +99,47 @@ export const getEcosystemStats = createServerFn({ method: "GET" })
     }
 
     return { chainId, totalContracts, totalUsers };
+  });
+
+// Per-template deploy counts, derived from the registry's successful
+// recordDeployment transactions (the templateId is the 2nd calldata arg).
+const templateStatsInput = z.object({
+  chainId: z.number(),
+  registry: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+});
+
+export const getTemplateDeployCounts = createServerFn({ method: "GET" })
+  .inputValidator(templateStatsInput)
+  .handler(async ({ data }) => {
+    const { chainId, registry } = data;
+    const counts: Record<string, number> = {};
+    try {
+      const api = chainConfig(chainId).explorerApiUrl;
+      const url = `${api}?module=account&action=txlist&address=${registry}&sort=asc`;
+      const resp = await fetch(url);
+      const json = (await resp.json()) as {
+        result?: Array<{ to?: string; input?: string; isError?: string }>;
+      };
+      const txs = Array.isArray(json.result) ? json.result : [];
+      for (const t of txs) {
+        if (t.to?.toLowerCase() !== registry.toLowerCase()) continue;
+        if (!(t.input ?? "").startsWith(RECORD_DEPLOYMENT_SELECTOR)) continue;
+        if (t.isError !== "0") continue;
+        try {
+          const decoded = decodeFunctionData({
+            abi: projectRegistryAbi,
+            data: t.input as `0x${string}`,
+          });
+          if (decoded.functionName === "recordDeployment") {
+            const templateId = decoded.args[1] as string;
+            counts[templateId] = (counts[templateId] ?? 0) + 1;
+          }
+        } catch {
+          /* skip un-decodable tx */
+        }
+      }
+    } catch {
+      /* leave counts empty if the explorer is unreachable */
+    }
+    return { chainId, counts };
   });

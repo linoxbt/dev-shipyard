@@ -5,15 +5,17 @@ import { useExplorer } from "@/hooks/useExplorer";
 import { Card, Row, AddrLink, CopyBtn, Tabs, Spinner } from "@/components/explorer/ui";
 import { TxTable } from "@/components/explorer/lists";
 import { formatQie, formatGwei, timeAgo, withCommas } from "@/lib/explorer/format";
+import { isNetworkSlug, type NetworkSlug } from "@/lib/explorer/network";
 import type { ExBlock, ExTx } from "@/lib/explorer/types";
 
-export const Route = createFileRoute("/explorer/block/$height")({
+export const Route = createFileRoute("/explorer/$network/block/$height")({
   head: () => ({ meta: [{ title: "Block - QIE Explorer" }] }),
   component: BlockPage,
 });
 
 function BlockPage() {
-  const { height } = Route.useParams();
+  const { network, height } = Route.useParams();
+  const slug = (isNetworkSlug(network) ? network : "testnet") as NetworkSlug;
   const [tab, setTab] = useState("overview");
   const { data: block, isLoading, error } = useExplorer<ExBlock>(`/blocks/${height}`);
   const { data: txs } = useExplorer<{ items: ExTx[] }>(`/blocks/${height}/transactions`, {
@@ -38,15 +40,15 @@ function BlockPage() {
         <h1 className="font-mono text-lg font-bold text-foreground">Block #{withCommas(n)}</h1>
         <div className="flex items-center gap-1">
           <Link
-            to="/explorer/block/$height"
-            params={{ height: String(n - 1) }}
+            to="/explorer/$network/block/$height"
+            params={{ network: slug, height: String(n - 1) }}
             className="rounded border border-border p-1 text-meta hover:border-primary hover:text-primary"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </Link>
           <Link
-            to="/explorer/block/$height"
-            params={{ height: String(n + 1) }}
+            to="/explorer/$network/block/$height"
+            params={{ network: slug, height: String(n + 1) }}
             className="rounded border border-border p-1 text-meta hover:border-primary hover:text-primary"
           >
             <ChevronRight className="h-3.5 w-3.5" />
@@ -117,8 +119,8 @@ function BlockPage() {
           {block.parent_hash && (
             <Row label="Parent Hash">
               <Link
-                to="/explorer/block/$height"
-                params={{ height: String(n - 1) }}
+                to="/explorer/$network/block/$height"
+                params={{ network: slug, height: String(n - 1) }}
                 className="break-all text-info hover:underline"
               >
                 {block.parent_hash}

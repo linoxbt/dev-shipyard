@@ -5,13 +5,12 @@ import { Card, Spinner } from "@/components/explorer/ui";
 import { TxTable, Pager } from "@/components/explorer/lists";
 import type { ExTx } from "@/lib/explorer/types";
 
-export const Route = createFileRoute("/explorer/txns")({
+export const Route = createFileRoute("/explorer/$network/txns")({
   head: () => ({ meta: [{ title: "Transactions - QIE Explorer" }] }),
   component: TxnsPage,
 });
 
 function TxnsPage() {
-  // Cursor stack for Blockscout's next_page_params pagination.
   const [stack, setStack] = useState<Array<Record<string, unknown> | null>>([null]);
   const cursor = stack[stack.length - 1];
   const path = withPageParams("/transactions", cursor);

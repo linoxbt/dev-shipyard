@@ -2,23 +2,26 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
+import { useExplorerNetwork } from "@/lib/explorer/network";
 
 // Universal explorer search: routes a query to the right detail page by shape.
-// Address/contract (0x + 40), tx hash (0x + 64), or block number.
+// Address/contract (0x + 40), tx hash (0x + 64), or block number. Stays on the
+// network in the current URL.
 export function SearchBar() {
   const [q, setQ] = useState("");
   const navigate = useNavigate();
+  const network = useExplorerNetwork();
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const v = q.trim();
     if (!v) return;
     if (/^0x[0-9a-fA-F]{64}$/.test(v)) {
-      navigate({ to: "/explorer/tx/$hash", params: { hash: v } });
+      navigate({ to: "/explorer/$network/tx/$hash", params: { network, hash: v } });
     } else if (/^0x[0-9a-fA-F]{40}$/.test(v)) {
-      navigate({ to: "/explorer/address/$hash", params: { hash: v } });
+      navigate({ to: "/explorer/$network/address/$hash", params: { network, hash: v } });
     } else if (/^\d+$/.test(v)) {
-      navigate({ to: "/explorer/block/$height", params: { height: v } });
+      navigate({ to: "/explorer/$network/block/$height", params: { network, height: v } });
     } else {
       toast.error("Enter a transaction hash, address, or block number");
     }

@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import { useProjects, type DeployedProject } from "@/lib/mock/projects";
 import { getTemplate } from "@/lib/mock/templates";
+import { slugForChainId } from "@/lib/explorer/network";
 import { VerifyButton } from "@/components/deploy/VerifyButton";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useActiveChain } from "@/hooks/useActiveChain";
@@ -289,14 +290,16 @@ function ProjectsPage() {
               >
                 Inspect in Routebook
               </Link>
-              <a
-                href={`${config.explorerUrl}/address/${selected.address}`}
-                target="_blank"
-                rel="noreferrer"
+              <Link
+                to="/explorer/$network/address/$hash"
+                params={{
+                  network: slugForChainId(selected.chainId ?? chainId),
+                  hash: selected.address,
+                }}
                 className="flex items-center justify-center gap-2 rounded border border-border px-3 py-2 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
               >
-                Open on Explorer <ExternalLink className="h-3 w-3" />
-              </a>
+                Open on DevStation Explorer <ExternalLink className="h-3 w-3" />
+              </Link>
               <button
                 onClick={() => {
                   remove(selected.id);

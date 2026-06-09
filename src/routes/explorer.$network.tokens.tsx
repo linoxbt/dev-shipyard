@@ -6,7 +6,7 @@ import { Pager } from "@/components/explorer/lists";
 import { formatUnits, withCommas } from "@/lib/explorer/format";
 import type { ExToken } from "@/lib/explorer/types";
 
-export const Route = createFileRoute("/explorer/tokens")({
+export const Route = createFileRoute("/explorer/$network/tokens")({
   head: () => ({ meta: [{ title: "Tokens - QIE Explorer" }] }),
   component: TokensPage,
 });

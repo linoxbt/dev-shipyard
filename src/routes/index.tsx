@@ -11,6 +11,7 @@ import { DEFAULT_GAS_GWEI } from "@/lib/chains";
 import { formatGas } from "@/lib/format-gas";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useGlobalDeployStats } from "@/hooks/useProjectRegistry";
+import { slugForChainId } from "@/lib/explorer/network";
 import { storage } from "@/lib/storage";
 import { useNetworkStatus } from "@/hooks/useChainData";
 import { formatDistanceToNow } from "date-fns";
@@ -261,14 +262,13 @@ function Overview() {
                 <Row
                   label="Explorer"
                   value={
-                    <a
-                      href={config.explorerUrl}
-                      target="_blank"
-                      rel="noreferrer"
+                    <Link
+                      to="/explorer/$network"
+                      params={{ network: slugForChainId(chainId) }}
                       className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"
                     >
-                      {new URL(config.explorerUrl).host} <ExternalLink className="h-3 w-3" />
-                    </a>
+                      DevStation Explorer <ArrowRight className="h-3 w-3" />
+                    </Link>
                   }
                 />
               </div>

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { CodeBlock } from "@/components/shared/CodeBlock";
 import { getTemplate, categoryColor, type Template } from "@/lib/mock/templates";
 import { useUserTemplates } from "@/lib/user-templates";
+import { useTemplateDeploys } from "@/hooks/useTemplateDeploys";
 import { useEditorIntake } from "@/lib/editor-intake";
 
 export const Route = createFileRoute("/launchkit/templates/$id")({
@@ -31,6 +32,7 @@ function TemplateDetail() {
   const userTemplates = useUserTemplates((s) => s.templates);
   const hydrated = useUserTemplates((s) => s.hydrated);
   const hydrate = useUserTemplates((s) => s.hydrate);
+  const { counts: deployCounts } = useTemplateDeploys();
   useEffect(() => {
     hydrate();
   }, [hydrate]);
@@ -129,7 +131,7 @@ function TemplateDetail() {
             <dl className="mt-4 grid grid-cols-2 gap-3 font-mono text-xs">
               <Meta label="Author" value={shortAuthor(tpl.author)} />
               <Meta label="Version" value={tpl.version} />
-              <Meta label="Deploys" value={tpl.deployCount.toString()} />
+              <Meta label="Deploys" value={(deployCounts[tpl.id] ?? tpl.deployCount).toString()} />
               <Meta label="Args" value={tpl.args.length.toString()} />
               <Meta label="Est. Gas" value={tpl.estimatedGas.toLocaleString()} />
               <Meta label="License" value="MIT" />

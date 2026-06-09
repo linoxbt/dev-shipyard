@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
-import { CheckCircle2, Loader2, ShieldCheck, AlertTriangle, ExternalLink } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { CheckCircle2, Loader2, ShieldCheck, AlertTriangle, Compass } from "lucide-react";
 import { useVerifyContract } from "@/hooks/useVerifyContract";
+import { slugForChainId } from "@/lib/explorer/network";
 
 interface Props {
   chainId: number;
@@ -10,7 +12,6 @@ interface Props {
   compilerVersion: string; // short, e.g. "0.8.20"
   optimization?: boolean;
   optimizationRuns?: number;
-  explorerUrl: string;
   /** Auto-submit for verification as soon as the card mounts. */
   auto?: boolean;
 }
@@ -26,7 +27,6 @@ export function VerifyCard({
   compilerVersion,
   optimization,
   optimizationRuns,
-  explorerUrl,
   auto = true,
 }: Props) {
   const { verify, state, message } = useVerifyContract();
@@ -85,14 +85,13 @@ export function VerifyCard({
             {failed ? "Retry verification" : "Verify on QIE Explorer"}
           </button>
         )}
-        <a
-          href={`${explorerUrl.replace(/\/$/, "")}/address/${address}?tab=contract`}
-          target="_blank"
-          rel="noreferrer"
+        <Link
+          to="/explorer/$network/address/$hash"
+          params={{ network: slugForChainId(chainId), hash: address }}
           className="inline-flex items-center gap-1 font-mono text-[10px] text-meta hover:text-primary"
         >
-          View contract tab on explorer <ExternalLink className="h-3 w-3" />
-        </a>
+          View the contract on the DevStation explorer <Compass className="h-3 w-3" />
+        </Link>
       </div>
     </div>
   );

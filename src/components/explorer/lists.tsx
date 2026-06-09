@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, Boxes, FileText } from "lucide-react";
 import type { ExTx, ExBlock } from "@/lib/explorer/types";
 import { formatQie, formatUnits, timeAgo, withCommas } from "@/lib/explorer/format";
+import { useExplorerNetwork } from "@/lib/explorer/network";
 import {
   TxLink,
   AddrLink,
@@ -238,10 +239,21 @@ function Td({ children, className }: { children?: React.ReactNode; className?: s
   return <td className={`px-3 py-2.5 align-middle ${className ?? ""}`}>{children}</td>;
 }
 
-// Re-export the dashboard quick-link row used by the explorer header.
-export function ViewAll({ to, label }: { to: string; label: string }) {
+// Dashboard "view all" link to a network-scoped explorer list page.
+export function ViewAll({
+  to,
+  label,
+}: {
+  to: "/explorer/$network/txns" | "/explorer/$network/blocks" | "/explorer/$network/tokens";
+  label: string;
+}) {
+  const network = useExplorerNetwork();
   return (
-    <Link to={to} className="font-mono text-[11px] text-primary hover:underline">
+    <Link
+      to={to}
+      params={{ network }}
+      className="font-mono text-[11px] text-primary hover:underline"
+    >
       {label}
     </Link>
   );

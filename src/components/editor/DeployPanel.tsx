@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { Link } from "@tanstack/react-router";
 import { X, Rocket, ExternalLink, Copy, Check } from "lucide-react";
 import { useDeployContract, useWaitForTransactionReceipt, useSwitchChain } from "wagmi";
 import { useAccount } from "wagmi";
@@ -8,6 +9,7 @@ import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
 import { chainConfig } from "@/lib/chains";
 import { chainById } from "@/lib/active-chain";
+import { slugForChainId } from "@/lib/explorer/network";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
 
 interface ContractInfo {
@@ -250,14 +252,13 @@ export function DeployPanel({ contracts, chainId, onClose, onLog }: Props) {
                   )}{" "}
                   Copy
                 </button>
-                <a
-                  href={`${cfg.explorerUrl}/address/${deployed.addr}`}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  to="/explorer/$network/address/$hash"
+                  params={{ network: slugForChainId(chainId), hash: deployed.addr }}
                   className="flex items-center gap-1 font-mono text-[10px] text-primary hover:underline"
                 >
                   Explorer <ExternalLink className="h-3 w-3" />
-                </a>
+                </Link>
               </div>
             </div>
           )}

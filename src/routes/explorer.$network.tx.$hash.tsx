@@ -16,7 +16,7 @@ import {
 import { formatQie, formatUnits, formatGwei, timeAgo, withCommas } from "@/lib/explorer/format";
 import type { ExTx, ExLog, ExTokenTransfer } from "@/lib/explorer/types";
 
-export const Route = createFileRoute("/explorer/tx/$hash")({
+export const Route = createFileRoute("/explorer/$network/tx/$hash")({
   head: () => ({ meta: [{ title: "Transaction - QIE Explorer" }] }),
   component: TxPage,
 });

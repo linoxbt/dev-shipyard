@@ -5,7 +5,7 @@ import { Card, Spinner } from "@/components/explorer/ui";
 import { BlockTable, Pager } from "@/components/explorer/lists";
 import type { ExBlock } from "@/lib/explorer/types";
 
-export const Route = createFileRoute("/explorer/blocks")({
+export const Route = createFileRoute("/explorer/$network/blocks")({
   head: () => ({ meta: [{ title: "Blocks - QIE Explorer" }] }),
   component: BlocksPage,
 });

@@ -11,6 +11,7 @@ import {
   Upload,
   Search,
   ExternalLink,
+  Compass,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAccount, useDeployContract, usePublicClient } from "wagmi";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/mock/templates";
 import { DEFAULT_GAS_GWEI } from "@/lib/chains";
 import { chainById } from "@/lib/active-chain";
+import { slugForChainId, devstationExplorerBase } from "@/lib/explorer/network";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useContractLabels } from "@/hooks/useContractLabels";
@@ -493,7 +495,6 @@ function DeployWizard() {
       projectName,
       chain.name,
       chain.id,
-      config,
     );
 
     return (
@@ -524,7 +525,7 @@ function DeployWizard() {
                   <SuccessRow label="Tx Hash" value={<TxHashChip hash={deployResult.txHash} />} />
                 </dl>
 
-                {/* Prominent jump-off links — inbuilt Routebook + the QIE explorer */}
+                {/* Jump-off links — all internal to DevStation: Routebook + explorer */}
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Link
                     to="/routebook/$txHash"
@@ -533,28 +534,26 @@ function DeployWizard() {
                   >
                     <Search className="h-3.5 w-3.5" /> Open in Routebook
                   </Link>
-                  <a
-                    href={`${config.explorerUrl}/tx/${deployResult.txHash}`}
-                    target="_blank"
-                    rel="noreferrer"
+                  <Link
+                    to="/explorer/$network/tx/$hash"
+                    params={{ network: slugForChainId(chain.id), hash: deployResult.txHash }}
                     className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
                   >
-                    <ExternalLink className="h-3.5 w-3.5" /> Tx on QIE Explorer
-                  </a>
-                  <a
-                    href={`${config.explorerUrl}/address/${deployResult.address}`}
-                    target="_blank"
-                    rel="noreferrer"
+                    <Compass className="h-3.5 w-3.5" /> Tx on DevStation Explorer
+                  </Link>
+                  <Link
+                    to="/explorer/$network/address/$hash"
+                    params={{ network: slugForChainId(chain.id), hash: deployResult.address }}
                     className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
                   >
-                    <ExternalLink className="h-3.5 w-3.5" /> Contract on QIE Explorer
-                  </a>
+                    <Compass className="h-3.5 w-3.5" /> Contract on DevStation Explorer
+                  </Link>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Auto source-verification on the QIE explorer */}
+          {/* Auto source-verification, with a link into the DevStation explorer */}
           <VerifyCard
             chainId={chain.id}
             address={deployResult.address as `0x${string}`}
@@ -563,7 +562,6 @@ function DeployWizard() {
             compilerVersion="0.8.20"
             optimization={false}
             optimizationRuns={200}
-            explorerUrl={config.explorerUrl}
           />
 
           <div className="grid gap-4 lg:grid-cols-3">
@@ -638,14 +636,13 @@ function DeployWizard() {
                 </div>
                 <div className="text-success">✓ Success</div>
               </div>
-              <a
-                href={`${config.explorerUrl}/address/${deployResult.address}`}
-                target="_blank"
-                rel="noreferrer"
+              <Link
+                to="/explorer/$network/address/$hash"
+                params={{ network: slugForChainId(chain.id), hash: deployResult.address }}
                 className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] text-meta hover:text-primary"
               >
-                Or view on the QIE explorer <ArrowRight className="h-3 w-3" />
-              </a>
+                Or view the contract on the DevStation explorer <ArrowRight className="h-3 w-3" />
+              </Link>
             </ResultCard>
           </div>
 
@@ -869,7 +866,7 @@ function generateEnv(
 
 QIE_RPC_URL=${config.rpcUrl}
 QIE_CHAIN_ID=${chainId}
-QIE_EXPLORER=${config.explorerUrl}
+QIE_EXPLORER=${devstationExplorerBase(slugForChainId(chainId))}
 
 CONTRACT_ADDRESS=${result.address}
 DEPLOY_TX_HASH=${result.txHash}
@@ -883,7 +880,6 @@ function generateSubmission(
   projectName: string,
   networkName: string,
   chainId: number,
-  config: ChainCfg,
 ) {
   return `Project Name: ${projectName || template.name}
 Template: ${template.name}
@@ -891,7 +887,7 @@ Network: ${networkName} (Chain ${chainId})
 Contract: ${result.address}
 Tx Hash: ${result.txHash}
 Block: ${result.block}
-Explorer: ${config.explorerUrl}/address/${result.address}
+Explorer: ${devstationExplorerBase(slugForChainId(chainId))}/address/${result.address}
 
 GitHub: <add your repo URL>
 Demo: <add your demo URL>

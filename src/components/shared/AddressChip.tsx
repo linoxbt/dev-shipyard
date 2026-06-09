@@ -1,7 +1,9 @@
 import { Copy, ExternalLink, Check } from "lucide-react";
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { truncateAddress } from "@/lib/wallet";
 import { useActiveChain } from "@/hooks/useActiveChain";
+import { slugForChainId } from "@/lib/explorer/network";
 import { findLabel } from "@/lib/mock/labels";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +16,8 @@ interface Props {
 
 export function AddressChip({ address, showLabel = true, full = false, className }: Props) {
   const [copied, setCopied] = useState(false);
-  const { config } = useActiveChain();
+  const { chainId } = useActiveChain();
+  const network = slugForChainId(chainId);
   const label = showLabel ? findLabel(address) : undefined;
 
   const copy = () => {
@@ -39,15 +42,14 @@ export function AddressChip({ address, showLabel = true, full = false, className
       >
         {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
       </button>
-      <a
-        href={`${config.explorerUrl}/address/${address}`}
-        target="_blank"
-        rel="noreferrer"
+      <Link
+        to="/explorer/$network/address/$hash"
+        params={{ network, hash: address }}
         className="text-meta transition hover:text-muted-foreground"
-        aria-label="View on explorer"
+        aria-label="View on DevStation explorer"
       >
         <ExternalLink className="h-3 w-3" />
-      </a>
+      </Link>
     </span>
   );
 }

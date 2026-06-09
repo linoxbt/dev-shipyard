@@ -13,7 +13,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
-import { chainConfig } from "@/lib/chains";
+import { slugForChainId } from "@/lib/explorer/network";
 import { parseArgs } from "@/lib/abiArgParser";
 import { AbiInput, type AbiParam } from "@/components/editor/AbiInput";
 import { cn } from "@/lib/utils";
@@ -287,8 +287,6 @@ function WriteFunctionRow({
     data: receipt,
   } = useWaitForTransactionReceipt({ hash: txHash });
 
-  const cfg = chainConfig(chainId);
-
   const send = async () => {
     setErr(null);
     try {
@@ -356,14 +354,13 @@ function WriteFunctionRow({
         {txHash && isConfirming && (
           <span className="flex items-center gap-1 break-all text-meta">
             <Loader2 className="h-3 w-3 animate-spin" /> Submitted: {short(txHash)}
-            <a
-              href={`${cfg.explorerUrl}/tx/${txHash}`}
-              target="_blank"
-              rel="noreferrer"
+            <Link
+              to="/explorer/$network/tx/$hash"
+              params={{ network: slugForChainId(chainId), hash: txHash }}
               className="text-primary hover:underline"
             >
               view
-            </a>
+            </Link>
           </span>
         )}
         {isSuccess && (
@@ -444,8 +441,6 @@ function FormattedValue({
   type: string;
   chainId: number;
 }) {
-  const cfg = chainConfig(chainId);
-
   if (typeof value === "boolean") {
     return (
       <span className={cn("font-mono text-[11px]", value ? "text-success" : "text-danger")}>
@@ -459,14 +454,13 @@ function FormattedValue({
       <span className="flex items-center gap-1.5 break-all font-mono text-[11px] text-code">
         {value}
         <CopyBtn text={value} />
-        <a
-          href={`${cfg.explorerUrl}/address/${value}`}
-          target="_blank"
-          rel="noreferrer"
+        <Link
+          to="/explorer/$network/address/$hash"
+          params={{ network: slugForChainId(chainId), hash: value }}
           className="text-primary hover:underline"
         >
           <ExternalLink className="h-3 w-3" />
-        </a>
+        </Link>
       </span>
     );
   }

@@ -25,7 +25,7 @@ import type {
   ExInternalTx,
 } from "@/lib/explorer/types";
 
-export const Route = createFileRoute("/explorer/address/$hash")({
+export const Route = createFileRoute("/explorer/$network/address/$hash")({
   head: () => ({ meta: [{ title: "Address - QIE Explorer" }] }),
   component: AddressPage,
 });
