@@ -1,80 +1,149 @@
-# DevStation — QIE Builder Console
+# DevStation
 
-A real, on-chain developer console for the [QIE blockchain](https://qie.digital). DevStation unifies two tools:
+**The developer console for QIE Blockchain.** Deploy. Debug. Analyze. Inspect.
 
-- **LaunchKit** — a Solidity contract editor + template gallery that **compiles in your browser** and **deploys to QIE** with your wallet.
-- **Routebook** — a transaction inspector that turns any QIE transaction hash into a readable execution map (calls, token movements, approvals, revert reasons, gas).
+DevStation is a complete, onchain developer console for the [QIE blockchain](https://qie.digital). It brings the everyday work of a smart-contract developer into one place: write and compile Solidity in the browser, deploy audited templates, decode any transaction, browse the chain with a built-in block explorer, and label contracts onchain. Everything runs against the live QIE network, and the records that matter (your deployments and the contract label registry) live onchain, not in a private database.
 
-It connects to **QIE Wallet** / MetaMask, includes an in-app password-encrypted dev wallet, reads live network data from QIE RPC, and records deployments + contract labels in on-chain registries.
+- **Live app:** <https://devstation.online>
+- **Networks:** QIE Testnet (chain `1983`) and QIE Mainnet (chain `1990`)
 
-> Built on the TanStack Start template (originally scaffolded with Lovable). Now fully wired to the chain — no mock data on the critical paths.
+> Originally scaffolded on a TanStack Start template. Now fully wired to the chain: real RPC reads, real deployments, real onchain registries, no mock data on the critical paths.
 
 ---
 
 ## Table of contents
 
-- [Features](#features)
+- [What's inside](#whats-inside)
+- [Feature tour](#feature-tour)
+  - [LaunchKit](#launchkit)
+  - [Routebook](#routebook)
+  - [QIE Explorer](#qie-explorer)
+  - [AI assistant](#ai-assistant)
+  - [Wallets](#wallets)
+- [Onchain registries](#onchain-registries)
 - [Tech stack](#tech-stack)
-- [Quick start (local)](#quick-start-local)
-- [Environment variables](#environment-variables) ← **read this before deploying**
-- [On-chain registries (deployed addresses)](#on-chain-registries)
-- [Deploying the registry contracts yourself](#deploying-the-registry-contracts-yourself)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+  - [Network](#network-optional)
+  - [Registries (per network)](#registries-per-network)
+  - [AI assistant](#ai-assistant-optional)
+  - [Server-only and build-only](#server-only-and-build-only)
+- [How it works](#how-it-works)
+- [Deploying the registry contracts](#deploying-the-registry-contracts)
 - [Deploying the app](#deploying-the-app)
-  - [Vercel](#vercel)
-  - [Netlify](#netlify)
-  - [Why "Page not found" / blank render happens (and the fix)](#why-page-not-found--blank-render-happens-and-the-fix)
 - [Project structure](#project-structure)
 - [Scripts](#scripts)
-- [Security notes](#security-notes)
+- [Security](#security)
+- [Known limitations](#known-limitations)
 
 ---
 
-## Features
+## What's inside
+
+| Area | What it does |
+| --- | --- |
+| **LaunchKit** | Deploy audited contract templates, write and compile Solidity in the browser, and generate contracts with AI. |
+| **Routebook** | Decode any QIE transaction into a readable call tree with internal calls, events, and onchain contract labels. |
+| **QIE Explorer** | A native, Etherscan-style block explorer for blocks, transactions, addresses, tokens, and holders, on both networks. |
+| **Onchain registries** | A ProjectRegistry records every deployment, and a ContractLabelRegistry gives contracts human-readable names. |
+| **Docs** | A built-in, multi-page documentation section at `/docs`. |
+
+---
+
+## Feature tour
 
 ### LaunchKit
 
-- **Contract Editor** (`/launchkit/editor`) — Monaco editor with Solidity highlighting + autocomplete, a file explorer (workspace persisted to `localStorage`), a resizable terminal with colored compiler output, and **in-browser compilation** via a `solc` Web Worker (no backend needed). Pick any solc 0.7–0.8.26.
-- **Deploy panel** — compile, fill constructor args from the ABI, and deploy with the connected wallet. Switch between QIE Testnet/Mainnet; deployments are recorded to the on-chain ProjectRegistry.
-- **Template gallery** (`/launchkit/templates`) — ready-to-deploy contract templates with source + ABI viewers.
-- **Projects** (`/launchkit/projects`) — your deployments, merged from the on-chain registry and local history.
+- **Template gallery** (`/launchkit/templates`): self-contained, audited templates (ERC20, ERC721, Soulbound NFT, MultiSig, Timelock, Vesting, Staking, Payment Splitter) with source and ABI viewers. Each card shows its real onchain deploy count, read from the ProjectRegistry's transaction history.
+- **Contract Editor** (`/launchkit/editor`): a Monaco editor with Solidity highlighting, a file workspace persisted to `localStorage`, a colored compiler terminal, and **in-browser compilation** via a `solc` Web Worker (no backend). Picks any solc 0.7 to 0.8.26 and resolves external imports (for example OpenZeppelin) from a CDN.
+- **Code with AI** (`/launchkit/ai`): describe a contract in natural language, get Solidity back, refine it, and move it into the editor to compile and deploy. See [AI assistant](#ai-assistant).
+- **Deploy** (`/launchkit/deploy`): a guided flow generated from a template's constructor. DevStation validates and encodes the arguments, compiles in a browser worker, sends the creation transaction through your wallet, and records the deployment onchain. The success screen links straight into Routebook and the DevStation explorer, and offers a ready-to-use `.env` and hackathon submission.
+- **Projects** (`/launchkit/projects`): a per-wallet history of everything you have deployed through DevStation, read from the onchain ProjectRegistry and merged with local history. Scoped to the connected wallet.
 
 ### Routebook
 
-- **Transaction inspector** (`/routebook`) — paste any QIE tx hash; it's decoded server-side via QIE RPC into an execution tree, ERC-20 transfers, approvals (with risk flags), and a human-readable revert reason on failure.
-- **Label registry** (`/routebook/labels`) — human-readable names for contracts; submissions write to the on-chain ContractLabelRegistry.
+- **Transaction inspector** (`/routebook`): paste any QIE transaction hash and it decodes the call into a tree of internal calls, decoded arguments, ERC-20 transfers, approvals (with risk flags), events, and a human-readable revert reason on failure.
+- **Label Registry** (`/routebook/labels`): human-readable names for contracts, stored onchain in the ContractLabelRegistry. Deploys through DevStation are auto-labeled (pre-approved); community submissions await approval.
 
-### Wallet
+### QIE Explorer
 
-- **QIE Wallet / MetaMask** via injected (EIP-6963) discovery — no SDK required.
-- **In-app generated wallet** — a self-custody dev wallet whose mnemonic is **password-encrypted** (AES-GCM + PBKDF2, Web Crypto) and stored only in your browser. View the seed (behind your password), balance, and QUSDC balance in Settings.
-- **Get QIE for gas** — when native balance is low, a link to the QIE DEX surfaces.
+A native block explorer that reads the live QIE Blockscout API, scoped to the network in the URL so a link always names its chain:
+
+- `/explorer/testnet` and `/explorer/mainnet` (the bare `/explorer` redirects to your selected network).
+- **Dashboard:** QIE price, market cap, average block time, total blocks and transactions, gas price, network utilization, plus live latest-blocks and latest-transactions feeds and a universal search (address, transaction hash, or block number).
+- **Transaction page:** status, block and confirmations, timestamp, from and to, token transfers, value, fee, gas price, gas usage, EIP-1559 fees, nonce, event logs, and decoded or raw input data.
+- **Block page:** height with prev/next, miner, reward, gas used and limit, base fee, burnt fees, size, hashes, and the block's transactions.
+- **Address page:** balance and fiat value, counters, creator, and tabs for Transactions, Token Transfers, Tokens held, Internal Txns, Logs, and (for contracts) verified Contract source.
+- **Token page:** supply, holders, transfers, decimals, with ranked holders and ownership percentages.
+
+A prominent Testnet/Mainnet badge in the header makes the active chain unmistakable. Every in-app explorer reference points to this built-in explorer.
+
+### AI assistant
+
+The Solidity assistant works in three modes, resolved from Settings:
+
+- **Server proxy** (`/api/ai`): the provider key stays server-side and never reaches the browser. Preferred for shared deployments.
+- **Direct, bring-your-own-key:** you paste a key in the UI; it is stored only in your browser.
+
+Supported providers (pick one, paste a key, save):
+
+| Provider | Format | Notes |
+| --- | --- | --- |
+| OpenAI | OpenAI | `gpt-4o`, `gpt-4.1`, `o4-mini`, and more. |
+| Claude (Anthropic) | Anthropic native | `claude-opus-4-x`, `claude-sonnet-4-x`, `claude-haiku-4-x`. |
+| OpenRouter | OpenAI-compatible | Access many models with one key. |
+| FreeModel | OpenAI-compatible | `gpt-5.x` line via `https://api.freemodel.dev`. Keys look like `fe_oa_...`. |
+
+### Wallets
+
+- **QIE Wallet / MetaMask** via injected (EIP-6963) discovery, no SDK required.
+- **In-app generated wallet:** a self-custody dev wallet whose mnemonic is **password-encrypted** (AES-GCM + PBKDF2, Web Crypto) and stored only in your browser.
+- Connections survive page refreshes and are cleared only on disconnect, browser-data clear, or closing the browser. The selected network (not the wallet's current chain) drives reads everywhere; write flows prompt you to switch when the two differ.
+- A "get QIE for gas" link surfaces when the native balance is low.
+
+---
+
+## Onchain registries
+
+Two dependency-free Solidity contracts back the app. They are deployed on **both** networks (the deployer's matching nonces produced identical addresses on each chain):
+
+| Contract | Address | Networks |
+| --- | --- | --- |
+| ProjectRegistry | `0x75d7b39bc827367c409e1a2bf805bd5f337ca27b` | Testnet `1983`, Mainnet `1990` |
+| ContractLabelRegistry | `0x177294293e6e785a83e036a95de1697e3cc04748` | Testnet `1983`, Mainnet `1990` |
+
+- **ProjectRegistry** records every deployment against the deploying wallet and keeps a global `totalDeployments` counter. It powers the per-wallet Projects page, the ecosystem stats on the Overview (total deployments and total unique deployers), and per-template deploy counts.
+- **ContractLabelRegistry** stores human-readable labels with a source (auto, community, or verified) and the submitter.
+
+Registry writes use an explicit gas limit, because QIE's `eth_estimateGas` under-reports the gas a storage-writing call needs (it can return roughly 24k for a call that actually uses about 275k), which would otherwise run the write out of gas. At QIE's gas price this costs a negligible fraction of a QIE.
 
 ---
 
 ## Tech stack
 
-| Layer         | Choice                                                      |
-| ------------- | ----------------------------------------------------------- |
-| Framework     | TanStack Start + TanStack Router (SSR, file-based routing)  |
-| UI            | React 19, Tailwind v4, shadcn/Radix                         |
-| Web3          | viem + wagmi 2.x (injected/MetaMask connectors)             |
-| Editor        | Monaco (`@monaco-editor/react`) + browser `solc` Web Worker |
-| State / data  | Zustand, TanStack Query, `localStorage` persistence         |
-| Build/runtime | Vite 7, Bun, Nitro (deploy-target presets)                  |
+| Layer | Choice |
+| --- | --- |
+| Framework | TanStack Start + TanStack Router (SSR, file-based routing) |
+| UI | React 19, Tailwind v4, Radix primitives |
+| Web3 | viem + wagmi 2.x (injected/MetaMask + in-app burner connectors) |
+| Editor | Monaco (`@monaco-editor/react`) + browser `solc` Web Worker |
+| State / data | Zustand, TanStack Query, `localStorage` persistence |
+| Explorer data | QIE Blockscout v2 API via a chain-scoped server proxy |
+| Build / runtime | Vite 7, Bun, Nitro (host-aware deploy presets) |
 
 ---
 
-## Quick start (local)
+## Quick start
 
 Requires [Bun](https://bun.sh).
 
 ```bash
 bun install
-cp .env.example .env.local   # optional — sensible defaults are built in
+cp .env.example .env.local   # optional: sensible defaults are built in
 bun run dev                  # http://localhost:8080
 ```
 
-Everything works with zero config against **QIE Testnet**. Set env vars (below) only to point at deployed registries, mainnet, or QUSDC.
+Everything works with zero config against QIE Testnet. Set env vars (below) to point at deployed registries, enable mainnet onchain features, configure AI, or add QUSDC.
 
 ```bash
 bun run build      # production build (auto-detects Vercel/Netlify; else Vercel preset)
@@ -84,176 +153,172 @@ bun run format
 
 ---
 
-## Environment variables
+## Configuration
 
-All client-readable vars use the **`VITE_`** prefix (Vite inlines them into the browser bundle at **build time** — so on hosted deploys you must set them in the host's dashboard and **rebuild**, not just at runtime).
+All client-readable vars use the **`VITE_`** prefix. Vite inlines them into the browser bundle at **build time**, so on a hosted deploy you set them in the host dashboard and **rebuild** (changing them at runtime has no effect). Copy `.env.example` to `.env.local` for local dev. **`.env.local` is gitignored; never commit it.**
 
-Copy `.env.example` → `.env.local` for local dev. **`.env.local` is gitignored — never commit it.**
+### Network (optional)
 
-### Network (optional — defaults match QIE docs)
+Defaults match the QIE docs, so these are only needed to override an endpoint.
 
-| Variable                    | Default                                 | Purpose                   |
-| --------------------------- | --------------------------------------- | ------------------------- |
-| `VITE_QIE_TESTNET_RPC`      | `https://rpc1testnet.qie.digital/`      | QIE Testnet RPC endpoint  |
-| `VITE_QIE_TESTNET_EXPLORER` | `https://testnet.qie.digital`           | Testnet explorer base URL |
-| `VITE_QIE_TESTNET_CHAIN_ID` | `1983`                                  | Testnet chain id          |
-| `VITE_QIE_MAINNET_RPC`      | `https://rpc1mainnet.qie.digital/`      | QIE Mainnet RPC endpoint  |
-| `VITE_QIE_MAINNET_EXPLORER` | `https://mainnet.qie.digital`           | Mainnet explorer base URL |
-| `VITE_QIE_MAINNET_CHAIN_ID` | `1990`                                  | Mainnet chain id          |
-| `VITE_QIE_DEX_URL`          | `https://www.swap.dex.qie.digital/swap` | "Get QIE for gas" link    |
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `VITE_QIE_TESTNET_RPC` | `https://rpc1testnet.qie.digital/` | Testnet RPC |
+| `VITE_QIE_TESTNET_EXPLORER` | `https://testnet.qie.digital` | Testnet explorer base |
+| `VITE_QIE_TESTNET_CHAIN_ID` | `1983` | Testnet chain id |
+| `VITE_QIE_MAINNET_RPC` | `https://rpc1mainnet.qie.digital/` | Mainnet RPC |
+| `VITE_QIE_MAINNET_EXPLORER` | `https://mainnet.qie.digital` | Mainnet explorer base |
+| `VITE_QIE_MAINNET_CHAIN_ID` | `1990` | Mainnet chain id |
+| `VITE_QIE_DEX_URL` | `https://www.swap.dex.qie.digital/swap` | "Get QIE for gas" link |
 
-### DevStation registries (set after you deploy them — see below)
+### Registries (per network)
 
-| Variable                        | Purpose                                                                                                           |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `VITE_PROJECT_REGISTRY_ADDRESS` | ProjectRegistry address. When set, Projects reads on-chain + deploys are recorded. Unset → localStorage fallback. |
-| `VITE_LABEL_REGISTRY_ADDRESS`   | ContractLabelRegistry address. When set, label submissions write on-chain. Unset → local/mock.                    |
+Registries are deployed separately per chain, so the addresses are per-network. The legacy single-value vars (no suffix) are still read as the testnet fallback.
+
+| Variable | Purpose |
+| --- | --- |
+| `VITE_PROJECT_REGISTRY_ADDRESS_TESTNET` | ProjectRegistry on testnet |
+| `VITE_PROJECT_REGISTRY_ADDRESS_MAINNET` | ProjectRegistry on mainnet |
+| `VITE_LABEL_REGISTRY_ADDRESS_TESTNET` | ContractLabelRegistry on testnet |
+| `VITE_LABEL_REGISTRY_ADDRESS_MAINNET` | ContractLabelRegistry on mainnet |
+
+When an address is set for a network, that network's onchain features (Projects, Label Registry, ecosystem and template stats) are active; when unset, the app falls back to local history and hides the registry-backed UI.
+
+### AI assistant (optional)
+
+The AI provider, model, and key are chosen in the app's Settings and stored in the browser, so no env var is required for bring-your-own-key use. For the server-proxy mode, configure a server-side key and set:
+
+| Variable | Purpose |
+| --- | --- |
+| `VITE_AI_PROXY` | `"true"` to route AI requests through the `/api/ai` server proxy |
+| `VITE_AI_PROVIDER`, `VITE_AI_MODEL`, `VITE_AI_ENDPOINT`, `VITE_AI_API_KEY` | Server-side provider configuration for the proxy |
 
 ### QIE ecosystem (optional)
 
-| Variable                        | Purpose                                                                                                                                                   |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_QUSDC_ADDRESS`            | QUSDC (QIE stablecoin) token address. When set, the wallet shows a read-only QUSDC balance. Get it from <https://docs.stable.qie.digital> / the explorer. |
-| `VITE_WALLETCONNECT_PROJECT_ID` | Optional. Reserved for WalletConnect; injected wallets (QIE Wallet/MetaMask) work without it.                                                             |
+| Variable | Purpose |
+| --- | --- |
+| `VITE_QUSDC_ADDRESS` | QUSDC (QIE stablecoin) token address. When set, the wallet shows a read-only QUSDC balance. |
 
-### Server-only (NOT a `VITE_` var, NEVER committed or set on the host)
+### Server-only and build-only
 
-| Variable      | Purpose                                                                                                                                                                         |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PRIVATE_KEY` | Used **only** by `scripts/deploy.ts` to deploy the registry contracts from your machine. Lives in `.env.local`. **Do not** add this to Vercel/Netlify — the app never needs it. |
-
-### Build-only (CI/host, optional)
-
-| Variable       | Purpose                                                                                                                                                                      |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NITRO_PRESET` | Override the deploy target preset (`vercel`, `netlify`, `node-server`, `cloudflare-module`, `bun`). Auto-detected on Vercel/Netlify; defaults to `vercel` for manual builds. |
+| Variable | Purpose |
+| --- | --- |
+| `PRIVATE_KEY` | Used **only** by `scripts/deploy.ts` to deploy the registry contracts from your machine. Lives in `.env.local`. **Never** add it to a host: the running app has no use for it. |
+| `NITRO_PRESET` | Override the deploy-target preset (`vercel`, `netlify`, `node-server`, `cloudflare-module`, `bun`). Auto-detected on Vercel/Netlify. |
 
 ---
 
-## On-chain registries
+## How it works
 
-Currently deployed on **QIE Testnet (chain 1983)**:
-
-| Contract              | Address                                      |
-| --------------------- | -------------------------------------------- |
-| ProjectRegistry       | `0x75d7b39bc827367c409e1a2bf805bd5f337ca27b` |
-| ContractLabelRegistry | `0x177294293e6e785a83e036a95de1697e3cc04748` |
-
-Set these as `VITE_PROJECT_REGISTRY_ADDRESS` / `VITE_LABEL_REGISTRY_ADDRESS` to enable on-chain reads/writes. (Mainnet not yet deployed.)
+- **Onchain by default.** Deployments are recorded in the ProjectRegistry and contract names live in the ContractLabelRegistry, so the data is auditable and portable rather than locked in a private database. The Projects page reads `getDeployments(yourWallet)`; the Overview reads the global counter and derives unique deployers from the registry's transaction history.
+- **Compilation in the browser.** Solidity is compiled by a real `solc` build loaded in a Web Worker. There is no server compile step and nothing to install.
+- **Explorer via a server proxy.** The QIE Explorer reads the Blockscout v2 API through a chain-scoped server function. Fetching server-side avoids browser CORS limits and keeps the explorer working under SSR. The proxy validates the request path against the known Blockscout namespace, so it cannot be used to fetch arbitrary URLs.
+- **SSR everywhere.** Routes are server-rendered. Deep links and refreshes resolve through the SSR server function (see [Deploying the app](#deploying-the-app)).
 
 ---
 
-## Deploying the registry contracts yourself
+## Deploying the registry contracts
 
-The two registries (`contracts/*.sol`) are dependency-free Solidity 0.8.x. See **[DEPLOY.md](./DEPLOY.md)** for full detail. Short version:
+The two registries (`contracts/*.sol`) are dependency-free Solidity 0.8.x. They are already deployed on both networks (see [Onchain registries](#onchain-registries)); deploy your own copies only if you are forking.
 
 ```bash
-# 1. Put your funded deployer key in .env.local (gitignored):
+# 1. Put a funded deployer key in .env.local (gitignored):
 #    PRIVATE_KEY=0x...
-bun run contracts:compile      # solc → contracts/out/*.json + src/lib/abis/*.ts
-bun run contracts:deploy       # testnet (chain 1983)
-bun run contracts:deploy mainnet   # mainnet (chain 1990) — spends real QIE
+bun run contracts:compile          # solc -> contracts/out/*.json + src/lib/abis/*.ts
+bun run contracts:deploy           # testnet (chain 1983)
+bun run contracts:deploy mainnet   # mainnet (chain 1990) - spends real QIE, 8s safety delay
 ```
 
-The script prints the `VITE_*` address lines to paste into your env.
+The script prints the deployed addresses and the exact `VITE_*` lines to paste into your env, and writes a gitignored `deployment-output.json`. A few QIE covers both deploys (roughly 1 to 2 million gas total).
 
 ---
 
 ## Deploying the app
 
-This is an **SSR app** (server-rendered routes), not a static SPA. The single most important thing: **every route must fall through to the SSR server function**, or deep links and refreshes return "Page not found".
+This is an **SSR app** (server-rendered routes), not a static SPA. The key requirement: **every route must fall through to the SSR server function**, or deep links and refreshes return "Page not found". The build auto-detects the host in `vite.config.ts` and selects the matching Nitro preset.
 
-The build auto-detects the host (`vite.config.ts`) and selects the matching Nitro preset, which emits the host's expected output + routing. Both hosts below are wired and tested.
-
-> In CI with limited memory the build may need more heap: `NODE_OPTIONS=--max-old-space-size=4096 bun run build`. Vercel/Netlify builders have ample memory by default.
+> In a memory-constrained CI runner, give the build more heap: `NODE_OPTIONS=--max-old-space-size=4096 bun run build`.
 
 ### Vercel
 
-Config is in `vercel.json`. Vercel sets `VERCEL=1`, so the build uses the `vercel` Nitro preset and emits `.vercel/output` (static client + an SSR function with a catch-all route).
+Config is in `vercel.json`. Vercel sets `VERCEL=1`, so the build uses the `vercel` Nitro preset and emits `.vercel/output` (static client plus an SSR function with a catch-all route).
 
 1. Import the repo at <https://vercel.com/new>.
 2. Build command `bun run build`, install `bun install`, framework **Other** (set by `vercel.json`).
-3. **Project → Settings → Environment Variables**: add the `VITE_*` vars you need (registry addresses, mainnet, QUSDC). **Do not** add `PRIVATE_KEY`.
-4. Deploy. Because `VITE_*` vars are inlined at build time, **redeploy after changing them**.
+3. Add your `VITE_*` env vars under **Settings -> Environment Variables**. Do **not** add `PRIVATE_KEY`.
+4. Because `VITE_*` vars are inlined at build time, **redeploy after changing them**.
 
 ### Netlify
 
-Config is in `netlify.toml` + `public/_redirects`. Netlify sets `NETLIFY=true`, so the build uses the `netlify` preset (SSR function → `.netlify/functions-internal/server`, client → `dist/`). The `_redirects` rule rewrites every non-static path to the SSR function.
+Config is in `netlify.toml` plus `public/_redirects`. Netlify sets `NETLIFY=true`, so the build uses the `netlify` preset (SSR function plus a `_redirects` rule that rewrites every non-static path to it).
 
-1. **New site from Git** at <https://app.netlify.com>.
-2. These are picked up from `netlify.toml` automatically:
-   - Build command: `bun run build`
-   - Publish directory: `dist`
-   - Functions directory: `.netlify/functions-internal`
-3. **Site configuration → Environment variables**: add your `VITE_*` vars. **Do not** add `PRIVATE_KEY`.
-4. If Bun isn't auto-detected, set env var `NETLIFY_USE_BUN=true` (or add a `.bun-version` file). Netlify supports Bun on recent build images.
-5. Deploy, then **clear cache and redeploy** after changing any `VITE_*` var.
+1. **New site from Git** at <https://app.netlify.com>; build command, publish dir (`dist`), and functions dir are read from `netlify.toml`.
+2. Add your `VITE_*` env vars under **Site configuration -> Environment variables**. Do **not** add `PRIVATE_KEY`.
+3. If Bun is not auto-detected, set `NETLIFY_USE_BUN=true`.
+4. After changing any `VITE_*` var, **clear cache and redeploy** so the new values are inlined.
 
-#### How to redeploy on Netlify
+### Why "Page not found" can happen
 
-- **Easiest:** push a commit — Netlify auto-builds on every push to the production branch. After `git push`, a new deploy starts automatically.
-- **From the dashboard:** **Deploys → Trigger deploy → Deploy site** (or **Clear cache and deploy site** — use this after changing env vars so the new `VITE_*` values are inlined).
-- **CLI:** `netlify deploy --build --prod` (with the [Netlify CLI](https://docs.netlify.com/cli/get-started/) installed and the site linked via `netlify link`).
-
-### Why "Page not found" / blank render happens (and the fix)
-
-The Lovable base config defaults the build to a **Cloudflare Workers** output layout. On Vercel/Netlify that produces a static client with **no SSR function wired and no catch-all redirect** — so the host serves `dist/` (which has no `index.html` for an SSR app), every deep link / refresh 404s, and the app appears not to render.
-
-The fix is in this repo:
-
-- `vite.config.ts` selects the Nitro **`vercel`/`netlify` preset** based on the host's build env var.
-- `vercel.json` (Vercel) and `netlify.toml` + `public/_redirects` (Netlify) wire the publish dir, functions dir, and the **catch-all route to the SSR function** so every path is server-rendered.
-
-If you fork to a different host, set `NITRO_PRESET` and add that host's equivalent catch-all rewrite to the server function.
+A Cloudflare-Workers-style output layout produces a static client with no SSR function and no catch-all redirect, so deep links 404. This repo fixes it: `vite.config.ts` selects the right preset, and `vercel.json` / `netlify.toml` + `public/_redirects` wire the catch-all route to the SSR function. If you fork to another host, set `NITRO_PRESET` and add that host's equivalent catch-all rewrite.
 
 ---
 
 ## Project structure
 
 ```
-contracts/            ProjectRegistry.sol, ContractLabelRegistry.sol (+ out/ artifacts)
-scripts/              compile.ts (solc), deploy.ts (viem)
+contracts/              ProjectRegistry.sol, ContractLabelRegistry.sol (+ out/ artifacts)
+scripts/                compile.ts (solc), deploy.ts (viem, per-network)
 src/
-  routes/             file-based routes (TanStack). __root.tsx is the app shell.
+  routes/               file-based routes (TanStack). __root.tsx is the app shell.
+    explorer.$network.* network-scoped block explorer (dashboard, tx, block, address, token, lists)
+    launchkit.*         templates, editor, AI, deploy, projects
+    routebook.*         transaction inspector + label registry
+    docs.*              multi-page documentation
   components/
-    editor/           Monaco editor, terminal, deploy panel
-    web3/             wallet provider, connect modal, generate-wallet dialog
-    layout/ shared/   sidebar, app shell, logo, primitives
+    explorer/           explorer UI, lists, search, formatters
+    editor/             Monaco editor, terminal, deploy panel, contract interactor
+    deploy/             post-deploy verification + actions
+    web3/ layout/ shared/ docs/  wallet, app shell, primitives, docs primitives
   lib/
-    chains.ts         QIE testnet/mainnet viem chains + DEX URL
-    contracts.ts      env-backed registry/QUSDC addresses
-    wagmi.ts          wagmi config (injected/MetaMask/burner)
-    burner/           in-app encrypted wallet (vault, connector, store)
-    compiler*.ts      browser solc Web Worker + interface
-    api/              server functions (network status, tx decode)
-    abis/             generated registry ABIs + bytecode
-  hooks/              useProjectRegistry, useContractLabels, useChainData, useQusdc, useWorkspace
-vercel.json           Vercel SSR config
-netlify.toml          Netlify SSR config
-public/_redirects     Netlify SSR catch-all
+    chains.ts           QIE testnet/mainnet viem chains + DEX URL
+    contracts.ts        per-network registry addresses + write gas limit
+    explorer/           network slug mapping, formatters, Blockscout types
+    ai-settings.ts ai.ts  AI providers, endpoint resolution, streaming client
+    burner/             in-app encrypted wallet (vault, connector, store)
+    compiler*.ts        browser solc Web Worker + interface
+    api/                server functions (network status, ecosystem stats, explorer proxy, verify, ai)
+    abis/               generated registry ABIs + bytecode
+  hooks/                useProjectRegistry, useContractLabels, useExplorer, useTemplateDeploys, useVerifyContract, ...
+vercel.json             Vercel SSR config
+netlify.toml            Netlify SSR config
+public/_redirects       Netlify SSR catch-all
 ```
 
 ---
 
 ## Scripts
 
-| Command                              | Description                           |
-| ------------------------------------ | ------------------------------------- |
-| `bun run dev`                        | Dev server (http://localhost:8080)    |
-| `bun run build`                      | Production build (host-aware preset)  |
-| `bun run preview`                    | Preview the production build          |
-| `bun run lint` / `bun run format`    | ESLint / Prettier                     |
-| `bun run contracts:compile`          | Compile registries → ABIs + artifacts |
-| `bun run contracts:deploy [mainnet]` | Deploy registries (testnet default)   |
+| Command | Description |
+| --- | --- |
+| `bun run dev` | Dev server (http://localhost:8080) |
+| `bun run build` | Production build (host-aware preset) |
+| `bun run preview` | Preview the production build |
+| `bun run lint` / `bun run format` | ESLint / Prettier |
+| `bun run contracts:compile` | Compile registries to ABIs + artifacts |
+| `bun run contracts:deploy [mainnet]` | Deploy registries (testnet by default) |
 
 ---
 
-## Security notes
+## Security
 
-- **`.env.local`, `.env*`, and `deployment-output.json` are gitignored.** The deployer private key never enters the repo, the client bundle, or the host env.
-- The in-app generated wallet's mnemonic is **encrypted with your password** (AES-GCM + PBKDF2) before touching `localStorage`, and is only ever revealed behind a password prompt. Browser-stored keys are fine for testnet and small balances — for significant mainnet funds, use a hardware wallet via the injected connector instead.
-- Never set `PRIVATE_KEY` in Vercel/Netlify env — the running app has no use for it.
+- **`.env.local`, `.env*`, and `deployment-output.json` are gitignored.** The deployer private key never enters the repo, the client bundle, or a host env.
+- The in-app generated wallet's mnemonic is encrypted with your password (AES-GCM + PBKDF2) before touching `localStorage` and is only revealed behind a password prompt. Browser-stored keys are fine for testnet and small balances; for significant mainnet funds, use a hardware wallet through the injected connector.
+- The AI bring-your-own-key is stored only in your browser. For shared deployments, use the server-proxy mode so the key stays server-side.
+- The explorer server proxy validates request paths against the Blockscout namespace and cannot fetch arbitrary URLs.
 
-```
+---
 
-```
+## Known limitations
+
+- **Contract verification** is implemented (the deploy flow and Projects page submit flattened source to the QIE explorer's Blockscout verifier), but the QIE explorer's verifier service may not always confirm a submission. When that happens the contract still works and is fully usable; the verification request is correct and completes once the explorer service accepts it.
+- The QIE network's `eth_estimateGas` is unreliable for storage-writing calls; DevStation pins explicit gas limits on registry writes to work around it.
