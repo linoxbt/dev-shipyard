@@ -7,7 +7,7 @@ import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useProjects } from "@/lib/mock/projects";
 import { TEMPLATES } from "@/lib/mock/templates";
-import { DEFAULT_GAS_GWEI } from "@/lib/chains";
+import { DEFAULT_GAS_GWEI, qieTestnet } from "@/lib/chains";
 import { formatGas } from "@/lib/format-gas";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useGlobalDeployStats } from "@/hooks/useProjectRegistry";
@@ -31,16 +31,21 @@ export const Route = createFileRoute("/")({
 
 function Overview() {
   const { address } = useAccount();
+  const { chainId, chain, config } = useActiveChain();
   const allProjects = useProjects((s) => s.projects);
-  // Scope "Your Deployments" to the connected wallet (legacy untagged records
-  // are treated as the current user's).
+  // Scope "Your Deployments" to the connected wallet AND the selected network,
+  // so the count tracks the network switch. Legacy records without a chainId
+  // are shown on testnet (the historical default).
   const projects = address
-    ? allProjects.filter((p) => !p.deployer || p.deployer.toLowerCase() === address.toLowerCase())
+    ? allProjects.filter(
+        (p) =>
+          (!p.deployer || p.deployer.toLowerCase() === address.toLowerCase()) &&
+          (p.chainId ?? qieTestnet.id) === chainId,
+      )
     : [];
   const [quickTemplate, setQuickTemplate] = useState(TEMPLATES[0].id);
   const [quickHash, setQuickHash] = useState("");
 
-  const { chainId, chain, config } = useActiveChain();
   const { data: net } = useNetworkStatus(chainId);
   const globalStats = useGlobalDeployStats();
   const [inspections, setInspections] = useState<string[]>([]);

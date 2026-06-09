@@ -11,6 +11,7 @@ import {
   Code2,
   Sparkles,
   Compass,
+  Activity,
   PanelLeftClose,
   X,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import { useUi } from "@/lib/ui-state";
 const NAV = [
   { to: "/", label: "Overview", icon: Home, exact: true },
   { to: "/explorer", label: "QIE Explorer", icon: Compass },
+  { to: "/activity", label: "Activity", icon: Activity },
   {
     section: "LaunchKit",
     items: [

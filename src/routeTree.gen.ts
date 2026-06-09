@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ExplorerRouteImport } from './routes/explorer'
 import { Route as DocsRouteImport } from './routes/docs'
+import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RoutebookIndexRouteImport } from './routes/routebook.index'
 import { Route as ExplorerIndexRouteImport } from './routes/explorer.index'
@@ -60,6 +61,11 @@ const ExplorerRoute = ExplorerRouteImport.update({
 const DocsRoute = DocsRouteImport.update({
   id: '/docs',
   path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ActivityRoute = ActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -239,6 +245,7 @@ const ExplorerNetworkAddressHashRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
   '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRouteWithChildren
   '/settings': typeof SettingsRoute
@@ -278,6 +285,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
   '/docs/ai': typeof DocsAiRoute
@@ -315,6 +323,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
   '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRouteWithChildren
   '/settings': typeof SettingsRoute
@@ -356,6 +365,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/activity'
     | '/docs'
     | '/explorer'
     | '/settings'
@@ -395,6 +405,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/activity'
     | '/settings'
     | '/api/ai'
     | '/docs/ai'
@@ -431,6 +442,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/activity'
     | '/docs'
     | '/explorer'
     | '/settings'
@@ -471,6 +483,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ActivityRoute: typeof ActivityRoute
   DocsRoute: typeof DocsRouteWithChildren
   ExplorerRoute: typeof ExplorerRouteWithChildren
   SettingsRoute: typeof SettingsRoute
@@ -508,6 +521,13 @@ declare module '@tanstack/react-router' {
       path: '/docs'
       fullPath: '/docs'
       preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/activity': {
+      id: '/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof ActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -825,6 +845,7 @@ const ExplorerRouteWithChildren = ExplorerRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ActivityRoute: ActivityRoute,
   DocsRoute: DocsRouteWithChildren,
   ExplorerRoute: ExplorerRouteWithChildren,
   SettingsRoute: SettingsRoute,

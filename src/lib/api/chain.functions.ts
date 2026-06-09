@@ -143,3 +143,62 @@ export const getTemplateDeployCounts = createServerFn({ method: "GET" })
     }
     return { chainId, counts };
   });
+
+// Every contract deployed through DevStation on this chain, decoded from the
+// registry's successful recordDeployment transactions. Newest first.
+export interface EcosystemDeployment {
+  contractAddress: string;
+  templateId: string;
+  projectName: string;
+  deployer: string;
+  txHash: string;
+  timestamp: number; // epoch seconds
+}
+
+export const getAllDeployments = createServerFn({ method: "GET" })
+  .inputValidator(templateStatsInput)
+  .handler(async ({ data }) => {
+    const { chainId, registry } = data;
+    const deployments: EcosystemDeployment[] = [];
+    try {
+      const api = chainConfig(chainId).explorerApiUrl;
+      const url = `${api}?module=account&action=txlist&address=${registry}&sort=desc`;
+      const resp = await fetch(url);
+      const json = (await resp.json()) as {
+        result?: Array<{
+          to?: string;
+          from: string;
+          hash: string;
+          input?: string;
+          isError?: string;
+          timeStamp?: string;
+        }>;
+      };
+      const txs = Array.isArray(json.result) ? json.result : [];
+      for (const t of txs) {
+        if (t.to?.toLowerCase() !== registry.toLowerCase()) continue;
+        if (!(t.input ?? "").startsWith(RECORD_DEPLOYMENT_SELECTOR)) continue;
+        if (t.isError !== "0") continue;
+        try {
+          const decoded = decodeFunctionData({
+            abi: projectRegistryAbi,
+            data: t.input as `0x${string}`,
+          });
+          if (decoded.functionName !== "recordDeployment") continue;
+          deployments.push({
+            contractAddress: decoded.args[0] as string,
+            templateId: decoded.args[1] as string,
+            projectName: decoded.args[2] as string,
+            deployer: t.from,
+            txHash: t.hash,
+            timestamp: Number(t.timeStamp ?? 0),
+          });
+        } catch {
+          /* skip un-decodable */
+        }
+      }
+    } catch {
+      /* leave empty if the explorer is unreachable */
+    }
+    return { chainId, deployments };
+  });
