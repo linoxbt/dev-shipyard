@@ -14,6 +14,7 @@ import { Route as ExplorerRouteImport } from './routes/explorer'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RoutebookIndexRouteImport } from './routes/routebook.index'
+import { Route as ExplorerIndexRouteImport } from './routes/explorer.index'
 import { Route as DocsIndexRouteImport } from './routes/docs.index'
 import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
 import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
@@ -21,6 +22,9 @@ import { Route as LaunchkitProjectsRouteImport } from './routes/launchkit.projec
 import { Route as LaunchkitEditorRouteImport } from './routes/launchkit.editor'
 import { Route as LaunchkitDeployRouteImport } from './routes/launchkit.deploy'
 import { Route as LaunchkitAiRouteImport } from './routes/launchkit.ai'
+import { Route as ExplorerTxnsRouteImport } from './routes/explorer.txns'
+import { Route as ExplorerTokensRouteImport } from './routes/explorer.tokens'
+import { Route as ExplorerBlocksRouteImport } from './routes/explorer.blocks'
 import { Route as DocsWalletsRouteImport } from './routes/docs.wallets'
 import { Route as DocsVerificationRouteImport } from './routes/docs.verification'
 import { Route as DocsRoutebookRouteImport } from './routes/docs.routebook'
@@ -36,6 +40,10 @@ import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
 import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
 import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
+import { Route as ExplorerTxHashRouteImport } from './routes/explorer.tx.$hash'
+import { Route as ExplorerTokenHashRouteImport } from './routes/explorer.token.$hash'
+import { Route as ExplorerBlockHeightRouteImport } from './routes/explorer.block.$height'
+import { Route as ExplorerAddressHashRouteImport } from './routes/explorer.address.$hash'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -61,6 +69,11 @@ const RoutebookIndexRoute = RoutebookIndexRouteImport.update({
   id: '/routebook/',
   path: '/routebook/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ExplorerIndexRoute = ExplorerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ExplorerRoute,
 } as any)
 const DocsIndexRoute = DocsIndexRouteImport.update({
   id: '/',
@@ -96,6 +109,21 @@ const LaunchkitAiRoute = LaunchkitAiRouteImport.update({
   id: '/launchkit/ai',
   path: '/launchkit/ai',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ExplorerTxnsRoute = ExplorerTxnsRouteImport.update({
+  id: '/txns',
+  path: '/txns',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerTokensRoute = ExplorerTokensRouteImport.update({
+  id: '/tokens',
+  path: '/tokens',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerBlocksRoute = ExplorerBlocksRouteImport.update({
+  id: '/blocks',
+  path: '/blocks',
+  getParentRoute: () => ExplorerRoute,
 } as any)
 const DocsWalletsRoute = DocsWalletsRouteImport.update({
   id: '/wallets',
@@ -173,11 +201,31 @@ const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
   path: '/launchkit/templates/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExplorerTxHashRoute = ExplorerTxHashRouteImport.update({
+  id: '/tx/$hash',
+  path: '/tx/$hash',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerTokenHashRoute = ExplorerTokenHashRouteImport.update({
+  id: '/token/$hash',
+  path: '/token/$hash',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerBlockHeightRoute = ExplorerBlockHeightRouteImport.update({
+  id: '/block/$height',
+  path: '/block/$height',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerAddressHashRoute = ExplorerAddressHashRouteImport.update({
+  id: '/address/$hash',
+  path: '/address/$hash',
+  getParentRoute: () => ExplorerRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/docs': typeof DocsRouteWithChildren
-  '/explorer': typeof ExplorerRoute
+  '/explorer': typeof ExplorerRouteWithChildren
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
   '/docs/ai': typeof DocsAiRoute
@@ -191,6 +239,9 @@ export interface FileRoutesByFullPath {
   '/docs/routebook': typeof DocsRoutebookRoute
   '/docs/verification': typeof DocsVerificationRoute
   '/docs/wallets': typeof DocsWalletsRoute
+  '/explorer/blocks': typeof ExplorerBlocksRoute
+  '/explorer/tokens': typeof ExplorerTokensRoute
+  '/explorer/txns': typeof ExplorerTxnsRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
@@ -198,14 +249,18 @@ export interface FileRoutesByFullPath {
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
   '/docs/': typeof DocsIndexRoute
+  '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
+  '/explorer/address/$hash': typeof ExplorerAddressHashRoute
+  '/explorer/block/$height': typeof ExplorerBlockHeightRoute
+  '/explorer/token/$hash': typeof ExplorerTokenHashRoute
+  '/explorer/tx/$hash': typeof ExplorerTxHashRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
   '/launchkit/templates/': typeof LaunchkitTemplatesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/explorer': typeof ExplorerRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
   '/docs/ai': typeof DocsAiRoute
@@ -219,6 +274,9 @@ export interface FileRoutesByTo {
   '/docs/routebook': typeof DocsRoutebookRoute
   '/docs/verification': typeof DocsVerificationRoute
   '/docs/wallets': typeof DocsWalletsRoute
+  '/explorer/blocks': typeof ExplorerBlocksRoute
+  '/explorer/tokens': typeof ExplorerTokensRoute
+  '/explorer/txns': typeof ExplorerTxnsRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
@@ -226,7 +284,12 @@ export interface FileRoutesByTo {
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
   '/docs': typeof DocsIndexRoute
+  '/explorer': typeof ExplorerIndexRoute
   '/routebook': typeof RoutebookIndexRoute
+  '/explorer/address/$hash': typeof ExplorerAddressHashRoute
+  '/explorer/block/$height': typeof ExplorerBlockHeightRoute
+  '/explorer/token/$hash': typeof ExplorerTokenHashRoute
+  '/explorer/tx/$hash': typeof ExplorerTxHashRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
   '/launchkit/templates': typeof LaunchkitTemplatesIndexRoute
@@ -235,7 +298,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/docs': typeof DocsRouteWithChildren
-  '/explorer': typeof ExplorerRoute
+  '/explorer': typeof ExplorerRouteWithChildren
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
   '/docs/ai': typeof DocsAiRoute
@@ -249,6 +312,9 @@ export interface FileRoutesById {
   '/docs/routebook': typeof DocsRoutebookRoute
   '/docs/verification': typeof DocsVerificationRoute
   '/docs/wallets': typeof DocsWalletsRoute
+  '/explorer/blocks': typeof ExplorerBlocksRoute
+  '/explorer/tokens': typeof ExplorerTokensRoute
+  '/explorer/txns': typeof ExplorerTxnsRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
@@ -256,7 +322,12 @@ export interface FileRoutesById {
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
   '/docs/': typeof DocsIndexRoute
+  '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
+  '/explorer/address/$hash': typeof ExplorerAddressHashRoute
+  '/explorer/block/$height': typeof ExplorerBlockHeightRoute
+  '/explorer/token/$hash': typeof ExplorerTokenHashRoute
+  '/explorer/tx/$hash': typeof ExplorerTxHashRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
   '/launchkit/templates/': typeof LaunchkitTemplatesIndexRoute
@@ -280,6 +351,9 @@ export interface FileRouteTypes {
     | '/docs/routebook'
     | '/docs/verification'
     | '/docs/wallets'
+    | '/explorer/blocks'
+    | '/explorer/tokens'
+    | '/explorer/txns'
     | '/launchkit/ai'
     | '/launchkit/deploy'
     | '/launchkit/editor'
@@ -287,14 +361,18 @@ export interface FileRouteTypes {
     | '/routebook/$txHash'
     | '/routebook/labels'
     | '/docs/'
+    | '/explorer/'
     | '/routebook/'
+    | '/explorer/address/$hash'
+    | '/explorer/block/$height'
+    | '/explorer/token/$hash'
+    | '/explorer/tx/$hash'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
     | '/launchkit/templates/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/explorer'
     | '/settings'
     | '/api/ai'
     | '/docs/ai'
@@ -308,6 +386,9 @@ export interface FileRouteTypes {
     | '/docs/routebook'
     | '/docs/verification'
     | '/docs/wallets'
+    | '/explorer/blocks'
+    | '/explorer/tokens'
+    | '/explorer/txns'
     | '/launchkit/ai'
     | '/launchkit/deploy'
     | '/launchkit/editor'
@@ -315,7 +396,12 @@ export interface FileRouteTypes {
     | '/routebook/$txHash'
     | '/routebook/labels'
     | '/docs'
+    | '/explorer'
     | '/routebook'
+    | '/explorer/address/$hash'
+    | '/explorer/block/$height'
+    | '/explorer/token/$hash'
+    | '/explorer/tx/$hash'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
     | '/launchkit/templates'
@@ -337,6 +423,9 @@ export interface FileRouteTypes {
     | '/docs/routebook'
     | '/docs/verification'
     | '/docs/wallets'
+    | '/explorer/blocks'
+    | '/explorer/tokens'
+    | '/explorer/txns'
     | '/launchkit/ai'
     | '/launchkit/deploy'
     | '/launchkit/editor'
@@ -344,7 +433,12 @@ export interface FileRouteTypes {
     | '/routebook/$txHash'
     | '/routebook/labels'
     | '/docs/'
+    | '/explorer/'
     | '/routebook/'
+    | '/explorer/address/$hash'
+    | '/explorer/block/$height'
+    | '/explorer/token/$hash'
+    | '/explorer/tx/$hash'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
     | '/launchkit/templates/'
@@ -353,7 +447,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DocsRoute: typeof DocsRouteWithChildren
-  ExplorerRoute: typeof ExplorerRoute
+  ExplorerRoute: typeof ExplorerRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   ApiAiRoute: typeof ApiAiRoute
   LaunchkitAiRoute: typeof LaunchkitAiRoute
@@ -405,6 +499,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoutebookIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/explorer/': {
+      id: '/explorer/'
+      path: '/'
+      fullPath: '/explorer/'
+      preLoaderRoute: typeof ExplorerIndexRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
     '/docs/': {
       id: '/docs/'
       path: '/'
@@ -453,6 +554,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/launchkit/ai'
       preLoaderRoute: typeof LaunchkitAiRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/explorer/txns': {
+      id: '/explorer/txns'
+      path: '/txns'
+      fullPath: '/explorer/txns'
+      preLoaderRoute: typeof ExplorerTxnsRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/tokens': {
+      id: '/explorer/tokens'
+      path: '/tokens'
+      fullPath: '/explorer/tokens'
+      preLoaderRoute: typeof ExplorerTokensRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/blocks': {
+      id: '/explorer/blocks'
+      path: '/blocks'
+      fullPath: '/explorer/blocks'
+      preLoaderRoute: typeof ExplorerBlocksRouteImport
+      parentRoute: typeof ExplorerRoute
     }
     '/docs/wallets': {
       id: '/docs/wallets'
@@ -559,6 +681,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LaunchkitTemplatesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/explorer/tx/$hash': {
+      id: '/explorer/tx/$hash'
+      path: '/tx/$hash'
+      fullPath: '/explorer/tx/$hash'
+      preLoaderRoute: typeof ExplorerTxHashRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/token/$hash': {
+      id: '/explorer/token/$hash'
+      path: '/token/$hash'
+      fullPath: '/explorer/token/$hash'
+      preLoaderRoute: typeof ExplorerTokenHashRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/block/$height': {
+      id: '/explorer/block/$height'
+      path: '/block/$height'
+      fullPath: '/explorer/block/$height'
+      preLoaderRoute: typeof ExplorerBlockHeightRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/address/$hash': {
+      id: '/explorer/address/$hash'
+      path: '/address/$hash'
+      fullPath: '/explorer/address/$hash'
+      preLoaderRoute: typeof ExplorerAddressHashRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
   }
 }
 
@@ -594,10 +744,36 @@ const DocsRouteChildren: DocsRouteChildren = {
 
 const DocsRouteWithChildren = DocsRoute._addFileChildren(DocsRouteChildren)
 
+interface ExplorerRouteChildren {
+  ExplorerBlocksRoute: typeof ExplorerBlocksRoute
+  ExplorerTokensRoute: typeof ExplorerTokensRoute
+  ExplorerTxnsRoute: typeof ExplorerTxnsRoute
+  ExplorerIndexRoute: typeof ExplorerIndexRoute
+  ExplorerAddressHashRoute: typeof ExplorerAddressHashRoute
+  ExplorerBlockHeightRoute: typeof ExplorerBlockHeightRoute
+  ExplorerTokenHashRoute: typeof ExplorerTokenHashRoute
+  ExplorerTxHashRoute: typeof ExplorerTxHashRoute
+}
+
+const ExplorerRouteChildren: ExplorerRouteChildren = {
+  ExplorerBlocksRoute: ExplorerBlocksRoute,
+  ExplorerTokensRoute: ExplorerTokensRoute,
+  ExplorerTxnsRoute: ExplorerTxnsRoute,
+  ExplorerIndexRoute: ExplorerIndexRoute,
+  ExplorerAddressHashRoute: ExplorerAddressHashRoute,
+  ExplorerBlockHeightRoute: ExplorerBlockHeightRoute,
+  ExplorerTokenHashRoute: ExplorerTokenHashRoute,
+  ExplorerTxHashRoute: ExplorerTxHashRoute,
+}
+
+const ExplorerRouteWithChildren = ExplorerRoute._addFileChildren(
+  ExplorerRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DocsRoute: DocsRouteWithChildren,
-  ExplorerRoute: ExplorerRoute,
+  ExplorerRoute: ExplorerRouteWithChildren,
   SettingsRoute: SettingsRoute,
   ApiAiRoute: ApiAiRoute,
   LaunchkitAiRoute: LaunchkitAiRoute,

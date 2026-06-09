@@ -1,65 +1,73 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useRouterState } from "@tanstack/react-router";
 import { Compass, ExternalLink } from "lucide-react";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { ComingSoon } from "@/components/shared/ComingSoon";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { qieTestnet, qieMainnet } from "@/lib/chains";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/explorer")({
-  head: () => ({ meta: [{ title: "QIE Explorer — DevStation" }] }),
-  component: ExplorerPage,
+  head: () => ({ meta: [{ title: "QIE Explorer - DevStation" }] }),
+  component: ExplorerLayout,
 });
 
-function ExplorerPage() {
+function ExplorerLayout() {
   const { chain, config, select } = useActiveChain();
+  const path = useRouterState({ select: (r) => r.location.pathname });
+  const onHome = path === "/explorer";
 
   return (
     <div>
-      <PageHeader
-        breadcrumb={["DevStation", "QIE Explorer"]}
-        title="QIE Explorer"
-        subtitle="Browse blocks, transactions, addresses, and tokens on QIE."
-      />
-      <div className="space-y-6 p-6">
-        {/* Network switch — drives the app-wide selected network */}
-        <div className="inline-flex rounded border border-border bg-surface p-0.5">
-          {[qieTestnet, qieMainnet].map((c) => {
-            const active = chain.id === c.id;
-            return (
-              <button
-                key={c.id}
-                onClick={() => select(c.id)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded px-3 py-1.5 font-mono text-xs transition",
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <span
-                  className={cn("h-1.5 w-1.5 rounded-full", c.testnet ? "bg-warning" : "bg-info")}
-                />
-                {c.testnet ? "Testnet" : "Mainnet"}
-              </button>
-            );
-          })}
-        </div>
+      {/* Explorer header: brand, network switch, external link */}
+      <div className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 lg:px-6">
+          <Link
+            to="/explorer"
+            className="flex items-center gap-2 font-mono text-sm font-bold text-foreground"
+          >
+            <Compass className="h-4 w-4 text-primary" /> QIE Explorer
+          </Link>
 
-        <ComingSoon
-          icon={Compass}
-          title="QIE Explorer is coming soon"
-          note={`A native block & transaction explorer for ${chain.name} — search blocks, addresses, and tokens without leaving DevStation. In the meantime, use the official QIE explorer.`}
-        >
+          <div className="inline-flex rounded border border-border bg-surface p-0.5">
+            {[qieTestnet, qieMainnet].map((c) => {
+              const active = chain.id === c.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => select(c.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded px-2.5 py-1 font-mono text-[11px] transition",
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span
+                    className={cn("h-1.5 w-1.5 rounded-full", c.testnet ? "bg-warning" : "bg-info")}
+                  />
+                  {c.testnet ? "Testnet" : "Mainnet"}
+                </button>
+              );
+            })}
+          </div>
+
+          {!onHome && (
+            <Link to="/explorer" className="font-mono text-[11px] text-primary hover:underline">
+              ← Dashboard
+            </Link>
+          )}
+
           <a
             href={config.explorerUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded border border-primary px-3 py-1.5 font-mono text-xs text-primary hover:bg-primary/10"
+            className="ml-auto inline-flex items-center gap-1 font-mono text-[11px] text-meta hover:text-primary"
           >
-            Open {chain.name} Explorer <ExternalLink className="h-3 w-3" />
+            Official explorer <ExternalLink className="h-3 w-3" />
           </a>
-        </ComingSoon>
+        </div>
+      </div>
+
+      <div className="p-4 lg:p-6">
+        <Outlet />
       </div>
     </div>
   );
