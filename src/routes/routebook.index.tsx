@@ -11,11 +11,11 @@ import { qieMainnet } from "@/lib/chains";
 // for a hash: one with token movements, one with a fully-decoded method call.
 const DEMOS = [
   {
-    hash: "0x3957e6f5f7c4c309ed93ef439f50b1eefa051d19c6e7256b4f77d0b85b9dce11",
+    hash: "0x62e6d1771316c6c802f61015b588c5d12bb8fe5f2e7bae2f49de0584d0251da8",
     icon: Coins,
-    title: "ERC-20 token launch",
+    title: "ERC-20 transfer",
     blurb:
-      "A token deployment — see the contract creation and 1,000,000 tokens minted in Token Movements.",
+      "A token transfer — decoded transfer(to, amount) call plus 1,000 DMO1 moving in Token Movements.",
   },
   {
     hash: "0x9ad9367de62261ec16c3b80fb4d61308b18c6da0a56ce5433bfaf04706e7ccf9",
