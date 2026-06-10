@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Bot,
   Send,
@@ -9,13 +10,18 @@ import {
   XCircle,
   Hammer,
   Rocket,
+  BookMarked,
   Copy,
   Check,
   Trash2,
   ExternalLink,
+  FileCode2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useAiSettings, AI_PROVIDERS } from "@/lib/ai-settings";
 import { useCodeAgent, type TimelineItem, type ToolStep } from "@/hooks/useCodeAgent";
+import { useEditorIntake } from "@/lib/editor-intake";
+import { contractNameOf } from "@/lib/solidity-name";
 import { cn } from "@/lib/utils";
 
 // Autonomous build surface for the Code with AI page: the AI generates,
@@ -27,8 +33,18 @@ export function AgentChat({ className }: { className?: string }) {
   const settings = useAiSettings();
   const configured = settings.proxy || !!(settings.keys[settings.provider] ?? "");
 
-  const { timeline, running, run, stop, reset, isConnected, targetChain, explorerUrl } =
-    useCodeAgent();
+  const {
+    timeline,
+    running,
+    run,
+    stop,
+    reset,
+    submitDeployForm,
+    cancelDeployForm,
+    isConnected,
+    targetChain,
+    explorerSlug,
+  } = useCodeAgent();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -118,7 +134,15 @@ export function AgentChat({ className }: { className?: string }) {
         )}
 
         {timeline.map((item, i) => (
-          <TimelineRow key={i} item={item} explorerUrl={explorerUrl} />
+          <TimelineRow
+            key={i}
+            item={item}
+            explorerSlug={explorerSlug}
+            running={running}
+            isConnected={isConnected}
+            onSubmitForm={submitDeployForm}
+            onCancelForm={cancelDeployForm}
+          />
         ))}
 
         {running && (
@@ -173,8 +197,32 @@ export function AgentChat({ className }: { className?: string }) {
   );
 }
 
-function TimelineRow({ item, explorerUrl }: { item: TimelineItem; explorerUrl: string }) {
-  if (item.type === "tool") return <StepCard step={item.step} explorerUrl={explorerUrl} />;
+function TimelineRow({
+  item,
+  explorerSlug,
+  running,
+  isConnected,
+  onSubmitForm,
+  onCancelForm,
+}: {
+  item: TimelineItem;
+  explorerSlug: string;
+  running: boolean;
+  isConnected: boolean;
+  onSubmitForm: (id: string, values: Record<string, string>) => void;
+  onCancelForm: (id: string) => void;
+}) {
+  if (item.type === "tool") return <StepCard step={item.step} explorerSlug={explorerSlug} />;
+  if (item.type === "deploy-form")
+    return (
+      <DeployForm
+        item={item}
+        running={running}
+        isConnected={isConnected}
+        onSubmit={onSubmitForm}
+        onCancel={onCancelForm}
+      />
+    );
 
   const isUser = item.type === "user";
   return (
@@ -220,20 +268,39 @@ function renderAgentText(text: string) {
 
 function CodeChunk({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
+  const navigate = useNavigate();
+  const setPending = useEditorIntake((s) => s.setPending);
+
+  const openInEditor = () => {
+    const name = contractNameOf(code) ?? "Contract";
+    setPending(`${name}.sol`, code);
+    toast.success(`Opening ${name}.sol in the Contract Editor`);
+    void navigate({ to: "/launchkit/editor" });
+  };
+
   return (
     <div className="my-1.5 overflow-hidden rounded border border-border bg-background">
       <div className="flex items-center justify-between border-b border-border px-2 py-1">
         <span className="font-mono text-[9px] uppercase tracking-wider text-meta">solidity</span>
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(code);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1200);
-          }}
-          className="flex items-center gap-1 text-[9px] text-meta hover:text-foreground"
-        >
-          {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openInEditor}
+            className="flex items-center gap-1 text-[9px] text-primary hover:underline"
+            title="Open in Contract Editor"
+          >
+            <FileCode2 className="h-3 w-3" /> editor
+          </button>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(code);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1200);
+            }}
+            className="flex items-center gap-1 text-[9px] text-meta hover:text-foreground"
+          >
+            {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+          </button>
+        </div>
       </div>
       <pre className="max-h-72 overflow-auto p-2 text-[10px] leading-relaxed text-foreground">
         {code}
@@ -242,8 +309,85 @@ function CodeChunk({ code }: { code: string }) {
   );
 }
 
-function StepCard({ step, explorerUrl }: { step: ToolStep; explorerUrl: string }) {
-  const Icon = step.kind === "deploy" ? Rocket : Hammer;
+// Constructor-args form: shown when a deploy needs inputs, so the user reviews/
+// edits the agent's suggested values and confirms before signing.
+function DeployForm({
+  item,
+  running,
+  isConnected,
+  onSubmit,
+  onCancel,
+}: {
+  item: Extract<TimelineItem, { type: "deploy-form" }>;
+  running: boolean;
+  isConnected: boolean;
+  onSubmit: (id: string, values: Record<string, string>) => void;
+  onCancel: (id: string) => void;
+}) {
+  const [values, setValues] = useState<Record<string, string>>(item.suggested);
+  const done = item.status !== "pending";
+
+  return (
+    <div
+      className={cn(
+        "rounded border bg-background p-3 font-mono text-[11px]",
+        done ? "border-border opacity-70" : "border-primary/40",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <Rocket className="h-3.5 w-3.5 text-primary" />
+        <span className="font-semibold text-foreground">
+          Deploy {item.artifactName} — set constructor arguments
+        </span>
+      </div>
+      <div className="mt-2 space-y-2">
+        {item.inputs.map((inp) => (
+          <label key={inp.name} className="block">
+            <span className="text-[10px] text-meta">
+              {inp.name} <span className="text-muted-foreground">({inp.type})</span>
+            </span>
+            <input
+              value={values[inp.name] ?? ""}
+              onChange={(e) => setValues((v) => ({ ...v, [inp.name]: e.target.value }))}
+              disabled={done}
+              placeholder={inp.type}
+              className="mt-0.5 w-full rounded border border-border bg-surface px-2 py-1 text-[11px] text-foreground focus:border-primary focus:outline-none disabled:opacity-60"
+            />
+          </label>
+        ))}
+      </div>
+
+      {item.status === "pending" ? (
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={() => onSubmit(item.id, values)}
+            disabled={running || !isConnected}
+            className="inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
+          >
+            <Rocket className="h-3.5 w-3.5" /> Deploy &amp; sign
+          </button>
+          <button
+            onClick={() => onCancel(item.id)}
+            disabled={running}
+            className="rounded border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-40"
+          >
+            Cancel
+          </button>
+          {!isConnected && (
+            <span className="text-[10px] text-warning">Connect a wallet first.</span>
+          )}
+        </div>
+      ) : (
+        <div className="mt-2 text-[10px] text-meta">
+          {item.status === "submitted" ? "Submitted." : "Cancelled."}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StepCard({ step, explorerSlug }: { step: ToolStep; explorerSlug: string }) {
+  const Icon = step.kind === "deploy" ? Rocket : step.kind === "record" ? BookMarked : Hammer;
   const statusIcon =
     step.status === "running" ? (
       <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
@@ -272,14 +416,13 @@ function StepCard({ step, explorerUrl }: { step: ToolStep; explorerUrl: string }
       {step.address && (
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
           <CopyInline label="Address" value={step.address} />
-          <a
-            href={`${explorerUrl}/address/${step.address}`}
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            to="/explorer/$network/address/$hash"
+            params={{ network: explorerSlug, hash: step.address }}
             className="inline-flex items-center gap-1 text-primary hover:underline"
           >
-            View on explorer <ExternalLink className="h-3 w-3" />
-          </a>
+            View on DevStation explorer <ExternalLink className="h-3 w-3" />
+          </Link>
         </div>
       )}
       {step.txHash && !step.address && (

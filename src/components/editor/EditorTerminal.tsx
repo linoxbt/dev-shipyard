@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { Trash2, Minimize2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Trash2, Minimize2, ChevronRight } from "lucide-react";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
 import { cn } from "@/lib/utils";
 
@@ -7,6 +7,9 @@ interface Props {
   lines: TerminalLine[];
   onClear: () => void;
   onCollapse: () => void;
+  /** Run a typed command (e.g. "compile", "help"). Optional: when omitted, the
+   *  terminal is read-only output. */
+  onCommand?: (command: string) => void;
 }
 
 const TAG_COLORS: Record<string, string> = {
@@ -40,9 +43,12 @@ function colorize(text: string): string {
   return s;
 }
 
-export function EditorTerminal({ lines, onClear, onCollapse }: Props) {
+export function EditorTerminal({ lines, onClear, onCollapse, onCommand }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const autoScroll = useRef(true);
+  const [cmd, setCmd] = useState("");
+  const history = useRef<string[]>([]);
+  const histPos = useRef(-1);
 
   useEffect(() => {
     if (autoScroll.current && ref.current) {
@@ -54,6 +60,32 @@ export function EditorTerminal({ lines, onClear, onCollapse }: Props) {
     if (!ref.current) return;
     const el = ref.current;
     autoScroll.current = el.scrollHeight - el.scrollTop - el.clientHeight < 30;
+  };
+
+  const submit = () => {
+    const c = cmd.trim();
+    if (!c) return;
+    history.current.push(c);
+    histPos.current = history.current.length;
+    setCmd("");
+    onCommand?.(c);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submit();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (history.current.length === 0) return;
+      histPos.current = Math.max(0, histPos.current - 1);
+      setCmd(history.current[histPos.current] ?? "");
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (history.current.length === 0) return;
+      histPos.current = Math.min(history.current.length, histPos.current + 1);
+      setCmd(history.current[histPos.current] ?? "");
+    }
   };
 
   return (
@@ -87,7 +119,7 @@ export function EditorTerminal({ lines, onClear, onCollapse }: Props) {
         className="flex-1 overflow-y-auto px-4 py-2 font-mono text-[11px] leading-relaxed"
       >
         {lines.length === 0 ? (
-          <span className="text-meta">...</span>
+          <span className="text-meta">Type `help` for available commands.</span>
         ) : (
           lines.map((line, i) => (
             <div
@@ -102,6 +134,21 @@ export function EditorTerminal({ lines, onClear, onCollapse }: Props) {
           ))
         )}
       </div>
+      {/* Command prompt */}
+      {onCommand && (
+        <div className="flex shrink-0 items-center gap-1.5 border-t border-border px-3 py-1.5">
+          <ChevronRight className="h-3.5 w-3.5 text-amber-500" />
+          <input
+            value={cmd}
+            onChange={(e) => setCmd(e.target.value)}
+            onKeyDown={onKeyDown}
+            spellCheck={false}
+            autoComplete="off"
+            placeholder="compile · deploy · solc <ver> · ls · cat <file> · clear · help"
+            className="flex-1 bg-transparent font-mono text-[11px] text-foreground placeholder:text-meta/60 focus:outline-none"
+          />
+        </div>
+      )}
     </div>
   );
 }

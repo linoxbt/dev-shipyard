@@ -258,6 +258,88 @@ function EditorPage() {
 
   const clearTerminal = () => setLines([]);
 
+  // A small interactive command set for the terminal (Remix-like). It drives the
+  // same actions as the toolbar — compile, change solc version, inspect the
+  // workspace — without leaving the keyboard. Deploys still go through the Deploy
+  // panel (they need wallet signing + constructor args).
+  const runTerminalCommand = useCallback(
+    (raw: string) => {
+      const ts = new Date().toLocaleTimeString();
+      logT({ text: `[${ts}] > ${raw}` });
+      const [name, ...rest] = raw.trim().split(/\s+/);
+      const arg = rest.join(" ");
+      const print = (text: string, status?: TerminalLine["status"]) => logT({ text, status });
+
+      switch (name.toLowerCase()) {
+        case "help":
+          print("Commands:");
+          print("  compile             Compile the active contract");
+          print("  solc <version>      Set the solc version (e.g. solc 0.8.20)");
+          print("  solc                Show the current solc version");
+          print("  versions            List available solc versions");
+          print("  ls | files          List workspace files");
+          print("  cat <path>          Print a file's contents");
+          print("  open <path>         Open a file in the editor");
+          print("  active              Show the active file");
+          print("  deploy              How to deploy");
+          print("  clear               Clear the terminal");
+          break;
+        case "clear":
+          clearTerminal();
+          break;
+        case "compile":
+          void runCompile();
+          break;
+        case "solc":
+        case "version":
+          if (!arg) {
+            print(`solc ${version}`);
+          } else if ((SOLC_VERSIONS as readonly string[]).includes(arg)) {
+            setVersion(arg);
+            print(`[Compiler] solc set to ${arg}`, "success");
+          } else {
+            print(`Unknown solc version "${arg}". Try: versions`, "error");
+          }
+          break;
+        case "versions":
+          print((SOLC_VERSIONS as readonly string[]).join("  "));
+          break;
+        case "ls":
+        case "files":
+          if (ws.solFiles.length === 0) print("(no .sol files)");
+          for (const f of ws.solFiles) print(`  ${f.path}`);
+          break;
+        case "active":
+          print(ws.activePath || "(none)");
+          break;
+        case "cat": {
+          if (!arg) return print("usage: cat <path>", "warning");
+          const file = ws.solFiles.find((f) => f.path === arg);
+          if (!file) return print(`No such file: ${arg}`, "error");
+          for (const ln of file.content.split("\n")) print(ln);
+          break;
+        }
+        case "open": {
+          if (!arg) return print("usage: open <path>", "warning");
+          if (!ws.solFiles.some((f) => f.path === arg))
+            return print(`No such file: ${arg}`, "error");
+          ws.openFile(arg);
+          print(`Opened ${arg}`, "success");
+          break;
+        }
+        case "deploy":
+          print(
+            "Use the Deploy panel (right) to sign a deployment with your wallet. The terminal can't sign transactions.",
+            "warning",
+          );
+          break;
+        default:
+          print(`Unknown command: ${name}. Type "help".`, "error");
+      }
+    },
+    [runCompile, version, ws],
+  );
+
   const diagnostics: CompileError[] = useMemo(() => {
     if (!lastResult) return [];
     return [...lastResult.errors, ...lastResult.warnings].filter((e) => e.sourceLocation);
@@ -623,6 +705,7 @@ function EditorPage() {
                     lines={lines}
                     onClear={clearTerminal}
                     onCollapse={toggleTerminal}
+                    onCommand={runTerminalCommand}
                   />
                 ) : (
                   <InspectorPanel findings={findings} onJump={jumpToLine} />

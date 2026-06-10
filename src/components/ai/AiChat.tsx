@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Send,
   Sparkles,
@@ -10,6 +11,7 @@ import {
   Plus,
   History,
   Trash2,
+  FileCode2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { chatStream, SOLIDITY_SYSTEM_PROMPT, type ChatMessage } from "@/lib/ai";
@@ -17,6 +19,8 @@ import { useAiSettings, AI_PROVIDERS, AI_PROVIDER_LIST, resolveEndpoint } from "
 import { useAiProxyStatus } from "@/hooks/useAiProxyStatus";
 import { useAiChatStore, type ChatSession } from "@/lib/ai-chat-store";
 import { useAiIntake } from "@/lib/ai-intake";
+import { useEditorIntake } from "@/lib/editor-intake";
+import { contractNameOf } from "@/lib/solidity-name";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -573,6 +577,16 @@ function renderContent(content: string, onUseCode?: (code: string) => void) {
 
 function CodeChunk({ code, onUseCode }: { code: string; onUseCode?: (code: string) => void }) {
   const [copied, setCopied] = useState(false);
+  const navigate = useNavigate();
+  const setPending = useEditorIntake((s) => s.setPending);
+
+  const openInEditor = () => {
+    const name = contractNameOf(code) ?? "Contract";
+    setPending(`${name}.sol`, code);
+    toast.success(`Opening ${name}.sol in the Contract Editor`);
+    void navigate({ to: "/launchkit/editor" });
+  };
+
   return (
     <div className="my-1.5 overflow-hidden rounded border border-border bg-background">
       <div className="flex items-center justify-between border-b border-border px-2 py-1">
@@ -587,6 +601,13 @@ function CodeChunk({ code, onUseCode }: { code: string; onUseCode?: (code: strin
             className="flex items-center gap-1 text-[9px] text-meta hover:text-foreground"
           >
             {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+          </button>
+          <button
+            onClick={openInEditor}
+            className="flex items-center gap-1 text-[9px] text-primary hover:underline"
+            title="Open in Contract Editor"
+          >
+            <FileCode2 className="h-3 w-3" /> editor
           </button>
           {onUseCode && (
             <button
