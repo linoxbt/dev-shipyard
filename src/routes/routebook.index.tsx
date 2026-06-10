@@ -1,27 +1,27 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Search, FileCode2, Tags, ArrowRight } from "lucide-react";
+import { Search, FileCode2, Coins, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { storage } from "@/lib/storage";
 import { useNetworkPref } from "@/lib/active-chain";
 import { qieMainnet } from "@/lib/chains";
 
-// Two real QIE Mainnet transactions that decode into a fully-named execution
-// map (named contract + named method + arguments), so the inspector can be
-// demoed without hunting for a hash. Both call DevStation's own registries.
+// Two real QIE Mainnet transactions that show off the inspector without hunting
+// for a hash: one with token movements, one with a fully-decoded method call.
 const DEMOS = [
+  {
+    hash: "0x3957e6f5f7c4c309ed93ef439f50b1eefa051d19c6e7256b4f77d0b85b9dce11",
+    icon: Coins,
+    title: "ERC-20 token launch",
+    blurb:
+      "A token deployment — see the contract creation and 1,000,000 tokens minted in Token Movements.",
+  },
   {
     hash: "0x9ad9367de62261ec16c3b80fb4d61308b18c6da0a56ce5433bfaf04706e7ccf9",
     icon: FileCode2,
     title: "ProjectRegistry.recordDeployment(…)",
-    blurb: "A deployment recorded onchain — decoded contract, method, and every argument.",
-  },
-  {
-    hash: "0x3032d47c1d020c281d50c84cc19ecc556a528b2ddcd35e7b055018bb0fc55044",
-    icon: Tags,
-    title: "ContractLabelRegistry.submitLabel(…)",
-    blurb: "A contract label submission — named contract, decoded call, and route graph.",
+    blurb: "A registry write — named contract, decoded method, and every argument typed out.",
   },
 ];
 
