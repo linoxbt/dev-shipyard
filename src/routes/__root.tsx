@@ -59,8 +59,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "DevStation — QIE Builder Console" },
+      // PWA: installable as an app ("Add to Home Screen").
+      { name: "theme-color", content: "#0a0e13" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "DevStation" },
+      { name: "application-name", content: "DevStation" },
       {
         name: "description",
         content: "Unified deploy & debug console for the QIE blockchain. LaunchKit + Routebook.",
@@ -90,6 +97,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
@@ -136,6 +146,19 @@ function RootComponent() {
   useEffect(() => {
     hydrateTheme();
   }, [hydrateTheme]);
+
+  // Register the service worker so the app is installable ("Add to Home Screen").
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    const register = () =>
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        /* SW registration is best-effort; the app works fine without it */
+      });
+    if (document.readyState === "complete") register();
+    else {
+      window.addEventListener("load", register, { once: true });
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

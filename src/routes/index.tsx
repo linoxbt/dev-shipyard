@@ -15,6 +15,7 @@ import {
   Github,
 } from "lucide-react";
 import { LogoMark } from "@/components/shared/Logo";
+import { InstallButton } from "@/components/pwa/InstallButton";
 import { useTheme } from "@/lib/theme";
 import { useNetworkStatus } from "@/hooks/useChainData";
 import { useGlobalDeployStats } from "@/hooks/useProjectRegistry";
@@ -99,6 +100,7 @@ function LandingNav() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          <InstallButton className="hidden sm:inline-flex" />
           <button
             onClick={toggle}
             className="rounded border border-border p-1.5 text-muted-foreground hover:border-primary hover:text-primary"

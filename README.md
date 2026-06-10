@@ -268,3 +268,7 @@ public/_redirects       Netlify SSR catch-all
 
 - **Contract verification** is implemented (the deploy flow and Projects page submit flattened source to the QIE explorer's Blockscout verifier), but the QIE explorer's verifier service may not always confirm a submission. When that happens the contract still works and is fully usable; the verification request is correct and completes once the explorer service accepts it.
 - The QIE network's `eth_estimateGas` is unreliable for storage-writing calls; DevStation pins explicit gas limits on registry writes to work around it.
+
+## License
+
+DevStation is released under the [MIT License](./LICENSE).
