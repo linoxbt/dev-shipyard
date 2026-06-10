@@ -119,7 +119,24 @@ export const Route = createFileRoute("/api/ai")({
     handlers: {
       GET: () => {
         const c = serverConfig();
-        return Response.json({ configured: isConfigured(c), provider: c.provider });
+        const e = process.env;
+        return Response.json({
+          configured: isConfigured(c),
+          provider: c.provider,
+          // Diagnostic only: which key env vars this server function can see
+          // (booleans — never the values). Lets us tell whether the host is
+          // actually passing the key to the function. `build` confirms the
+          // OpenRouter-aware code is the one running.
+          build: "ai-2",
+          seen: {
+            OPENROUTER_API_KEY: !!e.OPENROUTER_API_KEY,
+            OPENAI_API_KEY: !!e.OPENAI_API_KEY,
+            AI_API_KEY: !!e.AI_API_KEY,
+            ANTHROPIC_API_KEY: !!e.ANTHROPIC_API_KEY,
+            AI_PROVIDER: e.AI_PROVIDER || null,
+            VITE_AI_PROXY: e.VITE_AI_PROXY || null,
+          },
+        });
       },
 
       POST: async ({ request }) => {
