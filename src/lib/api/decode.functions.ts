@@ -6,12 +6,15 @@ import {
   formatEther,
   formatUnits,
   getAddress,
+  decodeFunctionData,
   type Hex,
   type Log,
 } from "viem";
-import { qieTestnet, SUPPORTED_CHAINS } from "@/lib/chains";
+import { qieTestnet, SUPPORTED_CHAINS, chainConfig } from "@/lib/chains";
 import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
 import { labelRegistryAddress, isContractConfigured } from "@/lib/contracts";
+
+const SUBMIT_LABEL_SELECTOR = "0x194cab0d"; // submitLabel(address,string,string,string,bool)
 import { decodeCalldata, knownContractName } from "@/lib/decode-abi";
 import {
   REVERT_PATTERNS,
@@ -238,19 +241,36 @@ export const decodeTransaction = createServerFn({ method: "POST" })
         const names = new Map<string, string>();
         const labelReg = labelRegistryAddress(chainId);
         if (isContractConfigured(labelReg) && routeAddrs.size > 0) {
-          const list = [...routeAddrs];
+          // Read labels from the registry's submitLabel tx history via the
+          // explorer. The contract's batchGetLabels/getLabelName views return
+          // strings and REVERT on QIE (missing MCOPY opcode 0x5e), so we decode
+          // calldata instead.
           try {
-            const labelNames = (await client.readContract({
-              address: labelReg,
-              abi: contractLabelRegistryAbi,
-              functionName: "batchGetLabels",
-              args: [list as `0x${string}`[]],
-            })) as string[];
-            list.forEach((addr, i) => {
-              if (labelNames[i]) names.set(addr, labelNames[i]);
-            });
+            const api = chainConfig(chainId).explorerApiUrl;
+            const resp = await fetch(
+              `${api}?module=account&action=txlist&address=${labelReg}&sort=asc`,
+            );
+            const json = (await resp.json()) as {
+              result?: Array<{ to?: string; input?: string; isError?: string }>;
+            };
+            for (const t of json.result ?? []) {
+              if (t.to?.toLowerCase() !== labelReg.toLowerCase()) continue;
+              if (!(t.input ?? "").startsWith(SUBMIT_LABEL_SELECTOR)) continue;
+              if (t.isError !== "0") continue;
+              try {
+                const d = decodeFunctionData({
+                  abi: contractLabelRegistryAbi,
+                  data: t.input as Hex,
+                });
+                if (d.functionName !== "submitLabel") continue;
+                const addr = (d.args[0] as string).toLowerCase();
+                if (routeAddrs.has(addr)) names.set(addr, d.args[1] as string);
+              } catch {
+                /* skip */
+              }
+            }
           } catch {
-            /* registry read failed; fall back to built-in + token names */
+            /* explorer unreachable; fall back to built-in + token names */
           }
         }
         // Token symbols are also useful names for token contracts in the route.

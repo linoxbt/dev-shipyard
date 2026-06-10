@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createPublicClient, http, formatUnits, decodeFunctionData } from "viem";
 import { qieTestnet, SUPPORTED_CHAINS, chainConfig } from "@/lib/chains";
 import { projectRegistryAbi } from "@/lib/abis/projectRegistry";
+import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
 
 function clientFor(chainId: number) {
   const chain = SUPPORTED_CHAINS.find((c) => c.id === chainId) ?? qieTestnet;
@@ -201,4 +202,69 @@ export const getAllDeployments = createServerFn({ method: "GET" })
       /* leave empty if the explorer is unreachable */
     }
     return { chainId, deployments };
+  });
+
+// Every contract label, decoded from the registry's submitLabel transaction
+// history. QIE's EVM lacks the MCOPY opcode (0x5e) that solc 0.8.26 emits for
+// string-returning view functions, so getLabel/batchGetLabels REVERT on-chain.
+// Reading from tx calldata sidesteps that entirely. Newest write per address
+// wins (a re-label overwrites). Returns plain serializable fields.
+const SUBMIT_LABEL_SELECTOR = "0x194cab0d"; // submitLabel(address,string,string,string,bool)
+
+export interface EcosystemLabel {
+  address: string;
+  name: string;
+  category: string;
+  submitter: string;
+  autoLabeled: boolean;
+  timestamp: number; // epoch seconds
+}
+
+export const getAllLabels = createServerFn({ method: "GET" })
+  .inputValidator(templateStatsInput)
+  .handler(async ({ data }) => {
+    const { chainId, registry } = data;
+    try {
+      const api = chainConfig(chainId).explorerApiUrl;
+      const url = `${api}?module=account&action=txlist&address=${registry}&sort=asc`;
+      const resp = await fetch(url);
+      const json = (await resp.json()) as {
+        result?: Array<{
+          to?: string;
+          from: string;
+          input?: string;
+          isError?: string;
+          timeStamp?: string;
+        }>;
+      };
+      const txs = Array.isArray(json.result) ? json.result : [];
+      // asc order → later writes overwrite earlier ones for the same address.
+      const byAddr = new Map<string, EcosystemLabel>();
+      for (const t of txs) {
+        if (t.to?.toLowerCase() !== registry.toLowerCase()) continue;
+        if (!(t.input ?? "").startsWith(SUBMIT_LABEL_SELECTOR)) continue;
+        if (t.isError !== "0") continue;
+        try {
+          const decoded = decodeFunctionData({
+            abi: contractLabelRegistryAbi,
+            data: t.input as `0x${string}`,
+          });
+          if (decoded.functionName !== "submitLabel") continue;
+          const addr = (decoded.args[0] as string).toLowerCase();
+          byAddr.set(addr, {
+            address: decoded.args[0] as string,
+            name: decoded.args[1] as string,
+            category: decoded.args[2] as string,
+            autoLabeled: decoded.args[4] as boolean,
+            submitter: t.from,
+            timestamp: Number(t.timeStamp ?? 0),
+          });
+        } catch {
+          /* skip un-decodable */
+        }
+      }
+      return { chainId, labels: [...byAddr.values()].reverse() }; // newest first
+    } catch {
+      return { chainId, labels: [] as EcosystemLabel[] };
+    }
   });
