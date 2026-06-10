@@ -273,7 +273,9 @@ function TxView() {
 function RouteNode({ call, depth }: { call: RouteCall; depth: number }) {
   const [open, setOpen] = useState(depth < 2);
   const hasChildren = call.children.length > 0 || call.events.length > 0;
-  const label = findLabel(call.contractAddress);
+  // Names come from the decoder (onchain ContractLabelRegistry + built-in
+  // DevStation registries + token symbols); fall back to a local mock label.
+  const resolvedName = call.contractName || findLabel(call.contractAddress)?.name;
 
   const borderColor =
     call.type === "user"
@@ -302,18 +304,21 @@ function RouteNode({ call, depth }: { call: RouteCall; depth: number }) {
           )}
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-baseline gap-2">
-              {label ? (
-                <span className="font-mono text-sm font-bold text-info">{label.name}</span>
-              ) : call.contractName ? (
-                <span className="font-mono text-sm font-bold text-primary">
-                  {call.contractName}
+              {resolvedName ? (
+                <span
+                  className="font-mono text-sm font-bold text-info"
+                  title={call.contractAddress}
+                >
+                  {resolvedName}
                 </span>
               ) : (
                 <span
-                  className="font-mono text-sm font-bold text-danger"
+                  className="font-mono text-sm font-bold text-muted-foreground"
                   title={call.contractAddress}
                 >
-                  [Unknown Contract]
+                  {call.contractAddress === "0x"
+                    ? "EOA"
+                    : `${call.contractAddress.slice(0, 10)}…${call.contractAddress.slice(-6)}`}
                 </span>
               )}
               <span className="font-mono text-xs text-code break-all">.{call.fn}</span>

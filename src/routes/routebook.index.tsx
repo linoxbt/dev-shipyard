@@ -1,9 +1,29 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, FileCode2, Tags, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { storage } from "@/lib/storage";
+import { useNetworkPref } from "@/lib/active-chain";
+import { qieMainnet } from "@/lib/chains";
+
+// Two real QIE Mainnet transactions that decode into a fully-named execution
+// map (named contract + named method + arguments), so the inspector can be
+// demoed without hunting for a hash. Both call DevStation's own registries.
+const DEMOS = [
+  {
+    hash: "0x9ad9367de62261ec16c3b80fb4d61308b18c6da0a56ce5433bfaf04706e7ccf9",
+    icon: FileCode2,
+    title: "ProjectRegistry.recordDeployment(…)",
+    blurb: "A deployment recorded onchain — decoded contract, method, and every argument.",
+  },
+  {
+    hash: "0x3032d47c1d020c281d50c84cc19ecc556a528b2ddcd35e7b055018bb0fc55044",
+    icon: Tags,
+    title: "ContractLabelRegistry.submitLabel(…)",
+    blurb: "A contract label submission — named contract, decoded call, and route graph.",
+  },
+];
 
 export const Route = createFileRoute("/routebook/")({
   head: () => ({
@@ -22,12 +42,20 @@ function RoutebookHome() {
   const [hash, setHash] = useState("");
   const [recent, setRecent] = useState<string[]>([]);
   const navigate = useNavigate();
+  const setPreferred = useNetworkPref((s) => s.setPreferred);
 
   useEffect(() => setRecent(storage.loadInspections()), []);
 
   const submit = () => {
     if (!hash.trim()) return;
     navigate({ to: "/routebook/$txHash", params: { txHash: hash.trim() } });
+  };
+
+  // Demo txs live on Mainnet — switch the active chain so the decoder reads the
+  // right network, then open the inspector.
+  const openDemo = (h: string) => {
+    setPreferred(qieMainnet.id);
+    navigate({ to: "/routebook/$txHash", params: { txHash: h } });
   };
 
   return (
@@ -83,6 +111,30 @@ function RoutebookHome() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Try a demo — two real mainnet txs that decode into a named route */}
+          <div className="mt-6">
+            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-meta">
+              Try a demo transaction
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {DEMOS.map((d) => (
+                <button
+                  key={d.hash}
+                  onClick={() => openDemo(d.hash)}
+                  className="group rounded border border-border bg-surface p-4 text-left transition hover:border-primary/50"
+                >
+                  <div className="flex items-center gap-2">
+                    <d.icon className="h-4 w-4 text-primary" />
+                    <span className="font-mono text-xs font-bold text-foreground">{d.title}</span>
+                    <ArrowRight className="ml-auto h-3.5 w-3.5 text-meta transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                  </div>
+                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{d.blurb}</p>
+                  <span className="mt-1 block font-mono text-[10px] text-meta">QIE Mainnet</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="mt-6 rounded border border-border bg-surface p-6 text-center font-mono text-xs text-meta">

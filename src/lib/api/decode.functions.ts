@@ -10,6 +10,9 @@ import {
   type Log,
 } from "viem";
 import { qieTestnet, SUPPORTED_CHAINS } from "@/lib/chains";
+import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
+import { labelRegistryAddress, isContractConfigured } from "@/lib/contracts";
+import { decodeCalldata, knownContractName } from "@/lib/decode-abi";
 import {
   REVERT_PATTERNS,
   type DecodedTx,
@@ -58,12 +61,7 @@ interface RawCall {
   calls?: RawCall[];
 }
 
-function selectorOf(input?: string): string {
-  if (!input || input === "0x" || input.length < 10) return "(native transfer)";
-  return input.slice(0, 10);
-}
-
-function mapCallNode(node: RawCall, path: string, depth: number): RouteCall {
+function mapCallNode(node: RawCall, path: string, depth: number, addrs: Set<string>): RouteCall {
   const type: CallType = node.error
     ? "failed"
     : node.type === "STATICCALL"
@@ -71,16 +69,39 @@ function mapCallNode(node: RawCall, path: string, depth: number): RouteCall {
       : depth === 0
         ? "user"
         : "internal";
+  const isCreate = node.type === "CREATE" || node.type === "CREATE2";
+  const decoded = isCreate
+    ? { fn: "constructor() [contract creation]", args: [] }
+    : decodeCalldata(node.input);
+  const to = node.to ?? "0x";
+  if (to && to !== "0x") addrs.add(to.toLowerCase());
   return {
     id: path,
     type,
-    contractAddress: node.to ?? "0x",
-    fn: selectorOf(node.input),
-    args: [],
+    contractAddress: to,
+    fn: decoded.fn,
+    args: decoded.args,
     events: [],
     gasUsed: node.gasUsed ? Number(BigInt(node.gasUsed)) : 0,
-    children: (node.calls ?? []).map((c, i) => mapCallNode(c, `${path}.${i + 1}`, depth + 1)),
+    children: (node.calls ?? []).map((c, i) =>
+      mapCallNode(c, `${path}.${i + 1}`, depth + 1, addrs),
+    ),
   };
+}
+
+// Resolve a human-readable name for every address in the route: built-in
+// DevStation registries first, then the onchain ContractLabelRegistry, then
+// token symbols already fetched. Mutates the route tree in place.
+function applyNames(route: RouteCall, names: Map<string, string>, chainId: number): void {
+  const a = route.contractAddress.toLowerCase();
+  route.contractName = knownContractName(route.contractAddress, chainId) || names.get(a);
+  for (const child of route.children) applyNames(child, names, chainId);
+}
+
+function collectAddrs(route: RouteCall, out: Set<string>): void {
+  if (route.contractAddress && route.contractAddress !== "0x")
+    out.add(route.contractAddress.toLowerCase());
+  for (const c of route.children) collectAddrs(c, out);
 }
 
 async function tokenMeta(client: ReturnType<typeof clientFor>, tokens: Set<string>) {
@@ -188,25 +209,53 @@ export const decodeTransaction = createServerFn({ method: "POST" })
         }
 
         // Execution route: prefer callTracer, fall back to a single top-level call.
+        const routeAddrs = new Set<string>();
         let route: RouteCall;
         try {
           const trace = (await client.request({
             method: "debug_traceTransaction" as never,
             params: [hash, { tracer: "callTracer" }] as never,
           })) as RawCall;
-          route = mapCallNode(trace, "r", 0);
+          route = mapCallNode(trace, "r", 0, routeAddrs);
         } catch {
+          const decoded = decodeCalldata(tx.input);
+          const isCreate = !tx.to && !!receipt.contractAddress;
           route = {
             id: "r",
             type: receipt.status === "reverted" ? "failed" : "user",
-            contractAddress: tx.to ?? "0x",
-            fn: selectorOf(tx.input),
-            args: [],
+            contractAddress: tx.to ?? receipt.contractAddress ?? "0x",
+            fn: isCreate ? "constructor() [contract creation]" : decoded.fn,
+            args: isCreate ? [] : decoded.args,
             events: [],
             gasUsed: Number(receipt.gasUsed),
             children: [],
           };
         }
+        collectAddrs(route, routeAddrs);
+
+        // Resolve human-readable names for every address in the route from the
+        // onchain ContractLabelRegistry (batched), then apply them to the tree.
+        const names = new Map<string, string>();
+        const labelReg = labelRegistryAddress(chainId);
+        if (isContractConfigured(labelReg) && routeAddrs.size > 0) {
+          const list = [...routeAddrs];
+          try {
+            const labelNames = (await client.readContract({
+              address: labelReg,
+              abi: contractLabelRegistryAbi,
+              functionName: "batchGetLabels",
+              args: [list as `0x${string}`[]],
+            })) as string[];
+            list.forEach((addr, i) => {
+              if (labelNames[i]) names.set(addr, labelNames[i]);
+            });
+          } catch {
+            /* registry read failed; fall back to built-in + token names */
+          }
+        }
+        // Token symbols are also useful names for token contracts in the route.
+        for (const [addr, m] of meta) if (!names.has(addr)) names.set(addr, m.symbol);
+        applyNames(route, names, chainId);
 
         // Revert reason via simulation (best-effort).
         let revertReason: string | undefined;
