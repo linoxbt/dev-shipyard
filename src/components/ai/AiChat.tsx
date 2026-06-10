@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { chatStream, SOLIDITY_SYSTEM_PROMPT, type ChatMessage } from "@/lib/ai";
 import { useAiSettings, AI_PROVIDERS, AI_PROVIDER_LIST, resolveEndpoint } from "@/lib/ai-settings";
+import { useAiProxyStatus } from "@/hooks/useAiProxyStatus";
 import { useAiChatStore, type ChatSession } from "@/lib/ai-chat-store";
 import { useAiIntake } from "@/lib/ai-intake";
 import { cn } from "@/lib/utils";
@@ -384,12 +385,60 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
     "w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none";
   const labelCls = "mb-0.5 block font-mono text-[9px] uppercase tracking-wider text-meta";
 
+  // Whether the operator has configured a default key on the server.
+  const { data: proxyStatus } = useAiProxyStatus();
+  const proxyAvailable = proxyStatus?.configured ?? false;
+
+  const saveKey = () => {
+    s.setKey(keyDraft.trim());
+    toast.success(keyDraft.trim() ? "API key saved" : "API key cleared");
+    onClose();
+  };
+
+  // The AI-source switch: "Provided" uses the server proxy (operator key, e.g.
+  // an OpenRouter key set in the host env); "Your key" uses the controls below.
+  const sourceSwitch = (
+    <div>
+      <label className={labelCls}>AI source</label>
+      <div className="inline-flex w-full rounded border border-border bg-surface p-0.5">
+        <button
+          onClick={() => s.setProxy(true)}
+          disabled={!proxyAvailable}
+          className={cn(
+            "flex-1 rounded px-2 py-1 font-mono text-[10px] transition disabled:opacity-40",
+            s.proxy ? "bg-primary text-primary-foreground" : "text-meta hover:text-foreground",
+          )}
+          title={proxyAvailable ? "" : "No default key is configured on this deployment"}
+        >
+          Provided default
+        </button>
+        <button
+          onClick={() => s.setProxy(false)}
+          className={cn(
+            "flex-1 rounded px-2 py-1 font-mono text-[10px] transition",
+            !s.proxy ? "bg-primary text-primary-foreground" : "text-meta hover:text-foreground",
+          )}
+        >
+          Use my own key
+        </button>
+      </div>
+      <p className="mt-1 font-mono text-[9px] leading-relaxed text-meta">
+        {s.proxy
+          ? "Using the built-in AI provided by this deployment. No key needed."
+          : proxyAvailable
+            ? "Using your own provider and key (configured below)."
+            : "No default is configured on this deployment, so bring your own key below."}
+      </p>
+    </div>
+  );
+
   if (s.proxy) {
     return (
-      <div className="space-y-2 border-b border-border bg-background/40 p-3">
+      <div className="space-y-2.5 border-b border-border bg-background/40 p-3">
+        {sourceSwitch}
         <div className="rounded border border-primary/30 bg-primary/5 p-2.5 font-mono text-[10px] leading-relaxed text-muted-foreground">
-          Requests route through this app's <span className="text-primary">server proxy</span> —
-          your API key stays server-side and is never sent to the browser.
+          Requests route through this app&apos;s <span className="text-primary">server proxy</span>.
+          The API key stays server-side and is never sent to the browser.
         </div>
         <div className="flex justify-end">
           <button onClick={onClose} className="font-mono text-[10px] text-primary hover:underline">
@@ -400,14 +449,10 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
     );
   }
 
-  const saveKey = () => {
-    s.setKey(keyDraft.trim());
-    toast.success(keyDraft.trim() ? "API key saved" : "API key cleared");
-    onClose();
-  };
-
   return (
     <div className="space-y-2.5 border-b border-border bg-background/40 p-3">
+      {sourceSwitch}
+
       {/* Provider */}
       <div>
         <label className={labelCls}>Provider</label>

@@ -97,6 +97,9 @@ function defaults(): AiSettings {
     provider: "openai",
     model: AI_PROVIDERS.openai.models[0],
     keys: {},
+    // Default to the operator-provided server proxy when the deployment opts in
+    // with VITE_AI_PROXY=true (set alongside the server key, e.g. an OpenRouter
+    // key in the host env). Users can switch to their own key in Settings.
     proxy: (env.VITE_AI_PROXY as string | undefined) === "true",
   };
 }
@@ -166,6 +169,7 @@ interface AiSettingsStore extends AiSettings {
   setProvider: (p: AiProvider) => void;
   setModel: (m: string) => void;
   setKey: (key: string) => void;
+  setProxy: (on: boolean) => void;
   reset: () => void;
 }
 
@@ -179,6 +183,13 @@ export const useAiSettings = create<AiSettingsStore>((set, get) => ({
     const next = { ...get(), provider: p, model };
     save(next);
     set({ provider: p, model });
+  },
+  // Toggle between the operator-provided server proxy (default) and a personal
+  // bring-your-own-key. Persisted so the choice survives refresh.
+  setProxy: (on) => {
+    const next = { ...get(), proxy: on };
+    save(next);
+    set({ proxy: on });
   },
   setModel: (m) => {
     const next = { ...get(), model: m };

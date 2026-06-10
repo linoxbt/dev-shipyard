@@ -26,9 +26,22 @@ interface ServerConfig {
 // purpose — Vite only inlines VITE_*, so keys here never reach the browser.
 function serverConfig(): ServerConfig {
   const e = process.env;
+  // OpenRouter is an OpenAI-compatible provider, so it maps onto the "openai"
+  // branch with the OpenRouter base URL. Setting OPENROUTER_API_KEY (e.g. in the
+  // Netlify env) is the simplest way to provide a default key for all users.
+  const openrouterKey = e.OPENROUTER_API_KEY || "";
+  const openaiEndpoint =
+    e.OPENAI_ENDPOINT ||
+    e.AI_ENDPOINT ||
+    (openrouterKey ? "https://openrouter.ai/api/v1/chat/completions" : "");
+  const openaiKey = e.OPENAI_API_KEY || e.AI_API_KEY || openrouterKey;
+  const openaiModel =
+    e.OPENAI_MODEL || e.AI_MODEL || (openrouterKey ? "openai/gpt-4o-mini" : "gpt-4o-mini");
+
   const provider: Provider =
     (e.AI_PROVIDER as Provider) ||
-    (e.ANTHROPIC_API_KEY ? "anthropic" : e.OPENAI_API_KEY || e.AI_API_KEY ? "openai" : "anthropic");
+    (e.ANTHROPIC_API_KEY ? "anthropic" : openaiKey ? "openai" : "anthropic");
+
   return {
     provider,
     anthropic: {
@@ -37,9 +50,9 @@ function serverConfig(): ServerConfig {
       model: e.ANTHROPIC_MODEL || "claude-opus-4-8",
     },
     openai: {
-      endpoint: e.OPENAI_ENDPOINT || e.AI_ENDPOINT || "",
-      key: e.OPENAI_API_KEY || e.AI_API_KEY || "",
-      model: e.OPENAI_MODEL || e.AI_MODEL || "gpt-4o-mini",
+      endpoint: openaiEndpoint,
+      key: openaiKey,
+      model: openaiModel,
     },
   };
 }
@@ -79,12 +92,18 @@ async function upstreamRequest(
       signal,
     });
   }
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    authorization: `Bearer ${c.openai.key}`,
+  };
+  // OpenRouter recommends these attribution headers (harmless for plain OpenAI).
+  if (c.openai.endpoint.includes("openrouter")) {
+    headers["HTTP-Referer"] = "https://devstation.online";
+    headers["X-Title"] = "DevStation";
+  }
   return fetch(c.openai.endpoint, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${c.openai.key}`,
-    },
+    headers,
     body: JSON.stringify({
       model: c.openai.model,
       messages: [{ role: "system", content: system }, ...messages],
