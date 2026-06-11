@@ -2,7 +2,7 @@
 
 **The developer console for QIE Blockchain.** Deploy. Debug. Analyze. Inspect.
 
-DevStation is a complete, onchain developer console for the [QIE blockchain](https://qie.digital). It brings the everyday work of a smart-contract developer into one place: write and compile Solidity in the browser, deploy audited templates, decode any transaction, browse the chain with a built-in block explorer, and label contracts onchain. Everything runs against the live QIE network, and the records that matter (your deployments and the contract label registry) live onchain, not in a private database.
+DevStation is a complete, onchain developer console for the [QIE blockchain](https://qie.digital). It brings the everyday work of a smart-contract developer into one place: write and compile Solidity in the browser, deploy audited templates, generate and deploy contracts with an AI agent, decode any transaction, browse the chain with a built-in block explorer, and label contracts onchain. Everything runs against the live QIE network, and the records that matter (your deployments and the contract label registry) live onchain, not in a private database.
 
 - **Live app:** <https://devstation.online>
 - **Networks:** QIE Testnet (chain `1983`) and QIE Mainnet (chain `1990`)
@@ -24,17 +24,11 @@ DevStation is a complete, onchain developer console for the [QIE blockchain](htt
 - [Tech stack](#tech-stack)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
-  - [Network](#network-optional)
-  - [Registries (per network)](#registries-per-network)
-  - [AI assistant](#ai-assistant-optional)
-  - [Server-only and build-only](#server-only-and-build-only)
 - [How it works](#how-it-works)
-- [Deploying the registry contracts](#deploying-the-registry-contracts)
-- [Deploying the app](#deploying-the-app)
 - [Project structure](#project-structure)
 - [Scripts](#scripts)
-- [Security](#security)
 - [Known limitations](#known-limitations)
+- [License](#license)
 
 ---
 
@@ -42,7 +36,7 @@ DevStation is a complete, onchain developer console for the [QIE blockchain](htt
 
 | Area | What it does |
 | --- | --- |
-| **LaunchKit** | Deploy audited contract templates, write and compile Solidity in the browser, and generate contracts with AI. |
+| **LaunchKit** | Deploy audited contract templates, write and compile Solidity in the browser, and generate, audit, and deploy contracts with an AI agent. |
 | **Routebook** | Decode any QIE transaction into a readable call tree with internal calls, events, and onchain contract labels. |
 | **QIE Explorer** | A native, Etherscan-style block explorer for blocks, transactions, addresses, tokens, and holders, on both networks. |
 | **Onchain registries** | A ProjectRegistry records every deployment, and a ContractLabelRegistry gives contracts human-readable names. |
@@ -55,9 +49,9 @@ DevStation is a complete, onchain developer console for the [QIE blockchain](htt
 ### LaunchKit
 
 - **Template gallery** (`/launchkit/templates`): self-contained, audited templates (ERC20, ERC721, Soulbound NFT, MultiSig, Timelock, Vesting, Staking, Payment Splitter) with source and ABI viewers. Each card shows its real onchain deploy count, read from the ProjectRegistry's transaction history.
-- **Contract Editor** (`/launchkit/editor`): a Monaco editor with Solidity highlighting, a file workspace persisted to `localStorage`, a colored compiler terminal, and **in-browser compilation** via a `solc` Web Worker (no backend). Picks any solc 0.7 to 0.8.26 and resolves external imports (for example OpenZeppelin) from a CDN.
-- **Code with AI** (`/launchkit/ai`): describe a contract in natural language, get Solidity back, refine it, and move it into the editor to compile and deploy. See [AI assistant](#ai-assistant).
-- **Deploy** (`/launchkit/deploy`): a guided flow generated from a template's constructor. DevStation validates and encodes the arguments, compiles in a browser worker, sends the creation transaction through your wallet, and records the deployment onchain. The success screen links straight into Routebook and the DevStation explorer, and offers a ready-to-use `.env` and hackathon submission.
+- **Contract Editor** (`/launchkit/editor`): a Monaco editor with Solidity highlighting, a file workspace persisted to `localStorage`, a colored compiler terminal with an interactive command prompt, and **in-browser compilation** via a `solc` Web Worker (no backend). Picks any solc 0.7 to 0.8.26 and resolves external imports (for example OpenZeppelin) from a CDN.
+- **Code with AI** (`/launchkit/ai`): two modes. In **Chat**, the assistant writes secure, production-grade Solidity and audits contracts you paste, graded by severity; generated code blocks open straight in the Contract Editor. In **Agent** mode it goes autonomous: describe a contract, and it generates the source, compiles it in the browser, fixes its own compiler errors (up to five attempts), then deploys with your connected wallet, showing a constructor-argument form to review before you sign. See [AI assistant](#ai-assistant).
+- **Deploy** (`/launchkit/deploy`): a guided flow generated from a template's constructor. DevStation validates and encodes the arguments, compiles in a browser worker, sends the creation transaction through your wallet, and records the deployment onchain. The success screen links straight into Routebook and the DevStation explorer.
 - **Projects** (`/launchkit/projects`): a per-wallet history of everything you have deployed through DevStation, read from the onchain ProjectRegistry and merged with local history. Scoped to the connected wallet.
 
 ### Routebook
@@ -80,7 +74,7 @@ A prominent Testnet/Mainnet badge in the header makes the active chain unmistaka
 
 ### AI assistant
 
-The Solidity assistant works in three modes, resolved from Settings:
+The Solidity assistant works in two modes, resolved from Settings:
 
 - **Server proxy** (`/api/ai`): the provider key stays server-side and never reaches the browser. Preferred for shared deployments.
 - **Direct, bring-your-own-key:** you paste a key in the UI; it is stored only in your browser.
@@ -92,7 +86,6 @@ Supported providers (pick one, paste a key, save):
 | OpenAI | OpenAI | `gpt-4o`, `gpt-4.1`, `o4-mini`, and more. |
 | Claude (Anthropic) | Anthropic native | `claude-opus-4-x`, `claude-sonnet-4-x`, `claude-haiku-4-x`. |
 | OpenRouter | OpenAI-compatible | Access many models with one key. |
-| FreeModel | OpenAI-compatible | `gpt-5.x` line via `https://api.freemodel.dev`. Keys look like `fe_oa_...`. |
 
 ### Wallets
 
@@ -143,7 +136,7 @@ cp .env.example .env.local   # optional: sensible defaults are built in
 bun run dev                  # http://localhost:8080
 ```
 
-Everything works with zero config against QIE Testnet. Set env vars (below) to point at deployed registries, enable mainnet onchain features, configure AI, or add QUSDC.
+Everything works with zero config against QIE Testnet. Set env vars (below) to point at deployed registries, enable mainnet onchain features, or configure AI.
 
 ```bash
 bun run build      # production build (auto-detects Vercel/Netlify; else Vercel preset)
@@ -191,7 +184,7 @@ The AI provider, model, and key are chosen in the app's Settings and stored in t
 | Variable | Purpose |
 | --- | --- |
 | `VITE_AI_PROXY` | `"true"` to route AI requests through the `/api/ai` server proxy |
-| `VITE_AI_PROVIDER`, `VITE_AI_MODEL`, `VITE_AI_ENDPOINT`, `VITE_AI_API_KEY` | Server-side provider configuration for the proxy |
+| `OPENROUTER_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | Server-side provider key for the proxy (no `VITE_` prefix, so it never ships to the browser) |
 
 ### QIE ecosystem (optional)
 
@@ -199,7 +192,7 @@ The AI provider, model, and key are chosen in the app's Settings and stored in t
 | --- | --- |
 | `VITE_QUSDC_ADDRESS` | QUSDC (QIE stablecoin) token address. When set, the wallet shows a read-only QUSDC balance. |
 
-### Server-only and build-only
+### Server-only
 
 | Variable | Purpose |
 | --- | --- |
@@ -213,7 +206,7 @@ The AI provider, model, and key are chosen in the app's Settings and stored in t
 - **Onchain by default.** Deployments are recorded in the ProjectRegistry and contract names live in the ContractLabelRegistry, so the data is auditable and portable rather than locked in a private database. The Projects page reads `getDeployments(yourWallet)`; the Overview reads the global counter and derives unique deployers from the registry's transaction history.
 - **Compilation in the browser.** Solidity is compiled by a real `solc` build loaded in a Web Worker. There is no server compile step and nothing to install.
 - **Explorer via a server proxy.** The QIE Explorer reads the Blockscout v2 API through a chain-scoped server function. Fetching server-side avoids browser CORS limits and keeps the explorer working under SSR. The proxy validates the request path against the known Blockscout namespace, so it cannot be used to fetch arbitrary URLs.
-- **SSR everywhere.** Routes are server-rendered. Deep links and refreshes resolve through the SSR server function (see [Deploying the app](#deploying-the-app)).
+- **SSR everywhere.** Routes are server-rendered, so deep links and refreshes resolve correctly through the SSR server function.
 
 ---
 
@@ -231,18 +224,19 @@ src/
   components/
     explorer/           explorer UI, lists, search, formatters
     editor/             Monaco editor, terminal, deploy panel, contract interactor
+    ai/                 chat + autonomous agent surfaces
     deploy/             post-deploy verification + actions
     web3/ layout/ shared/ docs/  wallet, app shell, primitives, docs primitives
   lib/
     chains.ts           QIE testnet/mainnet viem chains + DEX URL
     contracts.ts        per-network registry addresses + write gas limit
     explorer/           network slug mapping, formatters, Blockscout types
-    ai-settings.ts ai.ts  AI providers, endpoint resolution, streaming client
+    ai-settings.ts ai.ts ai-agent.ts  AI providers, endpoint resolution, streaming client, agent protocol
     burner/             in-app encrypted wallet (vault, connector, store)
     compiler*.ts        browser solc Web Worker + interface
     api/                server functions (network status, ecosystem stats, explorer proxy, verify, ai)
     abis/               generated registry ABIs + bytecode
-  hooks/                useProjectRegistry, useContractLabels, useExplorer, useTemplateDeploys, useVerifyContract, ...
+  hooks/                useProjectRegistry, useContractLabels, useExplorer, useTemplateDeploys, useCodeAgent, ...
 vercel.json             Vercel SSR config
 netlify.toml            Netlify SSR config
 public/_redirects       Netlify SSR catch-all
@@ -261,13 +255,14 @@ public/_redirects       Netlify SSR catch-all
 | `bun run contracts:compile` | Compile registries to ABIs + artifacts |
 | `bun run contracts:deploy [mainnet]` | Deploy registries (testnet by default) |
 
-
 ---
 
 ## Known limitations
 
 - **Contract verification** is implemented (the deploy flow and Projects page submit flattened source to the QIE explorer's Blockscout verifier), but the QIE explorer's verifier service may not always confirm a submission. When that happens the contract still works and is fully usable; the verification request is correct and completes once the explorer service accepts it.
 - The QIE network's `eth_estimateGas` is unreliable for storage-writing calls; DevStation pins explicit gas limits on registry writes to work around it.
+
+---
 
 ## License
 
