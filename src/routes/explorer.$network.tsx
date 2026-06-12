@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Compass, ExternalLink } from "lucide-react";
+import { Compass, ExternalLink, ShieldCheck } from "lucide-react";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { chainConfig } from "@/lib/chains";
 import {
@@ -89,11 +89,19 @@ function ExplorerNetworkLayout() {
             ))}
           </div>
 
+          <Link
+            to="/explorer/$network/verify"
+            params={{ network: slug }}
+            className="ml-auto inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-primary"
+          >
+            <ShieldCheck className="h-3.5 w-3.5" /> Verify Contract
+          </Link>
+
           <a
             href={cfg.explorerUrl}
             target="_blank"
             rel="noreferrer"
-            className="ml-auto inline-flex items-center gap-1 font-mono text-[11px] text-meta hover:text-primary"
+            className="inline-flex items-center gap-1 font-mono text-[11px] text-meta hover:text-primary"
             title="The official QIE explorer this data is sourced from"
           >
             Data source <ExternalLink className="h-3 w-3" />

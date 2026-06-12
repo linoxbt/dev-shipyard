@@ -41,6 +41,7 @@ import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.
 import { Route as ExplorerNetworkIndexRouteImport } from './routes/explorer.$network.index'
 import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
 import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
+import { Route as ExplorerNetworkVerifyRouteImport } from './routes/explorer.$network.verify'
 import { Route as ExplorerNetworkTxnsRouteImport } from './routes/explorer.$network.txns'
 import { Route as ExplorerNetworkTokensRouteImport } from './routes/explorer.$network.tokens'
 import { Route as ExplorerNetworkBlocksRouteImport } from './routes/explorer.$network.blocks'
@@ -210,6 +211,11 @@ const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
   path: '/launchkit/templates/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExplorerNetworkVerifyRoute = ExplorerNetworkVerifyRouteImport.update({
+  id: '/verify',
+  path: '/verify',
+  getParentRoute: () => ExplorerNetworkRoute,
+} as any)
 const ExplorerNetworkTxnsRoute = ExplorerNetworkTxnsRouteImport.update({
   id: '/txns',
   path: '/txns',
@@ -281,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
+  '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
   '/explorer/$network/': typeof ExplorerNetworkIndexRoute
@@ -319,6 +326,7 @@ export interface FileRoutesByTo {
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
+  '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
   '/explorer/$network': typeof ExplorerNetworkIndexRoute
@@ -361,6 +369,7 @@ export interface FileRoutesById {
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
+  '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
   '/explorer/$network/': typeof ExplorerNetworkIndexRoute
@@ -404,6 +413,7 @@ export interface FileRouteTypes {
     | '/explorer/$network/blocks'
     | '/explorer/$network/tokens'
     | '/explorer/$network/txns'
+    | '/explorer/$network/verify'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
     | '/explorer/$network/'
@@ -442,6 +452,7 @@ export interface FileRouteTypes {
     | '/explorer/$network/blocks'
     | '/explorer/$network/tokens'
     | '/explorer/$network/txns'
+    | '/explorer/$network/verify'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
     | '/explorer/$network'
@@ -483,6 +494,7 @@ export interface FileRouteTypes {
     | '/explorer/$network/blocks'
     | '/explorer/$network/tokens'
     | '/explorer/$network/txns'
+    | '/explorer/$network/verify'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
     | '/explorer/$network/'
@@ -739,6 +751,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LaunchkitTemplatesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/explorer/$network/verify': {
+      id: '/explorer/$network/verify'
+      path: '/verify'
+      fullPath: '/explorer/$network/verify'
+      preLoaderRoute: typeof ExplorerNetworkVerifyRouteImport
+      parentRoute: typeof ExplorerNetworkRoute
+    }
     '/explorer/$network/txns': {
       id: '/explorer/$network/txns'
       path: '/txns'
@@ -827,6 +846,7 @@ interface ExplorerNetworkRouteChildren {
   ExplorerNetworkBlocksRoute: typeof ExplorerNetworkBlocksRoute
   ExplorerNetworkTokensRoute: typeof ExplorerNetworkTokensRoute
   ExplorerNetworkTxnsRoute: typeof ExplorerNetworkTxnsRoute
+  ExplorerNetworkVerifyRoute: typeof ExplorerNetworkVerifyRoute
   ExplorerNetworkIndexRoute: typeof ExplorerNetworkIndexRoute
   ExplorerNetworkAddressHashRoute: typeof ExplorerNetworkAddressHashRoute
   ExplorerNetworkBlockHeightRoute: typeof ExplorerNetworkBlockHeightRoute
@@ -838,6 +858,7 @@ const ExplorerNetworkRouteChildren: ExplorerNetworkRouteChildren = {
   ExplorerNetworkBlocksRoute: ExplorerNetworkBlocksRoute,
   ExplorerNetworkTokensRoute: ExplorerNetworkTokensRoute,
   ExplorerNetworkTxnsRoute: ExplorerNetworkTxnsRoute,
+  ExplorerNetworkVerifyRoute: ExplorerNetworkVerifyRoute,
   ExplorerNetworkIndexRoute: ExplorerNetworkIndexRoute,
   ExplorerNetworkAddressHashRoute: ExplorerNetworkAddressHashRoute,
   ExplorerNetworkBlockHeightRoute: ExplorerNetworkBlockHeightRoute,

@@ -1,7 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Wallet, FileCode2, CheckCircle2 } from "lucide-react";
 import { useExplorer } from "@/hooks/useExplorer";
+import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
+import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import {
   Card,
   StatCard,
@@ -343,15 +345,27 @@ function AddrLogs({ hash }: { hash: string }) {
   );
 }
 
+interface SmartContract {
+  name?: string;
+  is_verified?: boolean;
+  source_code?: string;
+  compiler_version?: string;
+  evm_version?: string;
+  optimization_enabled?: boolean;
+  optimization_runs?: number;
+  license_type?: string;
+  abi?: unknown[];
+  creation_bytecode?: string;
+  deployed_bytecode?: string;
+}
+
+type ContractSubTab = "code" | "read" | "write" | "abi" | "bytecode";
+
 function ContractTab({ addr }: { addr: ExAddress }) {
-  const { data } = useExplorer<{
-    name?: string;
-    is_verified?: boolean;
-    source_code?: string;
-    compiler_version?: string;
-    optimization_enabled?: boolean;
-    abi?: unknown;
-  }>(`/smart-contracts/${addr.hash}`);
+  const network = useExplorerNetwork();
+  const chainId = chainIdForSlug(network);
+  const [sub, setSub] = useState<ContractSubTab>("code");
+  const { data } = useExplorer<SmartContract>(`/smart-contracts/${addr.hash}`);
 
   if (!data)
     return (
@@ -360,51 +374,158 @@ function ContractTab({ addr }: { addr: ExAddress }) {
       </Card>
     );
 
-  if (!data.is_verified && !data.source_code) {
+  const verified = !!data.is_verified || !!data.source_code;
+  const abi = Array.isArray(data.abi) ? data.abi : [];
+
+  // Unverified: still show bytecode (always available) and a path to verify.
+  if (!verified) {
     return (
-      <Card title="Contract">
-        <div className="space-y-2 px-4 py-6 font-mono text-xs text-meta">
-          <p>This contract is not verified on the QIE explorer.</p>
-          <p className="text-muted-foreground">
-            Deploy through DevStation to auto-submit source for verification, or verify an existing
-            deployment from your Projects page.
-          </p>
-        </div>
-      </Card>
+      <div className="space-y-4">
+        <Card title="Contract">
+          <div className="space-y-3 px-4 py-5 font-mono text-xs">
+            <p className="text-meta">This contract is not verified on the QIE explorer.</p>
+            <p className="text-muted-foreground">
+              Verify the source to unlock Read/Write Contract, the ABI, and the compiler details.
+            </p>
+            <Link
+              to="/explorer/$network/verify"
+              params={{ network }}
+              search={{ address: addr.hash }}
+              className="inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground hover:bg-primary-hover"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" /> Verify &amp; Publish source
+            </Link>
+          </div>
+        </Card>
+        <ByteCodeCard data={data} />
+      </div>
     );
   }
 
+  const subTabs: { id: ContractSubTab; label: string }[] = [
+    { id: "code", label: "Code" },
+    { id: "read", label: "Read Contract" },
+    { id: "write", label: "Write Contract" },
+    { id: "abi", label: "ABI" },
+    { id: "bytecode", label: "ByteCode" },
+  ];
+
   return (
     <div className="space-y-4">
-      <Card title="Contract Info">
-        <div className="px-4 py-3 font-mono text-xs">
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-muted-foreground">
-            {data.name && (
-              <span>
-                Name: <span className="text-foreground">{data.name}</span>
-              </span>
-            )}
-            {data.compiler_version && (
-              <span>
-                Compiler: <span className="text-foreground">{data.compiler_version}</span>
-              </span>
-            )}
-            {data.optimization_enabled != null && (
-              <span>
-                Optimization:{" "}
-                <span className="text-foreground">{data.optimization_enabled ? "Yes" : "No"}</span>
-              </span>
-            )}
+      {/* Sub-tab strip */}
+      <div className="flex flex-wrap gap-1 border-b border-border">
+        {subTabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setSub(t.id)}
+            className={`-mb-px border-b-2 px-3 py-2 font-mono text-[11px] transition ${
+              sub === t.id
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {sub === "code" && <CodeSubTab data={data} />}
+      {(sub === "read" || sub === "write") && (
+        <Card title={sub === "read" ? "Read Contract" : "Write Contract"}>
+          <div className="p-3">
+            <ContractInteractor
+              contractAddress={addr.hash as `0x${string}`}
+              abi={abi}
+              chainId={chainId}
+            />
           </div>
+        </Card>
+      )}
+      {sub === "abi" && <AbiCard abi={abi} />}
+      {sub === "bytecode" && <ByteCodeCard data={data} />}
+    </div>
+  );
+}
+
+function CodeSubTab({ data }: { data: SmartContract }) {
+  return (
+    <div className="space-y-4">
+      <Card title="Compiler & Settings">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-2 px-4 py-3 font-mono text-xs sm:grid-cols-3">
+          <Field label="Contract Name" value={data.name} />
+          <Field label="Compiler" value={data.compiler_version} />
+          <Field label="EVM Version" value={data.evm_version} />
+          <Field
+            label="Optimization"
+            value={
+              data.optimization_enabled == null
+                ? undefined
+                : data.optimization_enabled
+                  ? `Yes${data.optimization_runs ? ` (${data.optimization_runs} runs)` : ""}`
+                  : "No"
+            }
+          />
+          <Field label="License" value={data.license_type} />
         </div>
       </Card>
       {data.source_code && (
-        <Card title="Source Code">
+        <Card title="Source Code" action={<CopyBtn value={data.source_code} />}>
           <pre className="max-h-[600px] overflow-auto p-4 font-mono text-[11px] leading-relaxed text-muted-foreground">
             {data.source_code}
           </pre>
         </Card>
       )}
+    </div>
+  );
+}
+
+function AbiCard({ abi }: { abi: unknown[] }) {
+  const json = JSON.stringify(abi, null, 2);
+  return (
+    <Card title="Contract ABI" action={abi.length > 0 ? <CopyBtn value={json} /> : undefined}>
+      {abi.length === 0 ? (
+        <Empty>No ABI available.</Empty>
+      ) : (
+        <pre className="max-h-[600px] overflow-auto p-4 font-mono text-[11px] leading-relaxed text-muted-foreground">
+          {json}
+        </pre>
+      )}
+    </Card>
+  );
+}
+
+function ByteCodeCard({ data }: { data: SmartContract }) {
+  if (!data.deployed_bytecode && !data.creation_bytecode)
+    return (
+      <Card title="ByteCode">
+        <Empty>No bytecode available.</Empty>
+      </Card>
+    );
+  return (
+    <div className="space-y-4">
+      {data.deployed_bytecode && (
+        <Card title="Deployed ByteCode" action={<CopyBtn value={data.deployed_bytecode} />}>
+          <pre className="max-h-72 overflow-auto p-4 font-mono text-[10px] leading-relaxed break-all text-muted-foreground">
+            {data.deployed_bytecode}
+          </pre>
+        </Card>
+      )}
+      {data.creation_bytecode && (
+        <Card title="Creation ByteCode" action={<CopyBtn value={data.creation_bytecode} />}>
+          <pre className="max-h-72 overflow-auto p-4 font-mono text-[10px] leading-relaxed break-all text-muted-foreground">
+            {data.creation_bytecode}
+          </pre>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value?: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-meta">{label}</div>
+      <div className="text-foreground break-all">{value || "—"}</div>
     </div>
   );
 }

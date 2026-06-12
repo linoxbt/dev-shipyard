@@ -4,6 +4,8 @@ import { useExplorer } from "@/hooks/useExplorer";
 import { SearchBar } from "@/components/explorer/SearchBar";
 import { StatCard, Card, Spinner } from "@/components/explorer/ui";
 import { TxFeed, BlockFeed, ViewAll } from "@/components/explorer/lists";
+import { ExplorerCharts } from "@/components/explorer/Charts";
+import { ClientOnly } from "@/components/shared/ClientOnly";
 import { withCommas, formatGwei } from "@/lib/explorer/format";
 import { networkLabel, isNetworkSlug, type NetworkSlug } from "@/lib/explorer/network";
 import type { ExStats, ExTx, ExBlock } from "@/lib/explorer/types";
@@ -82,6 +84,11 @@ function ExplorerHome() {
           )}
         </span>
       </div>
+
+      {/* Analytics charts */}
+      <ClientOnly fallback={<div className="h-56" />}>
+        <ExplorerCharts />
+      </ClientOnly>
 
       {/* Latest blocks + transactions */}
       <div className="grid gap-5 lg:grid-cols-2">

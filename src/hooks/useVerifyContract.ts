@@ -11,6 +11,7 @@ export interface VerifyParams {
   compilerVersion: string; // short, e.g. "0.8.20"
   optimization?: boolean;
   optimizationRuns?: number;
+  licenseType?: string;
 }
 
 const POLL_MS = 4000;
@@ -44,6 +45,7 @@ export function useVerifyContract() {
         compilerVersion: p.compilerVersion,
         optimization: p.optimization ?? false,
         optimizationRuns: p.optimizationRuns ?? 200,
+        licenseType: p.licenseType ?? "mit",
       },
     });
     if (!res.ok) {
