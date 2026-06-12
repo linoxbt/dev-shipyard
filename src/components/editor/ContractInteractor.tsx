@@ -36,6 +36,8 @@ interface Props {
   contractAddress: `0x${string}`;
   abi: unknown[];
   chainId: number;
+  /** Limit which sections render. "all" (default) shows read, write, and events. */
+  only?: "read" | "write" | "all";
 }
 
 function isFn(item: unknown): item is AbiFunction {
@@ -44,7 +46,7 @@ function isFn(item: unknown): item is AbiFunction {
   );
 }
 
-export function ContractInteractor({ contractAddress, abi, chainId }: Props) {
+export function ContractInteractor({ contractAddress, abi, chainId, only = "all" }: Props) {
   const fns = abi.filter(isFn);
   const readFunctions = fns.filter(
     (f) => f.stateMutability === "view" || f.stateMutability === "pure",
@@ -57,87 +59,101 @@ export function ContractInteractor({ contractAddress, abi, chainId }: Props) {
       typeof item === "object" && item !== null && (item as { type?: string }).type === "event",
   );
 
+  const showRead = only === "all" || only === "read";
+  const showWrite = only === "all" || only === "write";
+  const showEvents = only === "all";
+
   return (
     <div className="space-y-3">
-      <Section
-        title="Read Contract"
-        icon={<Eye className="h-3.5 w-3.5 text-info" />}
-        accent="border-info/30 bg-info/5"
-        count={readFunctions.length}
-        defaultOpen
-      >
-        {readFunctions.length === 0 ? (
-          <Empty>No read functions.</Empty>
-        ) : (
-          readFunctions.map((fn, i) => (
-            <ReadFunctionRow
-              key={`${fn.name}-${i}`}
-              fn={fn}
-              contractAddress={contractAddress}
-              abi={abi}
-              chainId={chainId}
-            />
-          ))
-        )}
-      </Section>
+      {showRead && (
+        <Section
+          title="Read Contract"
+          icon={<Eye className="h-3.5 w-3.5 text-info" />}
+          accent="border-info/30 bg-info/5"
+          count={readFunctions.length}
+          defaultOpen
+        >
+          {readFunctions.length === 0 ? (
+            <Empty>No read functions.</Empty>
+          ) : (
+            readFunctions.map((fn, i) => (
+              <ReadFunctionRow
+                key={`${fn.name}-${i}`}
+                fn={fn}
+                contractAddress={contractAddress}
+                abi={abi}
+                chainId={chainId}
+              />
+            ))
+          )}
+        </Section>
+      )}
 
-      <Section
-        title="Write Contract"
-        icon={<Pencil className="h-3.5 w-3.5 text-warning" />}
-        accent="border-warning/30 bg-warning/5"
-        count={writeFunctions.length}
-      >
-        {writeFunctions.length === 0 ? (
-          <Empty>No write functions.</Empty>
-        ) : (
-          writeFunctions.map((fn, i) => (
-            <WriteFunctionRow
-              key={`${fn.name}-${i}`}
-              fn={fn}
-              contractAddress={contractAddress}
-              abi={abi}
-              chainId={chainId}
-            />
-          ))
-        )}
-      </Section>
+      {showWrite && (
+        <Section
+          title="Write Contract"
+          icon={<Pencil className="h-3.5 w-3.5 text-warning" />}
+          accent="border-warning/30 bg-warning/5"
+          count={writeFunctions.length}
+          defaultOpen={only === "write"}
+        >
+          {writeFunctions.length === 0 ? (
+            <Empty>No write functions.</Empty>
+          ) : (
+            writeFunctions.map((fn, i) => (
+              <WriteFunctionRow
+                key={`${fn.name}-${i}`}
+                fn={fn}
+                contractAddress={contractAddress}
+                abi={abi}
+                chainId={chainId}
+              />
+            ))
+          )}
+        </Section>
+      )}
 
-      <Section
-        title="Contract Events"
-        icon={<Radio className="h-3.5 w-3.5 text-primary" />}
-        accent="border-border bg-background/40"
-        count={events.length}
-      >
-        {events.length === 0 ? (
-          <Empty>No events.</Empty>
-        ) : (
-          events.map((ev, i) => (
-            <div key={`${ev.name}-${i}`} className="rounded border border-border bg-background p-2">
-              <div className="font-mono text-[11px] font-semibold text-foreground">{ev.name}</div>
-              <div className="mt-0.5 font-mono text-[10px] text-meta">
-                (
-                {ev.inputs
-                  .map((p) => `${p.type}${p.indexed ? " indexed" : ""} ${p.name}`)
-                  .join(", ")}
-                )
+      {showEvents && (
+        <Section
+          title="Contract Events"
+          icon={<Radio className="h-3.5 w-3.5 text-primary" />}
+          accent="border-border bg-background/40"
+          count={events.length}
+        >
+          {events.length === 0 ? (
+            <Empty>No events.</Empty>
+          ) : (
+            events.map((ev, i) => (
+              <div
+                key={`${ev.name}-${i}`}
+                className="rounded border border-border bg-background p-2"
+              >
+                <div className="font-mono text-[11px] font-semibold text-foreground">{ev.name}</div>
+                <div className="mt-0.5 font-mono text-[10px] text-meta">
+                  (
+                  {ev.inputs
+                    .map((p) => `${p.type}${p.indexed ? " indexed" : ""} ${p.name}`)
+                    .join(", ")}
+                  )
+                </div>
               </div>
+            ))
+          )}
+          {events.length > 0 && (
+            <div className="space-y-1.5 pt-1">
+              <p className="font-mono text-[9px] text-meta">
+                Use Routebook to inspect events emitted in past transactions for this contract.
+              </p>
+              <Link
+                to="/routebook"
+                className="inline-flex items-center gap-1 font-mono text-[10px] text-primary hover:underline"
+              >
+                View in Routebook <ExternalLink className="h-3 w-3" />
+              </Link>
             </div>
-          ))
-        )}
-        {events.length > 0 && (
-          <div className="space-y-1.5 pt-1">
-            <p className="font-mono text-[9px] text-meta">
-              Use Routebook to inspect events emitted in past transactions for this contract.
-            </p>
-            <Link
-              to="/routebook"
-              className="inline-flex items-center gap-1 font-mono text-[10px] text-primary hover:underline"
-            >
-              View in Routebook <ExternalLink className="h-3 w-3" />
-            </Link>
-          </div>
-        )}
-      </Section>
+          )}
+        </Section>
+      )}
     </div>
   );
 }

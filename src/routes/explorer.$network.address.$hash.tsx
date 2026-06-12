@@ -437,6 +437,7 @@ function ContractTab({ addr }: { addr: ExAddress }) {
               contractAddress={addr.hash as `0x${string}`}
               abi={abi}
               chainId={chainId}
+              only={sub}
             />
           </div>
         </Card>
