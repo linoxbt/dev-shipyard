@@ -27,6 +27,7 @@ function Editor() {
           "Read compiler errors and warnings inline with source locations.",
           "Deploy the compiled contract straight to the selected QIE network.",
           "Open the deployed contract in the interaction panel to call its functions.",
+          "Drive an interactive terminal with commands (compile, solc <version>, ls, cat, clear, help).",
         ]}
       />
       <PageNav prev={prev} next={next} />

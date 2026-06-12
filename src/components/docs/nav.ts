@@ -36,6 +36,10 @@ export const DOC_NAV: DocGroup[] = [
     ],
   },
   {
+    group: "Explorer",
+    items: [{ to: "/docs/explorer", label: "QIE Explorer" }],
+  },
+  {
     group: "Platform",
     items: [
       { to: "/docs/registries", label: "Onchain Registries" },

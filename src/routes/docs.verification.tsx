@@ -21,6 +21,11 @@ function Verification() {
         detect the constructor arguments. You can also verify an existing deployment from the
         Projects page.
       </P>
+      <P>
+        You can also verify any contract manually in the QIE Explorer: open the Verify Contract form
+        (from the explorer header, or from any unverified contract page), paste your flattened
+        source, choose the compiler and options, and publish.
+      </P>
       <Callout tone="warning">
         Verification depends on the QIE explorer&apos;s verifier service. If the explorer cannot
         confirm a submission, the contract still works and is fully usable. The verification request

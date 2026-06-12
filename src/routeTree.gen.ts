@@ -34,6 +34,7 @@ import { Route as DocsNetworksRouteImport } from './routes/docs.networks'
 import { Route as DocsLaunchkitRouteImport } from './routes/docs.launchkit'
 import { Route as DocsLabelsRouteImport } from './routes/docs.labels'
 import { Route as DocsFaqRouteImport } from './routes/docs.faq'
+import { Route as DocsExplorerRouteImport } from './routes/docs.explorer'
 import { Route as DocsEditorRouteImport } from './routes/docs.editor'
 import { Route as DocsAiRouteImport } from './routes/docs.ai'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
@@ -175,6 +176,11 @@ const DocsFaqRoute = DocsFaqRouteImport.update({
   path: '/faq',
   getParentRoute: () => DocsRoute,
 } as any)
+const DocsExplorerRoute = DocsExplorerRouteImport.update({
+  id: '/explorer',
+  path: '/explorer',
+  getParentRoute: () => DocsRoute,
+} as any)
 const DocsEditorRoute = DocsEditorRouteImport.update({
   id: '/editor',
   path: '/editor',
@@ -265,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/api/ai': typeof ApiAiRoute
   '/docs/ai': typeof DocsAiRoute
   '/docs/editor': typeof DocsEditorRoute
+  '/docs/explorer': typeof DocsExplorerRoute
   '/docs/faq': typeof DocsFaqRoute
   '/docs/labels': typeof DocsLabelsRoute
   '/docs/launchkit': typeof DocsLaunchkitRoute
@@ -305,6 +312,7 @@ export interface FileRoutesByTo {
   '/api/ai': typeof ApiAiRoute
   '/docs/ai': typeof DocsAiRoute
   '/docs/editor': typeof DocsEditorRoute
+  '/docs/explorer': typeof DocsExplorerRoute
   '/docs/faq': typeof DocsFaqRoute
   '/docs/labels': typeof DocsLabelsRoute
   '/docs/launchkit': typeof DocsLaunchkitRoute
@@ -347,6 +355,7 @@ export interface FileRoutesById {
   '/api/ai': typeof ApiAiRoute
   '/docs/ai': typeof DocsAiRoute
   '/docs/editor': typeof DocsEditorRoute
+  '/docs/explorer': typeof DocsExplorerRoute
   '/docs/faq': typeof DocsFaqRoute
   '/docs/labels': typeof DocsLabelsRoute
   '/docs/launchkit': typeof DocsLaunchkitRoute
@@ -391,6 +400,7 @@ export interface FileRouteTypes {
     | '/api/ai'
     | '/docs/ai'
     | '/docs/editor'
+    | '/docs/explorer'
     | '/docs/faq'
     | '/docs/labels'
     | '/docs/launchkit'
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/api/ai'
     | '/docs/ai'
     | '/docs/editor'
+    | '/docs/explorer'
     | '/docs/faq'
     | '/docs/labels'
     | '/docs/launchkit'
@@ -472,6 +483,7 @@ export interface FileRouteTypes {
     | '/api/ai'
     | '/docs/ai'
     | '/docs/editor'
+    | '/docs/explorer'
     | '/docs/faq'
     | '/docs/labels'
     | '/docs/launchkit'
@@ -702,6 +714,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsFaqRouteImport
       parentRoute: typeof DocsRoute
     }
+    '/docs/explorer': {
+      id: '/docs/explorer'
+      path: '/explorer'
+      fullPath: '/docs/explorer'
+      preLoaderRoute: typeof DocsExplorerRouteImport
+      parentRoute: typeof DocsRoute
+    }
     '/docs/editor': {
       id: '/docs/editor'
       path: '/editor'
@@ -813,6 +832,7 @@ declare module '@tanstack/react-router' {
 interface DocsRouteChildren {
   DocsAiRoute: typeof DocsAiRoute
   DocsEditorRoute: typeof DocsEditorRoute
+  DocsExplorerRoute: typeof DocsExplorerRoute
   DocsFaqRoute: typeof DocsFaqRoute
   DocsLabelsRoute: typeof DocsLabelsRoute
   DocsLaunchkitRoute: typeof DocsLaunchkitRoute
@@ -828,6 +848,7 @@ interface DocsRouteChildren {
 const DocsRouteChildren: DocsRouteChildren = {
   DocsAiRoute: DocsAiRoute,
   DocsEditorRoute: DocsEditorRoute,
+  DocsExplorerRoute: DocsExplorerRoute,
   DocsFaqRoute: DocsFaqRoute,
   DocsLabelsRoute: DocsLabelsRoute,
   DocsLaunchkitRoute: DocsLaunchkitRoute,
