@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Wallet, FileCode2, CheckCircle2 } from "lucide-react";
 import { useExplorer } from "@/hooks/useExplorer";
 import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
+import { storage } from "@/lib/storage";
 import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import {
   Card,
@@ -34,9 +35,18 @@ export const Route = createFileRoute("/explorer/$network/address/$hash")({
 
 function AddressPage() {
   const { hash } = Route.useParams();
+  const network = useExplorerNetwork();
   const [tab, setTab] = useState("txns");
   const { data: addr, isLoading } = useExplorer<ExAddress>(`/addresses/${hash}`);
   const { data: counters } = useExplorer<ExAddrCounters>(`/addresses/${hash}/counters`);
+
+  // Backfill the resolved name + contract flag onto the recent-search entry, so
+  // the SearchBar dropdown can show a human-readable label next time.
+  const resolvedName = addr?.name || addr?.token?.name || undefined;
+  useEffect(() => {
+    if (!addr) return;
+    storage.updateSearchName(network, hash, resolvedName, addr.is_contract);
+  }, [addr, network, hash, resolvedName]);
 
   if (isLoading) return <Spinner label="Loading address" />;
   if (!addr)

@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Boxes, FileText, Coins, Activity, Gauge, DollarSign } from "lucide-react";
 import { useExplorer } from "@/hooks/useExplorer";
+import { getQiePrice } from "@/lib/api/chain.functions";
 import { SearchBar } from "@/components/explorer/SearchBar";
 import { StatCard, Card, Spinner } from "@/components/explorer/ui";
 import { TxFeed, BlockFeed, ViewAll } from "@/components/explorer/lists";
@@ -20,8 +22,25 @@ function ExplorerHome() {
   const { data: stats } = useExplorer<ExStats>("/stats", { refetchInterval: 20_000 });
   const { data: blocks } = useExplorer<ExBlock[]>("/main-page/blocks", { refetchInterval: 12_000 });
   const { data: txs } = useExplorer<ExTx[]>("/main-page/transactions", { refetchInterval: 12_000 });
+  // CoinGecko fallback for price + 24h change (Blockscout returns null change).
+  const { data: price } = useQuery({
+    queryKey: ["qie-price"],
+    queryFn: () => getQiePrice(),
+    refetchInterval: 60_000,
+    staleTime: 45_000,
+  });
 
   const gas = stats?.gas_prices?.average;
+
+  // Prefer Blockscout's price; fall back to CoinGecko. Same for the 24h change.
+  const coinPrice =
+    stats?.coin_price != null ? Number(stats.coin_price) : price?.ok ? price.usd : null;
+  const change24h =
+    stats?.coin_price_change_percentage != null
+      ? stats.coin_price_change_percentage
+      : price?.ok
+        ? price.change24h
+        : null;
 
   return (
     <div className="space-y-5">
@@ -31,14 +50,16 @@ function ExplorerHome() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatCard
           label="QIE Price"
-          value={stats?.coin_price ? `$${Number(stats.coin_price).toLocaleString()}` : "—"}
+          value={
+            coinPrice != null
+              ? `$${coinPrice.toLocaleString(undefined, { maximumFractionDigits: 6 })}`
+              : "—"
+          }
           sub={
-            stats?.coin_price_change_percentage != null ? (
-              <span
-                className={stats.coin_price_change_percentage >= 0 ? "text-success" : "text-danger"}
-              >
-                {stats.coin_price_change_percentage >= 0 ? "+" : ""}
-                {stats.coin_price_change_percentage.toFixed(2)}%
+            change24h != null ? (
+              <span className={change24h >= 0 ? "text-success" : "text-danger"}>
+                {change24h >= 0 ? "▲" : "▼"} {change24h >= 0 ? "+" : ""}
+                {change24h.toFixed(2)}% (24h)
               </span>
             ) : undefined
           }

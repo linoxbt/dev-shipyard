@@ -18,7 +18,7 @@ import { LogoMark } from "@/components/shared/Logo";
 import { InstallButton } from "@/components/pwa/InstallButton";
 import { useTheme } from "@/lib/theme";
 import { useNetworkStatus } from "@/hooks/useChainData";
-import { useGlobalDeployStats } from "@/hooks/useProjectRegistry";
+import { useCombinedDeployStats } from "@/hooks/useProjectRegistry";
 import { qieTestnet } from "@/lib/chains";
 import { formatGas } from "@/lib/format-gas";
 import { withCommas } from "@/lib/explorer/format";
@@ -200,7 +200,8 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
 
 function StatsBand() {
   const { data: net } = useNetworkStatus(qieTestnet.id);
-  const stats = useGlobalDeployStats();
+  // Universal across Testnet + Mainnet.
+  const stats = useCombinedDeployStats();
   const gas = formatGas(
     net && "gasPrice" in net ? (net as { gasPrice?: string }).gasPrice : undefined,
     net?.gasPriceGwei ?? 0,
@@ -211,7 +212,7 @@ function StatsBand() {
       label: "Contracts Deployed",
       value: stats.totalDeployments != null ? withCommas(stats.totalDeployments) : "—",
     },
-    { label: "Builders", value: stats.onChain ? withCommas(stats.uniqueDeployers) : "—" },
+    { label: "Users", value: stats.onChain ? withCommas(stats.uniqueDeployers) : "—" },
     { label: "Networks", value: "2" },
     { label: "Gas", value: net?.status === "online" ? gas.text : "—" },
   ];

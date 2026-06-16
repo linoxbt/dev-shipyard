@@ -10,7 +10,7 @@ import { TEMPLATES } from "@/lib/mock/templates";
 import { DEFAULT_GAS_GWEI, qieTestnet } from "@/lib/chains";
 import { formatGas } from "@/lib/format-gas";
 import { useActiveChain } from "@/hooks/useActiveChain";
-import { useGlobalDeployStats } from "@/hooks/useProjectRegistry";
+import { useCombinedDeployStats } from "@/hooks/useProjectRegistry";
 import { slugForChainId } from "@/lib/explorer/network";
 import { storage } from "@/lib/storage";
 import { useNetworkStatus } from "@/hooks/useChainData";
@@ -47,7 +47,8 @@ function Overview() {
   const [quickHash, setQuickHash] = useState("");
 
   const { data: net } = useNetworkStatus(chainId);
-  const globalStats = useGlobalDeployStats();
+  // Universal across Testnet + Mainnet (not per-chain).
+  const globalStats = useCombinedDeployStats();
   const [inspections, setInspections] = useState<string[]>([]);
   useEffect(() => setInspections(storage.loadInspections()), []);
 
@@ -76,12 +77,12 @@ function Overview() {
                 : "—"
             }
             label="Total Deployments"
-            sub={globalStats.onChain ? "global, all users" : "registry not configured"}
+            sub={globalStats.onChain ? "Testnet + Mainnet" : "registry not configured"}
           />
           <Stat
             value={globalStats.onChain ? globalStats.uniqueDeployers.toLocaleString() : "—"}
             label="Total Users"
-            sub="wallets that deployed"
+            sub="unique wallets, all networks"
           />
           <Stat
             value={address ? projects.length.toString() : "—"}
