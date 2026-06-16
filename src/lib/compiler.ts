@@ -17,7 +17,14 @@ export interface CompileOutput {
   status: "success" | "error";
   contracts: Record<
     string,
-    { abi: unknown[]; bytecode: `0x${string}`; deployedBytecode: `0x${string}` }
+    {
+      abi: unknown[];
+      bytecode: `0x${string}`;
+      deployedBytecode: `0x${string}`;
+      /** Fully-qualified "File.sol:Name" — what Blockscout standard-input
+       *  verification expects as the contract_name. */
+      qualifiedName: string;
+    }
   >;
   errors: CompileError[];
   warnings: CompileError[];
@@ -25,6 +32,10 @@ export interface CompileOutput {
   resolvedImports: ResolvedImport[];
   /** Import paths that could not be resolved. */
   importErrors: string[];
+  /** The exact solc standard-JSON input string the worker compiled, byte for
+   *  byte. Reused verbatim for standard-input source verification so the
+   *  explorer reproduces identical bytecode (metadata hash included). */
+  standardJsonInput: string;
   timeMs: number;
 }
 
@@ -52,6 +63,7 @@ function getWorker(): Worker {
 export function compile({
   sources,
   version,
+  mainFile,
   optimize = false,
   optimizerRuns = 200,
 }: CompileRequest): Promise<CompileOutput> {
@@ -69,6 +81,7 @@ export function compile({
         warnings?: CompileError[];
         resolvedImports?: ResolvedImport[];
         importErrors?: string[];
+        standardJsonInput?: string;
         timeMs?: number;
         message?: string;
       }>,
@@ -100,12 +113,13 @@ export function compile({
           >
         | undefined;
       if (rawContracts) {
-        for (const [, fileContracts] of Object.entries(rawContracts)) {
+        for (const [file, fileContracts] of Object.entries(rawContracts)) {
           for (const [name, data] of Object.entries(fileContracts)) {
             contracts[name] = {
               abi: data.abi ?? [],
               bytecode: `0x${data.evm.bytecode.object}`,
               deployedBytecode: `0x${data.evm.deployedBytecode.object}`,
+              qualifiedName: `${file}:${name}`,
             };
           }
         }
@@ -118,12 +132,13 @@ export function compile({
         warnings: e.data.warnings ?? [],
         resolvedImports: e.data.resolvedImports ?? [],
         importErrors: e.data.importErrors ?? [],
+        standardJsonInput: e.data.standardJsonInput ?? "",
         timeMs: e.data.timeMs ?? 0,
       });
     };
 
     w.addEventListener("message", handler);
-    w.postMessage({ id, sources, version, optimize, optimizerRuns });
+    w.postMessage({ id, sources, version, mainFile, optimize, optimizerRuns });
   });
 }
 

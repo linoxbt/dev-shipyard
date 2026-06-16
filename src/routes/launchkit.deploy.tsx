@@ -38,6 +38,7 @@ import { useUserTemplates } from "@/lib/user-templates";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
 import { VerifyCard } from "@/components/deploy/VerifyCard";
 import { compile } from "@/lib/compiler";
+import { encodeConstructorArgs } from "@/lib/verify/constructorArgs";
 
 const search = z.object({ template: z.string().optional() });
 
@@ -78,6 +79,13 @@ function DeployWizard() {
     address: string;
     txHash: string;
     block: number;
+  }>(null);
+  // Captured at deploy time so the success screen can auto-verify via the robust
+  // standard-input path (exact solc input + qualified name + encoded args).
+  const [verifyMeta, setVerifyMeta] = useState<null | {
+    standardJsonInput: string;
+    qualifiedName: string;
+    constructorArgs?: `0x${string}`;
   }>(null);
 
   const template = templateId
@@ -158,6 +166,13 @@ function DeployWizard() {
 
       // Encode constructor args from the template's declared arg list.
       const encodedArgs = parseArgs(template.args, args);
+      // Stash everything source verification needs (exact solc input the worker
+      // compiled, fully-qualified contract name, ABI-encoded constructor args).
+      setVerifyMeta({
+        standardJsonInput: result.standardJsonInput,
+        qualifiedName: contract.qualifiedName,
+        constructorArgs: encodeConstructorArgs(contract.abi as unknown[], encodedArgs),
+      });
       log(`[${ts()}] [Deploy] Submitting deployment to ${chain.name} (chain ${chain.id})...`);
       const hash = await deployContractAsync({
         abi: contract.abi as [],
@@ -553,7 +568,9 @@ function DeployWizard() {
             </div>
           </div>
 
-          {/* Auto source-verification, with a link into the DevStation explorer */}
+          {/* Auto source-verification, with a link into the DevStation explorer.
+              Uses the standard-input path (exact solc input) so contracts with
+              imports verify too; falls back to flattened source if unavailable. */}
           <VerifyCard
             chainId={chain.id}
             address={deployResult.address as `0x${string}`}
@@ -562,6 +579,9 @@ function DeployWizard() {
             compilerVersion="0.8.20"
             optimization={false}
             optimizationRuns={200}
+            standardJsonInput={verifyMeta?.standardJsonInput}
+            qualifiedContractName={verifyMeta?.qualifiedName}
+            constructorArgs={verifyMeta?.constructorArgs}
           />
 
           <div className="grid gap-4 lg:grid-cols-3">
@@ -659,6 +679,7 @@ function DeployWizard() {
                 setTemplateId(null);
                 setArgs({});
                 setDeployResult(null);
+                setVerifyMeta(null);
               }}
               className="rounded bg-primary px-4 py-2 font-mono text-xs font-medium text-primary-foreground hover:bg-primary-hover"
             >

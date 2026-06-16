@@ -12,6 +12,11 @@ interface Props {
   compilerVersion: string; // short, e.g. "0.8.20"
   optimization?: boolean;
   optimizationRuns?: number;
+  // Standard-input verification (handles OpenZeppelin imports). When provided,
+  // used in preference to flattened-code; falls back to sourceCode when absent.
+  standardJsonInput?: string;
+  qualifiedContractName?: string; // "File.sol:Name"
+  constructorArgs?: `0x${string}`;
   /** Auto-submit for verification as soon as the card mounts. */
   auto?: boolean;
 }
@@ -27,6 +32,9 @@ export function VerifyCard({
   compilerVersion,
   optimization,
   optimizationRuns,
+  standardJsonInput,
+  qualifiedContractName,
+  constructorArgs,
   auto = true,
 }: Props) {
   const { verify, state, message } = useVerifyContract();
@@ -41,6 +49,9 @@ export function VerifyCard({
       compilerVersion,
       optimization,
       optimizationRuns,
+      standardJsonInput,
+      qualifiedContractName,
+      constructorArgs,
     });
 
   useEffect(() => {

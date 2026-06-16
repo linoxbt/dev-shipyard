@@ -1,5 +1,10 @@
 import { useCallback, useState } from "react";
-import { submitVerification, getVerificationStatus } from "@/lib/api/verify.functions";
+import {
+  submitVerification,
+  submitStandardJsonVerification,
+  getVerificationStatus,
+  getIsContractIndexed,
+} from "@/lib/api/verify.functions";
 
 export type VerifyState = "idle" | "submitting" | "pending" | "verified" | "failed";
 
@@ -12,6 +17,12 @@ export interface VerifyParams {
   optimization?: boolean;
   optimizationRuns?: number;
   licenseType?: string;
+  // When present, verify via the robust standard-input path (handles multi-file
+  // contracts, e.g. OpenZeppelin imports). Falls back to flattened-code source
+  // when absent (single self-contained file only).
+  standardJsonInput?: string;
+  qualifiedContractName?: string; // "File.sol:Name"
+  constructorArgs?: `0x${string}`;
 }
 
 const POLL_MS = 4000;
@@ -36,18 +47,45 @@ export function useVerifyContract() {
       return true;
     }
 
-    const res = await submitVerification({
-      data: {
-        chainId: p.chainId,
-        address: p.address,
-        contractName: p.contractName,
-        sourceCode: p.sourceCode,
-        compilerVersion: p.compilerVersion,
-        optimization: p.optimization ?? false,
-        optimizationRuns: p.optimizationRuns ?? 200,
-        licenseType: p.licenseType ?? "mit",
-      },
-    });
+    // Wait for the explorer to index the freshly-deployed address. Submitting
+    // too early returns 404 "Address is not a smart-contract" — the explorer's
+    // indexer lags the chain by a few seconds after the creation tx mines.
+    for (let i = 0; i < 15; i++) {
+      const { indexed } = await getIsContractIndexed({
+        data: { chainId: p.chainId, address: p.address },
+      });
+      if (indexed) break;
+      setMessage("Waiting for the explorer to index the contract…");
+      await new Promise((r) => setTimeout(r, 4000));
+    }
+
+    setState("submitting");
+    setMessage("Submitting source to the QIE explorer…");
+
+    const res = p.standardJsonInput
+      ? await submitStandardJsonVerification({
+          data: {
+            chainId: p.chainId,
+            address: p.address,
+            contractName: p.qualifiedContractName ?? p.contractName,
+            standardJsonInput: p.standardJsonInput,
+            compilerVersion: p.compilerVersion,
+            constructorArgs: p.constructorArgs,
+            licenseType: p.licenseType ?? "mit",
+          },
+        })
+      : await submitVerification({
+          data: {
+            chainId: p.chainId,
+            address: p.address,
+            contractName: p.contractName,
+            sourceCode: p.sourceCode,
+            compilerVersion: p.compilerVersion,
+            optimization: p.optimization ?? false,
+            optimizationRuns: p.optimizationRuns ?? 200,
+            licenseType: p.licenseType ?? "mit",
+          },
+        });
     if (!res.ok) {
       setState("failed");
       setMessage(res.message);
