@@ -13,6 +13,7 @@ import { useProjects, type DeployedProject } from "@/lib/mock/projects";
 import { getTemplate } from "@/lib/mock/templates";
 import { slugForChainId } from "@/lib/explorer/network";
 import { VerifyButton } from "@/components/deploy/VerifyButton";
+import { ManualVerify } from "@/components/deploy/ManualVerify";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { qieMainnet } from "@/lib/chains";
@@ -258,16 +259,43 @@ function ProjectsPage() {
             </div>
 
             <div className="mt-6 flex flex-col gap-2">
-              {/* Verify source on the QIE explorer (only when we know the source). */}
+              {/* Verify source on the QIE explorer. Prefer the stored standard-
+                  JSON (works for any contract, incl. OZ imports); fall back to a
+                  built-in template's source; else offer a manual paste flow. */}
               {(() => {
+                const vChain = selected.chainId ?? chainId;
+                const addr = selected.address as `0x${string}`;
+                if (selected.standardJsonInput && selected.qualifiedName) {
+                  return (
+                    <VerifyButton
+                      chainId={vChain}
+                      address={addr}
+                      contractName={selected.qualifiedName}
+                      sourceCode=""
+                      compilerVersion={selected.compilerVersion ?? "0.8.20"}
+                      standardJsonInput={selected.standardJsonInput}
+                      qualifiedContractName={selected.qualifiedName}
+                      constructorArgs={selected.constructorArgsEncoded as `0x${string}` | undefined}
+                    />
+                  );
+                }
                 const tmpl = getTemplate(selected.templateId);
-                if (!tmpl) return null;
+                if (tmpl) {
+                  return (
+                    <VerifyButton
+                      chainId={vChain}
+                      address={addr}
+                      contractName={tmpl.name}
+                      sourceCode={tmpl.solidity}
+                    />
+                  );
+                }
+                // Legacy record with no stored source — let the user paste it.
                 return (
-                  <VerifyButton
-                    chainId={selected.chainId ?? chainId}
-                    address={selected.address as `0x${string}`}
-                    contractName={tmpl.name}
-                    sourceCode={tmpl.solidity}
+                  <ManualVerify
+                    chainId={vChain}
+                    address={addr}
+                    defaultCompilerVersion={selected.compilerVersion}
                   />
                 );
               })()}

@@ -144,6 +144,10 @@ export function DeployPanel({
       txHash,
       chainId,
       abi: contract?.abi,
+      standardJsonInput,
+      qualifiedName: contract?.qualifiedName,
+      compilerVersion,
+      constructorArgsEncoded: encodedCtorArgs,
     })
       .then(() => {
         if (onChain) {
@@ -156,7 +160,19 @@ export function DeployPanel({
           status: "warning",
         });
       });
-  }, [receipt, txHash, chainId, selected, contract, recordDeployment, onChain, onLog]);
+  }, [
+    receipt,
+    txHash,
+    chainId,
+    selected,
+    contract,
+    recordDeployment,
+    onChain,
+    onLog,
+    standardJsonInput,
+    compilerVersion,
+    encodedCtorArgs,
+  ]);
 
   const [copied, setCopied] = useState(false);
   const cfg = chainConfig(chainId);

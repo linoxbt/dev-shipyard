@@ -45,6 +45,17 @@ export interface StoredProject {
   /** Lowercased wallet address that deployed this, so Projects can scope to the
    *  connected wallet. Absent on legacy records (pre-per-wallet). */
   deployer?: string;
+  // ── Source-verification metadata, stored so the Projects page can (re)verify
+  //    a deployment later via the robust standard-input path. Absent on legacy
+  //    records, which fall back to the manual "paste source" flow. ──
+  /** Exact solc standard-JSON the contract was compiled with. */
+  standardJsonInput?: string;
+  /** Fully-qualified contract name "File.sol:Name". */
+  qualifiedName?: string;
+  /** solc version used (e.g. "0.8.20"). */
+  compilerVersion?: string;
+  /** ABI-encoded constructor args (0x, no selector), for explicit verification. */
+  constructorArgsEncoded?: string;
 }
 
 function hasWindow() {

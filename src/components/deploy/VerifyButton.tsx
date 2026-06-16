@@ -9,6 +9,11 @@ interface Props {
   compilerVersion?: string;
   optimization?: boolean;
   optimizationRuns?: number;
+  // Standard-input verification (handles OpenZeppelin imports). Preferred over
+  // flattened-code source when provided.
+  standardJsonInput?: string;
+  qualifiedContractName?: string;
+  constructorArgs?: `0x${string}`;
 }
 
 // Click-to-verify button with inline status, for places where a contract's
@@ -21,6 +26,9 @@ export function VerifyButton({
   compilerVersion = "0.8.20",
   optimization = false,
   optimizationRuns = 200,
+  standardJsonInput,
+  qualifiedContractName,
+  constructorArgs,
 }: Props) {
   const { verify, state, message } = useVerifyContract();
   const busy = state === "submitting" || state === "pending";
@@ -37,6 +45,9 @@ export function VerifyButton({
             compilerVersion,
             optimization,
             optimizationRuns,
+            standardJsonInput,
+            qualifiedContractName,
+            constructorArgs,
           })
         }
         disabled={busy || state === "verified"}
