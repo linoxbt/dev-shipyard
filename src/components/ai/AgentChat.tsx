@@ -11,6 +11,7 @@ import {
   Hammer,
   Rocket,
   BookMarked,
+  ShieldCheck,
   Copy,
   Check,
   Trash2,
@@ -387,7 +388,14 @@ function DeployForm({
 }
 
 function StepCard({ step, explorerSlug }: { step: ToolStep; explorerSlug: string }) {
-  const Icon = step.kind === "deploy" ? Rocket : step.kind === "record" ? BookMarked : Hammer;
+  const Icon =
+    step.kind === "deploy"
+      ? Rocket
+      : step.kind === "record"
+        ? BookMarked
+        : step.kind === "verify"
+          ? ShieldCheck
+          : Hammer;
   const statusIcon =
     step.status === "running" ? (
       <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />

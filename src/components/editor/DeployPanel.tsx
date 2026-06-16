@@ -6,26 +6,41 @@ import { useAccount } from "wagmi";
 import { toast } from "sonner";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { ContractInteractor } from "@/components/editor/ContractInteractor";
+import { VerifyCard } from "@/components/deploy/VerifyCard";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
 import { chainConfig } from "@/lib/chains";
 import { chainById } from "@/lib/active-chain";
 import { slugForChainId } from "@/lib/explorer/network";
+import { encodeConstructorArgs } from "@/lib/verify/constructorArgs";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
 
 interface ContractInfo {
   abi: unknown[];
   bytecode: `0x${string}`;
   deployedBytecode: `0x${string}`;
+  /** Fully-qualified "File.sol:Name" for source verification. */
+  qualifiedName: string;
 }
 
 interface Props {
   contracts: Record<string, ContractInfo>;
   chainId: number;
+  /** solc version used to compile (e.g. "0.8.20"), for source verification. */
+  compilerVersion: string;
+  /** Exact solc standard-JSON the editor compiled, for source verification. */
+  standardJsonInput?: string;
   onClose: () => void;
   onLog: (line: TerminalLine) => void;
 }
 
-export function DeployPanel({ contracts, chainId, onClose, onLog }: Props) {
+export function DeployPanel({
+  contracts,
+  chainId,
+  compilerVersion,
+  standardJsonInput,
+  onClose,
+  onLog,
+}: Props) {
   const names = Object.keys(contracts);
   const [selected, setSelected] = useState(names[0] ?? "");
   const contract = contracts[selected];
@@ -37,6 +52,8 @@ export function DeployPanel({ contracts, chainId, onClose, onLog }: Props) {
   const [deploying, setDeploying] = useState(false);
   const [deployed, setDeployed] = useState<{ addr: `0x${string}` } | null>(null);
   const [args, setArgs] = useState<Record<string, string>>({});
+  // ABI-encoded constructor args, captured at deploy time for source verification.
+  const [encodedCtorArgs, setEncodedCtorArgs] = useState<`0x${string}` | undefined>(undefined);
   const [mismatchOpen, setMismatchOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
 
@@ -77,6 +94,9 @@ export function DeployPanel({ contracts, chainId, onClose, onLog }: Props) {
         if (a.type.endsWith("[]")) return v ? v.split(",").map((x) => x.trim()) : [];
         return v;
       });
+      // Remember the encoded args so the post-deploy VerifyCard can pass them
+      // explicitly (more reliable than Blockscout's autodetect).
+      setEncodedCtorArgs(encodeConstructorArgs(contract.abi, parsed));
 
       onLog({
         text: `[${ts}] [Deploy] Deploying ${selected} to ${cfg.name}...`,
@@ -261,6 +281,20 @@ export function DeployPanel({ contracts, chainId, onClose, onLog }: Props) {
                 </Link>
               </div>
             </div>
+          )}
+
+          {/* Auto source-verification (standard-input → handles OZ imports) */}
+          {deployed && (
+            <VerifyCard
+              chainId={chainId}
+              address={deployed.addr}
+              contractName={selected}
+              sourceCode=""
+              compilerVersion={compilerVersion}
+              standardJsonInput={standardJsonInput}
+              qualifiedContractName={contract?.qualifiedName}
+              constructorArgs={encodedCtorArgs}
+            />
           )}
 
           {/* Post-deploy contract interaction */}

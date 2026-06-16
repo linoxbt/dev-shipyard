@@ -752,6 +752,8 @@ function EditorPage() {
         <DeployPanel
           contracts={contracts}
           chainId={connectedChainId}
+          compilerVersion={version}
+          standardJsonInput={lastResult?.standardJsonInput}
           onClose={() => setDeployPanelOpen(false)}
           onLog={logT}
         />

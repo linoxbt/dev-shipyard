@@ -84,6 +84,101 @@ export const submitVerification = createServerFn({ method: "POST" })
     }
   });
 
+// Standard-JSON ("standard-input") verification. This is the robust path: we
+// resubmit the EXACT solc standard-JSON input the in-browser worker compiled, so
+// the explorer recompiles to byte-identical bytecode regardless of how many
+// source files (e.g. OpenZeppelin imports) the contract pulls in. Flattened-code
+// verification can't do this — it only carries the top source file.
+const stdInput = z.object({
+  chainId: z.number(),
+  address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  contractName: z.string().min(1), // fully-qualified "File.sol:Name"
+  standardJsonInput: z.string().min(1), // exact solc standard-JSON
+  compilerVersion: z.string().min(3), // short, e.g. "0.8.20"
+  constructorArgs: z.string().optional(), // 0x ABI-encoded tail, no selector
+  licenseType: z.string().default("mit"),
+});
+
+export const submitStandardJsonVerification = createServerFn({ method: "POST" })
+  .inputValidator(stdInput)
+  .handler(async ({ data }) => {
+    let compiler: string;
+    try {
+      compiler = await longCompilerVersion(data.compilerVersion);
+    } catch (e) {
+      return { ok: false as const, message: e instanceof Error ? e.message : "version error" };
+    }
+
+    const url = `${explorerBase(data.chainId)}/api/v2/smart-contracts/${data.address}/verification/via/standard-input`;
+    const explicitArgs = data.constructorArgs && data.constructorArgs !== "0x";
+
+    const parse = (text: string) => {
+      try {
+        return (JSON.parse(text) as { message?: string }).message ?? text;
+      } catch {
+        return text;
+      }
+    };
+    const ok = (status: number) => status === 200 || status === 201 || status === 409;
+
+    // Primary: multipart/form-data with the standard-JSON as an uploaded file —
+    // the shape Blockscout's v2 standard-input endpoint expects. Never set the
+    // content-type manually; fetch derives the multipart boundary.
+    try {
+      const fd = new FormData();
+      fd.append("compiler_version", compiler);
+      fd.append("contract_name", data.contractName);
+      fd.append("license_type", data.licenseType);
+      if (explicitArgs) {
+        fd.append("autodetect_constructor_args", "false");
+        fd.append("constructor_args", data.constructorArgs as string);
+      } else {
+        fd.append("autodetect_constructor_args", "true");
+      }
+      fd.append(
+        "files[0]",
+        new Blob([data.standardJsonInput], { type: "application/json" }),
+        "input.json",
+      );
+
+      const resp = await fetch(url, { method: "POST", body: fd });
+      const text = await resp.text();
+      if (ok(resp.status)) {
+        return { ok: true as const, message: parse(text) || "Verification submitted" };
+      }
+      // Some Blockscout builds want a JSON body instead — fall back on a
+      // request-shape rejection (400/422) before giving up.
+      if (resp.status !== 400 && resp.status !== 422) {
+        return { ok: false as const, message: parse(text) || `Explorer returned ${resp.status}` };
+      }
+    } catch (e) {
+      return { ok: false as const, message: e instanceof Error ? e.message : "Request failed" };
+    }
+
+    // Fallback: JSON body carrying the standard-JSON as `source_code`.
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          compiler_version: compiler,
+          contract_name: data.contractName,
+          source_code: data.standardJsonInput,
+          license_type: data.licenseType,
+          autodetect_constructor_args: !explicitArgs,
+          ...(explicitArgs ? { constructor_args: data.constructorArgs } : {}),
+        }),
+      });
+      const text = await resp.text();
+      if (ok(resp.status)) {
+        return { ok: true as const, message: parse(text) || "Verification submitted" };
+      }
+      return { ok: false as const, message: parse(text) || `Explorer returned ${resp.status}` };
+    } catch (e) {
+      return { ok: false as const, message: e instanceof Error ? e.message : "Request failed" };
+    }
+  });
+
 const statusInput = z.object({
   chainId: z.number(),
   address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
@@ -105,5 +200,23 @@ export const getVerificationStatus = createServerFn({ method: "GET" })
       };
     } catch {
       return { verified: false as const, found: false as const };
+    }
+  });
+
+// Has the explorer's indexer registered this address as a contract yet? Right
+// after a deploy the creation tx is mined but Blockscout may not have indexed
+// the address — submitting verification too early returns 404 "Address is not a
+// smart-contract". Callers poll this until it returns true before submitting.
+export const getIsContractIndexed = createServerFn({ method: "GET" })
+  .inputValidator(statusInput)
+  .handler(async ({ data }) => {
+    const url = `${explorerBase(data.chainId)}/api/v2/addresses/${data.address}`;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return { indexed: false as const };
+      const json = (await resp.json()) as { is_contract?: boolean };
+      return { indexed: json.is_contract === true };
+    } catch {
+      return { indexed: false as const };
     }
   });

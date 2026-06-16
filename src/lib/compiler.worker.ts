@@ -9,6 +9,7 @@ type WorkerRequest = {
   id: number;
   sources: Record<string, string>;
   version: string;
+  mainFile?: string;
   optimize: boolean;
   optimizerRuns: number;
 };
@@ -227,7 +228,11 @@ async function doCompile(req: WorkerRequest) {
     },
   };
 
-  const raw = compile(JSON.stringify(input), 0, 0) as string;
+  // Stringify ONCE and reuse for both the compile and the response. Source
+  // verification (standard-input) resubmits this exact string so the explorer
+  // reproduces byte-identical bytecode, including the trailing metadata hash.
+  const standardJsonInput = JSON.stringify(input);
+  const raw = compile(standardJsonInput, 0, 0) as string;
   const output = JSON.parse(raw) as {
     errors?: Array<{
       severity: string;
@@ -259,11 +264,13 @@ async function doCompile(req: WorkerRequest) {
     errors,
     resolvedImports: resolved,
     importErrors: failed,
+    standardJsonInput,
     timeMs: Date.now() - start,
   } satisfies WorkerResponse & {
     timeMs: number;
     resolvedImports: ResolvedImport[];
     importErrors: string[];
+    standardJsonInput: string;
   });
 }
 

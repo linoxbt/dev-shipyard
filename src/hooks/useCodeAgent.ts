@@ -16,6 +16,12 @@ import { useActiveChain } from "@/hooks/useActiveChain";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { slugForChainId } from "@/lib/explorer/network";
 import {
+  submitStandardJsonVerification,
+  getVerificationStatus,
+  getIsContractIndexed,
+} from "@/lib/api/verify.functions";
+import { encodeConstructorArgs } from "@/lib/verify/constructorArgs";
+import {
   SOLIDITY_AGENT_PROMPT,
   parseAction,
   compileOkMessage,
@@ -37,7 +43,7 @@ export interface ConstructorInput {
 }
 
 export interface ToolStep {
-  kind: "compile" | "deploy" | "record";
+  kind: "compile" | "deploy" | "record" | "verify";
   status: "running" | "ok" | "error";
   title: string;
   detail?: string;
@@ -63,6 +69,10 @@ interface Artifact {
   abi: unknown[];
   bytecode: `0x${string}`;
   constructorInputs: ConstructorInput[];
+  // For source verification after deploy (standard-input path).
+  standardJsonInput: string;
+  qualifiedName: string;
+  compilerVersion: string;
 }
 
 interface Persisted {
@@ -279,6 +289,65 @@ export function useCodeAgent() {
           detail: e instanceof Error ? e.message : undefined,
         });
       }
+
+      // Source-verify on the QIE explorer via the standard-input path (handles
+      // OpenZeppelin imports). Best-effort: never fail the deploy, and don't
+      // block the conversation longer than ~1 min on the verifier queue.
+      const vIdx = push({
+        type: "tool",
+        step: { kind: "verify", status: "running", title: "Verifying source on the explorer…" },
+      });
+      try {
+        // Wait for the explorer to index the new address before submitting —
+        // otherwise it 404s with "Address is not a smart-contract".
+        for (let i = 0; i < 15; i++) {
+          const { indexed } = await getIsContractIndexed({ data: { chainId, address: addr } });
+          if (indexed) break;
+          await new Promise((r) => setTimeout(r, 4000));
+        }
+        const res = await submitStandardJsonVerification({
+          data: {
+            chainId,
+            address: addr,
+            contractName: artifact.qualifiedName,
+            standardJsonInput: artifact.standardJsonInput,
+            compilerVersion: artifact.compilerVersion,
+            constructorArgs: encodeConstructorArgs(artifact.abi, args),
+          },
+        });
+        if (!res.ok) {
+          updateStep(vIdx, {
+            status: "error",
+            title: "Verification submission failed",
+            detail: res.message,
+          });
+        } else {
+          let verified = false;
+          for (let i = 0; i < 15; i++) {
+            await new Promise((r) => setTimeout(r, 4000));
+            const s = await getVerificationStatus({ data: { chainId, address: addr } });
+            if (s.verified) {
+              verified = true;
+              break;
+            }
+          }
+          updateStep(vIdx, {
+            status: "ok",
+            title: verified
+              ? "Source verified on the explorer"
+              : "Verification submitted (pending)",
+            detail: verified
+              ? undefined
+              : "The explorer may finish shortly — check the contract page.",
+          });
+        }
+      } catch (e) {
+        updateStep(vIdx, {
+          status: "error",
+          title: "Verification skipped",
+          detail: e instanceof Error ? e.message : undefined,
+        });
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Deploy failed";
       updateStep(sIdx, { status: "error", title: "Deploy failed", detail: msg });
@@ -335,7 +404,15 @@ export function useCodeAgent() {
             }
             const c = out.contracts[name];
             const constructorInputs = constructorInputsOf(c.abi);
-            artifactRef.current = { name, abi: c.abi, bytecode: c.bytecode, constructorInputs };
+            artifactRef.current = {
+              name,
+              abi: c.abi,
+              bytecode: c.bytecode,
+              constructorInputs,
+              standardJsonInput: out.standardJsonInput,
+              qualifiedName: c.qualifiedName,
+              compilerVersion: DEFAULT_SOLC_VERSION,
+            };
             const bytes = (c.bytecode.length - 2) / 2;
             updateStep(sIdx, {
               status: "ok",
