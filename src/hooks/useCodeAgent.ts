@@ -280,6 +280,10 @@ export function useCodeAgent() {
           txHash: hash,
           chainId,
           abi: artifact.abi,
+          standardJsonInput: artifact.standardJsonInput,
+          qualifiedName: artifact.qualifiedName,
+          compilerVersion: artifact.compilerVersion,
+          constructorArgsEncoded: encodeConstructorArgs(artifact.abi, args),
         });
         updateStep(rIdx, { status: "ok", title: "Recorded to My Projects" });
       } catch (e) {

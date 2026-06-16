@@ -202,6 +202,10 @@ function DeployWizard() {
         chainId: chain.id,
         imageUrl: imageUrl.trim() || undefined,
         abi: contract.abi as unknown[],
+        standardJsonInput: result.standardJsonInput,
+        qualifiedName: contract.qualifiedName,
+        compilerVersion: "0.8.20",
+        constructorArgsEncoded: encodeConstructorArgs(contract.abi as unknown[], encodedArgs),
       }).catch(() => {});
 
       // Verify on-chain: register the contract's name in the ContractLabelRegistry

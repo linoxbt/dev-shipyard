@@ -18,6 +18,11 @@ interface RecordParams {
   chainId: number;
   imageUrl?: string;
   abi?: unknown[];
+  // Source-verification metadata, persisted so Projects can (re)verify later.
+  standardJsonInput?: string;
+  qualifiedName?: string;
+  compilerVersion?: string;
+  constructorArgsEncoded?: string;
 }
 
 // On-chain ProjectRegistry access. When the registry is deployed (address set),
@@ -58,6 +63,10 @@ export function useProjectRegistry() {
         imageUrl: p.imageUrl || undefined,
         abi: p.abi,
         deployer: address?.toLowerCase(),
+        standardJsonInput: p.standardJsonInput,
+        qualifiedName: p.qualifiedName,
+        compilerVersion: p.compilerVersion,
+        constructorArgsEncoded: p.constructorArgsEncoded,
       };
       const existing = storage.loadProjects().filter((x) => x.id !== local.id);
       storage.saveProjects([local, ...existing]);

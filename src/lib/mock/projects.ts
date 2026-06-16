@@ -17,6 +17,12 @@ export interface DeployedProject {
   chainId?: number;
   /** Lowercased wallet that deployed this (per-wallet scoping). */
   deployer?: string;
+  /** Source-verification metadata (see StoredProject) — lets the Projects page
+   *  re-verify a deployment via the standard-input path. */
+  standardJsonInput?: string;
+  qualifiedName?: string;
+  compilerVersion?: string;
+  constructorArgsEncoded?: string;
 }
 
 interface ProjectsState {
