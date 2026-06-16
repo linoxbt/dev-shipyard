@@ -12,23 +12,33 @@ import { qieTestnet, qieMainnet } from "@/lib/chains";
 
 const env = import.meta.env;
 
-function envAddress(value: string | undefined): `0x${string}` {
-  return (value || "") as `0x${string}`;
+// Canonical DevStation registries. The deployer's matching nonces produced
+// identical addresses on Testnet (1983) and Mainnet (1990), and both are
+// source-verified on the QIE explorer. These are the live defaults so the
+// onchain features (Projects, Activity, ecosystem stats) work with zero env
+// config; a VITE_*_REGISTRY_ADDRESS_* override still wins for custom deployments.
+const DEFAULT_PROJECT_REGISTRY = "0x75d7b39bc827367c409e1a2bf805bd5f337ca27b";
+const DEFAULT_LABEL_REGISTRY = "0x177294293e6e785a83e036a95de1697e3cc04748";
+
+function envAddress(value: string | undefined, fallback = ""): `0x${string}` {
+  return (value || fallback) as `0x${string}`;
 }
 
-// Per-network registry addresses, keyed by chain id.
+// Per-network registry addresses, keyed by chain id. Env overrides the default.
 const PROJECT_REGISTRY: Record<number, `0x${string}`> = {
   [qieTestnet.id]: envAddress(
     env.VITE_PROJECT_REGISTRY_ADDRESS_TESTNET || env.VITE_PROJECT_REGISTRY_ADDRESS,
+    DEFAULT_PROJECT_REGISTRY,
   ),
-  [qieMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_MAINNET),
+  [qieMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_MAINNET, DEFAULT_PROJECT_REGISTRY),
 };
 
 const LABEL_REGISTRY: Record<number, `0x${string}`> = {
   [qieTestnet.id]: envAddress(
     env.VITE_LABEL_REGISTRY_ADDRESS_TESTNET || env.VITE_LABEL_REGISTRY_ADDRESS,
+    DEFAULT_LABEL_REGISTRY,
   ),
-  [qieMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_MAINNET),
+  [qieMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_MAINNET, DEFAULT_LABEL_REGISTRY),
 };
 
 /** ProjectRegistry address for a given chain ("" when not deployed there). */
