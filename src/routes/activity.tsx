@@ -2,9 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Activity as ActivityIcon, Rocket, Users, Boxes } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { useActiveChain } from "@/hooks/useActiveChain";
-import { useGlobalDeployStats } from "@/hooks/useProjectRegistry";
-import { getAllDeployments, type EcosystemDeployment } from "@/lib/api/chain.functions";
+import { useCombinedDeployStats } from "@/hooks/useProjectRegistry";
+import { getAllDeploymentsCombined, type EcosystemDeployment } from "@/lib/api/chain.functions";
 import { projectRegistryAddress, isContractConfigured } from "@/lib/contracts";
 import { getTemplate } from "@/lib/mock/templates";
 import { qieTestnet, qieMainnet } from "@/lib/chains";
@@ -18,15 +17,19 @@ export const Route = createFileRoute("/activity")({
 });
 
 function ActivityPage() {
-  const { chain, chainId, select } = useActiveChain();
-  const slug = slugForChainId(chainId);
-  const registry = projectRegistryAddress(chainId);
-  const onChain = isContractConfigured(registry);
-  const stats = useGlobalDeployStats();
+  // Combined across both networks: every chain with a configured registry.
+  const chains = [qieTestnet.id, qieMainnet.id]
+    .map((chainId) => ({ chainId, registry: projectRegistryAddress(chainId) }))
+    .filter((c) => isContractConfigured(c.registry));
+  const onChain = chains.length > 0;
+  const stats = useCombinedDeployStats();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["all-deployments", chainId, registry],
-    queryFn: () => getAllDeployments({ data: { chainId, registry } }),
+    queryKey: [
+      "all-deployments-combined",
+      chains.map((c) => `${c.chainId}:${c.registry}`).join(","),
+    ],
+    queryFn: () => getAllDeploymentsCombined({ data: { chains } }),
     enabled: onChain,
     refetchInterval: 30_000,
     staleTime: 15_000,
@@ -39,47 +42,23 @@ function ActivityPage() {
       <PageHeader
         breadcrumb={["DevStation", "Activity"]}
         title="DevStation Activity"
-        subtitle="Every contract deployed through DevStation, recorded onchain in the ProjectRegistry."
+        subtitle="Every contract deployed through DevStation across Testnet and Mainnet, recorded onchain in the ProjectRegistry."
       />
 
       <div className="space-y-5 p-6">
-        {/* Network switch */}
-        <div className="inline-flex rounded border border-border bg-surface p-0.5">
-          {[qieTestnet, qieMainnet].map((c) => {
-            const active = chainId === c.id;
-            return (
-              <button
-                key={c.id}
-                onClick={() => select(c.id)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded px-3 py-1.5 font-mono text-xs transition",
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <span
-                  className={cn("h-1.5 w-1.5 rounded-full", c.testnet ? "bg-warning" : "bg-info")}
-                />
-                {c.testnet ? "Testnet" : "Mainnet"}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Ecosystem stats (network-scoped) */}
+        {/* Ecosystem stats (combined across both networks) */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Stat
             icon={Rocket}
             label="Total Deployments"
             value={stats.totalDeployments != null ? stats.totalDeployments.toLocaleString() : "—"}
-            sub={`on QIE ${chain.testnet ? "Testnet" : "Mainnet"}`}
+            sub="Testnet + Mainnet"
           />
           <Stat
             icon={Users}
             label="Total Users"
             value={onChain ? stats.uniqueDeployers.toLocaleString() : "—"}
-            sub="wallets that deployed"
+            sub="unique wallets, all networks"
           />
           <Stat
             icon={Boxes}
@@ -98,11 +77,11 @@ function ActivityPage() {
             </h2>
           </div>
           {!onChain ? (
-            <Empty>The ProjectRegistry is not configured for {chain.name}.</Empty>
+            <Empty>The ProjectRegistry is not configured on any network.</Empty>
           ) : isLoading ? (
             <Empty>Loading deployments…</Empty>
           ) : deployments.length === 0 ? (
-            <Empty>No contracts have been deployed through DevStation on {chain.name} yet.</Empty>
+            <Empty>No contracts have been deployed through DevStation yet.</Empty>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full font-mono text-xs">
@@ -110,6 +89,7 @@ function ActivityPage() {
                   <tr>
                     <Th>Project</Th>
                     <Th>Template</Th>
+                    <Th>Network</Th>
                     <Th>Contract</Th>
                     <Th>Deployer</Th>
                     <Th>Age</Th>
@@ -117,7 +97,7 @@ function ActivityPage() {
                 </thead>
                 <tbody>
                   {deployments.map((d) => (
-                    <DeploymentRow key={d.txHash} d={d} network={slug} />
+                    <DeploymentRow key={`${d.chainId}:${d.txHash}`} d={d} />
                   ))}
                 </tbody>
               </table>
@@ -129,16 +109,31 @@ function ActivityPage() {
   );
 }
 
-function DeploymentRow({ d, network }: { d: EcosystemDeployment; network: "testnet" | "mainnet" }) {
+function DeploymentRow({ d }: { d: EcosystemDeployment }) {
   const tmpl = getTemplate(d.templateId);
+  const slug = slugForChainId(d.chainId ?? qieTestnet.id);
+  const isTestnet = slug === "testnet";
   return (
     <tr className="border-t border-border hover:bg-surface-2/50">
       <td className="px-3 py-2.5 text-foreground">{d.projectName || "—"}</td>
       <td className="px-3 py-2.5 text-muted-foreground">{tmpl?.name ?? d.templateId}</td>
       <td className="px-3 py-2.5">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded border px-1.5 py-0.5 text-[10px]",
+            isTestnet
+              ? "border-warning/40 bg-warning/10 text-warning"
+              : "border-info/40 bg-info/10 text-info",
+          )}
+        >
+          <span className={cn("h-1.5 w-1.5 rounded-full", isTestnet ? "bg-warning" : "bg-info")} />
+          {isTestnet ? "Testnet" : "Mainnet"}
+        </span>
+      </td>
+      <td className="px-3 py-2.5">
         <Link
           to="/explorer/$network/address/$hash"
-          params={{ network, hash: d.contractAddress }}
+          params={{ network: slug, hash: d.contractAddress }}
           className="text-info hover:underline"
         >
           {shortHash(d.contractAddress)}
@@ -147,7 +142,7 @@ function DeploymentRow({ d, network }: { d: EcosystemDeployment; network: "testn
       <td className="px-3 py-2.5">
         <Link
           to="/explorer/$network/address/$hash"
-          params={{ network, hash: d.deployer }}
+          params={{ network: slug, hash: d.deployer }}
           className="text-info hover:underline"
         >
           {shortAddr(d.deployer)}

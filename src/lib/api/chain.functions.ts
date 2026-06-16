@@ -41,6 +41,32 @@ export const getNetworkStatus = createServerFn({ method: "GET" })
     }
   });
 
+// QIE coin price + 24h change. QIE's Blockscout /stats returns
+// coin_price_change_percentage: null, so the explorer can't show a change like
+// Etherscan does for ETH. CoinGecko has it (coin id "qie"), so we fetch the
+// price and the 24h % move server-side as a fallback. Network-agnostic (one
+// market price), cheap, and tolerant of CoinGecko being unreachable.
+export const getQiePrice = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const url =
+      "https://api.coingecko.com/api/v3/simple/price?ids=qie&vs_currencies=usd&include_24hr_change=true";
+    const resp = await fetch(url, { headers: { accept: "application/json" } });
+    if (!resp.ok) return { ok: false as const };
+    const json = (await resp.json()) as {
+      qie?: { usd?: number; usd_24h_change?: number };
+    };
+    const q = json.qie;
+    if (!q || typeof q.usd !== "number") return { ok: false as const };
+    return {
+      ok: true as const,
+      usd: q.usd,
+      change24h: typeof q.usd_24h_change === "number" ? q.usd_24h_change : null,
+    };
+  } catch {
+    return { ok: false as const };
+  }
+});
+
 // Ecosystem-wide deployment stats, read from the onchain ProjectRegistry:
 //   - totalContracts: the registry's totalDeployments counter (every recorded deploy)
 //   - totalUsers:     distinct wallets that recorded a deployment, counted from
@@ -102,6 +128,65 @@ export const getEcosystemStats = createServerFn({ method: "GET" })
     return { chainId, totalContracts, totalUsers };
   });
 
+// Combined ecosystem stats across BOTH networks (testnet + mainnet), so the
+// Overview/landing show one universal number rather than a per-chain figure:
+//   - totalContracts: sum of each chain's onchain totalDeployments counter
+//   - totalUsers:     unique wallets across both chains (union of the deployer
+//     address sets, so a wallet active on both networks is counted once)
+const combinedStatsInput = z.object({
+  chains: z
+    .array(z.object({ chainId: z.number(), registry: z.string().regex(/^0x[a-fA-F0-9]{40}$/) }))
+    .min(1),
+});
+
+export const getCombinedEcosystemStats = createServerFn({ method: "GET" })
+  .inputValidator(combinedStatsInput)
+  .handler(async ({ data }) => {
+    let totalContracts = 0;
+    const deployers = new Set<string>();
+
+    await Promise.all(
+      data.chains.map(async ({ chainId, registry }) => {
+        // Authoritative onchain counter per chain.
+        try {
+          const client = clientFor(chainId);
+          const total = await client.readContract({
+            address: registry as `0x${string}`,
+            abi: projectRegistryAbi,
+            functionName: "totalDeployments",
+          });
+          totalContracts += Number(total as bigint);
+        } catch {
+          /* skip this chain's counter if unreachable */
+        }
+
+        // Union the deployer addresses from this chain's recordDeployment txs.
+        try {
+          const api = chainConfig(chainId).explorerApiUrl;
+          const url = `${api}?module=account&action=txlist&address=${registry}&sort=asc`;
+          const resp = await fetch(url);
+          const json = (await resp.json()) as {
+            result?: Array<{ to?: string; from: string; input?: string; isError?: string }>;
+          };
+          const txs = Array.isArray(json.result) ? json.result : [];
+          for (const t of txs) {
+            if (
+              t.to?.toLowerCase() === registry.toLowerCase() &&
+              (t.input ?? "").startsWith(RECORD_DEPLOYMENT_SELECTOR) &&
+              t.isError === "0"
+            ) {
+              deployers.add(t.from.toLowerCase());
+            }
+          }
+        } catch {
+          /* skip this chain's users if the explorer is unreachable */
+        }
+      }),
+    );
+
+    return { totalContracts, totalUsers: deployers.size };
+  });
+
 // Per-template deploy counts, derived from the registry's successful
 // recordDeployment transactions (the templateId is the 2nd calldata arg).
 const templateStatsInput = z.object({
@@ -154,6 +239,7 @@ export interface EcosystemDeployment {
   deployer: string;
   txHash: string;
   timestamp: number; // epoch seconds
+  chainId?: number; // set by the combined query so a row knows its network
 }
 
 export const getAllDeployments = createServerFn({ method: "GET" })
@@ -202,6 +288,62 @@ export const getAllDeployments = createServerFn({ method: "GET" })
       /* leave empty if the explorer is unreachable */
     }
     return { chainId, deployments };
+  });
+
+// Every contract deployed through DevStation across BOTH networks, tagged with
+// the chainId of the chain it came from, merged newest-first. Powers the unified
+// Activity page so it reflects total ecosystem activity, not one chain at a time.
+export const getAllDeploymentsCombined = createServerFn({ method: "GET" })
+  .inputValidator(combinedStatsInput)
+  .handler(async ({ data }) => {
+    const all: EcosystemDeployment[] = [];
+    await Promise.all(
+      data.chains.map(async ({ chainId, registry }) => {
+        try {
+          const api = chainConfig(chainId).explorerApiUrl;
+          const url = `${api}?module=account&action=txlist&address=${registry}&sort=desc`;
+          const resp = await fetch(url);
+          const json = (await resp.json()) as {
+            result?: Array<{
+              to?: string;
+              from: string;
+              hash: string;
+              input?: string;
+              isError?: string;
+              timeStamp?: string;
+            }>;
+          };
+          const txs = Array.isArray(json.result) ? json.result : [];
+          for (const t of txs) {
+            if (t.to?.toLowerCase() !== registry.toLowerCase()) continue;
+            if (!(t.input ?? "").startsWith(RECORD_DEPLOYMENT_SELECTOR)) continue;
+            if (t.isError !== "0") continue;
+            try {
+              const decoded = decodeFunctionData({
+                abi: projectRegistryAbi,
+                data: t.input as `0x${string}`,
+              });
+              if (decoded.functionName !== "recordDeployment") continue;
+              all.push({
+                contractAddress: decoded.args[0] as string,
+                templateId: decoded.args[1] as string,
+                projectName: decoded.args[2] as string,
+                deployer: t.from,
+                txHash: t.hash,
+                timestamp: Number(t.timeStamp ?? 0),
+                chainId,
+              });
+            } catch {
+              /* skip un-decodable */
+            }
+          }
+        } catch {
+          /* skip this chain if the explorer is unreachable */
+        }
+      }),
+    );
+    all.sort((a, b) => b.timestamp - a.timestamp);
+    return { deployments: all };
   });
 
 // Every contract label, decoded from the registry's submitLabel transaction
