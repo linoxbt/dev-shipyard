@@ -45,6 +45,7 @@ import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.tem
 import { Route as ExplorerNetworkVerifyRouteImport } from './routes/explorer.$network.verify'
 import { Route as ExplorerNetworkTxnsRouteImport } from './routes/explorer.$network.txns'
 import { Route as ExplorerNetworkTokensRouteImport } from './routes/explorer.$network.tokens'
+import { Route as ExplorerNetworkStatsRouteImport } from './routes/explorer.$network.stats'
 import { Route as ExplorerNetworkBlocksRouteImport } from './routes/explorer.$network.blocks'
 import { Route as ExplorerNetworkTxHashRouteImport } from './routes/explorer.$network.tx.$hash'
 import { Route as ExplorerNetworkTokenHashRouteImport } from './routes/explorer.$network.token.$hash'
@@ -232,6 +233,11 @@ const ExplorerNetworkTokensRoute = ExplorerNetworkTokensRouteImport.update({
   path: '/tokens',
   getParentRoute: () => ExplorerNetworkRoute,
 } as any)
+const ExplorerNetworkStatsRoute = ExplorerNetworkStatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
+  getParentRoute: () => ExplorerNetworkRoute,
+} as any)
 const ExplorerNetworkBlocksRoute = ExplorerNetworkBlocksRouteImport.update({
   id: '/blocks',
   path: '/blocks',
@@ -292,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
+  '/explorer/$network/stats': typeof ExplorerNetworkStatsRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
   '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
@@ -332,6 +339,7 @@ export interface FileRoutesByTo {
   '/explorer': typeof ExplorerIndexRoute
   '/routebook': typeof RoutebookIndexRoute
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
+  '/explorer/$network/stats': typeof ExplorerNetworkStatsRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
   '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
@@ -376,6 +384,7 @@ export interface FileRoutesById {
   '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
+  '/explorer/$network/stats': typeof ExplorerNetworkStatsRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
   '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
@@ -421,6 +430,7 @@ export interface FileRouteTypes {
     | '/explorer/'
     | '/routebook/'
     | '/explorer/$network/blocks'
+    | '/explorer/$network/stats'
     | '/explorer/$network/tokens'
     | '/explorer/$network/txns'
     | '/explorer/$network/verify'
@@ -461,6 +471,7 @@ export interface FileRouteTypes {
     | '/explorer'
     | '/routebook'
     | '/explorer/$network/blocks'
+    | '/explorer/$network/stats'
     | '/explorer/$network/tokens'
     | '/explorer/$network/txns'
     | '/explorer/$network/verify'
@@ -504,6 +515,7 @@ export interface FileRouteTypes {
     | '/explorer/'
     | '/routebook/'
     | '/explorer/$network/blocks'
+    | '/explorer/$network/stats'
     | '/explorer/$network/tokens'
     | '/explorer/$network/txns'
     | '/explorer/$network/verify'
@@ -791,6 +803,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExplorerNetworkTokensRouteImport
       parentRoute: typeof ExplorerNetworkRoute
     }
+    '/explorer/$network/stats': {
+      id: '/explorer/$network/stats'
+      path: '/stats'
+      fullPath: '/explorer/$network/stats'
+      preLoaderRoute: typeof ExplorerNetworkStatsRouteImport
+      parentRoute: typeof ExplorerNetworkRoute
+    }
     '/explorer/$network/blocks': {
       id: '/explorer/$network/blocks'
       path: '/blocks'
@@ -865,6 +884,7 @@ const DocsRouteWithChildren = DocsRoute._addFileChildren(DocsRouteChildren)
 
 interface ExplorerNetworkRouteChildren {
   ExplorerNetworkBlocksRoute: typeof ExplorerNetworkBlocksRoute
+  ExplorerNetworkStatsRoute: typeof ExplorerNetworkStatsRoute
   ExplorerNetworkTokensRoute: typeof ExplorerNetworkTokensRoute
   ExplorerNetworkTxnsRoute: typeof ExplorerNetworkTxnsRoute
   ExplorerNetworkVerifyRoute: typeof ExplorerNetworkVerifyRoute
@@ -877,6 +897,7 @@ interface ExplorerNetworkRouteChildren {
 
 const ExplorerNetworkRouteChildren: ExplorerNetworkRouteChildren = {
   ExplorerNetworkBlocksRoute: ExplorerNetworkBlocksRoute,
+  ExplorerNetworkStatsRoute: ExplorerNetworkStatsRoute,
   ExplorerNetworkTokensRoute: ExplorerNetworkTokensRoute,
   ExplorerNetworkTxnsRoute: ExplorerNetworkTxnsRoute,
   ExplorerNetworkVerifyRoute: ExplorerNetworkVerifyRoute,

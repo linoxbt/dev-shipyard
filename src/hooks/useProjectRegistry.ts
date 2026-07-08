@@ -5,7 +5,7 @@ import { projectRegistryAbi } from "@/lib/abis/projectRegistry";
 import { projectRegistryAddress, isContractConfigured, ONCHAIN_WRITE_GAS } from "@/lib/contracts";
 import { useNetworkPref } from "@/lib/active-chain";
 import { getEcosystemStats, getCombinedEcosystemStats } from "@/lib/api/chain.functions";
-import { qieTestnet, qieMainnet } from "@/lib/chains";
+import { SUPPORTED_CHAINS } from "@/lib/chains";
 import { storage, type StoredProject } from "@/lib/storage";
 
 interface RecordParams {
@@ -191,14 +191,14 @@ export function useGlobalDeployStats() {
   };
 }
 
-// Universal ecosystem stats across BOTH networks (testnet + mainnet) combined:
-// total contracts is the sum of each chain's counter; total users is the union
-// of deployer wallets (a wallet on both chains counts once). Used by the
-// Overview, Activity, and landing page so they show one ecosystem-wide figure
-// rather than a per-chain number. Chains with no configured registry are
-// dropped; if none are configured, onChain is false and the UI falls back.
+// Universal ecosystem stats across every supported chain combined: total
+// contracts is the sum of each chain's counter; total users is the union of
+// deployer wallets (a wallet active on multiple chains counts once). Used by
+// the Overview, Activity, and landing page so they show one ecosystem-wide
+// figure rather than a per-chain number. Chains with no configured registry
+// are dropped; if none are configured, onChain is false and the UI falls back.
 export function useCombinedDeployStats() {
-  const chains = [qieTestnet.id, qieMainnet.id]
+  const chains = SUPPORTED_CHAINS.map((c) => c.id)
     .map((chainId) => ({ chainId, registry: projectRegistryAddress(chainId) }))
     .filter((c) => isContractConfigured(c.registry));
   const onChain = chains.length > 0;

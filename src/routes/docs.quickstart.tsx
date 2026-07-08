@@ -18,7 +18,7 @@ function Quickstart() {
         steps={[
           {
             title: "Connect a wallet",
-            body: "Open DevStation and connect an injected wallet (such as MetaMask), or generate an in-app burner wallet from the sidebar. The console defaults to QIE Testnet.",
+            body: "Open DevStation and connect an injected wallet (such as MetaMask), or generate an in-app burner wallet from the sidebar. Pick QIE Testnet from the network selector for this walkthrough — the console defaults to BOT Chain mainnet.",
           },
           {
             title: "Get testnet QIE for gas",

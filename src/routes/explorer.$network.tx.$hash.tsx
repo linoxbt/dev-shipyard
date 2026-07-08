@@ -14,10 +14,12 @@ import {
   Empty,
 } from "@/components/explorer/ui";
 import { formatQie, formatUnits, formatGwei, timeAgo, withCommas } from "@/lib/explorer/format";
+import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
+import { nativeSymbol } from "@/lib/chains";
 import type { ExTx, ExLog, ExTokenTransfer } from "@/lib/explorer/types";
 
 export const Route = createFileRoute("/explorer/$network/tx/$hash")({
-  head: () => ({ meta: [{ title: "Transaction - QIE Explorer" }] }),
+  head: () => ({ meta: [{ title: "Transaction - Explorer" }] }),
   component: TxPage,
 });
 
@@ -38,6 +40,8 @@ interface TxDetail extends ExTx {
 
 function TxPage() {
   const { hash } = Route.useParams();
+  const network = useExplorerNetwork();
+  const symbol = nativeSymbol(chainIdForSlug(network));
   const [tab, setTab] = useState("overview");
   const { data: tx, isLoading, error } = useExplorer<TxDetail>(`/transactions/${hash}`);
   const { data: logs } = useExplorer<{ items: ExLog[] }>(`/transactions/${hash}/logs`, {
@@ -145,8 +149,12 @@ function TxPage() {
               </div>
             </Row>
           )}
-          <Row label="Value">{formatQie(tx.value)} QIE</Row>
-          <Row label="Transaction Fee">{formatUnits(tx.fee?.value, 18, 12)} QIE</Row>
+          <Row label="Value">
+            {formatQie(tx.value)} {symbol}
+          </Row>
+          <Row label="Transaction Fee">
+            {formatUnits(tx.fee?.value, 18, 12)} {symbol}
+          </Row>
           <Row label="Gas Price">{formatGwei(tx.gas_price)}</Row>
           <Row label="Gas Limit & Usage">
             {withCommas(tx.gas_limit ?? "0")}

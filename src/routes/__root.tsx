@@ -61,7 +61,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "DevStation — QIE Builder Console" },
+      { title: "DevStation — Multichain Builder Console" },
       // PWA: installable as an app ("Add to Home Screen").
       { name: "theme-color", content: "#0a0e13" },
       { name: "mobile-web-app-capable", content: "yes" },
@@ -71,19 +71,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "application-name", content: "DevStation" },
       {
         name: "description",
-        content: "Unified deploy & debug console for the QIE blockchain. LaunchKit + Routebook.",
+        content: "Unified deploy & debug console for 7 EVM chains. LaunchKit + Routebook.",
       },
-      { property: "og:title", content: "DevStation — QIE Builder Console" },
+      { property: "og:title", content: "DevStation — Multichain Builder Console" },
       {
         property: "og:description",
-        content: "Unified deploy & debug console for the QIE blockchain. LaunchKit + Routebook.",
+        content: "Unified deploy & debug console for 7 EVM chains. LaunchKit + Routebook.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "DevStation — QIE Builder Console" },
+      { name: "twitter:title", content: "DevStation — Multichain Builder Console" },
       {
         name: "twitter:description",
-        content: "Unified deploy & debug console for the QIE blockchain. LaunchKit + Routebook.",
+        content: "Unified deploy & debug console for 7 EVM chains. LaunchKit + Routebook.",
       },
       {
         property: "og:image",

@@ -13,38 +13,38 @@ function Introduction() {
   return (
     <DocPage
       title="Introduction"
-      intro="DevStation is the developer console for QIE Blockchain. Deploy contracts from audited templates, write and compile Solidity in the browser, decode any transaction, and label contracts onchain."
+      intro="DevStation is a multichain developer console spanning 7 EVM chains — QIE, BOT Chain, X Layer, Arc, Avalanche, GOAT Network, and Arbitrum. Deploy contracts from audited templates, write and compile Solidity in the browser, decode any transaction, and label contracts onchain."
     >
       <P>
         DevStation brings the everyday work of a smart-contract developer into one console: writing,
-        compiling, deploying, inspecting, and labeling contracts on QIE. Everything runs against the
-        live QIE network, and the records that matter (your deployments and the contract label
-        registry) live onchain, not in a private database.
+        compiling, deploying, inspecting, and labeling contracts across every supported chain.
+        Everything runs against live networks, and the records that matter (your deployments and the
+        contract label registry) live onchain, per chain, not in a private database.
       </P>
       <P>The console is organized into two products and a set of shared tools:</P>
       <CardGrid>
         <FeatureCard
           icon={Rocket}
           title="LaunchKit"
-          body="Deploy audited contract templates, write your own Solidity in the in-browser editor, and generate contracts with AI."
+          body="Deploy audited contract templates, write your own Solidity in the in-browser editor, and generate contracts with AI — on any supported chain."
           to="/launchkit/templates"
         />
         <FeatureCard
           icon={Search}
           title="Routebook"
-          body="Decode any QIE transaction into a readable call tree with events, internal calls, and onchain contract labels."
+          body="Decode any transaction, on any supported chain, into a readable call tree with events, internal calls, and onchain contract labels."
           to="/routebook"
         />
         <FeatureCard
           icon={Compass}
-          title="QIE Explorer"
-          body="A built-in window into the QIE explorer for blocks, transactions, and addresses without leaving the console."
+          title="Explorer"
+          body="A built-in block explorer for blocks, transactions, and addresses across every supported chain, without leaving the console."
           to="/explorer"
         />
         <FeatureCard
           icon={FolderGit2}
           title="Projects"
-          body="A per-wallet history of every contract you have deployed through DevStation, backed by the onchain ProjectRegistry."
+          body="A per-wallet history of every contract you have deployed through DevStation, backed by the onchain ProjectRegistry on each chain."
           to="/launchkit/projects"
         />
       </CardGrid>

@@ -1,25 +1,22 @@
 import { createConfig, createStorage, http } from "wagmi";
 import { injected, metaMask } from "@wagmi/connectors";
-import { qieTestnet, qieMainnet } from "./chains";
+import { SUPPORTED_CHAINS } from "./chains";
 import { burnerConnector } from "./burner/connector";
 
-// QIE Wallet is a MetaMask-style EVM browser extension (docs.qie.digital), so it
-// is picked up by the injected() connector via EIP-6963 discovery — no special
-// SDK required. We also register metaMask() and the in-app burner wallet.
+// Every supported chain's wallet is a MetaMask-style EVM browser extension, so
+// they are picked up by the injected() connector via EIP-6963 discovery — no
+// special SDK required. We also register metaMask() and the in-app burner wallet.
 //
 // Connection state persists to localStorage (durable across refreshes/sessions
 // until the cache is cleared); reconnectOnMount (in Web3Provider) restores it.
 export const wagmiConfig = createConfig({
-  chains: [qieTestnet, qieMainnet],
+  chains: SUPPORTED_CHAINS,
   connectors: [injected(), metaMask(), burnerConnector()],
   storage: createStorage({
     key: "devstation-wagmi",
     storage: typeof window !== "undefined" ? window.localStorage : undefined,
   }),
-  transports: {
-    [qieTestnet.id]: http(),
-    [qieMainnet.id]: http(),
-  },
+  transports: Object.fromEntries(SUPPORTED_CHAINS.map((c) => [c.id, http()])),
   ssr: true,
 });
 

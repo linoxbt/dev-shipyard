@@ -5,6 +5,12 @@ import {
   getVerificationStatus,
   getIsContractIndexed,
 } from "@/lib/api/verify.functions";
+import {
+  isSourcifyChain,
+  getSourcifyStatus,
+  submitSourcifyVerification,
+  getSourcifyJobStatus,
+} from "@/lib/api/sourcify.functions";
 
 export type VerifyState = "idle" | "submitting" | "pending" | "verified" | "failed";
 
@@ -36,6 +42,55 @@ export function useVerifyContract() {
   const [message, setMessage] = useState<string>("");
 
   const verify = useCallback(async (p: VerifyParams): Promise<boolean> => {
+    if (isSourcifyChain(p.chainId)) {
+      setState("submitting");
+      setMessage("Checking Sourcify…");
+
+      const pre = await getSourcifyStatus({ data: { chainId: p.chainId, address: p.address } });
+      if (pre.verified) {
+        setState("verified");
+        setMessage("Already verified on Sourcify.");
+        return true;
+      }
+
+      if (!p.standardJsonInput) {
+        setState("failed");
+        setMessage("Sourcify verification requires the full compiler input.");
+        return false;
+      }
+
+      setMessage("Submitting source to Sourcify…");
+      const res = await submitSourcifyVerification({
+        data: {
+          chainId: p.chainId,
+          address: p.address,
+          contractIdentifier: p.qualifiedContractName ?? p.contractName,
+          standardJsonInput: p.standardJsonInput,
+          compilerVersion: p.compilerVersion,
+        },
+      });
+      if (!res.ok) {
+        setState("failed");
+        setMessage(res.message);
+        return false;
+      }
+
+      setState("pending");
+      setMessage("Verification submitted — waiting for Sourcify to confirm…");
+      for (let i = 0; i < MAX_POLLS; i++) {
+        await new Promise((r) => setTimeout(r, POLL_MS));
+        const s = await getSourcifyJobStatus({ data: { verificationId: res.verificationId } });
+        if (s.completed) {
+          setState(s.verified ? "verified" : "failed");
+          setMessage(s.message);
+          return s.verified;
+        }
+      }
+      setState("failed");
+      setMessage("Still pending — check back shortly.");
+      return false;
+    }
+
     setState("submitting");
     setMessage("Submitting source to the QIE explorer…");
 

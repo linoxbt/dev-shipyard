@@ -17,7 +17,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { CodeBlock } from "@/components/shared/CodeBlock";
 import { type RouteCall, type DecodedArg } from "@/lib/mock/transactions";
 import { findLabel } from "@/lib/mock/labels";
-import { SUPPORTED_CHAINS } from "@/lib/chains";
+import { SUPPORTED_CHAINS, nativeSymbol } from "@/lib/chains";
 import { decodeTransaction } from "@/lib/api/decode.functions";
 import { storage } from "@/lib/storage";
 import { toast } from "sonner";
@@ -42,7 +42,7 @@ export const Route = createFileRoute("/routebook/$txHash")({
     return {
       tx: null,
       hash: params.txHash,
-      error: "Transaction not found on QIE Testnet or Mainnet.",
+      error: `Transaction not found on ${SUPPORTED_CHAINS.map((c) => c.name).join(", ")}.`,
     };
   },
   head: ({ params }) => ({
@@ -71,7 +71,7 @@ function TxView() {
             </div>
             <TxHashChip hash={hash} className="mt-3 inline-flex" />
             <p className="mt-4 text-xs text-meta">
-              Paste any QIE transaction hash, or try one of the demo transactions.
+              Paste any supported-chain transaction hash, or try one of the demo transactions.
             </p>
             <Link
               to="/routebook"
@@ -86,6 +86,7 @@ function TxView() {
   }
 
   const totalGas = tx.gasUsed;
+  const symbol = nativeSymbol(tx.chainId);
 
   return (
     <div>
@@ -140,10 +141,14 @@ function TxView() {
             <OverviewField label="To">
               <AddressChip address={tx.to} />
             </OverviewField>
-            <OverviewField label="Value">{tx.value} QIE</OverviewField>
+            <OverviewField label="Value">
+              {tx.value} {symbol}
+            </OverviewField>
             <OverviewField label="Gas Used">{tx.gasUsed.toLocaleString()}</OverviewField>
             <OverviewField label="Gas Price">{tx.gasPriceGwei} Gwei</OverviewField>
-            <OverviewField label="Gas Cost">{tx.gasCostQIE.toFixed(6)} QIE</OverviewField>
+            <OverviewField label="Gas Cost">
+              {tx.gasCostQIE.toFixed(6)} {symbol}
+            </OverviewField>
           </dl>
         </div>
 
@@ -260,7 +265,7 @@ function TxView() {
               </div>
             </div>
           ) : (
-            <GasBreakdown call={tx.route} totalGas={totalGas} />
+            <GasBreakdown call={tx.route} totalGas={totalGas} symbol={symbol} />
           )}
         </div>
       </div>
@@ -422,7 +427,15 @@ function flattenCalls(call: RouteCall, acc: RouteCall[] = []): RouteCall[] {
   return acc;
 }
 
-function GasBreakdown({ call, totalGas }: { call: RouteCall; totalGas: number }) {
+function GasBreakdown({
+  call,
+  totalGas,
+  symbol,
+}: {
+  call: RouteCall;
+  totalGas: number;
+  symbol: string;
+}) {
   const flat = flattenCalls(call);
   return (
     <div className="space-y-4">
@@ -464,7 +477,7 @@ function GasBreakdown({ call, totalGas }: { call: RouteCall; totalGas: number })
                 %
               </th>
               <th className="px-3 py-2 text-right text-[10px] font-normal uppercase tracking-wider">
-                QIE
+                {symbol}
               </th>
             </tr>
           </thead>

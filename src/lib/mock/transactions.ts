@@ -47,16 +47,17 @@ export interface ApprovalRecord {
 
 export interface DecodedTx {
   hash: string;
+  chainId: number;
   status: "SUCCESS" | "REVERTED";
   blockNumber: number;
   timestamp: number;
   from: string;
   to: string;
   toName?: string;
-  value: string; // QIE
+  value: string; // native currency of `chainId`
   gasUsed: number;
   gasPriceGwei: number;
-  gasCostQIE: number;
+  gasCostQIE: number; // native currency of `chainId`, despite the field name
   revertReason?: string;
   revertExplain?: string;
   revertFix?: string;

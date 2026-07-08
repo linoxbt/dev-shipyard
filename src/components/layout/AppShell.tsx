@@ -2,7 +2,6 @@ import { ReactNode, useEffect } from "react";
 import { PanelLeftOpen } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { WrongNetworkBanner } from "./WrongNetworkBanner";
-import { MainnetWarningBanner } from "./MainnetWarningBanner";
 import { useProjects } from "@/lib/mock/projects";
 import { useUi } from "@/lib/ui-state";
 import { Logo } from "@/components/shared/Logo";
@@ -51,7 +50,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         )}
 
-        <MainnetWarningBanner />
         <WrongNetworkBanner />
         <main className="min-w-0 flex-1">{children}</main>
       </div>

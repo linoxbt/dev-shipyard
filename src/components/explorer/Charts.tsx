@@ -56,14 +56,14 @@ const tooltipStyle = {
   fontFamily: "monospace",
 };
 
-// Two analytics charts for the explorer dashboard: daily transactions and QIE
-// price, read from Blockscout's /stats/charts endpoints via the proxy. Client
-// only (recharts touches the DOM) — wrap usage in <ClientOnly>.
-export function ExplorerCharts() {
+// Two analytics charts for the explorer dashboard: daily transactions and the
+// native coin's price, read from Blockscout's /stats/charts endpoints via the
+// proxy. Client only (recharts touches the DOM) — wrap usage in <ClientOnly>.
+export function ExplorerCharts({ symbol = "QIE" }: { symbol?: string }) {
   return (
     <div className="grid gap-3 lg:grid-cols-2">
       <TransactionsChart />
-      <PriceChart />
+      <PriceChart symbol={symbol} />
     </div>
   );
 }
@@ -111,7 +111,7 @@ function TransactionsChart() {
   );
 }
 
-function PriceChart() {
+function PriceChart({ symbol = "QIE" }: { symbol?: string }) {
   const { data } = useExplorer<{ chart_data?: MarketPoint[] }>("/stats/charts/market", {
     refetchInterval: 60_000,
   });
@@ -122,7 +122,7 @@ function PriceChart() {
     .filter((p) => p.price != null);
 
   return (
-    <Card title="QIE Price (30d)">
+    <Card title={`${symbol} Price (30d)`}>
       <div className="h-56 px-2 py-3">
         {!data ? (
           <Spinner />
@@ -144,7 +144,7 @@ function PriceChart() {
               <Tooltip
                 contentStyle={tooltipStyle}
                 labelFormatter={shortDate}
-                formatter={(v: number) => [`$${v.toFixed(4)}`, "QIE"]}
+                formatter={(v: number) => [`$${v.toFixed(4)}`, symbol]}
               />
               <Line type="monotone" dataKey="price" stroke={TEAL} strokeWidth={2} dot={false} />
             </LineChart>

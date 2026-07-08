@@ -26,7 +26,7 @@ import { useTheme } from "@/lib/theme";
 
 const NAV = [
   { to: "/overview", label: "Overview", icon: Home, exact: true },
-  { to: "/explorer", label: "QIE Explorer", icon: Compass },
+  { to: "/explorer", label: "Explorer", icon: Compass },
   { to: "/activity", label: "Activity", icon: Activity },
   {
     section: "LaunchKit",

@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Wallet, FileCode2, CheckCircle2 } from "lucide-react";
 import { useExplorer } from "@/hooks/useExplorer";
-import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
+import { useExplorerNetwork, chainIdForSlug, familyForSlug } from "@/lib/explorer/network";
+import { nativeSymbol } from "@/lib/chains";
 import { storage } from "@/lib/storage";
 import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import {
@@ -29,13 +30,15 @@ import type {
 } from "@/lib/explorer/types";
 
 export const Route = createFileRoute("/explorer/$network/address/$hash")({
-  head: () => ({ meta: [{ title: "Address - QIE Explorer" }] }),
+  head: () => ({ meta: [{ title: "Address - Explorer" }] }),
   component: AddressPage,
 });
 
 function AddressPage() {
   const { hash } = Route.useParams();
   const network = useExplorerNetwork();
+  const chainId = chainIdForSlug(network);
+  const symbol = nativeSymbol(chainId);
   const [tab, setTab] = useState("txns");
   const { data: addr, isLoading } = useExplorer<ExAddress>(`/addresses/${hash}`);
   const { data: counters } = useExplorer<ExAddrCounters>(`/addresses/${hash}/counters`);
@@ -91,7 +94,7 @@ function AddressPage() {
 
       {/* Overview cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Balance" value={`${formatQie(addr.coin_balance)} QIE`} />
+        <StatCard label="Balance" value={`${formatQie(addr.coin_balance)} ${symbol}`} />
         {addr.exchange_rate && (
           <StatCard
             label="Value"
@@ -140,19 +143,19 @@ function AddressPage() {
 
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
 
-      {tab === "txns" && <AddrTxns hash={hash} />}
+      {tab === "txns" && <AddrTxns hash={hash} symbol={symbol} />}
       {tab === "transfers" && <AddrTransfers hash={hash} />}
       {tab === "tokens" && <AddrTokens hash={hash} />}
-      {tab === "internal" && <AddrInternal hash={hash} />}
+      {tab === "internal" && <AddrInternal hash={hash} symbol={symbol} />}
       {tab === "logs" && <AddrLogs hash={hash} />}
       {tab === "contract" && <ContractTab addr={addr} />}
     </div>
   );
 }
 
-function AddrTxns({ hash }: { hash: string }) {
+function AddrTxns({ hash, symbol }: { hash: string; symbol: string }) {
   const { data } = useExplorer<{ items: ExTx[] }>(`/addresses/${hash}/transactions`);
-  return <Card>{!data ? <Spinner /> : <TxTable txs={data.items} />}</Card>;
+  return <Card>{!data ? <Spinner /> : <TxTable txs={data.items} symbol={symbol} />}</Card>;
 }
 
 function AddrTransfers({ hash }: { hash: string }) {
@@ -268,7 +271,7 @@ function AddrTokens({ hash }: { hash: string }) {
   );
 }
 
-function AddrInternal({ hash }: { hash: string }) {
+function AddrInternal({ hash, symbol }: { hash: string; symbol: string }) {
   const { data } = useExplorer<{ items: ExInternalTx[] }>(
     `/addresses/${hash}/internal-transactions`,
   );
@@ -294,7 +297,7 @@ function AddrInternal({ hash }: { hash: string }) {
               <Th>Type</Th>
               <Th>From</Th>
               <Th>To</Th>
-              <Th className="text-right">Value (QIE)</Th>
+              <Th className="text-right">Value ({symbol})</Th>
             </tr>
           </thead>
           <tbody>
@@ -374,6 +377,7 @@ type ContractSubTab = "code" | "read" | "write" | "abi" | "bytecode";
 function ContractTab({ addr }: { addr: ExAddress }) {
   const network = useExplorerNetwork();
   const chainId = chainIdForSlug(network);
+  const family = familyForSlug(network);
   const [sub, setSub] = useState<ContractSubTab>("code");
   const { data } = useExplorer<SmartContract>(`/smart-contracts/${addr.hash}`);
 
@@ -393,7 +397,9 @@ function ContractTab({ addr }: { addr: ExAddress }) {
       <div className="space-y-4">
         <Card title="Contract">
           <div className="space-y-3 px-4 py-5 font-mono text-xs">
-            <p className="text-meta">This contract is not verified on the QIE explorer.</p>
+            <p className="text-meta">
+              This contract is not verified on the {family.label} explorer.
+            </p>
             <p className="text-muted-foreground">
               Verify the source to unlock Read/Write Contract, the ABI, and the compiler details.
             </p>

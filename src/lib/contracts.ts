@@ -8,7 +8,21 @@
 // scripts/deploy.ts (per network) and pasting the addresses into .env.local.
 // See .env.example.
 
-import { qieTestnet, qieMainnet } from "@/lib/chains";
+import {
+  qieTestnet,
+  qieMainnet,
+  botTestnet,
+  botMainnet,
+  xlayerTestnet,
+  xlayerMainnet,
+  arcTestnet,
+  avalancheTestnet,
+  avalancheMainnet,
+  goatTestnet,
+  goatMainnet,
+  arbitrumTestnet,
+  arbitrumMainnet,
+} from "@/lib/chains";
 
 const env = import.meta.env;
 
@@ -25,12 +39,27 @@ function envAddress(value: string | undefined, fallback = ""): `0x${string}` {
 }
 
 // Per-network registry addresses, keyed by chain id. Env overrides the default.
+// BOT Chain has no default — its registries are a separate deployment (the QIE
+// deployer-nonce coincidence above doesn't carry over to an unrelated chain) —
+// so its addresses stay unset until VITE_*_REGISTRY_ADDRESS_BOT_* is configured,
+// which is exactly the "not deployed yet" fallback path documented above.
 const PROJECT_REGISTRY: Record<number, `0x${string}`> = {
   [qieTestnet.id]: envAddress(
     env.VITE_PROJECT_REGISTRY_ADDRESS_TESTNET || env.VITE_PROJECT_REGISTRY_ADDRESS,
     DEFAULT_PROJECT_REGISTRY,
   ),
   [qieMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_MAINNET, DEFAULT_PROJECT_REGISTRY),
+  [botTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_BOT_TESTNET),
+  [botMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_BOT_MAINNET),
+  [xlayerTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_XLAYER_TESTNET),
+  [xlayerMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_XLAYER_MAINNET),
+  [arcTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_ARC_TESTNET),
+  [avalancheTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_AVALANCHE_TESTNET),
+  [avalancheMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_AVALANCHE_MAINNET),
+  [goatTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_GOAT_TESTNET),
+  [goatMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_GOAT_MAINNET),
+  [arbitrumTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_ARBITRUM_TESTNET),
+  [arbitrumMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_ARBITRUM_MAINNET),
 };
 
 const LABEL_REGISTRY: Record<number, `0x${string}`> = {
@@ -39,6 +68,17 @@ const LABEL_REGISTRY: Record<number, `0x${string}`> = {
     DEFAULT_LABEL_REGISTRY,
   ),
   [qieMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_MAINNET, DEFAULT_LABEL_REGISTRY),
+  [botTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_BOT_TESTNET),
+  [botMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_BOT_MAINNET),
+  [xlayerTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_XLAYER_TESTNET),
+  [xlayerMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_XLAYER_MAINNET),
+  [arcTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_ARC_TESTNET),
+  [avalancheTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_AVALANCHE_TESTNET),
+  [avalancheMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_AVALANCHE_MAINNET),
+  [goatTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_GOAT_TESTNET),
+  [goatMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_GOAT_MAINNET),
+  [arbitrumTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_ARBITRUM_TESTNET),
+  [arbitrumMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_ARBITRUM_MAINNET),
 };
 
 /** ProjectRegistry address for a given chain ("" when not deployed there). */

@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
 // DevStation brand mark: a terminal prompt chevron + caret inside a rounded
-// square, in the amber primary with a QIE-teal underscore. Pure SVG so it
+// square, in the amber primary with a teal underscore. Pure SVG so it
 // scales crisply and inherits theme colors.
 export function LogoMark({ className }: { className?: string }) {
   return (
@@ -24,7 +24,7 @@ export function LogoMark({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* blinking caret underscore in QIE teal */}
+      {/* blinking caret underscore in teal */}
       <path d="M16.5 21.5H23" stroke="#1294a9" strokeWidth="2.2" strokeLinecap="round" />
     </svg>
   );
@@ -41,7 +41,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
             Dev<span className="text-primary">Station</span>
           </div>
           <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
-            QIE Builder Console
+            Multichain Builder Console
           </div>
         </div>
       )}

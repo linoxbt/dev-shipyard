@@ -1,10 +1,14 @@
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { getExplorerData } from "@/lib/api/explorer.functions";
+import { getRoutescanExplorerData, isRoutescanChain } from "@/lib/api/routescan.functions";
 import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
 
 // Generic explorer fetch hook, scoped to the network in the URL
 // (/explorer/testnet|mainnet). `path` is a Blockscout v2 path like
-// "/transactions" or "/addresses/0x..../logs".
+// "/transactions" or "/addresses/0x..../logs" — the SAME path convention is
+// used for Routescan-backed chains (currently just Avalanche); the fetch
+// dispatches to whichever backend that chain actually has, transparently to
+// every caller.
 export function useExplorer<T = unknown>(
   path: string | null,
   opts?: { refetchInterval?: number; enabled?: boolean },
@@ -14,7 +18,8 @@ export function useExplorer<T = unknown>(
   const query = useQuery({
     queryKey: ["explorer", chainId, path],
     queryFn: async () => {
-      const res = (await getExplorerData({ data: { chainId, path: path as string } })) as
+      const fetcher = isRoutescanChain(chainId) ? getRoutescanExplorerData : getExplorerData;
+      const res = (await fetcher({ data: { chainId, path: path as string } })) as
         | { ok: true; data: unknown }
         | { ok: false; error: string };
       if (!res.ok) throw new Error(res.error);

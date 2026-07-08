@@ -5,17 +5,24 @@ import { useExplorer } from "@/hooks/useExplorer";
 import { Card, Row, AddrLink, CopyBtn, Tabs, Spinner } from "@/components/explorer/ui";
 import { TxTable } from "@/components/explorer/lists";
 import { formatQie, formatGwei, timeAgo, withCommas } from "@/lib/explorer/format";
-import { isNetworkSlug, type NetworkSlug } from "@/lib/explorer/network";
+import {
+  isNetworkSlug,
+  chainIdForSlug,
+  DEFAULT_NETWORK_SLUG,
+  type NetworkSlug,
+} from "@/lib/explorer/network";
+import { nativeSymbol } from "@/lib/chains";
 import type { ExBlock, ExTx } from "@/lib/explorer/types";
 
 export const Route = createFileRoute("/explorer/$network/block/$height")({
-  head: () => ({ meta: [{ title: "Block - QIE Explorer" }] }),
+  head: () => ({ meta: [{ title: "Block - Explorer" }] }),
   component: BlockPage,
 });
 
 function BlockPage() {
   const { network, height } = Route.useParams();
-  const slug = (isNetworkSlug(network) ? network : "testnet") as NetworkSlug;
+  const slug = (isNetworkSlug(network) ? network : DEFAULT_NETWORK_SLUG) as NetworkSlug;
+  const symbol = nativeSymbol(chainIdForSlug(slug));
   const [tab, setTab] = useState("overview");
   const { data: block, isLoading, error } = useExplorer<ExBlock>(`/blocks/${height}`);
   const { data: txs } = useExplorer<{ items: ExTx[] }>(`/blocks/${height}/transactions`, {
@@ -94,7 +101,9 @@ function BlockPage() {
             )}
           </Row>
           {block.rewards?.[0] && (
-            <Row label="Block Reward">{formatQie(block.rewards[0].reward)} QIE</Row>
+            <Row label="Block Reward">
+              {formatQie(block.rewards[0].reward)} {symbol}
+            </Row>
           )}
           <Row label="Gas Used">
             {withCommas(block.gas_used)}
@@ -109,7 +118,11 @@ function BlockPage() {
           {block.base_fee_per_gas && (
             <Row label="Base Fee Per Gas">{formatGwei(block.base_fee_per_gas)}</Row>
           )}
-          {block.burnt_fees && <Row label="Burnt Fees">{formatQie(block.burnt_fees)} QIE</Row>}
+          {block.burnt_fees && (
+            <Row label="Burnt Fees">
+              {formatQie(block.burnt_fees)} {symbol}
+            </Row>
+          )}
           <Row label="Size">{withCommas(block.size)} bytes</Row>
           <Row label="Hash">
             <span className="flex items-center gap-1.5 break-all">
@@ -134,7 +147,7 @@ function BlockPage() {
 
       {tab === "txns" && (
         <Card title="Transactions in this block">
-          {!txs ? <Spinner /> : <TxTable txs={txs.items} />}
+          {!txs ? <Spinner /> : <TxTable txs={txs.items} symbol={symbol} />}
         </Card>
       )}
     </div>

@@ -52,7 +52,7 @@ export function WalletProfile() {
           <Row label="Address">
             <AddressChip address={address} showLabel={false} full />
           </Row>
-          <Row label="QIE Balance">
+          <Row label={`${balance?.symbol ?? "Native"} Balance`}>
             <span className="text-foreground">
               {balance ? `${Number(balance.formatted).toFixed(6)} ${balance.symbol}` : "…"}
             </span>

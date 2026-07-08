@@ -3,14 +3,17 @@ import { useState } from "react";
 import { useExplorer, withPageParams, type PagedResponse } from "@/hooks/useExplorer";
 import { Card, Spinner } from "@/components/explorer/ui";
 import { TxTable, Pager } from "@/components/explorer/lists";
+import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
+import { nativeSymbol } from "@/lib/chains";
 import type { ExTx } from "@/lib/explorer/types";
 
 export const Route = createFileRoute("/explorer/$network/txns")({
-  head: () => ({ meta: [{ title: "Transactions - QIE Explorer" }] }),
+  head: () => ({ meta: [{ title: "Transactions - Explorer" }] }),
   component: TxnsPage,
 });
 
 function TxnsPage() {
+  const symbol = nativeSymbol(chainIdForSlug(useExplorerNetwork()));
   const [stack, setStack] = useState<Array<Record<string, unknown> | null>>([null]);
   const cursor = stack[stack.length - 1];
   const path = withPageParams("/transactions", cursor);
@@ -24,7 +27,7 @@ function TxnsPage() {
           <Spinner />
         ) : (
           <>
-            <TxTable txs={data.items} />
+            <TxTable txs={data.items} symbol={symbol} />
             <Pager
               hasPrev={stack.length > 1}
               hasNext={!!data.next_page_params && !isFetching}

@@ -7,7 +7,7 @@ import { formatUnits, withCommas } from "@/lib/explorer/format";
 import type { ExToken } from "@/lib/explorer/types";
 
 export const Route = createFileRoute("/explorer/$network/tokens")({
-  head: () => ({ meta: [{ title: "Tokens - QIE Explorer" }] }),
+  head: () => ({ meta: [{ title: "Tokens - Explorer" }] }),
   component: TokensPage,
 });
 

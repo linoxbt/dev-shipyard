@@ -19,7 +19,7 @@ import { InstallButton } from "@/components/pwa/InstallButton";
 import { useTheme } from "@/lib/theme";
 import { useNetworkStatus } from "@/hooks/useChainData";
 import { useCombinedDeployStats } from "@/hooks/useProjectRegistry";
-import { qieTestnet } from "@/lib/chains";
+import { qieTestnet, SUPPORTED_CHAINS } from "@/lib/chains";
 import { formatGas } from "@/lib/format-gas";
 import { withCommas } from "@/lib/explorer/format";
 import { TEMPLATES } from "@/lib/mock/templates";
@@ -28,11 +28,11 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "DevStation — The developer console for QIE Blockchain" },
+      { title: "DevStation — The multichain developer console" },
       {
         name: "description",
         content:
-          "Deploy contracts from audited templates, write and compile Solidity in the browser, decode any transaction, and explore QIE. The developer console for QIE Blockchain.",
+          "Deploy contracts from audited templates, write and compile Solidity in the browser, decode any transaction, and explore the chain. The multichain developer console for QIE, BOT Chain, and 5 more EVM chains.",
       },
     ],
   }),
@@ -144,7 +144,7 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] text-meta">
           <Terminal className="h-3.5 w-3.5 text-primary" />
           <span className="text-primary">devstation</span>
-          <span>~ QIE Builder Console</span>
+          <span>~ Multichain Builder Console</span>
         </div>
 
         <h1 className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-5xl font-bold leading-tight sm:text-7xl">
@@ -168,7 +168,8 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
             tagline ? "animate-fade-up" : "opacity-0",
           )}
         >
-          The developer console for QIE Blockchain. Build, ship, and inspect smart contracts on QIE
+          The multichain developer console for 7 EVM chains — QIE, BOT Chain, X Layer, Arc,
+          Avalanche, GOAT Network, and Arbitrum. Build, ship, and inspect smart contracts across
           Testnet and Mainnet — no local toolchain required.
         </p>
 
@@ -213,7 +214,7 @@ function StatsBand() {
       value: stats.totalDeployments != null ? withCommas(stats.totalDeployments) : "—",
     },
     { label: "Users", value: stats.onChain ? withCommas(stats.uniqueDeployers) : "—" },
-    { label: "Networks", value: "2" },
+    { label: "Networks", value: SUPPORTED_CHAINS.length.toString() },
     { label: "Gas", value: net?.status === "online" ? gas.text : "—" },
   ];
   return (
@@ -243,12 +244,12 @@ const FEATURES = [
   {
     icon: Search,
     title: "Routebook",
-    body: "Decode any QIE transaction into a readable call tree: internal calls, decoded arguments, token transfers, events, and revert reasons.",
+    body: "Decode any transaction, on any supported chain, into a readable call tree: internal calls, decoded arguments, token transfers, events, and revert reasons.",
   },
   {
     icon: Compass,
-    title: "QIE Explorer",
-    body: "A native, Etherscan-style block explorer for blocks, transactions, addresses, tokens, and holders — on both Testnet and Mainnet.",
+    title: "Explorer",
+    body: "A native, Etherscan-style block explorer for blocks, transactions, addresses, tokens, and holders — across every supported chain and network.",
   },
   {
     icon: Sparkles,
@@ -273,8 +274,8 @@ function Features() {
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
         <SectionHeading
           kicker="Everything in one console"
-          title="The complete QIE developer workflow"
-          subtitle="Write, deploy, inspect, and explore — all against the live QIE network, with the records that matter kept onchain."
+          title="The complete multichain developer workflow"
+          subtitle="Write, deploy, inspect, and explore — all against live networks across 7 chains and counting, with the records that matter kept onchain."
         />
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
@@ -304,7 +305,7 @@ function TemplatesShowcase() {
         <SectionHeading
           kicker="LaunchKit templates"
           title="Ship in 60 seconds"
-          subtitle="Self-contained, audited contracts. Configure the constructor, deploy to QIE, and get a verified onchain record."
+          subtitle="Self-contained, audited contracts. Configure the constructor, deploy to any supported chain, and get a verified onchain record."
         />
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {TEMPLATES.map((t) => (
@@ -346,7 +347,7 @@ const STEPS = [
   {
     n: 1,
     title: "Connect",
-    body: "Connect MetaMask or generate an in-app wallet. The console defaults to QIE Testnet.",
+    body: "Connect MetaMask or generate an in-app wallet, then pick any supported chain — the console defaults to BOT Chain mainnet.",
   },
   {
     n: 2,
@@ -393,10 +394,10 @@ function CtaBand() {
     <section className="border-b border-border bg-surface">
       <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
         <h2 className="font-mono text-2xl font-bold text-foreground sm:text-3xl">
-          Start building on QIE
+          Start building — 7 chains and counting
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-          Free to use. You only pay QIE network gas for what you deploy. No installs, no signup.
+          Free to use. You only pay network gas for what you deploy. No installs, no signup.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link
@@ -443,14 +444,9 @@ function Footer() {
           <Link to="/docs" className="hover:text-foreground">
             Docs
           </Link>
-          <a
-            href="https://qie.digital"
-            target="_blank"
-            rel="noreferrer"
-            className="hover:text-foreground"
-          >
-            QIE
-          </a>
+          <Link to="/docs/networks" className="hover:text-foreground">
+            All networks
+          </Link>
         </nav>
         <div className="flex items-center gap-3 sm:ml-auto">
           <a
@@ -463,7 +459,7 @@ function Footer() {
             <Github className="h-4 w-4" />
           </a>
           <span className="font-mono text-[10px] text-meta">
-            DevStation — built for QIE Blockchain
+            DevStation — the multichain developer console
           </span>
         </div>
       </div>

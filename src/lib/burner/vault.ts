@@ -43,7 +43,22 @@ function randomBytes(len: number): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
+// Web Crypto's SubtleCrypto is only exposed on secure origins (https:// or
+// localhost/127.0.0.1) — browsers make `crypto.subtle` undefined everywhere
+// else, including plain-HTTP preview URLs. There is no polyfill or workaround
+// for this; it's a deliberate browser security restriction. Fail with a clear
+// message here instead of the raw "Cannot read properties of undefined
+// (reading 'importKey')" TypeError.
+function assertCryptoAvailable(): void {
+  if (typeof crypto === "undefined" || !crypto.subtle) {
+    throw new Error(
+      "Generating or unlocking a wallet needs a secure connection (HTTPS or localhost) — this page is loaded over plain HTTP, and browsers disable the encryption APIs there.",
+    );
+  }
+}
+
 async function deriveKey(password: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
+  assertCryptoAvailable();
   const enc = new TextEncoder();
   const baseKey = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, [
     "deriveKey",

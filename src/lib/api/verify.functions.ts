@@ -10,10 +10,11 @@ import { chainConfig } from "@/lib/chains";
 // Flow: submitVerification() POSTs the source + compiler settings, then the
 // client polls getVerificationStatus() until the contract reports is_verified.
 
-// Resolve the exact compiler build name Blockscout expects
+// Resolve the exact compiler build name Blockscout (and Sourcify) expect
 // (e.g. "0.8.20" → "v0.8.20+commit.a1b79de6"). Cached per server instance.
+// Exported for reuse by sourcify.functions.ts, which needs the same lookup.
 let releasesCache: Record<string, string> | null = null;
-async function longCompilerVersion(short: string): Promise<string> {
+export async function longCompilerVersion(short: string): Promise<string> {
   if (!releasesCache) {
     const resp = await fetch("https://binaries.soliditylang.org/bin/list.json");
     if (!resp.ok) throw new Error(`Could not load solc version list (${resp.status})`);

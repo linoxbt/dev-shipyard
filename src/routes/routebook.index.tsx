@@ -31,7 +31,7 @@ export const Route = createFileRoute("/routebook/")({
       { title: "Routebook — DevStation" },
       {
         name: "description",
-        content: "Turn any QIE transaction hash into a human-readable execution map.",
+        content: "Turn any transaction hash into a human-readable execution map.",
       },
     ],
   }),
@@ -63,7 +63,7 @@ function RoutebookHome() {
       <PageHeader
         breadcrumb={["DevStation", "Routebook"]}
         title="Routebook — Transaction Inspector"
-        subtitle="Turn any QIE transaction into a readable execution map."
+        subtitle="Turn any transaction into a readable execution map."
       />
       <div className="p-6">
         <div className="mx-auto max-w-3xl">
@@ -78,7 +78,7 @@ function RoutebookHome() {
                   value={hash}
                   onChange={(e) => setHash(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && submit()}
-                  placeholder="Paste a QIE transaction hash... 0x..."
+                  placeholder="Paste a transaction hash... 0x..."
                   className="w-full rounded border border-border bg-background py-3 pl-10 pr-3 font-mono text-sm text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
                 />
               </div>
@@ -139,8 +139,8 @@ function RoutebookHome() {
 
           <div className="mt-6 rounded border border-border bg-surface p-6 text-center font-mono text-xs text-meta">
             <div className="mb-2 text-2xl">{"{ }"}</div>
-            Paste any QIE Testnet or Mainnet transaction hash above to decode its execution route,
-            token movements, and approvals — live from the chain.
+            Paste any supported-chain transaction hash above to decode its execution route, token
+            movements, and approvals — live from the chain.
           </div>
         </div>
       </div>

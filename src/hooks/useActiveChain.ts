@@ -1,6 +1,6 @@
 import { useAccount, useSwitchChain } from "wagmi";
-import { useNetworkPref, chainById, qieTestnet, SUPPORTED_CHAINS } from "@/lib/active-chain";
-import { chainConfig } from "@/lib/chains";
+import { useNetworkPref, chainById, SUPPORTED_CHAINS } from "@/lib/active-chain";
+import { chainConfig, DEFAULT_CHAIN } from "@/lib/chains";
 
 // Resolves the active QIE chain. The user's SELECTED network is authoritative
 // for reads everywhere in the app — it is NOT overridden by the wallet's chain.
@@ -15,7 +15,7 @@ export function useActiveChain() {
   const { preferredChainId, setPreferred } = useNetworkPref();
 
   const activeChainId = preferredChainId;
-  const chain = chainById(activeChainId) ?? qieTestnet;
+  const chain = chainById(activeChainId) ?? DEFAULT_CHAIN;
   const walletOnSupported = isConnected && SUPPORTED_CHAINS.some((c) => c.id === walletChainId);
 
   const select = (chainId: number) => {

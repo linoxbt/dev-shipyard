@@ -4,7 +4,7 @@ import { DocPage, H2, P, Bullets, Steps, Callout, PageNav } from "@/components/d
 import { docNeighbors } from "@/components/docs/nav";
 
 export const Route = createFileRoute("/docs/explorer")({
-  head: () => ({ meta: [{ title: "QIE Explorer - DevStation Docs" }] }),
+  head: () => ({ meta: [{ title: "Explorer - DevStation Docs" }] }),
   component: ExplorerDocs,
 });
 
@@ -12,22 +12,31 @@ function ExplorerDocs() {
   const { prev, next } = docNeighbors("/docs/explorer");
   return (
     <DocPage
-      title="QIE Explorer"
+      title="Explorer"
       icon={Compass}
-      intro="A native, Etherscan-style block explorer for QIE, built into DevStation. It reads the live chain and is scoped to the network in the URL, so a link always names its chain."
+      intro="A native, Etherscan-style block explorer built into DevStation, covering every supported chain. It reads the live chain and is scoped to the network in the URL, so a link always names its chain."
     >
       <P>
-        Open it at <code>/explorer/testnet</code> or <code>/explorer/mainnet</code> (the bare{" "}
+        Open it at <code>/explorer/testnet</code> or <code>/explorer/mainnet</code> for QIE, or a
+        prefixed slug like <code>/explorer/bot-mainnet</code> or{" "}
+        <code>/explorer/avalanche-mainnet</code> for the other chains (the bare{" "}
         <code>/explorer</code> redirects to your selected network). A prominent Testnet/Mainnet
-        badge in the header makes the active chain unmistakable.
+        badge in the header makes the active chain unmistakable, and a network dropdown switches
+        between any chain + network combination.
       </P>
+      <Callout tone="info">
+        X Layer's official explorer (OKLink) requires a registered API key DevStation doesn't have
+        yet, so its Explorer page shows only live block height and gas price, with a link out to
+        OKLink for full browsing. Every other chain, including Avalanche, has the full dashboard
+        below.
+      </Callout>
 
       <H2>Dashboard</H2>
       <P>The home view shows live network health at a glance:</P>
       <Bullets
         items={[
-          "QIE price, market cap, average block time, total blocks and transactions, gas price, and network utilization",
-          "Daily-transactions and QIE-price charts (30-day)",
+          "Native token price, market cap, average block time, total blocks and transactions, gas price, and network utilization",
+          "Daily-transactions and price charts (30-day)",
           "Live feeds of the latest blocks and transactions",
           "A universal search for an address, transaction hash, or block number",
         ]}
@@ -71,7 +80,7 @@ function ExplorerDocs() {
           },
           {
             title: "Submit",
-            body: "DevStation sends it to the QIE explorer and polls until it confirms, then links to the verified contract.",
+            body: "DevStation sends it to that chain's explorer and polls until it confirms, then links to the verified contract.",
           },
         ]}
       />

@@ -302,6 +302,7 @@ export const decodeTransaction = createServerFn({ method: "POST" })
 
         const decoded: DecodedTx = {
           hash: tx.hash,
+          chainId,
           status: receipt.status === "success" ? "SUCCESS" : "REVERTED",
           blockNumber: Number(receipt.blockNumber),
           timestamp: block ? Number(block.timestamp) * 1000 : Date.now(),

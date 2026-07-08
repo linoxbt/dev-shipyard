@@ -6,7 +6,7 @@ import { useCombinedDeployStats } from "@/hooks/useProjectRegistry";
 import { getAllDeploymentsCombined, type EcosystemDeployment } from "@/lib/api/chain.functions";
 import { projectRegistryAddress, isContractConfigured } from "@/lib/contracts";
 import { getTemplate } from "@/lib/mock/templates";
-import { qieTestnet, qieMainnet } from "@/lib/chains";
+import { qieTestnet, SUPPORTED_CHAINS } from "@/lib/chains";
 import { slugForChainId } from "@/lib/explorer/network";
 import { timeAgo, shortHash, shortAddr } from "@/lib/explorer/format";
 import { cn } from "@/lib/utils";
@@ -17,8 +17,8 @@ export const Route = createFileRoute("/activity")({
 });
 
 function ActivityPage() {
-  // Combined across both networks: every chain with a configured registry.
-  const chains = [qieTestnet.id, qieMainnet.id]
+  // Combined across every supported chain: any chain with a configured registry.
+  const chains = SUPPORTED_CHAINS.map((c) => c.id)
     .map((chainId) => ({ chainId, registry: projectRegistryAddress(chainId) }))
     .filter((c) => isContractConfigured(c.registry));
   const onChain = chains.length > 0;

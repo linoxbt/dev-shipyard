@@ -1,7 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createPublicClient, http, formatUnits, decodeFunctionData } from "viem";
-import { qieTestnet, SUPPORTED_CHAINS, chainConfig } from "@/lib/chains";
+import {
+  qieTestnet,
+  qieMainnet,
+  avalancheMainnet,
+  SUPPORTED_CHAINS,
+  chainConfig,
+} from "@/lib/chains";
 import { projectRegistryAbi } from "@/lib/abis/projectRegistry";
 import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
 
@@ -41,31 +47,46 @@ export const getNetworkStatus = createServerFn({ method: "GET" })
     }
   });
 
-// QIE coin price + 24h change. QIE's Blockscout /stats returns
-// coin_price_change_percentage: null, so the explorer can't show a change like
-// Etherscan does for ETH. CoinGecko has it (coin id "qie"), so we fetch the
-// price and the 24h % move server-side as a fallback. Network-agnostic (one
-// market price), cheap, and tolerant of CoinGecko being unreachable.
-export const getQiePrice = createServerFn({ method: "GET" }).handler(async () => {
-  try {
-    const url =
-      "https://api.coingecko.com/api/v3/simple/price?ids=qie&vs_currencies=usd&include_24hr_change=true";
-    const resp = await fetch(url, { headers: { accept: "application/json" } });
-    if (!resp.ok) return { ok: false as const };
-    const json = (await resp.json()) as {
-      qie?: { usd?: number; usd_24h_change?: number };
-    };
-    const q = json.qie;
-    if (!q || typeof q.usd !== "number") return { ok: false as const };
-    return {
-      ok: true as const,
-      usd: q.usd,
-      change24h: typeof q.usd_24h_change === "number" ? q.usd_24h_change : null,
-    };
-  } catch {
-    return { ok: false as const };
-  }
-});
+// Native-coin price + 24h change, per chain family. QIE's Blockscout /stats
+// returns coin_price_change_percentage: null, so the explorer can't show a
+// change like Etherscan does for ETH; CoinGecko has it (coin id "qie"), so we
+// fetch price + 24h move server-side as a fallback there. Chains with no known
+// CoinGecko listing (e.g. BOT Chain, as of this writing) return ok:false and
+// the UI falls back to Blockscout's own coin_price field, which BOT Chain's
+// explorer already populates natively.
+const COINGECKO_ID_BY_CHAIN: Record<number, string> = {
+  [qieTestnet.id]: "qie",
+  [qieMainnet.id]: "qie",
+  [avalancheMainnet.id]: "avalanche-2",
+};
+
+const priceInput = z.object({ chainId: z.number() });
+
+export const getChainPrice = createServerFn({ method: "GET" })
+  .inputValidator(priceInput)
+  .handler(async ({ data }) => {
+    const coinId = COINGECKO_ID_BY_CHAIN[data.chainId];
+    if (!coinId) return { ok: false as const };
+    try {
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true`;
+      const resp = await fetch(url, { headers: { accept: "application/json" } });
+      if (!resp.ok) return { ok: false as const };
+      const json = (await resp.json()) as Record<
+        string,
+        { usd?: number; usd_24h_change?: number; usd_market_cap?: number } | undefined
+      >;
+      const q = json[coinId];
+      if (!q || typeof q.usd !== "number") return { ok: false as const };
+      return {
+        ok: true as const,
+        usd: q.usd,
+        change24h: typeof q.usd_24h_change === "number" ? q.usd_24h_change : null,
+        marketCap: typeof q.usd_market_cap === "number" ? q.usd_market_cap : null,
+      };
+    } catch {
+      return { ok: false as const };
+    }
+  });
 
 // Ecosystem-wide deployment stats, read from the onchain ProjectRegistry:
 //   - totalContracts: the registry's totalDeployments counter (every recorded deploy)

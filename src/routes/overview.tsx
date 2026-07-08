@@ -22,7 +22,7 @@ export const Route = createFileRoute("/overview")({
       { title: "DevStation — Overview" },
       {
         name: "description",
-        content: "Your QIE builder console: deployments, network status, and quick tools.",
+        content: "Your multichain builder console: deployments, network status, and quick tools.",
       },
     ],
   }),
@@ -64,7 +64,7 @@ function Overview() {
       <PageHeader
         breadcrumb={["DevStation", "Overview"]}
         title="Overview"
-        subtitle="Your QIE builder console: deployments, network status, and quick tools."
+        subtitle="Your multichain builder console: deployments, network status, and quick tools."
       />
 
       <div className="space-y-6 p-6">
@@ -77,7 +77,7 @@ function Overview() {
                 : "—"
             }
             label="Total Deployments"
-            sub={globalStats.onChain ? "Testnet + Mainnet" : "registry not configured"}
+            sub={globalStats.onChain ? "all configured chains" : "registry not configured"}
           />
           <Stat
             value={globalStats.onChain ? globalStats.uniqueDeployers.toLocaleString() : "—"}
@@ -102,7 +102,7 @@ function Overview() {
           <Stat
             value={online ? gas.text : "—"}
             label="Gas Price"
-            sub={`≈ ${gas.txCostQie.toFixed(gas.txCostQie < 0.0001 ? 9 : 6)} QIE per tx`}
+            sub={`≈ ${gas.txCostQie.toFixed(gas.txCostQie < 0.0001 ? 9 : 6)} ${chain.nativeCurrency.symbol} per tx`}
           />
           <Stat
             value={TEMPLATES.length.toString()}

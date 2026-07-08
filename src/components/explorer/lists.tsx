@@ -14,7 +14,15 @@ import {
 
 /* ── Transactions table ── */
 
-export function TxTable({ txs, compact = false }: { txs: ExTx[]; compact?: boolean }) {
+export function TxTable({
+  txs,
+  compact = false,
+  symbol = "QIE",
+}: {
+  txs: ExTx[];
+  compact?: boolean;
+  symbol?: string;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full font-mono text-xs">
@@ -26,7 +34,7 @@ export function TxTable({ txs, compact = false }: { txs: ExTx[]; compact?: boole
             <Th>Age</Th>
             <Th>From</Th>
             <Th>To</Th>
-            <Th className="text-right">Value (QIE)</Th>
+            <Th className="text-right">Value ({symbol})</Th>
             {!compact && <Th className="text-right">Fee</Th>}
           </tr>
         </thead>
@@ -83,7 +91,7 @@ export function TxTable({ txs, compact = false }: { txs: ExTx[]; compact?: boole
 }
 
 // Compact dashboard list (vertical cards, like Etherscan's homepage panels).
-export function TxFeed({ txs }: { txs: ExTx[] }) {
+export function TxFeed({ txs, symbol = "QIE" }: { txs: ExTx[]; symbol?: string }) {
   return (
     <ul className="divide-y divide-border">
       {txs.map((t) => (
@@ -111,7 +119,7 @@ export function TxFeed({ txs }: { txs: ExTx[] }) {
             </div>
           </div>
           <div className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-foreground">
-            {formatQie(t.value)} QIE
+            {formatQie(t.value)} {symbol}
           </div>
         </li>
       ))}
