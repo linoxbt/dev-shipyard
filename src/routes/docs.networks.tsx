@@ -12,7 +12,7 @@ function Networks() {
   return (
     <DocPage
       title="Networks"
-      intro="DevStation supports 7 EVM chains — QIE, BOT Chain, X Layer, Arc, Avalanche, GOAT Network, and Arbitrum — most with a Testnet and Mainnet. The selected network is authoritative for every read and write in the app."
+      intro="DevStation supports 6 EVM chains — QIE, BOT Chain, Arc, Avalanche, GOAT Network, and Arbitrum — most with a Testnet and Mainnet. The selected network is authoritative for every read and write in the app."
     >
       <P>
         When a connected wallet is on a different chain, the console surfaces a mismatch prompt
@@ -36,21 +36,6 @@ function Networks() {
           ["Explorer", "scan.bohr.life", "scan.botchain.ai"],
         ]}
       />
-      <Table
-        head={["Property", "X Layer Testnet", "X Layer Mainnet"]}
-        rows={[
-          ["Chain ID", "1952", "196"],
-          ["Native token", "OKB", "OKB"],
-          ["RPC", "testrpc.xlayer.tech/terigon", "rpc.xlayer.tech"],
-          ["Explorer", "oklink.com/xlayer-testnet", "oklink.com/xlayer"],
-        ]}
-      />
-      <P>
-        X Layer's explorer (OKLink) requires a registered API key DevStation doesn't have yet, so
-        its internal Explorer page shows live block height/gas price only, with a link out to OKLink
-        for full block/transaction/address browsing. Wallet connect, deploys, and the AI agent all
-        work normally on X Layer.
-      </P>
       <Table
         head={["Property", "Arc Testnet"]}
         rows={[
@@ -96,6 +81,12 @@ function Networks() {
       <P>
         Add a network to a wallet manually with the values above, or let DevStation request the
         network switch for you when you connect.
+      </P>
+      <P>
+        <strong>X Layer</strong> is not currently available in DevStation. Its explorer (OKLink)
+        requires a registered API key DevStation doesn't have yet, so support is temporarily
+        disabled rather than shipped with a half-working experience — it'll return once a key is
+        available.
       </P>
       <PageNav prev={prev} next={next} />
     </DocPage>

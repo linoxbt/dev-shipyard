@@ -14,6 +14,7 @@ so far.
 - [Network configuration](#network-configuration)
 - [Registry contract addresses](#registry-contract-addresses)
 - [Deploying registries to a new chain](#deploying-registries-to-a-new-chain)
+- [X Layer (temporarily disabled)](#x-layer-temporarily-disabled)
 
 ---
 
@@ -81,8 +82,6 @@ endpoint. QIE's vars have no family infix for backward compatibility.
 | QIE | Mainnet | `VITE_QIE_MAINNET_RPC` | `VITE_QIE_MAINNET_EXPLORER` | `VITE_QIE_MAINNET_CHAIN_ID` | `1990` |
 | BOT Chain | Testnet | `VITE_BOT_TESTNET_RPC` | `VITE_BOT_TESTNET_EXPLORER` | `VITE_BOT_TESTNET_CHAIN_ID` | `968` |
 | BOT Chain | Mainnet | `VITE_BOT_MAINNET_RPC` | `VITE_BOT_MAINNET_EXPLORER` | `VITE_BOT_MAINNET_CHAIN_ID` | `677` |
-| X Layer | Testnet | `VITE_XLAYER_TESTNET_RPC` | `VITE_XLAYER_TESTNET_EXPLORER` | `VITE_XLAYER_TESTNET_CHAIN_ID` | `1952` |
-| X Layer | Mainnet | `VITE_XLAYER_MAINNET_RPC` | `VITE_XLAYER_MAINNET_EXPLORER` | `VITE_XLAYER_MAINNET_CHAIN_ID` | `196` |
 | Arc | Testnet | `VITE_ARC_TESTNET_RPC` | `VITE_ARC_TESTNET_EXPLORER` | `VITE_ARC_TESTNET_CHAIN_ID` | `5042002` |
 | Avalanche | Testnet (Fuji) | `VITE_AVALANCHE_TESTNET_RPC` | `VITE_AVALANCHE_TESTNET_EXPLORER` | `VITE_AVALANCHE_TESTNET_CHAIN_ID` | `43113` |
 | Avalanche | Mainnet (C-Chain) | `VITE_AVALANCHE_MAINNET_RPC` | `VITE_AVALANCHE_MAINNET_EXPLORER` | `VITE_AVALANCHE_MAINNET_CHAIN_ID` | `43114` |
@@ -102,18 +101,17 @@ Extras:
 ### Explorer availability per chain
 
 DevStation's built-in Explorer reads a chain's own Blockscout v2 API where
-available. Two chains don't run Blockscout and get a different path instead:
+available. One chain doesn't run Blockscout and gets a different path instead:
 
 | Chain | Explorer backend | DevStation Explorer |
 | --- | --- | --- |
 | QIE, BOT Chain, Arc, GOAT Network, Arbitrum | Blockscout | Full dashboard (blocks, txs, addresses, tokens) |
 | Avalanche | Snowtrace (Routescan API) | Full dashboard, via a Routescan adapter (`src/lib/api/routescan.functions.ts`) that maps Routescan's data into the same shapes the Blockscout pages already render |
-| X Layer | OKLink (requires a registered API key DevStation doesn't have) | Minimal page: live block height/gas price via RPC, plus a link out to OKLink. Upgradeable to a full dashboard the same way Avalanche was, once a key is available |
 
-Contract **verification**, however, works on all 7 chains: Blockscout-backed
-chains verify through their own explorer; Avalanche and X Layer verify
-through [Sourcify](https://sourcify.dev) instead (a free, keyless, public
-verification service that recompiles from source and matches onchain
+Contract **verification**, however, works on all 6 active chains:
+Blockscout-backed chains verify through their own explorer; Avalanche
+verifies through [Sourcify](https://sourcify.dev) instead (a free, keyless,
+public verification service that recompiles from source and matches onchain
 bytecode directly via its own RPC — no explorer API dependency).
 
 ---
@@ -132,7 +130,6 @@ vars (QIE keeps its legacy no-suffix names for backward compatibility).
 | QIE | Mainnet `1990` | `0x75d7b39bc827367c409e1a2bf805bd5f337ca27b` | `0x177294293e6e785a83e036a95de1697e3cc04748` |
 | BOT Chain | Testnet `968` | `0x4d6267f89e32018b1caef34674bcaa90e7b890d2` | `0xe36ca612abf610825a9a9f06c073d40e543b0aa0` |
 | BOT Chain | Mainnet `677` | _not yet deployed_ | _not yet deployed_ |
-| X Layer | Testnet / Mainnet | _not yet deployed_ | _not yet deployed_ |
 | Arc | Testnet | _not yet deployed_ | _not yet deployed_ |
 | Avalanche | Testnet / Mainnet | _not yet deployed_ | _not yet deployed_ |
 | GOAT Network | Testnet / Mainnet | _not yet deployed_ | _not yet deployed_ |
@@ -169,3 +166,31 @@ After deploying, copy the printed addresses into the matching
 `VITE_{PROJECT,LABEL}_REGISTRY_ADDRESS_<FAMILY>_<NETWORK>` vars (see the
 [table above](#registry-contract-addresses)) in your host's env config, then
 rebuild.
+
+---
+
+## X Layer (temporarily disabled)
+
+X Layer (OKX's L2) is **not currently active** in DevStation — it's commented
+out of `src/lib/chains.ts`'s `SUPPORTED_CHAINS` and `src/lib/explorer/network.ts`'s
+slug maps, not deleted, so it doesn't appear in the wallet's network switcher
+or the Explorer dropdown. Reason: its explorer (OKLink) requires a registered
+`OK-ACCESS-KEY` API key DevStation doesn't have (confirmed: OKLink's API
+401s without one), so the only thing it could offer today is a minimal
+RPC-only page — commented out rather than shipped as a half-working chain.
+
+| Property | Testnet | Mainnet |
+| --- | --- | --- |
+| Chain ID | `1952` | `196` |
+| Native token | OKB | OKB |
+| RPC | `testrpc.xlayer.tech/terigon` | `rpc.xlayer.tech` |
+| Explorer | `oklink.com/xlayer-testnet` | `oklink.com/xlayer` |
+| Env vars | `VITE_XLAYER_TESTNET_{RPC,EXPLORER,CHAIN_ID}` | `VITE_XLAYER_MAINNET_{RPC,EXPLORER,CHAIN_ID}` |
+
+To re-enable once an OKLink key is available: uncomment `xlayerTestnet`/
+`xlayerMainnet` in `SUPPORTED_CHAINS` (`chains.ts`) and the matching import,
+`NetworkSlug` entries, `SLUG_CHAIN_ID` entries, and `EXPLORER_CHAIN_FAMILIES`
+entry in `network.ts` — each spot has a comment marking exactly what to
+restore. Verification (Sourcify) and the registry-deploy script already
+support X Layer unchanged, since neither depends on it being in
+`SUPPORTED_CHAINS`.

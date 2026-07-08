@@ -13,7 +13,7 @@ function Introduction() {
   return (
     <DocPage
       title="Introduction"
-      intro="DevStation is a multichain developer console spanning 7 EVM chains — QIE, BOT Chain, X Layer, Arc, Avalanche, GOAT Network, and Arbitrum. Deploy contracts from audited templates, write and compile Solidity in the browser, decode any transaction, and label contracts onchain."
+      intro="DevStation is a multichain developer console spanning 6 EVM chains — QIE, BOT Chain, Arc, Avalanche, GOAT Network, and Arbitrum. Deploy contracts from audited templates, write and compile Solidity in the browser, decode any transaction, and label contracts onchain."
     >
       <P>
         DevStation brings the everyday work of a smart-contract developer into one console: writing,

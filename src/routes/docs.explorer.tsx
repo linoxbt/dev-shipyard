@@ -24,12 +24,6 @@ function ExplorerDocs() {
         badge in the header makes the active chain unmistakable, and a network dropdown switches
         between any chain + network combination.
       </P>
-      <Callout tone="info">
-        X Layer's official explorer (OKLink) requires a registered API key DevStation doesn't have
-        yet, so its Explorer page shows only live block height and gas price, with a link out to
-        OKLink for full browsing. Every other chain, including Avalanche, has the full dashboard
-        below.
-      </Callout>
 
       <H2>Dashboard</H2>
       <P>The home view shows live network health at a glance:</P>
