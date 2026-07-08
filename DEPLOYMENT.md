@@ -128,7 +128,7 @@ vars (QIE keeps its legacy no-suffix names for backward compatibility).
 | --- | --- | --- | --- |
 | QIE | Testnet `1983` | `0x75d7b39bc827367c409e1a2bf805bd5f337ca27b` | `0x177294293e6e785a83e036a95de1697e3cc04748` |
 | QIE | Mainnet `1990` | `0x75d7b39bc827367c409e1a2bf805bd5f337ca27b` | `0x177294293e6e785a83e036a95de1697e3cc04748` |
-| BOT Chain | Testnet `968` | `0x4d6267f89e32018b1caef34674bcaa90e7b890d2` | `0xe36ca612abf610825a9a9f06c073d40e543b0aa0` |
+| BOT Chain | Testnet `968` | _not wired in_ | _not wired in_ |
 | BOT Chain | Mainnet `677` | _not yet deployed_ | _not yet deployed_ |
 | Arc | Testnet | _not yet deployed_ | _not yet deployed_ |
 | Avalanche | Testnet / Mainnet | _not yet deployed_ | _not yet deployed_ |
@@ -139,14 +139,17 @@ QIE's testnet and mainnet addresses happen to match because the deployer's
 matching nonces produced identical addresses on each chain — this is a
 coincidence of deploy order, not something to rely on for other chains.
 
-BOT Chain's testnet registries are also **source-verified** on
-`scan.bohr.life` (solc `0.8.26`, optimizer on / 200 runs, MIT), submitted via
-DevStation's own flattened-code verification flow.
+BOT Chain testnet previously had a deployed, source-verified pair
+(ProjectRegistry `0x4d6267f8...`, ContractLabelRegistry `0xe36ca612...`, still
+live on `scan.bohr.life` — a deployed contract can't be un-deployed from an
+immutable chain), but their addresses have been removed from local config, so
+DevStation no longer reads or writes them. Redeploy with the steps below and
+set the two `VITE_..._BOT_TESTNET` vars again to bring that back.
 
 When an address is unset for a network, DevStation falls back to local
 history and hides the registry-backed UI (Projects, Label Registry, ecosystem
 stats) for that network — nothing crashes, those features are just inactive
-until deployed.
+until (re)deployed.
 
 ---
 

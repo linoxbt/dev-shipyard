@@ -104,7 +104,7 @@ Supported providers (pick one, paste a key, save):
 
 Two dependency-free Solidity contracts back the app: **ProjectRegistry** records every deployment against the deploying wallet and keeps a global `totalDeployments` counter (powering the per-wallet Projects page and the Overview's ecosystem stats), and **ContractLabelRegistry** stores human-readable contract labels with a source (auto, community, or verified) and the submitter.
 
-Each chain is a **separate deployment** with its own addresses — QIE and BOT Chain testnet are deployed today; the full address table (and how to deploy to the rest) is in **[DEPLOYMENT.md](./DEPLOYMENT.md#registry-contract-addresses)**.
+Each chain is a **separate deployment** with its own addresses — only QIE is currently wired in; the full address table (and how to deploy to the rest) is in **[DEPLOYMENT.md](./DEPLOYMENT.md#registry-contract-addresses)**.
 
 Registry writes use an explicit gas limit on chains whose `eth_estimateGas` under-reports what a storage-writing call needs (QIE's, for example, can return roughly 24k for a call that actually uses about 275k, which would otherwise run the write out of gas). This costs a negligible fraction of a token at those chains' gas prices.
 
