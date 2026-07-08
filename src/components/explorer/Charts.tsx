@@ -9,13 +9,21 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import { useQuery } from "@tanstack/react-query";
 import { useExplorer } from "@/hooks/useExplorer";
 import { Card, Spinner } from "@/components/explorer/ui";
 import { withCommas } from "@/lib/explorer/format";
+import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
+import { SUPPORTED_CHAINS } from "@/lib/chains";
+import { getChainPriceHistory } from "@/lib/api/chain.functions";
 
 interface TxPoint {
   date: string;
-  transaction_count: number;
+  // Blockscout instances disagree on this field's name — QIE/BOT Chain send
+  // "transaction_count", Arc/GOAT Network/the Arbitrum community mirror send
+  // "transactions_count" (confirmed live against all of them). Read either.
+  transaction_count?: number;
+  transactions_count?: number;
 }
 interface MarketPoint {
   date: string;
@@ -72,13 +80,23 @@ function TransactionsChart() {
   const { data } = useExplorer<{ chart_data?: TxPoint[] }>("/stats/charts/transactions", {
     refetchInterval: 60_000,
   });
-  const points = (data?.chart_data ?? []).slice(0, 30).reverse();
+  const points = (data?.chart_data ?? [])
+    .slice(0, 30)
+    .reverse()
+    .map((p) => ({
+      date: p.date,
+      transaction_count: p.transaction_count ?? p.transactions_count ?? 0,
+    }));
 
   return (
     <Card title="Daily Transactions (30d)">
       <div className="h-56 px-2 py-3">
         {!data ? (
           <Spinner />
+        ) : points.length === 0 ? (
+          <div className="flex h-full items-center justify-center font-mono text-xs text-meta">
+            No transaction history available.
+          </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={points} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
@@ -112,19 +130,46 @@ function TransactionsChart() {
 }
 
 function PriceChart({ symbol = "QIE" }: { symbol?: string }) {
+  const network = useExplorerNetwork();
+  const chainId = chainIdForSlug(network);
+  const isTestnet = SUPPORTED_CHAINS.find((c) => c.id === chainId)?.testnet ?? true;
+
   const { data } = useExplorer<{ chart_data?: MarketPoint[] }>("/stats/charts/market", {
     refetchInterval: 60_000,
+    enabled: !isTestnet,
   });
-  const points = (data?.chart_data ?? [])
+  const explorerPoints = (data?.chart_data ?? [])
     .slice(0, 30)
     .reverse()
     .map((p) => ({ date: p.date, price: p.closing_price ? Number(p.closing_price) : null }))
-    .filter((p) => p.price != null);
+    .filter((p): p is { date: string; price: number } => p.price != null);
+
+  // Some chains' own explorer has no price-chart history at all (no oracle
+  // configured — confirmed empty chart_data on BOT Chain/Arc/GOAT Network's
+  // Blockscout, and Avalanche has no Blockscout to ask). Fall back to
+  // CoinGecko's own history wherever a coin id is known, same chains that
+  // already get a live price/market-cap fallback in StatsOverview.
+  const needsFallback = !isTestnet && data != null && explorerPoints.length === 0;
+  const { data: history } = useQuery({
+    queryKey: ["chain-price-history", chainId],
+    queryFn: () => getChainPriceHistory({ data: { chainId } }),
+    enabled: needsFallback,
+    staleTime: 5 * 60_000,
+  });
+  const fallbackPoints =
+    history?.ok && history.points
+      ? history.points
+          .map((p) => ({ date: p.date, price: p.closing_price ? Number(p.closing_price) : null }))
+          .filter((p): p is { date: string; price: number } => p.price != null)
+      : [];
+
+  const points = explorerPoints.length > 0 ? explorerPoints : fallbackPoints;
+  const loading = isTestnet ? false : !data || (needsFallback && !history);
 
   return (
     <Card title={`${symbol} Price (30d)`}>
       <div className="h-56 px-2 py-3">
-        {!data ? (
+        {loading ? (
           <Spinner />
         ) : points.length === 0 ? (
           <div className="flex h-full items-center justify-center font-mono text-xs text-meta">

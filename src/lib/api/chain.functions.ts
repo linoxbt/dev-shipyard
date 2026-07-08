@@ -5,6 +5,7 @@ import {
   qieTestnet,
   qieMainnet,
   avalancheMainnet,
+  goatMainnet,
   SUPPORTED_CHAINS,
   chainConfig,
 } from "@/lib/chains";
@@ -53,11 +54,15 @@ export const getNetworkStatus = createServerFn({ method: "GET" })
 // fetch price + 24h move server-side as a fallback there. Chains with no known
 // CoinGecko listing (e.g. BOT Chain, as of this writing) return ok:false and
 // the UI falls back to Blockscout's own coin_price field, which BOT Chain's
-// explorer already populates natively.
+// explorer already populates natively. GOAT Network's gas token is real BTC,
+// so its price/market cap comes straight from CoinGecko's "bitcoin" listing —
+// GOAT's own Blockscout instance has no price oracle configured at all
+// (coin_price/market_cap are always null/"0" there, confirmed live).
 const COINGECKO_ID_BY_CHAIN: Record<number, string> = {
   [qieTestnet.id]: "qie",
   [qieMainnet.id]: "qie",
   [avalancheMainnet.id]: "avalanche-2",
+  [goatMainnet.id]: "bitcoin",
 };
 
 const priceInput = z.object({ chainId: z.number() });
@@ -83,6 +88,34 @@ export const getChainPrice = createServerFn({ method: "GET" })
         change24h: typeof q.usd_24h_change === "number" ? q.usd_24h_change : null,
         marketCap: typeof q.usd_market_cap === "number" ? q.usd_market_cap : null,
       };
+    } catch {
+      return { ok: false as const };
+    }
+  });
+
+// 30-day price history fallback for the explorer's Price chart. Some chains'
+// own Blockscout instance has no price-chart history at all (BOT Chain, Arc,
+// and GOAT Network all confirmed live to return chart_data: [] from
+// /stats/charts/market — no oracle configured), and Avalanche/X Layer have no
+// Blockscout to ask in the first place. Wherever a CoinGecko id is known
+// (see COINGECKO_ID_BY_CHAIN above), CoinGecko's own market_chart endpoint
+// gives real daily closing prices to chart instead of an empty state.
+export const getChainPriceHistory = createServerFn({ method: "GET" })
+  .inputValidator(priceInput)
+  .handler(async ({ data }) => {
+    const coinId = COINGECKO_ID_BY_CHAIN[data.chainId];
+    if (!coinId) return { ok: false as const };
+    try {
+      const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=30&interval=daily`;
+      const resp = await fetch(url, { headers: { accept: "application/json" } });
+      if (!resp.ok) return { ok: false as const };
+      const json = (await resp.json()) as { prices?: Array<[number, number]> };
+      const prices = json.prices ?? [];
+      const points = prices.map(([ts, price]) => ({
+        date: new Date(ts).toISOString().slice(0, 10),
+        closing_price: String(price),
+      }));
+      return { ok: true as const, points };
     } catch {
       return { ok: false as const };
     }
