@@ -101,6 +101,17 @@ async function streamAnthropic({
 }: StreamOptions): Promise<string> {
   const s = getAiSettings();
   const { endpoint } = resolveEndpoint(s);
+  // Some Anthropic-compatible routers (confirmed on 0G's router-api.0g.ai)
+  // 500 "upstream_error" on ANY request with a top-level `system` field —
+  // folding it into the messages array as a synthetic opening exchange works
+  // around it and is harmless on real api.anthropic.com too.
+  const anthropicMessages = system
+    ? [
+        { role: "user" as const, content: system },
+        { role: "assistant" as const, content: "Understood." },
+        ...messages,
+      ]
+    : messages;
   const resp = await fetch(`${endpoint}/v1/messages`, {
     method: "POST",
     headers: {
@@ -114,8 +125,7 @@ async function streamAnthropic({
     body: JSON.stringify({
       model: s.model,
       max_tokens: MAX_TOKENS,
-      system,
-      messages,
+      messages: anthropicMessages,
       stream: true,
     }),
     signal,

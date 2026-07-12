@@ -62,6 +62,7 @@ function isConfigured(c: ServerConfig): boolean {
 }
 
 const MAX_TOKENS = 4096;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface ChatBody {
   system?: unknown;
@@ -75,22 +76,48 @@ async function upstreamRequest(
   signal: AbortSignal,
 ) {
   if (c.provider === "anthropic") {
-    return fetch(`${c.anthropic.endpoint}/v1/messages`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": c.anthropic.key,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: c.anthropic.model,
-        max_tokens: MAX_TOKENS,
-        system,
-        messages,
-        stream: true,
-      }),
-      signal,
+    // Some Anthropic-compatible routers (confirmed on 0G's router-api.0g.ai,
+    // used to run this proxy against the same backend as the Lunex project)
+    // 500 "upstream_error" on ANY request with a top-level `system` field —
+    // isolated via direct testing: system alone fails, tools alone works,
+    // folding the same instructions into the messages array as a synthetic
+    // opening exchange works around it without changing what the model sees.
+    // Harmless on real api.anthropic.com too, so this isn't provider-gated.
+    const anthropicMessages = system
+      ? [
+          { role: "user", content: system },
+          { role: "assistant", content: "Understood." },
+          ...messages,
+        ]
+      : messages;
+
+    const body = JSON.stringify({
+      model: c.anthropic.model,
+      max_tokens: MAX_TOKENS,
+      messages: anthropicMessages,
+      stream: true,
     });
+    const headers = {
+      "content-type": "application/json",
+      "x-api-key": c.anthropic.key,
+      "anthropic-version": "2023-06-01",
+    };
+
+    // Some provider nodes (0G's router included) have exactly one backing
+    // node per model, so transient 404/500s are expected — retry up to 3
+    // total attempts with a short backoff before surfacing the failure.
+    let res: Response | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      res = await fetch(`${c.anthropic.endpoint}/v1/messages`, {
+        method: "POST",
+        headers,
+        body,
+        signal,
+      });
+      if (res.ok) break;
+      if (attempt < 2) await sleep(600 * (attempt + 1));
+    }
+    return res as Response;
   }
   const headers: Record<string, string> = {
     "content-type": "application/json",
