@@ -20,6 +20,8 @@ import { chainById } from "@/lib/active-chain";
 import { slugForChainId } from "@/lib/explorer/network";
 import { encodeConstructorArgs } from "@/lib/verify/constructorArgs";
 import { parseArgs as parseAbiArgs } from "@/lib/abiArgParser";
+import { ONCHAIN_WRITE_GAS } from "@/lib/contracts";
+import { paddedTopupCost } from "@/lib/sponsor/pricing";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
 
 interface ContractInfo {
@@ -92,6 +94,52 @@ export function DeployPanel({
     ) as { inputs?: Array<{ name: string; type: string; internalType?: string }> } | undefined;
     return c?.inputs ?? [];
   }, [contract]);
+
+  // Whether this wallet actually needs a top-up for this specific deploy —
+  // null while checking. When it comes back false, the "Gas-free deploy"
+  // option goes inert (see render below): offering sponsorship a wallet
+  // doesn't need is just confusing, and forcing `useSponsor` back to false
+  // means a stale "checked" state from a moment ago can't silently request
+  // an unnecessary top-up. Debounced since `args` changes on every keystroke
+  // in the constructor-arg fields, and this fires a real RPC estimate.
+  const [needsTopup, setNeedsTopup] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!sponsorEligible || !contract || !address || !publicClient) {
+      setNeedsTopup(null);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const parsed = parseAbiArgs(constructorArgs, args);
+        const data = encodeDeployData({
+          abi: contract.abi as Abi,
+          bytecode: contract.bytecode,
+          args: parsed as unknown[],
+        });
+        const [estimate, gasPrice, balance] = await Promise.all([
+          publicClient.estimateGas({ account: address, data }),
+          publicClient.getGasPrice(),
+          publicClient.getBalance({ address }),
+        ]);
+        if (cancelled) return;
+        const needed = paddedTopupCost(estimate, gasPrice, 2n * ONCHAIN_WRITE_GAS);
+        setNeedsTopup(needed > balance);
+      } catch {
+        // Can't tell — fail open (show the option) rather than hide a
+        // control that might genuinely be needed.
+        if (!cancelled) setNeedsTopup(true);
+      }
+    }, 600);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [sponsorEligible, contract, address, publicClient, args, constructorArgs]);
+
+  useEffect(() => {
+    if (needsTopup !== true) setUseSponsor(false);
+  }, [needsTopup]);
 
   const handleDeploy = async () => {
     if (!contract || !address) return;
@@ -313,17 +361,34 @@ export function DeployPanel({
             <p className="font-mono text-[11px] text-meta">No constructor arguments</p>
           )}
 
-          {/* Gas sponsorship (QIE mainnet only) */}
+          {/* Gas sponsorship (QIE mainnet only) — inert once the wallet is
+              confirmed to already hold enough QIE, since offering it then
+              would be a no-op at best and confusing at worst. */}
           {sponsorEligible ? (
-            <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={useSponsor}
-                onChange={(e) => setUseSponsor(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-border"
-              />
-              Gas-free deploy (DevStation tops up your wallet)
-            </label>
+            needsTopup === false ? (
+              <label className="flex cursor-not-allowed items-center gap-1.5 font-mono text-[11px] text-meta opacity-60">
+                <input
+                  type="checkbox"
+                  checked={false}
+                  disabled
+                  className="h-3.5 w-3.5 rounded border-border"
+                />
+                Gas-free deploy — not needed, your wallet already has enough QIE
+              </label>
+            ) : (
+              <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={useSponsor}
+                  disabled={needsTopup === null}
+                  onChange={(e) => setUseSponsor(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-border"
+                />
+                {needsTopup === null
+                  ? "Checking gas requirement…"
+                  : "Gas-free deploy (DevStation tops up your wallet)"}
+              </label>
+            )
           ) : (
             onSponsorChain && (
               <p className="font-mono text-[10px] text-meta">

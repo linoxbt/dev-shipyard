@@ -35,6 +35,8 @@ import { useActiveChain } from "@/hooks/useActiveChain";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useContractLabels } from "@/hooks/useContractLabels";
 import { useSponsorTopup } from "@/hooks/useSponsorTopup";
+import { ONCHAIN_WRITE_GAS } from "@/lib/contracts";
+import { paddedTopupCost } from "@/lib/sponsor/pricing";
 import { useUserTemplates } from "@/lib/user-templates";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
 import { VerifyCard } from "@/components/deploy/VerifyCard";
@@ -100,6 +102,47 @@ function DeployWizard() {
   const template = templateId
     ? (getTemplate(templateId) ?? userTemplates.find((t) => t.id === templateId) ?? null)
     : null;
+
+  // Whether this wallet actually needs a top-up to deploy `template` — null
+  // while checking. When false, the "Gas-free deploy" option goes inert
+  // (see render below): offering sponsorship a wallet doesn't need is just
+  // confusing. Uses the template's static estimatedGas (bytecode isn't
+  // compiled yet at this point in the wizard — compiling early just to
+  // check this isn't worth it) rather than a live per-args estimate, so this
+  // is deliberately approximate; the actual top-up request re-checks
+  // precisely against the real compiled bytecode right before deploying.
+  const [needsTopup, setNeedsTopup] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!sponsorEligible || !template || !address || !publicClient) {
+      setNeedsTopup(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [gasPrice, balance] = await Promise.all([
+          publicClient.getGasPrice(),
+          publicClient.getBalance({ address }),
+        ]);
+        if (cancelled) return;
+        const needed = paddedTopupCost(
+          BigInt(template.estimatedGas),
+          gasPrice,
+          2n * ONCHAIN_WRITE_GAS,
+        );
+        setNeedsTopup(needed > balance);
+      } catch {
+        if (!cancelled) setNeedsTopup(true); // can't tell — fail open
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sponsorEligible, template, address, publicClient]);
+
+  useEffect(() => {
+    if (needsTopup !== true) setUseSponsor(false);
+  }, [needsTopup]);
 
   const filteredTemplates = useMemo(() => {
     const q = filter.toLowerCase();
@@ -514,15 +557,30 @@ function DeployWizard() {
           </button>
           <div className="flex items-center gap-3">
             {sponsorEligible ? (
-              <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={useSponsor}
-                  onChange={(e) => setUseSponsor(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-border"
-                />
-                Gas-free deploy (DevStation tops up your wallet)
-              </label>
+              needsTopup === false ? (
+                <span className="flex items-center gap-1.5 font-mono text-[11px] text-meta opacity-60">
+                  <input
+                    type="checkbox"
+                    checked={false}
+                    disabled
+                    className="h-3.5 w-3.5 rounded border-border"
+                  />
+                  Gas-free deploy — not needed, your wallet already has enough QIE
+                </span>
+              ) : (
+                <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={useSponsor}
+                    disabled={needsTopup === null}
+                    onChange={(e) => setUseSponsor(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-border"
+                  />
+                  {needsTopup === null
+                    ? "Checking gas requirement…"
+                    : "Gas-free deploy (DevStation tops up your wallet)"}
+                </label>
+              )
             ) : (
               onSponsorChain && (
                 <span className="font-mono text-[10px] text-meta">

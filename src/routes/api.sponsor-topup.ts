@@ -5,6 +5,7 @@ import { qieMainnet } from "@/lib/chains";
 import { ONCHAIN_WRITE_GAS } from "@/lib/contracts";
 import { sponsorClients, sponsorConfig, isSponsorConfigured } from "@/lib/sponsor/wallet.server";
 import { getSponsorSpendLast24hWei } from "@/lib/sponsor/spend.server";
+import { paddedTopupCost } from "@/lib/sponsor/pricing";
 
 // Gas top-up for a deploy, QIE mainnet only. The sponsor wallet (configured
 // server-side via SPONSOR_PRIVATE_KEY) sends the REQUESTER'S OWN wallet just
@@ -133,29 +134,12 @@ export const Route = createFileRoute("/api/sponsor-topup")({
         }
 
         // Estimate as the REQUESTER, since they're the one who will actually
-        // broadcast the deploy — then pad generously (QIE's eth_estimateGas
-        // is documented in src/lib/contracts.ts to lowball storage-writing
-        // calls, and a CREATE running a constructor is exactly that shape).
-        // Add headroom for the two registry writes (ProjectRegistry +
-        // ContractLabelRegistry) that follow the deploy from the same
-        // wallet, each pinned to ONCHAIN_WRITE_GAS, so a top-up covers the
-        // whole flow in one shot instead of leaving the user stranded after
-        // a successful deploy with no gas left to record it.
-        //
-        // The multiplier here is deliberately much larger than the 4x used
-        // elsewhere for a single call's own gas LIMIT (harmless to overpad —
-        // unused gas is refunded). This is sizing a WALLET TOP-UP: it's a
-        // separate eth_estimateGas call from the one the client makes
-        // moments later for the actual deploy, and QIE's estimator has been
-        // observed to return meaningfully different numbers (not just a
-        // consistent lowball) for back-to-back calls against the identical
-        // transaction — a 4x margin here once undershot the real need by
-        // roughly 2x, silently reporting "wallet already had enough" for a
-        // wallet that didn't. Erring generous costs a fraction of a QIE at
-        // this chain's gas price; erring short wastes the whole deploy
-        // attempt after a full compile cycle. Same reasoning for the 1.5x
-        // gas-price pad: the actual broadcast fetches its own gas price
-        // independently, moments after this one.
+        // broadcast the deploy. Padding math (and why it's this generous)
+        // lives in paddedTopupCost — shared with the client-side checks that
+        // decide whether to offer sponsorship at all. Add headroom for the
+        // two registry writes (ProjectRegistry + ContractLabelRegistry) that
+        // follow the deploy from the same wallet, each pinned to
+        // ONCHAIN_WRITE_GAS, so a top-up covers the whole flow in one shot.
         let gasEstimate: bigint;
         let gasPrice: bigint;
         let currentBalance: bigint;
@@ -169,10 +153,7 @@ export const Route = createFileRoute("/api/sponsor-topup")({
           const message = err instanceof Error ? err.message : "Gas estimation failed";
           return fail("topup_failed", message, 502);
         }
-        const paddedDeployGas = gasEstimate * 10n;
-        const totalGas = paddedDeployGas + 2n * ONCHAIN_WRITE_GAS;
-        const paddedGasPrice = (gasPrice * 3n) / 2n;
-        const neededWei = totalGas * paddedGasPrice;
+        const neededWei = paddedTopupCost(gasEstimate, gasPrice, 2n * ONCHAIN_WRITE_GAS);
         const shortfall = neededWei > currentBalance ? neededWei - currentBalance : 0n;
 
         if (shortfall === 0n) {
