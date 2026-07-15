@@ -19,9 +19,10 @@ import { InstallButton } from "@/components/pwa/InstallButton";
 import { useTheme } from "@/lib/theme";
 import { useNetworkStatus } from "@/hooks/useChainData";
 import { useCombinedDeployStats } from "@/hooks/useProjectRegistry";
-import { qieTestnet, SUPPORTED_CHAINS } from "@/lib/chains";
+import { DEFAULT_CHAIN } from "@/lib/chains";
 import { formatGas } from "@/lib/format-gas";
 import { withCommas } from "@/lib/explorer/format";
+import { EXPLORER_CHAIN_FAMILIES } from "@/lib/explorer/network";
 import { TEMPLATES } from "@/lib/mock/templates";
 import { cn } from "@/lib/utils";
 
@@ -200,7 +201,10 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
 /* ─────────────── Live stats ─────────────── */
 
 function StatsBand() {
-  const { data: net } = useNetworkStatus(qieTestnet.id);
+  // The app's actual default chain (BOT Chain mainnet) — not hardcoded to
+  // QIE, which used to show a stale gas price for a chain nobody actually
+  // lands on by default.
+  const { data: net } = useNetworkStatus(DEFAULT_CHAIN.id);
   // Universal across Testnet + Mainnet.
   const stats = useCombinedDeployStats();
   const gas = formatGas(
@@ -214,7 +218,10 @@ function StatsBand() {
       value: stats.totalDeployments != null ? withCommas(stats.totalDeployments) : "—",
     },
     { label: "Users", value: stats.onChain ? withCommas(stats.uniqueDeployers) : "—" },
-    { label: "Networks", value: SUPPORTED_CHAINS.length.toString() },
+    // Chain families (QIE, BOT Chain, Arc, GOAT Network), matching the "4 EVM
+    // chains" copy elsewhere on this page — not a raw count of
+    // testnet+mainnet entries, which would read "7" and contradict it.
+    { label: "Networks", value: EXPLORER_CHAIN_FAMILIES.length.toString() },
     { label: "Gas", value: net?.status === "online" ? gas.text : "—" },
   ];
   return (

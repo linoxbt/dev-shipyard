@@ -182,11 +182,22 @@ rebuild.
 ## Sponsored deploys (QIE mainnet)
 
 Optional, off by default. When `SPONSOR_PRIVATE_KEY` is set, DevStation can
-broadcast a contract-deployment transaction from a server-held wallet instead
-of the visitor's own — a "Gas-free deploy (DevStation pays)" checkbox appears
-in LaunchKit's deploy wizard and the editor's Deploy panel, **QIE mainnet
+**top up a visitor's own wallet** with just enough QIE to cover a deploy — a
+"Gas-free deploy (DevStation tops up your wallet)" checkbox appears in
+LaunchKit's deploy wizard and the editor's Deploy panel, **QIE mainnet
 only**. The client and server both hard-check the chain; this never applies
 to testnet or any other chain family.
+
+**The sponsor wallet never broadcasts the deploy itself.** It sends a plain
+QIE transfer to the requester's own connected wallet (`src/routes/api.sponsor-topup.ts`),
+sized from a gas estimate of the actual deploy plus the two registry writes
+that follow it (`ONCHAIN_WRITE_GAS` × 2, from `src/lib/contracts.ts`), minus
+whatever QIE that wallet already has. The requester's wallet then signs and
+sends everything itself — the CREATE, `ProjectRegistry.recordDeployment`,
+`ContractLabelRegistry.submitLabel` — exactly like a normal self-paid deploy.
+That means the connected wallet is **always** the genuine deployer of
+record: no ownership caveats, no constructor-argument workarounds, no
+registry-misattribution risk to design around.
 
 **This is genuinely new infrastructure, not a config toggle to flip lightly.**
 Unlike `PRIVATE_KEY` above — a one-off local CLI key used only to deploy
@@ -194,55 +205,30 @@ DevStation's own registries — `SPONSOR_PRIVATE_KEY` is held live by the
 running server and spends real QIE mainnet funds in response to requests.
 Treat it like an exchange hot wallet.
 
-**Abuse model (read before enabling):** there is deliberately **no
-per-wallet or per-IP gate** — any visitor can request a sponsored deploy.
-The only backstop is a budget model, enforced server-side on every request
-(`src/routes/api.sponsor-deploy.ts`):
+**Abuse model (read before enabling) — this is a real token faucet, not just
+a gas payer.** There is deliberately **no per-wallet or per-IP gate** — any
+visitor can request a top-up for any wallet address. Because the QIE lands
+directly in that wallet before any deploy happens, nothing forces it to
+actually be spent on a deploy — a requester can simply keep it. The only
+backstop is `SPONSOR_DAILY_BUDGET_QIE` (default `5`): a rolling 24h spend
+ceiling, computed by summing the sponsor wallet's own outgoing value *and*
+gas fees from the chain's explorer tx history (no separate database —
+consistent with the rest of this app). Sponsorship stops once spend crosses
+**90% of this value**, not 100% — the 10% headroom exists because this check
+isn't atomic across concurrent requests; it reduces, not eliminates, the
+chance of a burst of simultaneous requests overshooting the configured cap.
+Once the daily cap is hit, top-up requests start failing with
+`budget_exhausted` until spend rolls off the 24h window. The app can't lose
+more than roughly the configured daily budget per day; that whole budget
+could still be drained by one actor within minutes if they choose to, with
+nothing to show for it on DevStation's side (no deploy, no registry record).
 
-- `SPONSOR_MAX_GAS_PER_DEPLOY` (default `4000000`) — a hard per-deploy gas
-  ceiling. The server estimates gas, pads it 4x (QIE's `eth_estimateGas` is
-  documented above to lowball storage-writing calls, and a constructor is
-  exactly that shape), and refuses to broadcast anything over this ceiling —
-  so one deploy can't itself exceed the daily budget.
-- `SPONSOR_DAILY_BUDGET_QIE` (default `5`) — a rolling 24h spend ceiling,
-  computed by summing the sponsor wallet's own gas costs from the chain's
-  explorer tx history (no separate database — consistent with the rest of
-  this app). Sponsorship stops once spend crosses **90% of this value**,
-  not 100% — the 10% headroom exists because this check isn't atomic across
-  concurrent requests; it reduces, not eliminates, the chance of a burst of
-  simultaneous requests overshooting the configured cap.
-- Once the daily cap is hit, sponsorship auto-disables (the checkbox's
-  requests start failing with `budget_exhausted`) until spend rolls off the
-  24h window. The app can't lose more than roughly the configured daily
-  budget per day; that whole budget could still be drained by one actor
-  within minutes if they choose to.
-
-**Ownership caveat:** the deployed contract's owner/admin is whoever the
-constructor names, not automatically the requester. DevStation's own
-LaunchKit templates (`src/lib/mock/templates.ts`) and AI-agent-generated
-contracts (`src/lib/ai-agent.ts`) are written to take an explicit
-`initialOwner`/`initialHolder`-style constructor argument set to the
-requester's connected wallet — never `msg.sender`, since under sponsorship
-`msg.sender` is the *sponsor* wallet, not the user. Hand-written or pasted
-source has no such guarantee; the editor's Deploy panel shows a warning when
-sponsoring a non-template deploy for exactly this reason.
-
-**Registry writes are still self-paid.** Only the (expensive) contract
-*creation* is sponsored — the subsequent `ProjectRegistry.recordDeployment`
-and `ContractLabelRegistry.submitLabel` calls are still sent from the
-requester's own wallet, same as any deploy. This is deliberate: both
-registries attribute writes to `msg.sender`, so having the sponsor call them
-would misattribute every sponsored deployment to the sponsor's own bucket
-and break the per-wallet Projects page. In practice this is not a hard
-blocker for a zero-balance visitor — both calls are already non-blocking
-(`recordDeployment` is fire-and-forget, `submitLabel` failure is caught and
-logged as a warning) — so a zero-balance sponsored deploy still succeeds and
-shows correctly, just without an on-chain registry record until the deployer
-has a little QIE for that one small follow-up write.
+**A wallet that already has enough QIE gets no top-up** — the server checks
+the requester's current balance first and only sends the shortfall, so
+sponsorship doesn't hand out free QIE to wallets that don't need it.
 
 Enable it by setting `SPONSOR_PRIVATE_KEY` (and optionally
-`SPONSOR_DAILY_BUDGET_QIE` / `SPONSOR_MAX_GAS_PER_DEPLOY`) on the host and
-rebuilding — see `.env.example`.
+`SPONSOR_DAILY_BUDGET_QIE`) on the host and rebuilding — see `.env.example`.
 
 ---
 

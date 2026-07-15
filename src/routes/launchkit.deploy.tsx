@@ -34,7 +34,7 @@ import { slugForChainId, devstationExplorerBase } from "@/lib/explorer/network";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useContractLabels } from "@/hooks/useContractLabels";
-import { useSponsoredDeploy } from "@/hooks/useSponsoredDeploy";
+import { useSponsorTopup } from "@/hooks/useSponsorTopup";
 import { useUserTemplates } from "@/lib/user-templates";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
 import { VerifyCard } from "@/components/deploy/VerifyCard";
@@ -71,8 +71,8 @@ function DeployWizard() {
   const {
     available: sponsorAvailable,
     checking: sponsorChecking,
-    deploySponsored,
-  } = useSponsoredDeploy();
+    ensureFunded,
+  } = useSponsorTopup();
   const onSponsorChain = chain.id === qieMainnet.id;
   const sponsorEligible = sponsorAvailable && onSponsorChain;
   const [useSponsor, setUseSponsor] = useState(false);
@@ -191,65 +191,68 @@ function DeployWizard() {
         qualifiedName: contract.qualifiedName,
         constructorArgs: encodeConstructorArgs(contract.abi as unknown[], encodedArgs),
       });
-      let hash: `0x${string}`;
-      let deployedAddr: `0x${string}`;
-      let blockNumber: number;
-
+      // Gas sponsorship tops up THIS wallet with just enough QIE to cover
+      // the deploy (and the registry writes after it) — it never broadcasts
+      // anything itself. Everything below runs exactly like a normal
+      // self-paid deploy either way, so the connected wallet is always the
+      // genuine deployer of record.
       if (useSponsor && sponsorEligible) {
-        log(`[${ts()}] [Deploy] Submitting sponsored (gas-free) deployment to ${chain.name}...`);
+        log(`[${ts()}] [Deploy] Requesting a gas top-up from DevStation...`);
         try {
-          const result = await deploySponsored({
+          const result = await ensureFunded({
             abi: contract.abi as unknown[],
             bytecode: contract.bytecode,
             args: encodedArgs,
             chainId: chain.id,
             requesterAddress: address,
           });
-          hash = result.txHash;
-          deployedAddr = result.contractAddress;
-          blockNumber = result.blockNumber;
+          log(
+            result.toppedUp
+              ? `[${ts()}] [Deploy] ✓ Wallet funded (${result.txHash})`
+              : `[${ts()}] [Deploy] Wallet already had enough gas — no top-up needed`,
+            "success",
+          );
         } catch (err) {
-          const msg = err instanceof Error ? err.message : "Sponsored deploy failed";
+          const msg = err instanceof Error ? err.message : "Gas top-up failed";
           log(`[${ts()}] [Error] [Sponsor] ${msg}`, "error");
           toast.error(msg);
           return;
         }
-        log(`[${ts()}] [Deploy] Transaction submitted (sponsor-paid): ${hash}`, "success");
-      } else {
-        log(`[${ts()}] [Deploy] Submitting deployment to ${chain.name} (chain ${chain.id})...`);
-        // Pad the gas limit — chains like QIE lowball eth_estimateGas for
-        // constructor-heavy CREATE calls (see src/lib/contracts.ts). Falls
-        // back to letting the wallet estimate if this itself fails.
-        let gasLimit: bigint | undefined;
-        try {
-          const deployData = encodeDeployData({
-            abi: contract.abi as Abi,
-            bytecode: contract.bytecode,
-            args: encodedArgs as unknown[],
-          });
-          const estimate = await publicClient.estimateGas({ account: address, data: deployData });
-          gasLimit = estimate * 4n;
-        } catch {
-          /* fall back to wallet-side estimation */
-        }
-        hash = await deployContractAsync({
-          abi: contract.abi as [],
-          bytecode: contract.bytecode,
-          args: encodedArgs.length > 0 ? encodedArgs : undefined,
-          chainId: chain.id,
-          gas: gasLimit,
-        });
-        log(`[${ts()}] [Deploy] Transaction submitted: ${hash}`, "success");
-        log(`[${ts()}] [Deploy] Waiting for confirmation...`);
-
-        const receipt = await publicClient.waitForTransactionReceipt({ hash });
-        if (!receipt.contractAddress) {
-          log(`[${ts()}] [Error] No contract address in receipt`, "error");
-          return;
-        }
-        deployedAddr = receipt.contractAddress as `0x${string}`;
-        blockNumber = Number(receipt.blockNumber);
       }
+
+      log(`[${ts()}] [Deploy] Submitting deployment to ${chain.name} (chain ${chain.id})...`);
+      // Pad the gas limit — chains like QIE lowball eth_estimateGas for
+      // constructor-heavy CREATE calls (see src/lib/contracts.ts). Falls
+      // back to letting the wallet estimate if this itself fails.
+      let gasLimit: bigint | undefined;
+      try {
+        const deployData = encodeDeployData({
+          abi: contract.abi as Abi,
+          bytecode: contract.bytecode,
+          args: encodedArgs as unknown[],
+        });
+        const estimate = await publicClient.estimateGas({ account: address, data: deployData });
+        gasLimit = estimate * 4n;
+      } catch {
+        /* fall back to wallet-side estimation */
+      }
+      const hash = await deployContractAsync({
+        abi: contract.abi as [],
+        bytecode: contract.bytecode,
+        args: encodedArgs.length > 0 ? encodedArgs : undefined,
+        chainId: chain.id,
+        gas: gasLimit,
+      });
+      log(`[${ts()}] [Deploy] Transaction submitted: ${hash}`, "success");
+      log(`[${ts()}] [Deploy] Waiting for confirmation...`);
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      if (!receipt.contractAddress) {
+        log(`[${ts()}] [Error] No contract address in receipt`, "error");
+        return;
+      }
+      const deployedAddr = receipt.contractAddress as `0x${string}`;
+      const blockNumber = Number(receipt.blockNumber);
       log(`[${ts()}] [Deploy] ✓ Confirmed in block ${blockNumber}`, "success");
       log(`[${ts()}] [Deploy] ✓ Contract deployed at ${deployedAddr}`, "success");
 
@@ -518,7 +521,7 @@ function DeployWizard() {
                   onChange={(e) => setUseSponsor(e.target.checked)}
                   className="h-3.5 w-3.5 rounded border-border"
                 />
-                Gas-free deploy (DevStation pays)
+                Gas-free deploy (DevStation tops up your wallet)
               </label>
             ) : (
               onSponsorChain && (

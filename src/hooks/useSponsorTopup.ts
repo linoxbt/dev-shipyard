@@ -8,41 +8,38 @@ interface SponsorStatusResponse {
   chainId: number;
 }
 
-interface DeployParams {
+interface TopupParams {
   abi: unknown[];
   bytecode: `0x${string}`;
   args: unknown[];
   chainId: number;
-  requesterAddress?: string;
+  requesterAddress: `0x${string}`;
 }
 
-export interface SponsoredDeployResult {
-  contractAddress: `0x${string}`;
-  txHash: `0x${string}`;
-  blockNumber: number;
+export interface TopupResult {
+  toppedUp: boolean;
+  amountWei: string;
+  txHash: `0x${string}` | null;
 }
 
 export interface SponsorError extends Error {
-  reason:
-    | "not_configured"
-    | "wrong_chain"
-    | "invalid_body"
-    | "gas_too_high"
-    | "budget_exhausted"
-    | "deploy_failed";
+  reason: "not_configured" | "wrong_chain" | "invalid_body" | "budget_exhausted" | "topup_failed";
 }
 
-// Gas-sponsored deploy on QIE mainnet: POSTs the compiled bytecode + args to
-// /api/sponsor-deploy, which broadcasts the contract-creation transaction
-// from a server-held wallet so the caller doesn't need any native QIE. Only
-// ever available on QIE mainnet (see api.sponsor-deploy.ts) — callers should
-// gate the UI on `available` AND the active chain being qieMainnet.id; the
-// server independently re-checks the chain too.
-export function useSponsoredDeploy() {
+// Gas top-up on QIE mainnet: POSTs the compiled bytecode + args to
+// /api/sponsor-topup, which sends the REQUESTER'S OWN wallet just enough QIE
+// to cover the deploy (the server never broadcasts anything itself). The
+// caller is responsible for running the actual deploy afterward through the
+// connected wallet, exactly like a normal self-paid deploy — top-up first,
+// then the existing deploy flow, unchanged. Only ever available on QIE
+// mainnet (see api.sponsor-topup.ts) — callers should gate the UI on
+// `available` AND the active chain being qieMainnet.id; the server
+// independently re-checks the chain too.
+export function useSponsorTopup() {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["sponsor-deploy-status"],
+    queryKey: ["sponsor-topup-status"],
     queryFn: async (): Promise<SponsorStatusResponse> => {
-      const res = await fetch("/api/sponsor-deploy");
+      const res = await fetch("/api/sponsor-topup");
       if (!res.ok) return { configured: false, dailyBudgetQie: 0, chainId: qieMainnet.id };
       return res.json();
     },
@@ -52,10 +49,10 @@ export function useSponsoredDeploy() {
 
   const [pending, setPending] = useState(false);
 
-  const deploySponsored = useCallback(async (p: DeployParams): Promise<SponsoredDeployResult> => {
+  const ensureFunded = useCallback(async (p: TopupParams): Promise<TopupResult> => {
     setPending(true);
     try {
-      const res = await fetch("/api/sponsor-deploy", {
+      const res = await fetch("/api/sponsor-topup", {
         method: "POST",
         headers: { "content-type": "application/json" },
         // Constructor args like a uint256 initial supply are parsed as
@@ -68,14 +65,14 @@ export function useSponsoredDeploy() {
       });
       const json = await res.json();
       if (!json.ok) {
-        const err = new Error(json.message || "Sponsored deploy failed") as SponsorError;
-        err.reason = json.reason || "deploy_failed";
+        const err = new Error(json.message || "Gas top-up failed") as SponsorError;
+        err.reason = json.reason || "topup_failed";
         throw err;
       }
       return {
-        contractAddress: json.contractAddress as `0x${string}`,
-        txHash: json.txHash as `0x${string}`,
-        blockNumber: json.blockNumber as number,
+        toppedUp: !!json.toppedUp,
+        amountWei: json.amountWei as string,
+        txHash: (json.txHash as `0x${string}` | null) ?? null,
       };
     } finally {
       setPending(false);
@@ -92,6 +89,6 @@ export function useSponsoredDeploy() {
     checkFailed: isError,
     dailyBudgetQie: data?.dailyBudgetQie ?? 0,
     pending,
-    deploySponsored,
+    ensureFunded,
   };
 }

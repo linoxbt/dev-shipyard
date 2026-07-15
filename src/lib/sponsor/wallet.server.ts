@@ -2,7 +2,11 @@ import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { qieMainnet } from "@/lib/chains";
 
-// Server-only sponsor wallet for gas-sponsored deploys, QIE mainnet only.
+// Server-only sponsor wallet, QIE mainnet only. It tops up a requester's OWN
+// wallet with just enough QIE to cover a deploy (plus the registry writes
+// that follow it), then gets out of the way — the requester's wallet signs
+// and broadcasts everything itself, so it's genuinely the deployer/owner and
+// the one recorded in the registries. See api.sponsor-topup.ts.
 //
 // SPONSOR_PRIVATE_KEY has NO VITE_ prefix on purpose (same convention as
 // PRIVATE_KEY in scripts/deploy.ts) so Vite never inlines it into the client
@@ -17,8 +21,6 @@ export interface SponsorConfig {
   privateKey: `0x${string}` | null;
   /** Rolling 24h spend ceiling, in whole QIE. Sponsorship stops at 90% of this. */
   dailyBudgetQie: number;
-  /** Hard per-deploy gas ceiling — refuse to sponsor anything estimated above this. */
-  maxGasPerDeploy: bigint;
 }
 
 function readConfig(): SponsorConfig {
@@ -26,7 +28,6 @@ function readConfig(): SponsorConfig {
   return {
     privateKey: pk && PK_RE.test(pk) ? (pk as `0x${string}`) : null,
     dailyBudgetQie: Number(process.env.SPONSOR_DAILY_BUDGET_QIE || "5"),
-    maxGasPerDeploy: BigInt(process.env.SPONSOR_MAX_GAS_PER_DEPLOY || "4000000"),
   };
 }
 

@@ -11,7 +11,7 @@ import { useAccount } from "wagmi";
 import { encodeDeployData, type Abi } from "viem";
 import { toast } from "sonner";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
-import { useSponsoredDeploy } from "@/hooks/useSponsoredDeploy";
+import { useSponsorTopup } from "@/hooks/useSponsorTopup";
 import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import { VerifyCard } from "@/components/deploy/VerifyCard";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
@@ -60,8 +60,8 @@ export function DeployPanel({
   const {
     available: sponsorAvailable,
     checking: sponsorChecking,
-    deploySponsored,
-  } = useSponsoredDeploy();
+    ensureFunded,
+  } = useSponsorTopup();
   const onSponsorChain = chainId === qieMainnet.id;
   const sponsorEligible = sponsorAvailable && onSponsorChain;
   const [useSponsor, setUseSponsor] = useState(false);
@@ -108,18 +108,43 @@ export function DeployPanel({
       // explicitly (more reliable than Blockscout's autodetect).
       setEncodedCtorArgs(encodeConstructorArgs(contract.abi, parsed));
 
+      // Gas sponsorship tops up THIS wallet with just enough QIE to cover
+      // the deploy (and the registry write after it) — it never broadcasts
+      // anything itself. The deploy below runs exactly like a normal
+      // self-paid deploy either way, so the connected wallet is always the
+      // genuine deployer of record.
+      if (useSponsor && sponsorEligible) {
+        onLog({
+          text: `[${ts}] [Deploy] Requesting a gas top-up from DevStation...`,
+          status: "pending",
+        });
+        const result = await ensureFunded({
+          abi: contract.abi as unknown[],
+          bytecode: contract.bytecode,
+          args: parsed,
+          chainId,
+          requesterAddress: address,
+        });
+        onLog({
+          text: result.toppedUp
+            ? `[${ts}] [Deploy] ✓ Wallet funded (${result.txHash})`
+            : `[${ts}] [Deploy] Wallet already had enough gas — no top-up needed`,
+          status: "success",
+        });
+      }
+
       onLog({
-        text: `[${ts}] [Deploy] Deploying ${selected} to ${cfg.name}${useSponsor && sponsorEligible ? " (gas-free, DevStation-sponsored)" : ""}...`,
+        text: `[${ts}] [Deploy] Deploying ${selected} to ${cfg.name}...`,
         status: "pending",
       });
 
       // Pad the deploy's gas limit on chains whose eth_estimateGas lowballs
       // constructor-heavy CREATE calls (documented for QIE in
-      // src/lib/contracts.ts — same root cause the sponsor route pads
-      // against). Best-effort: if estimation itself fails, fall through and
-      // let the wallet estimate as before rather than blocking the deploy.
+      // src/lib/contracts.ts). Best-effort: if estimation itself fails, fall
+      // through and let the wallet estimate as before rather than blocking
+      // the deploy.
       let gasLimit: bigint | undefined;
-      if (!(useSponsor && sponsorEligible) && publicClient && address) {
+      if (publicClient && address) {
         try {
           const data = encodeDeployData({
             abi: contract.abi as Abi,
@@ -133,24 +158,13 @@ export function DeployPanel({
         }
       }
 
-      const hash =
-        useSponsor && sponsorEligible
-          ? (
-              await deploySponsored({
-                abi: contract.abi as unknown[],
-                bytecode: contract.bytecode,
-                args: parsed,
-                chainId,
-                requesterAddress: address,
-              })
-            ).txHash
-          : await deployContractAsync({
-              abi: contract.abi as [],
-              bytecode: contract.bytecode,
-              args: parsed.length > 0 ? parsed : undefined,
-              gas: gasLimit,
-              chainId,
-            });
+      const hash = await deployContractAsync({
+        abi: contract.abi as [],
+        bytecode: contract.bytecode,
+        args: parsed.length > 0 ? parsed : undefined,
+        gas: gasLimit,
+        chainId,
+      });
       setTxHash(hash);
       onLog({ text: `[${ts}] [Deploy] TX submitted: ${hash}`, status: "success" });
       onLog({ text: `[${ts}] [Deploy] Waiting for confirmation...`, status: "pending" });
@@ -301,25 +315,15 @@ export function DeployPanel({
 
           {/* Gas sponsorship (QIE mainnet only) */}
           {sponsorEligible ? (
-            <div className="space-y-1">
-              <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={useSponsor}
-                  onChange={(e) => setUseSponsor(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-border"
-                />
-                Gas-free deploy (DevStation pays)
-              </label>
-              {useSponsor && (
-                <p className="text-[10px] text-warning">
-                  This is hand-written/pasted source — DevStation can't verify who ends up owning
-                  it. If the constructor uses <code>msg.sender</code> instead of an explicit owner
-                  argument, the sponsor wallet (not you) may end up in control. Check your source
-                  first, or deploy with your own wallet instead.
-                </p>
-              )}
-            </div>
+            <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={useSponsor}
+                onChange={(e) => setUseSponsor(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-border"
+              />
+              Gas-free deploy (DevStation tops up your wallet)
+            </label>
           ) : (
             onSponsorChain && (
               <p className="font-mono text-[10px] text-meta">

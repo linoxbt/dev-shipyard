@@ -52,7 +52,6 @@ function Overview() {
   const [inspections, setInspections] = useState<string[]>([]);
   useEffect(() => setInspections(storage.loadInspections()), []);
 
-  const block = net?.blockNumber ?? 0;
   const gas = formatGas(
     net && "gasPrice" in net ? (net as { gasPrice?: string }).gasPrice : undefined,
     net?.gasPriceGwei ?? DEFAULT_GAS_GWEI,
@@ -69,7 +68,7 @@ function Overview() {
 
       <div className="space-y-6 p-6">
         {/* Stat cards */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <Stat
             value={
               globalStats.totalDeployments != null
@@ -92,12 +91,6 @@ function Overview() {
                 ? `across ${new Set(projects.map((p) => p.templateId)).size} templates`
                 : "connect a wallet"
             }
-          />
-          <Stat
-            value={online ? block.toLocaleString() : "—"}
-            label="Current Block"
-            sub={online ? `${chain.name} · Chain ${chain.id}` : "RPC offline"}
-            pulse={online}
           />
           <Stat
             value={online ? gas.text : "—"}
@@ -256,7 +249,6 @@ function Overview() {
 
             <Panel title="Network Status">
               <div className="space-y-2 p-3 font-mono text-xs">
-                <Row label="Block height" value={online ? block.toLocaleString() : "—"} />
                 <Row label="Gas price" value={online ? gas.text : "—"} />
                 <Row
                   label="RPC"
