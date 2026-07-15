@@ -57,8 +57,13 @@ export function DeployPanel({
   const publicClient = usePublicClient({ chainId });
   const { recordDeployment, onChain } = useProjectRegistry();
   const { deployContractAsync } = useDeployContract();
-  const { available: sponsorAvailable, deploySponsored } = useSponsoredDeploy();
-  const sponsorEligible = sponsorAvailable && chainId === qieMainnet.id;
+  const {
+    available: sponsorAvailable,
+    checking: sponsorChecking,
+    deploySponsored,
+  } = useSponsoredDeploy();
+  const onSponsorChain = chainId === qieMainnet.id;
+  const sponsorEligible = sponsorAvailable && onSponsorChain;
   const [useSponsor, setUseSponsor] = useState(false);
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   const [deploying, setDeploying] = useState(false);
@@ -295,7 +300,7 @@ export function DeployPanel({
           )}
 
           {/* Gas sponsorship (QIE mainnet only) */}
-          {sponsorEligible && (
+          {sponsorEligible ? (
             <div className="space-y-1">
               <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
                 <input
@@ -315,6 +320,14 @@ export function DeployPanel({
                 </p>
               )}
             </div>
+          ) : (
+            onSponsorChain && (
+              <p className="font-mono text-[10px] text-meta">
+                {sponsorChecking
+                  ? "Checking gas sponsorship…"
+                  : "Gas-free deploy isn't available right now — you'll pay gas from your own wallet."}
+              </p>
+            )
           )}
 
           {/* Deploy button */}

@@ -39,7 +39,7 @@ export interface SponsorError extends Error {
 // gate the UI on `available` AND the active chain being qieMainnet.id; the
 // server independently re-checks the chain too.
 export function useSponsoredDeploy() {
-  const { data } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["sponsor-deploy-status"],
     queryFn: async (): Promise<SponsorStatusResponse> => {
       const res = await fetch("/api/sponsor-deploy");
@@ -78,6 +78,12 @@ export function useSponsoredDeploy() {
 
   return {
     available: !!data?.configured,
+    // Distinguishes "still checking" from "checked, and it's off" — a UI
+    // that just renders nothing when `available` is false can't tell the
+    // user which one happened, which reads as "sponsorship silently did
+    // nothing" instead of an understandable status.
+    checking: isLoading,
+    checkFailed: isError,
     dailyBudgetQie: data?.dailyBudgetQie ?? 0,
     pending,
     deploySponsored,

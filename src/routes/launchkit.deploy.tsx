@@ -68,8 +68,13 @@ function DeployWizard() {
   const publicClient = usePublicClient();
   const [mismatchOpen, setMismatchOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
-  const { available: sponsorAvailable, deploySponsored } = useSponsoredDeploy();
-  const sponsorEligible = sponsorAvailable && chain.id === qieMainnet.id;
+  const {
+    available: sponsorAvailable,
+    checking: sponsorChecking,
+    deploySponsored,
+  } = useSponsoredDeploy();
+  const onSponsorChain = chain.id === qieMainnet.id;
+  const sponsorEligible = sponsorAvailable && onSponsorChain;
   const [useSponsor, setUseSponsor] = useState(false);
 
   const [stage, setStage] = useState<Stage>(presetId ? "configure" : "select");
@@ -505,7 +510,7 @@ function DeployWizard() {
             <ArrowLeft className="h-3 w-3" /> Back
           </button>
           <div className="flex items-center gap-3">
-            {sponsorEligible && (
+            {sponsorEligible ? (
               <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
                 <input
                   type="checkbox"
@@ -515,6 +520,14 @@ function DeployWizard() {
                 />
                 Gas-free deploy (DevStation pays)
               </label>
+            ) : (
+              onSponsorChain && (
+                <span className="font-mono text-[10px] text-meta">
+                  {sponsorChecking
+                    ? "Checking gas sponsorship…"
+                    : "Gas-free deploy isn't available right now — you'll pay gas from your own wallet."}
+                </span>
+              )
             )}
             <button
               onClick={startDeploy}

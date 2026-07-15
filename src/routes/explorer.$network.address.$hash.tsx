@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Wallet, FileCode2, CheckCircle2 } from "lucide-react";
 import { useExplorer } from "@/hooks/useExplorer";
+import { useLabelName } from "@/hooks/useContractLabels";
 import { useExplorerNetwork, chainIdForSlug, familyForSlug } from "@/lib/explorer/network";
 import { nativeSymbol } from "@/lib/chains";
 import { storage } from "@/lib/storage";
@@ -43,10 +44,17 @@ function AddressPage() {
   const [tab, setTab] = useState("txns");
   const { data: addr, isLoading } = useExplorer<ExAddress>(`/addresses/${hash}`);
   const { data: counters } = useExplorer<ExAddrCounters>(`/addresses/${hash}/counters`);
+  // The name the user actually gave this contract when deploying through
+  // DevStation (the deploy wizard's "Project Name" field), read from the
+  // on-chain ContractLabelRegistry — same source Routebook already uses.
+  // Preferred over Blockscout's own `addr.name`/`token.name`, which for a
+  // verified contract is just its Solidity contract/template name (e.g.
+  // "SimpleERC20"), not what the user actually called their project.
+  const projectLabel = useLabelName(hash);
 
   // Backfill the resolved name + contract flag onto the recent-search entry, so
   // the SearchBar dropdown can show a human-readable label next time.
-  const resolvedName = addr?.name || addr?.token?.name || undefined;
+  const resolvedName = projectLabel || addr?.name || addr?.token?.name || undefined;
   useEffect(() => {
     if (!addr) return;
     storage.updateSearchName(network, hash, resolvedName, addr.is_contract);
@@ -81,8 +89,13 @@ function AddressPage() {
           <Wallet className="h-5 w-5 text-primary" />
         )}
         <h1 className="font-mono text-base font-bold text-foreground">
-          {isContract ? "Contract" : "Address"}
+          {projectLabel || (isContract ? "Contract" : "Address")}
         </h1>
+        {projectLabel && (
+          <span className="font-mono text-[10px] uppercase tracking-wider text-meta">
+            {isContract ? "Contract" : "Address"}
+          </span>
+        )}
         {addr.is_verified && (
           <span className="inline-flex items-center gap-1 rounded border border-success/40 bg-success/10 px-1.5 py-0.5 font-mono text-[10px] text-success">
             <CheckCircle2 className="h-3 w-3" /> Verified

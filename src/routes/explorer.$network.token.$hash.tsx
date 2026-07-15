@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Coins } from "lucide-react";
 import { useExplorer } from "@/hooks/useExplorer";
+import { useLabelName } from "@/hooks/useContractLabels";
 import {
   Card,
   StatCard,
@@ -28,6 +29,10 @@ function TokenPage() {
     token_holders_count?: string;
     transfers_count?: string;
   }>(`/tokens/${hash}/counters`);
+  // DevStation's own project name for this contract (from the deploy
+  // wizard), when it differs from the token's own on-chain name() — e.g. a
+  // project called "Q1 Airdrop" whose ERC-20 name() is "AirdropToken".
+  const projectLabel = useLabelName(hash);
 
   if (isLoading) return <Spinner label="Loading token" />;
   if (!token)
@@ -56,6 +61,9 @@ function TokenPage() {
           {token.address} <CopyBtn value={token.address} />
         </span>
       </div>
+      {projectLabel && projectLabel !== token.name && (
+        <p className="-mt-2 font-mono text-[11px] text-meta">Project: {projectLabel}</p>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
