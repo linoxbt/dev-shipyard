@@ -7,10 +7,7 @@ import {
   arcTestnet,
   goatTestnet,
   goatMainnet,
-  arbitrumTestnet,
-  arbitrumMainnet,
-  avalancheTestnet,
-  avalancheMainnet,
+  // arbitrumTestnet, arbitrumMainnet, avalancheTestnet, avalancheMainnet,
   // xlayerTestnet, xlayerMainnet — temporarily disabled, see chains.ts's
   // SUPPORTED_CHAINS comment. Re-enable by uncommenting this import and the
   // matching slugs/family entry below.
@@ -26,10 +23,14 @@ import {
 // working exactly as before. New chain families get their own prefixed slugs.
 //
 // Every chain family has an explorer slug. Most are Blockscout-backed
-// (confirmed live per chain — see src/lib/chains.ts's comments). Avalanche's
-// official explorer (Snowtrace) is powered by Routescan instead — a real,
-// separate data source with its own adapter (src/lib/api/routescan.functions.ts),
-// wired in transparently via useExplorer.
+// (confirmed live per chain — see src/lib/chains.ts's comments).
+//
+// Arbitrum and Avalanche are temporarily commented out throughout this file
+// (not deleted) — see chains.ts's SUPPORTED_CHAINS comment. Avalanche's
+// official explorer (Snowtrace) is powered by Routescan instead of
+// Blockscout — a real, separate data source with its own adapter
+// (src/lib/api/routescan.functions.ts) that still works and just needs
+// Avalanche re-added to SUPPORTED_CHAINS/here to come back online.
 //
 // X Layer ("xlayer-testnet"/"xlayer-mainnet") is temporarily commented out
 // throughout this file — its explorer (OKLink) requires a registered API key
@@ -44,11 +45,9 @@ export type NetworkSlug =
   | "bot-mainnet"
   | "arc-testnet"
   | "goat-testnet"
-  | "goat-mainnet"
-  | "arbitrum-testnet"
-  | "arbitrum-mainnet"
-  | "avalanche-testnet"
-  | "avalanche-mainnet";
+  | "goat-mainnet";
+// | "arbitrum-testnet" | "arbitrum-mainnet"
+// | "avalanche-testnet" | "avalanche-mainnet"
 // | "xlayer-testnet" | "xlayer-mainnet" — see note above
 
 const SLUG_CHAIN_ID: Record<NetworkSlug, number> = {
@@ -59,10 +58,10 @@ const SLUG_CHAIN_ID: Record<NetworkSlug, number> = {
   "arc-testnet": arcTestnet.id,
   "goat-testnet": goatTestnet.id,
   "goat-mainnet": goatMainnet.id,
-  "arbitrum-testnet": arbitrumTestnet.id,
-  "arbitrum-mainnet": arbitrumMainnet.id,
-  "avalanche-testnet": avalancheTestnet.id,
-  "avalanche-mainnet": avalancheMainnet.id,
+  // "arbitrum-testnet": arbitrumTestnet.id,
+  // "arbitrum-mainnet": arbitrumMainnet.id,
+  // "avalanche-testnet": avalancheTestnet.id,
+  // "avalanche-mainnet": avalancheMainnet.id,
   // "xlayer-testnet": xlayerTestnet.id,
   // "xlayer-mainnet": xlayerMainnet.id,
 };
@@ -111,8 +110,8 @@ export const EXPLORER_CHAIN_FAMILIES: Array<{
   { label: "BOT Chain", testnetSlug: "bot-testnet", mainnetSlug: "bot-mainnet" },
   { label: "Arc", testnetSlug: "arc-testnet" },
   { label: "GOAT Network", testnetSlug: "goat-testnet", mainnetSlug: "goat-mainnet" },
-  { label: "Arbitrum", testnetSlug: "arbitrum-testnet", mainnetSlug: "arbitrum-mainnet" },
-  { label: "Avalanche", testnetSlug: "avalanche-testnet", mainnetSlug: "avalanche-mainnet" },
+  // { label: "Arbitrum", testnetSlug: "arbitrum-testnet", mainnetSlug: "arbitrum-mainnet" },
+  // { label: "Avalanche", testnetSlug: "avalanche-testnet", mainnetSlug: "avalanche-mainnet" },
   // { label: "X Layer", testnetSlug: "xlayer-testnet", mainnetSlug: "xlayer-mainnet" },
 ];
 

@@ -2,11 +2,12 @@
 
 **A multichain developer console.** Deploy. Debug. Analyze. Inspect.
 
-DevStation is a complete, onchain developer console spanning **6 EVM chains** — QIE, BOT Chain, Arc, Avalanche, GOAT Network, and Arbitrum. It brings the everyday work of a smart-contract developer into one place: write and compile Solidity in the browser, deploy audited templates, generate and deploy contracts with an AI agent, decode any transaction, browse the chain with a built-in block explorer, and label contracts onchain. Everything runs against live networks, and the records that matter (your deployments and the contract label registry) live onchain, per chain, not in a private database.
+DevStation is a complete, onchain developer console spanning **4 EVM chains** — QIE, BOT Chain, Arc, and GOAT Network. It brings the everyday work of a smart-contract developer into one place: write and compile Solidity in the browser, deploy audited templates, generate and deploy contracts with an AI agent, decode any transaction, browse the chain with a built-in block explorer, and label contracts onchain. Everything runs against live networks, and the records that matter (your deployments and the contract label registry) live onchain, per chain, not in a private database.
 
 - **Live app:** <https://devstation.online>
-- **Networks:** QIE, BOT Chain (default), Arc, Avalanche, GOAT Network, and Arbitrum — most with a Testnet and Mainnet. Full chain IDs, RPCs, explorers, and registry addresses are in **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
-- **Explorer coverage:** every chain has full wallet/deploy/registry support, and the built-in Explorer dashboard covers all of them too — see [DEPLOYMENT.md](./DEPLOYMENT.md#explorer-availability-per-chain).
+- **Networks:** QIE, BOT Chain (default), Arc, and GOAT Network — most with a Testnet and Mainnet. Full chain IDs, RPCs, explorers, and registry addresses are in **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
+- **Explorer coverage:** every active chain has full wallet/deploy/registry support, and the built-in Explorer dashboard covers all of them too — see [DEPLOYMENT.md](./DEPLOYMENT.md#explorer-availability-per-chain).
+- **Avalanche and Arbitrum** support exists in the codebase but is currently disabled — see [DEPLOYMENT.md](./DEPLOYMENT.md#avalanche-and-arbitrum-temporarily-disabled).
 - **X Layer** support exists in the codebase but is currently disabled pending a registered OKLink API key — see [DEPLOYMENT.md](./DEPLOYMENT.md#x-layer-temporarily-disabled).
 
 > Originally scaffolded on a TanStack Start template. Now fully wired to the chain: real RPC reads, real deployments, real onchain registries, no mock data on the critical paths.
@@ -66,7 +67,7 @@ addresses, see **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
 
 ### Explorer
 
-A native block explorer scoped to the network in the URL so a link always names its chain — `/explorer/testnet`, `/explorer/bot-mainnet`, `/explorer/avalanche-mainnet`, and so on (the bare `/explorer` redirects to your selected network). Most chains read their own Blockscout v2 API directly; Avalanche reads Snowtrace's Routescan API through a parallel adapter that maps into the same shapes, so every page below works the same way regardless of chain.
+A native block explorer scoped to the network in the URL so a link always names its chain — `/explorer/testnet`, `/explorer/bot-mainnet`, `/explorer/goat-mainnet`, and so on (the bare `/explorer` redirects to your selected network). Every active chain reads its own Blockscout v2 API directly. (Avalanche, when re-enabled, reads Snowtrace's Routescan API through a parallel adapter that maps into the same shapes instead — see [DEPLOYMENT.md](./DEPLOYMENT.md#avalanche-and-arbitrum-temporarily-disabled).)
 
 - **Dashboard:** native token price, market cap, average block time, total blocks and transactions, gas price, network utilization, plus live latest-blocks and latest-transactions feeds and a universal search (address, transaction hash, or block number).
 - **Transaction page:** status, block and confirmations, timestamp, from and to, token transfers, value, fee, gas price, gas usage, EIP-1559 fees, nonce, event logs, and decoded or raw input data.
@@ -119,7 +120,7 @@ Registry writes use an explicit gas limit on chains whose `eth_estimateGas` unde
 | Web3 | viem + wagmi 2.x (injected/MetaMask + in-app burner connectors) |
 | Editor | Monaco (`@monaco-editor/react`) + browser `solc` Web Worker |
 | State / data | Zustand, TanStack Query, `localStorage` persistence |
-| Explorer data | Blockscout v2 API (most chains) or Routescan (Avalanche), both via chain-scoped server proxies |
+| Explorer data | Blockscout v2 API, via chain-scoped server proxies (a Routescan adapter for Avalanche also exists, currently unused — see [DEPLOYMENT.md](./DEPLOYMENT.md#avalanche-and-arbitrum-temporarily-disabled)) |
 | Build / runtime | Vite 7, Bun, Nitro (host-aware deploy presets) |
 
 ---
@@ -180,7 +181,7 @@ Hosting-preset overrides (`NITRO_PRESET`, etc.) are covered in **[DEPLOYMENT.md]
 
 - **Onchain by default.** Deployments are recorded in the ProjectRegistry and contract names live in the ContractLabelRegistry, so the data is auditable and portable rather than locked in a private database. The Projects page reads `getDeployments(yourWallet)`; the Overview reads the global counter and derives unique deployers from the registry's transaction history.
 - **Compilation in the browser.** Solidity is compiled by a real `solc` build loaded in a Web Worker. There is no server compile step and nothing to install.
-- **Explorer via a server proxy.** Each chain's Explorer data (Blockscout, or Routescan for Avalanche) is fetched through a chain-scoped server function. Fetching server-side avoids browser CORS limits and keeps the explorer working under SSR. The proxy validates the request path against the known API namespace, so it cannot be used to fetch arbitrary URLs.
+- **Explorer via a server proxy.** Each chain's Explorer data (Blockscout) is fetched through a chain-scoped server function. Fetching server-side avoids browser CORS limits and keeps the explorer working under SSR. The proxy validates the request path against the known API namespace, so it cannot be used to fetch arbitrary URLs.
 - **SSR everywhere.** Routes are server-rendered, so deep links and refreshes resolve correctly through the SSR server function.
 
 ---
@@ -238,7 +239,8 @@ public/_redirects       Netlify SSR catch-all
 
 ## Known limitations
 
-- **Contract verification** is implemented on every active chain — Blockscout-backed chains verify through their own explorer, and Avalanche verifies through [Sourcify](https://sourcify.dev) instead. A verifier service may not always confirm a submission immediately; when that happens the contract still works and is fully usable, and the verification request completes once the service accepts it.
+- **Contract verification** is implemented on every active chain, verifying through each chain's own Blockscout explorer. A verifier service may not always confirm a submission immediately; when that happens the contract still works and is fully usable, and the verification request completes once the service accepts it.
+- **Avalanche and Arbitrum are temporarily disabled** (commented out, not deleted) — see [DEPLOYMENT.md](./DEPLOYMENT.md#avalanche-and-arbitrum-temporarily-disabled).
 - **X Layer is temporarily disabled** (commented out, not deleted) pending a registered OKLink API key — see [DEPLOYMENT.md](./DEPLOYMENT.md#x-layer-temporarily-disabled).
 - QIE's `eth_estimateGas` is unreliable for storage-writing calls; DevStation pins explicit gas limits on registry writes to work around it.
 

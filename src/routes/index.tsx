@@ -32,7 +32,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Deploy contracts from audited templates, write and compile Solidity in the browser, decode any transaction, and explore the chain. The multichain developer console for QIE, BOT Chain, and 4 more EVM chains.",
+          "Deploy contracts from audited templates, write and compile Solidity in the browser, decode any transaction, and explore the chain. The multichain developer console for QIE, BOT Chain, Arc, and GOAT Network.",
       },
     ],
   }),
@@ -168,9 +168,9 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
             tagline ? "animate-fade-up" : "opacity-0",
           )}
         >
-          The multichain developer console for 6 EVM chains — QIE, BOT Chain, Arc, Avalanche, GOAT
-          Network, and Arbitrum. Build, ship, and inspect smart contracts across Testnet and Mainnet
-          — no local toolchain required.
+          The multichain developer console for 4 EVM chains — QIE, BOT Chain, Arc, and GOAT Network.
+          Build, ship, and inspect smart contracts across Testnet and Mainnet — no local toolchain
+          required.
         </p>
 
         <div
@@ -275,7 +275,7 @@ function Features() {
         <SectionHeading
           kicker="Everything in one console"
           title="The complete multichain developer workflow"
-          subtitle="Write, deploy, inspect, and explore — all against live networks across 6 chains and counting, with the records that matter kept onchain."
+          subtitle="Write, deploy, inspect, and explore — all against live networks across 4 chains and counting, with the records that matter kept onchain."
         />
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
@@ -394,7 +394,7 @@ function CtaBand() {
     <section className="border-b border-border bg-surface">
       <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
         <h2 className="font-mono text-2xl font-bold text-foreground sm:text-3xl">
-          Start building — 6 chains and counting
+          Start building — 4 chains and counting
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
           Free to use. You only pay network gas for what you deploy. No installs, no signup.

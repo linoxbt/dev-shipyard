@@ -15,6 +15,7 @@ so far.
 - [Registry contract addresses](#registry-contract-addresses)
 - [Deploying registries to a new chain](#deploying-registries-to-a-new-chain)
 - [Sponsored deploys (QIE mainnet)](#sponsored-deploys-qie-mainnet)
+- [Avalanche and Arbitrum (temporarily disabled)](#avalanche-and-arbitrum-temporarily-disabled)
 - [X Layer (temporarily disabled)](#x-layer-temporarily-disabled)
 
 ---
@@ -101,19 +102,19 @@ Extras:
 
 ### Explorer availability per chain
 
-DevStation's built-in Explorer reads a chain's own Blockscout v2 API where
-available. One chain doesn't run Blockscout and gets a different path instead:
+DevStation's built-in Explorer reads a chain's own Blockscout v2 API. Every
+currently-active chain runs Blockscout:
 
 | Chain | Explorer backend | DevStation Explorer |
 | --- | --- | --- |
-| QIE, BOT Chain, Arc, GOAT Network, Arbitrum | Blockscout | Full dashboard (blocks, txs, addresses, tokens) |
-| Avalanche | Snowtrace (Routescan API) | Full dashboard, via a Routescan adapter (`src/lib/api/routescan.functions.ts`) that maps Routescan's data into the same shapes the Blockscout pages already render |
+| QIE, BOT Chain, Arc, GOAT Network | Blockscout | Full dashboard (blocks, txs, addresses, tokens) |
 
-Contract **verification**, however, works on all 6 active chains:
-Blockscout-backed chains verify through their own explorer; Avalanche
-verifies through [Sourcify](https://sourcify.dev) instead (a free, keyless,
-public verification service that recompiles from source and matches onchain
-bytecode directly via its own RPC — no explorer API dependency).
+Contract **verification** works on all 4 active chains, through each chain's
+own Blockscout explorer. (Avalanche, when re-enabled, verifies through
+[Sourcify](https://sourcify.dev) instead — a free, keyless, public
+verification service that recompiles from source and matches onchain
+bytecode directly via its own RPC, since Snowtrace/Routescan has no
+verification API of its own.)
 
 ---
 
@@ -242,6 +243,41 @@ has a little QIE for that one small follow-up write.
 Enable it by setting `SPONSOR_PRIVATE_KEY` (and optionally
 `SPONSOR_DAILY_BUDGET_QIE` / `SPONSOR_MAX_GAS_PER_DEPLOY`) on the host and
 rebuilding — see `.env.example`.
+
+---
+
+## Avalanche and Arbitrum (temporarily disabled)
+
+Both are **not currently active** in DevStation — commented out of
+`src/lib/chains.ts`'s `SUPPORTED_CHAINS` and `src/lib/explorer/network.ts`'s
+slug maps, not deleted, so neither appears in the wallet's network switcher
+or the Explorer dropdown. Unlike X Layer below, this isn't blocked on a
+missing API key — both chains' integrations (Avalanche's Routescan adapter,
+Arbitrum's community Blockscout mirror) are fully built and were working;
+they're just switched off.
+
+| Property | Avalanche Testnet (Fuji) | Avalanche Mainnet (C-Chain) |
+| --- | --- | --- |
+| Chain ID | `43113` | `43114` |
+| Native token | AVAX | AVAX |
+| RPC | `avalanche-fuji-c-chain-rpc.publicnode.com` | `api.avax.network/ext/bc/C/rpc` |
+| Explorer | `testnet.snowtrace.io` | `snowtrace.io` |
+| Env vars | `VITE_AVALANCHE_TESTNET_{RPC,EXPLORER,CHAIN_ID}` | `VITE_AVALANCHE_MAINNET_{RPC,EXPLORER,CHAIN_ID}` |
+
+| Property | Arbitrum Sepolia | Arbitrum One |
+| --- | --- | --- |
+| Chain ID | `421614` | `42161` |
+| Native token | ETH | ETH |
+| RPC | `sepolia-rollup.arbitrum.io/rpc` | `arb1.arbitrum.io/rpc` |
+| Explorer | `arbitrum-sepolia.blockscout.com` | `arbitrum.blockscout.com` |
+| Env vars | `VITE_ARBITRUM_TESTNET_{RPC,EXPLORER,CHAIN_ID}` | `VITE_ARBITRUM_MAINNET_{RPC,EXPLORER,CHAIN_ID}` |
+
+To re-enable either: uncomment its two chain exports in `SUPPORTED_CHAINS`
+(`chains.ts`) and the matching import, `NetworkSlug` entries, `SLUG_CHAIN_ID`
+entries, and `EXPLORER_CHAIN_FAMILIES` entry in `network.ts` — each spot has
+a comment marking exactly what to restore. The registry-deploy script and
+Sourcify verification already support both chains unchanged, since neither
+depends on `SUPPORTED_CHAINS`.
 
 ---
 

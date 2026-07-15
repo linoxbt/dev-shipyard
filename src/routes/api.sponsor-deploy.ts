@@ -43,6 +43,36 @@ function fail(reason: string, message: string, status: number) {
   return Response.json({ ok: false, reason, message }, { status });
 }
 
+// The client JSON-stringifies bigint constructor args (a uint256 initial
+// supply, say) as decimal strings, since JSON has no bigint type — this
+// converts them back using the constructor's own ABI type info before
+// they're encoded/deployed. Handles plain numeric types and one level of
+// array nesting (uint256[] etc.), which covers every constructor arg shape
+// DevStation's templates and AI agent actually produce.
+function coerceArg(type: string | undefined, value: unknown): unknown {
+  if (!type) return value;
+  if (type.endsWith("[]")) {
+    const inner = type.slice(0, -2);
+    return Array.isArray(value) ? value.map((el) => coerceArg(inner, el)) : value;
+  }
+  if (/^u?int\d*$/.test(type) && (typeof value === "string" || typeof value === "number")) {
+    try {
+      return BigInt(value);
+    } catch {
+      return value;
+    }
+  }
+  return value;
+}
+
+function coerceConstructorArgs(abi: Abi, args: unknown[]): unknown[] {
+  const ctor = abi.find(
+    (e): e is Extract<Abi[number], { type: "constructor" }> => e.type === "constructor",
+  );
+  const inputs = ctor?.inputs ?? [];
+  return args.map((v, i) => coerceArg(inputs[i]?.type, v));
+}
+
 export const Route = createFileRoute("/api/sponsor-deploy")({
   server: {
     handlers: {
@@ -70,13 +100,15 @@ export const Route = createFileRoute("/api/sponsor-deploy")({
         if (!parsed.success) {
           return fail("invalid_body", "Malformed sponsor-deploy request.", 400);
         }
-        const { chainId, abi, bytecode, args } = parsed.data;
+        const { chainId, abi, bytecode } = parsed.data;
 
         // Hard-pinned to QIE mainnet — chainId is never used to pick an RPC
         // or forwarded anywhere; it only gates this check.
         if (chainId !== qieMainnet.id) {
           return fail("wrong_chain", "Sponsored deploys are only available on QIE mainnet.", 400);
         }
+
+        const args = coerceConstructorArgs(abi as Abi, parsed.data.args);
 
         const clients = sponsorClients();
         if (!clients) {

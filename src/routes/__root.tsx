@@ -71,19 +71,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "application-name", content: "DevStation" },
       {
         name: "description",
-        content: "Unified deploy & debug console for 6 EVM chains. LaunchKit + Routebook.",
+        content: "Unified deploy & debug console for 4 EVM chains. LaunchKit + Routebook.",
       },
       { property: "og:title", content: "DevStation — Multichain Builder Console" },
       {
         property: "og:description",
-        content: "Unified deploy & debug console for 6 EVM chains. LaunchKit + Routebook.",
+        content: "Unified deploy & debug console for 4 EVM chains. LaunchKit + Routebook.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "DevStation — Multichain Builder Console" },
       {
         name: "twitter:description",
-        content: "Unified deploy & debug console for 6 EVM chains. LaunchKit + Routebook.",
+        content: "Unified deploy & debug console for 4 EVM chains. LaunchKit + Routebook.",
       },
       {
         property: "og:image",

@@ -58,7 +58,13 @@ export function useSponsoredDeploy() {
       const res = await fetch("/api/sponsor-deploy", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(p),
+        // Constructor args like a uint256 initial supply are parsed as
+        // native BigInt (see abiArgParser.ts), which JSON.stringify can't
+        // serialize on its own — stringify every bigint as a decimal string;
+        // the server converts them back using the ABI's own type info.
+        body: JSON.stringify(p, (_key, value) =>
+          typeof value === "bigint" ? value.toString() : value,
+        ),
       });
       const json = await res.json();
       if (!json.ok) {

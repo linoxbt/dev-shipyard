@@ -228,12 +228,14 @@ export const SUPPORTED_CHAINS = [
   // (not deleted) until that key is available. Re-enable by uncommenting
   // these two plus the matching entries in explorer/network.ts.
   arcTestnet,
-  avalancheTestnet,
-  avalancheMainnet,
+  // avalancheTestnet, avalancheMainnet — temporarily disabled. Commented out
+  // here (not deleted); re-enable by uncommenting these two plus the
+  // matching entries in explorer/network.ts.
   goatTestnet,
   goatMainnet,
-  arbitrumTestnet,
-  arbitrumMainnet,
+  // arbitrumTestnet, arbitrumMainnet — temporarily disabled. Commented out
+  // here (not deleted); re-enable by uncommenting these two plus the
+  // matching entries in explorer/network.ts.
 ] as const;
 export const DEFAULT_CHAIN = botMainnet;
 
