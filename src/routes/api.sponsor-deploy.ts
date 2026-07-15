@@ -135,8 +135,14 @@ export const Route = createFileRoute("/api/sponsor-deploy")({
         // Estimate, then pad generously — QIE's eth_estimateGas is documented
         // (src/lib/contracts.ts) to lowball storage-writing calls by an order
         // of magnitude, and a CREATE running a constructor is exactly that
-        // shape. Reject rather than cap-and-hope: an insufficient gas limit
-        // just wastes the sponsor's spend on a reverted deploy.
+        // shape.
+        //
+        // No per-deploy gas ceiling here by design — removed after it
+        // rejected legitimate deploys (a plain SimpleERC20's padded estimate
+        // already exceeded the original default). The rolling-24h budget
+        // check below is the real backstop: at QIE's gas price, even a
+        // multi-million-gas deploy costs a small fraction of a QIE, so it's
+        // the QIE-value cap that matters, not a raw gas-unit cap.
         let gasEstimate: bigint;
         let gasPrice: bigint;
         try {
@@ -149,13 +155,6 @@ export const Route = createFileRoute("/api/sponsor-deploy")({
           return fail("deploy_failed", message, 502);
         }
         const paddedGas = gasEstimate * 4n; // 4x safety margin over a known-lowballed estimate
-        if (paddedGas > cfg.maxGasPerDeploy) {
-          return fail(
-            "gas_too_high",
-            `Estimated deploy cost (${paddedGas} gas, padded) exceeds the sponsor's per-deploy ceiling (${cfg.maxGasPerDeploy} gas). Deploy with your own wallet instead.`,
-            400,
-          );
-        }
 
         // Budget check: current rolling-24h spend + this deploy's projected
         // cost must stay under 90% of the configured daily budget. The 10%
