@@ -141,6 +141,21 @@ export const Route = createFileRoute("/api/sponsor-topup")({
         // wallet, each pinned to ONCHAIN_WRITE_GAS, so a top-up covers the
         // whole flow in one shot instead of leaving the user stranded after
         // a successful deploy with no gas left to record it.
+        //
+        // The multiplier here is deliberately much larger than the 4x used
+        // elsewhere for a single call's own gas LIMIT (harmless to overpad —
+        // unused gas is refunded). This is sizing a WALLET TOP-UP: it's a
+        // separate eth_estimateGas call from the one the client makes
+        // moments later for the actual deploy, and QIE's estimator has been
+        // observed to return meaningfully different numbers (not just a
+        // consistent lowball) for back-to-back calls against the identical
+        // transaction — a 4x margin here once undershot the real need by
+        // roughly 2x, silently reporting "wallet already had enough" for a
+        // wallet that didn't. Erring generous costs a fraction of a QIE at
+        // this chain's gas price; erring short wastes the whole deploy
+        // attempt after a full compile cycle. Same reasoning for the 1.5x
+        // gas-price pad: the actual broadcast fetches its own gas price
+        // independently, moments after this one.
         let gasEstimate: bigint;
         let gasPrice: bigint;
         let currentBalance: bigint;
@@ -154,9 +169,10 @@ export const Route = createFileRoute("/api/sponsor-topup")({
           const message = err instanceof Error ? err.message : "Gas estimation failed";
           return fail("topup_failed", message, 502);
         }
-        const paddedDeployGas = gasEstimate * 4n;
+        const paddedDeployGas = gasEstimate * 10n;
         const totalGas = paddedDeployGas + 2n * ONCHAIN_WRITE_GAS;
-        const neededWei = totalGas * gasPrice;
+        const paddedGasPrice = (gasPrice * 3n) / 2n;
+        const neededWei = totalGas * paddedGasPrice;
         const shortfall = neededWei > currentBalance ? neededWei - currentBalance : 0n;
 
         if (shortfall === 0n) {
