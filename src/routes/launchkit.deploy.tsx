@@ -10,11 +10,11 @@ import {
   Rocket,
   Upload,
   Search,
-  ExternalLink,
   Compass,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAccount, useDeployContract, usePublicClient } from "wagmi";
+import { encodeDeployData, type Abi } from "viem";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CodeBlock } from "@/components/shared/CodeBlock";
 import { TerminalOutput, type TerminalLine } from "@/components/shared/TerminalOutput";
@@ -28,12 +28,13 @@ import {
   type Template,
   type ConstructorArg,
 } from "@/lib/mock/templates";
-import { DEFAULT_GAS_GWEI } from "@/lib/chains";
+import { DEFAULT_GAS_GWEI, qieMainnet } from "@/lib/chains";
 import { chainById } from "@/lib/active-chain";
 import { slugForChainId, devstationExplorerBase } from "@/lib/explorer/network";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useContractLabels } from "@/hooks/useContractLabels";
+import { useSponsoredDeploy } from "@/hooks/useSponsoredDeploy";
 import { useUserTemplates } from "@/lib/user-templates";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
 import { VerifyCard } from "@/components/deploy/VerifyCard";
@@ -67,6 +68,9 @@ function DeployWizard() {
   const publicClient = usePublicClient();
   const [mismatchOpen, setMismatchOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const { available: sponsorAvailable, deploySponsored } = useSponsoredDeploy();
+  const sponsorEligible = sponsorAvailable && chain.id === qieMainnet.id;
+  const [useSponsor, setUseSponsor] = useState(false);
 
   const [stage, setStage] = useState<Stage>(presetId ? "configure" : "select");
   const [templateId, setTemplateId] = useState<string | null>(presetId ?? null);
@@ -102,7 +106,16 @@ function DeployWizard() {
   const handleSelectTemplate = (t: Template) => {
     setTemplateId(t.id);
     setProjectName(t.name);
-    setArgs({});
+    // Pre-fill an explicit owner/recipient arg with the connected wallet so
+    // a self-paid deploy still ends up owned by the deployer (see
+    // src/lib/mock/templates.ts — SimpleERC20/ERC721/Staking/SoulboundNFT no
+    // longer default ownership to msg.sender, which would otherwise hand
+    // ownership to the gas-sponsor wallet on a sponsored deploy).
+    const seeded: Record<string, string> = {};
+    if (address && t.args.some((a) => a.name === "initialOwner_")) {
+      seeded.initialOwner_ = address;
+    }
+    setArgs(seeded);
   };
 
   const handleConfigure = () => {
@@ -173,23 +186,66 @@ function DeployWizard() {
         qualifiedName: contract.qualifiedName,
         constructorArgs: encodeConstructorArgs(contract.abi as unknown[], encodedArgs),
       });
-      log(`[${ts()}] [Deploy] Submitting deployment to ${chain.name} (chain ${chain.id})...`);
-      const hash = await deployContractAsync({
-        abi: contract.abi as [],
-        bytecode: contract.bytecode,
-        args: encodedArgs.length > 0 ? encodedArgs : undefined,
-        chainId: chain.id,
-      });
-      log(`[${ts()}] [Deploy] Transaction submitted: ${hash}`, "success");
-      log(`[${ts()}] [Deploy] Waiting for confirmation...`);
+      let hash: `0x${string}`;
+      let deployedAddr: `0x${string}`;
+      let blockNumber: number;
 
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      const deployedAddr = receipt.contractAddress as `0x${string}`;
-      if (!deployedAddr) {
-        log(`[${ts()}] [Error] No contract address in receipt`, "error");
-        return;
+      if (useSponsor && sponsorEligible) {
+        log(`[${ts()}] [Deploy] Submitting sponsored (gas-free) deployment to ${chain.name}...`);
+        try {
+          const result = await deploySponsored({
+            abi: contract.abi as unknown[],
+            bytecode: contract.bytecode,
+            args: encodedArgs,
+            chainId: chain.id,
+            requesterAddress: address,
+          });
+          hash = result.txHash;
+          deployedAddr = result.contractAddress;
+          blockNumber = result.blockNumber;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Sponsored deploy failed";
+          log(`[${ts()}] [Error] [Sponsor] ${msg}`, "error");
+          toast.error(msg);
+          return;
+        }
+        log(`[${ts()}] [Deploy] Transaction submitted (sponsor-paid): ${hash}`, "success");
+      } else {
+        log(`[${ts()}] [Deploy] Submitting deployment to ${chain.name} (chain ${chain.id})...`);
+        // Pad the gas limit — chains like QIE lowball eth_estimateGas for
+        // constructor-heavy CREATE calls (see src/lib/contracts.ts). Falls
+        // back to letting the wallet estimate if this itself fails.
+        let gasLimit: bigint | undefined;
+        try {
+          const deployData = encodeDeployData({
+            abi: contract.abi as Abi,
+            bytecode: contract.bytecode,
+            args: encodedArgs as unknown[],
+          });
+          const estimate = await publicClient.estimateGas({ account: address, data: deployData });
+          gasLimit = estimate * 4n;
+        } catch {
+          /* fall back to wallet-side estimation */
+        }
+        hash = await deployContractAsync({
+          abi: contract.abi as [],
+          bytecode: contract.bytecode,
+          args: encodedArgs.length > 0 ? encodedArgs : undefined,
+          chainId: chain.id,
+          gas: gasLimit,
+        });
+        log(`[${ts()}] [Deploy] Transaction submitted: ${hash}`, "success");
+        log(`[${ts()}] [Deploy] Waiting for confirmation...`);
+
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        if (!receipt.contractAddress) {
+          log(`[${ts()}] [Error] No contract address in receipt`, "error");
+          return;
+        }
+        deployedAddr = receipt.contractAddress as `0x${string}`;
+        blockNumber = Number(receipt.blockNumber);
       }
-      log(`[${ts()}] [Deploy] ✓ Confirmed in block ${receipt.blockNumber}`, "success");
+      log(`[${ts()}] [Deploy] ✓ Confirmed in block ${blockNumber}`, "success");
       log(`[${ts()}] [Deploy] ✓ Contract deployed at ${deployedAddr}`, "success");
 
       await recordDeployment({
@@ -226,7 +282,7 @@ function DeployWizard() {
         }
       }
 
-      setDeployResult({ address: deployedAddr, txHash: hash, block: Number(receipt.blockNumber) });
+      setDeployResult({ address: deployedAddr, txHash: hash, block: blockNumber });
       setStage("success");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Deploy failed";
@@ -448,15 +504,28 @@ function DeployWizard() {
           >
             <ArrowLeft className="h-3 w-3" /> Back
           </button>
-          <button
-            onClick={startDeploy}
-            disabled={!isConnected}
-            title={isConnected ? undefined : "Connect a wallet to deploy"}
-            className="flex items-center gap-2 rounded bg-primary px-5 py-2 font-mono text-xs font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
-          >
-            <Rocket className="h-3.5 w-3.5" />
-            {isConnected ? "Deploy Contract" : "Connect Wallet to Deploy"}
-          </button>
+          <div className="flex items-center gap-3">
+            {sponsorEligible && (
+              <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={useSponsor}
+                  onChange={(e) => setUseSponsor(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-border"
+                />
+                Gas-free deploy (DevStation pays)
+              </label>
+            )}
+            <button
+              onClick={startDeploy}
+              disabled={!isConnected}
+              title={isConnected ? undefined : "Connect a wallet to deploy"}
+              className="flex items-center gap-2 rounded bg-primary px-5 py-2 font-mono text-xs font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
+            >
+              <Rocket className="h-3.5 w-3.5" />
+              {isConnected ? "Deploy Contract" : "Connect Wallet to Deploy"}
+            </button>
+          </div>
         </div>
         <NetworkMismatchModal
           isOpen={mismatchOpen}

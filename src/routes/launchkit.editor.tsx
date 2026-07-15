@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  File,
   Folder,
   ChevronRight,
   ChevronDown,
@@ -9,7 +8,6 @@ import {
   GripVertical,
   Rocket,
   Play,
-  Plus,
   X,
   Code2,
   Sparkles,

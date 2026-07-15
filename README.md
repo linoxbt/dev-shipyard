@@ -56,7 +56,7 @@ addresses, see **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
 - **Template gallery** (`/launchkit/templates`): self-contained, audited templates (ERC20, ERC721, Soulbound NFT, MultiSig, Timelock, Vesting, Staking, Payment Splitter) with source and ABI viewers. Each card shows its real onchain deploy count, read from the ProjectRegistry's transaction history.
 - **Contract Editor** (`/launchkit/editor`): a Monaco editor with Solidity highlighting, a file workspace persisted to `localStorage`, a colored compiler terminal with an interactive command prompt, and **in-browser compilation** via a `solc` Web Worker (no backend). Picks any solc 0.7 to 0.8.26 and resolves external imports (for example OpenZeppelin) from a CDN.
 - **Code with AI** (`/launchkit/ai`): two modes. In **Chat**, the assistant writes secure, production-grade Solidity and audits contracts you paste, graded by severity; generated code blocks open straight in the Contract Editor. In **Agent** mode it goes autonomous: describe a contract, and it generates the source, compiles it in the browser, fixes its own compiler errors (up to five attempts), then deploys with your connected wallet, showing a constructor-argument form to review before you sign. See [AI assistant](#ai-assistant).
-- **Deploy** (`/launchkit/deploy`): a guided flow generated from a template's constructor. DevStation validates and encodes the arguments, compiles in a browser worker, sends the creation transaction through your wallet, and records the deployment onchain. The success screen links straight into Routebook and the DevStation explorer.
+- **Deploy** (`/launchkit/deploy`): a guided flow generated from a template's constructor. DevStation validates and encodes the arguments, compiles in a browser worker, sends the creation transaction through your wallet, and records the deployment onchain. The success screen links straight into Routebook and the DevStation explorer. On **QIE mainnet**, an optional "Gas-free deploy" checkbox lets DevStation broadcast (and pay for) the creation transaction itself via a server-held sponsor wallet — see [DEPLOYMENT.md](./DEPLOYMENT.md#sponsored-deploys-qie-mainnet).
 - **Projects** (`/launchkit/projects`): a per-wallet history of everything you have deployed through DevStation, read from the onchain ProjectRegistry and merged with local history. Scoped to the connected wallet.
 
 ### Routebook
@@ -170,6 +170,7 @@ The AI provider, model, and key are chosen in the app's Settings and stored in t
 | Variable | Purpose |
 | --- | --- |
 | `PRIVATE_KEY` | Used **only** by `scripts/deploy.ts` to deploy the registry contracts from your machine. Lives in `.env.local`. **Never** add it to a host: the running app has no use for it. |
+| `SPONSOR_PRIVATE_KEY` | Optional. A live, funded QIE mainnet wallet the running app spends from to pay gas on a visitor's behalf. Unlike `PRIVATE_KEY` above, this one *is* meant to be set on a host — but only if you understand the abuse model, see [DEPLOYMENT.md](./DEPLOYMENT.md#sponsored-deploys-qie-mainnet). |
 
 Hosting-preset overrides (`NITRO_PRESET`, etc.) are covered in **[DEPLOYMENT.md](./DEPLOYMENT.md#hosting)**.
 
@@ -228,6 +229,7 @@ public/_redirects       Netlify SSR catch-all
 | `bun run build` | Production build (host-aware preset) |
 | `bun run preview` | Preview the production build |
 | `bun run lint` / `bun run format` | ESLint / Prettier |
+| `bun run test` | Unit tests (`bun test`) for pure logic — arg parsing, static analysis, diffing, revert decoding |
 | `bun run contracts:compile` | Compile registries to ABIs + artifacts |
 | `bun run contracts:deploy [mainnet]` | Deploy registries to QIE (testnet by default) |
 | `bun run contracts:deploy <family> [testnet\|mainnet]` | Deploy registries to `bot`, `xlayer`, `arc` (testnet only), `avalanche`, `goat`, or `arbitrum` (testnet by default) |

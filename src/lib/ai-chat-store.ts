@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { toast } from "sonner";
 import type { ChatMessage } from "@/lib/ai";
 
 // Persistent, multi-session chat history for the AI assistant. Survives reload
@@ -45,12 +46,22 @@ function load(): { sessions: ChatSession[]; activeId: string | null } {
   }
 }
 
+// Warn (once per page load, not once per failed save) rather than silently
+// swallowing quota errors — without this, chat history can stop saving with
+// zero indication to the user, who reasonably assumes it's still working.
+let warnedAboutPersistFailure = false;
+
 function persist(sessions: ChatSession[], activeId: string | null) {
   if (!hasWindow()) return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessions, activeId }));
   } catch {
-    /* ignore quota errors */
+    if (!warnedAboutPersistFailure) {
+      warnedAboutPersistFailure = true;
+      toast.warning(
+        "Chat history isn't saving (storage is full) — this conversation won't persist.",
+      );
+    }
   }
 }
 

@@ -14,6 +14,7 @@ so far.
 - [Network configuration](#network-configuration)
 - [Registry contract addresses](#registry-contract-addresses)
 - [Deploying registries to a new chain](#deploying-registries-to-a-new-chain)
+- [Sponsored deploys (QIE mainnet)](#sponsored-deploys-qie-mainnet)
 - [X Layer (temporarily disabled)](#x-layer-temporarily-disabled)
 
 ---
@@ -127,7 +128,7 @@ vars (QIE keeps its legacy no-suffix names for backward compatibility).
 | Chain | Network | ProjectRegistry | ContractLabelRegistry |
 | --- | --- | --- | --- |
 | QIE | Testnet `1983` | `0x75d7b39bc827367c409e1a2bf805bd5f337ca27b` | `0x177294293e6e785a83e036a95de1697e3cc04748` |
-| QIE | Mainnet `1990` | `0x75d7b39bc827367c409e1a2bf805bd5f337ca27b` | `0x177294293e6e785a83e036a95de1697e3cc04748` |
+| QIE | Mainnet `1990` | `0x673e3d4d7f6043d0384e95ce0c110f09e09ec708` | `0xb6075e4cad1f7e7e779e49dcf7df08949797ed81` |
 | BOT Chain | Testnet `968` | _not wired in_ | _not wired in_ |
 | BOT Chain | Mainnet `677` | _not yet deployed_ | _not yet deployed_ |
 | Arc | Testnet | _not yet deployed_ | _not yet deployed_ |
@@ -135,9 +136,14 @@ vars (QIE keeps its legacy no-suffix names for backward compatibility).
 | GOAT Network | Testnet / Mainnet | _not yet deployed_ | _not yet deployed_ |
 | Arbitrum | Testnet / Mainnet | _not yet deployed_ | _not yet deployed_ |
 
-QIE's testnet and mainnet addresses happen to match because the deployer's
-matching nonces produced identical addresses on each chain — this is a
-coincidence of deploy order, not something to rely on for other chains.
+QIE mainnet was redeployed separately from testnet (v2 contract source — see
+`contracts/ContractLabelRegistry.sol`'s `@dev` note — plus this is a distinct
+deployer nonce sequence), so the two networks now have **different**
+addresses, unlike the earlier coincidental match. Both `VITE_PROJECT_REGISTRY_ADDRESS_MAINNET`
+and `VITE_LABEL_REGISTRY_ADDRESS_MAINNET` **must** be set wherever the app
+runs against QIE mainnet (including on the hosting dashboard, then rebuild) —
+without them, the app silently falls back to the old testnet-era default
+address, which is still live but does not have the v2 access-control fix.
 
 BOT Chain testnet previously had a deployed, source-verified pair
 (ProjectRegistry `0x4d6267f8...`, ContractLabelRegistry `0xe36ca612...`, still
@@ -169,6 +175,73 @@ After deploying, copy the printed addresses into the matching
 `VITE_{PROJECT,LABEL}_REGISTRY_ADDRESS_<FAMILY>_<NETWORK>` vars (see the
 [table above](#registry-contract-addresses)) in your host's env config, then
 rebuild.
+
+---
+
+## Sponsored deploys (QIE mainnet)
+
+Optional, off by default. When `SPONSOR_PRIVATE_KEY` is set, DevStation can
+broadcast a contract-deployment transaction from a server-held wallet instead
+of the visitor's own — a "Gas-free deploy (DevStation pays)" checkbox appears
+in LaunchKit's deploy wizard and the editor's Deploy panel, **QIE mainnet
+only**. The client and server both hard-check the chain; this never applies
+to testnet or any other chain family.
+
+**This is genuinely new infrastructure, not a config toggle to flip lightly.**
+Unlike `PRIVATE_KEY` above — a one-off local CLI key used only to deploy
+DevStation's own registries — `SPONSOR_PRIVATE_KEY` is held live by the
+running server and spends real QIE mainnet funds in response to requests.
+Treat it like an exchange hot wallet.
+
+**Abuse model (read before enabling):** there is deliberately **no
+per-wallet or per-IP gate** — any visitor can request a sponsored deploy.
+The only backstop is a budget model, enforced server-side on every request
+(`src/routes/api.sponsor-deploy.ts`):
+
+- `SPONSOR_MAX_GAS_PER_DEPLOY` (default `4000000`) — a hard per-deploy gas
+  ceiling. The server estimates gas, pads it 4x (QIE's `eth_estimateGas` is
+  documented above to lowball storage-writing calls, and a constructor is
+  exactly that shape), and refuses to broadcast anything over this ceiling —
+  so one deploy can't itself exceed the daily budget.
+- `SPONSOR_DAILY_BUDGET_QIE` (default `5`) — a rolling 24h spend ceiling,
+  computed by summing the sponsor wallet's own gas costs from the chain's
+  explorer tx history (no separate database — consistent with the rest of
+  this app). Sponsorship stops once spend crosses **90% of this value**,
+  not 100% — the 10% headroom exists because this check isn't atomic across
+  concurrent requests; it reduces, not eliminates, the chance of a burst of
+  simultaneous requests overshooting the configured cap.
+- Once the daily cap is hit, sponsorship auto-disables (the checkbox's
+  requests start failing with `budget_exhausted`) until spend rolls off the
+  24h window. The app can't lose more than roughly the configured daily
+  budget per day; that whole budget could still be drained by one actor
+  within minutes if they choose to.
+
+**Ownership caveat:** the deployed contract's owner/admin is whoever the
+constructor names, not automatically the requester. DevStation's own
+LaunchKit templates (`src/lib/mock/templates.ts`) and AI-agent-generated
+contracts (`src/lib/ai-agent.ts`) are written to take an explicit
+`initialOwner`/`initialHolder`-style constructor argument set to the
+requester's connected wallet — never `msg.sender`, since under sponsorship
+`msg.sender` is the *sponsor* wallet, not the user. Hand-written or pasted
+source has no such guarantee; the editor's Deploy panel shows a warning when
+sponsoring a non-template deploy for exactly this reason.
+
+**Registry writes are still self-paid.** Only the (expensive) contract
+*creation* is sponsored — the subsequent `ProjectRegistry.recordDeployment`
+and `ContractLabelRegistry.submitLabel` calls are still sent from the
+requester's own wallet, same as any deploy. This is deliberate: both
+registries attribute writes to `msg.sender`, so having the sponsor call them
+would misattribute every sponsored deployment to the sponsor's own bucket
+and break the per-wallet Projects page. In practice this is not a hard
+blocker for a zero-balance visitor — both calls are already non-blocking
+(`recordDeployment` is fire-and-forget, `submitLabel` failure is caught and
+logged as a warning) — so a zero-balance sponsored deploy still succeeds and
+shows correctly, just without an on-chain registry record until the deployer
+has a little QIE for that one small follow-up write.
+
+Enable it by setting `SPONSOR_PRIVATE_KEY` (and optionally
+`SPONSOR_DAILY_BUDGET_QIE` / `SPONSOR_MAX_GAS_PER_DEPLOY`) on the host and
+rebuilding — see `.env.example`.
 
 ---
 

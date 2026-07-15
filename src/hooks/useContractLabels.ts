@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useReadContract, useWriteContract } from "wagmi";
+import { useWriteContract } from "wagmi";
 import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
 import { labelRegistryAddress, isContractConfigured, ONCHAIN_WRITE_GAS } from "@/lib/contracts";
 import { useNetworkPref } from "@/lib/active-chain";
@@ -26,8 +26,8 @@ interface SubmitParams {
   autoLabeled?: boolean;
 }
 
-// On-chain ContractLabelRegistry access. Reads the labeled-contracts list when
-// deployed; submitLabel writes a tx. When not deployed, submit is a no-op the
+// On-chain ContractLabelRegistry write access. submitLabel writes a tx; when
+// the registry isn't deployed on the selected chain, submit is a no-op the
 // caller can detect via `onChain`.
 export function useContractLabels() {
   const { writeContractAsync } = useWriteContract();
@@ -35,14 +35,13 @@ export function useContractLabels() {
   const registry = labelRegistryAddress(selectedChainId);
   const onChain = isContractConfigured(registry);
 
-  const { data: labeledAddresses, refetch } = useReadContract({
-    address: registry,
-    abi: contractLabelRegistryAbi,
-    functionName: "getLabeledContracts",
-    chainId: selectedChainId,
-    query: { enabled: onChain },
-  });
-
+  // Deliberately does NOT call the contract's own getLabeledContracts(): that
+  // view returns a single global array with no size cap, so it's a
+  // gas-griefing DoS vector for anyone who submits enough unique-address
+  // labels (see contracts/ContractLabelRegistry.sol). Nothing in the app
+  // consumed this read, so it's dropped entirely rather than made safe — the
+  // Label Registry page already sources everything from useAllLabels()
+  // (tx-history based, paginated implicitly by the explorer API).
   const submitLabel = useCallback(
     async (p: SubmitParams) => {
       if (!onChain) return false;
@@ -57,17 +56,12 @@ export function useContractLabels() {
         chainId: selectedChainId,
         gas: ONCHAIN_WRITE_GAS,
       });
-      refetch();
       return true;
     },
-    [onChain, registry, writeContractAsync, refetch, selectedChainId],
+    [onChain, registry, writeContractAsync, selectedChainId],
   );
 
-  return {
-    onChain,
-    labeledAddresses: (labeledAddresses as readonly string[] | undefined) ?? [],
-    submitLabel,
-  };
+  return { onChain, submitLabel };
 }
 
 // Full label list for the Label Registry page. Read from the registry's

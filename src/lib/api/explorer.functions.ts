@@ -24,7 +24,15 @@ export const getExplorerData = createServerFn({ method: "GET" })
   .inputValidator(input)
   .handler(async ({ data }) => {
     const { chainId, path } = data;
-    if (!ALLOWED.test(path)) {
+    // ALLOWED only checks the path's prefix, so a value like
+    // "/blocks/../../../admin/secret" still matches it while resolving to a
+    // completely different path once the URL is constructed below (the
+    // fetch/URL parser normalizes ".." segments). Reject any dot-dot segment
+    // outright — this is a same-host path-traversal check, not (only) SSRF:
+    // the host is always the fixed, chainId-derived explorerUrl below, never
+    // caller-controlled, but the "known API namespace" allowlist above is
+    // meant to be a real boundary, not just a prefix match.
+    if (path.includes("..") || !ALLOWED.test(path)) {
       return { ok: false as const, status: 400, error: "Unsupported explorer path" };
     }
     const base = chainConfig(chainId).explorerUrl.replace(/\/$/, "");

@@ -16,6 +16,7 @@ import {
   Tabs,
   Spinner,
   Empty,
+  ErrorState,
 } from "@/components/explorer/ui";
 import { TxTable } from "@/components/explorer/lists";
 import { formatQie, formatUnits, timeAgo, withCommas } from "@/lib/explorer/format";
@@ -154,12 +155,28 @@ function AddressPage() {
 }
 
 function AddrTxns({ hash, symbol }: { hash: string; symbol: string }) {
-  const { data } = useExplorer<{ items: ExTx[] }>(`/addresses/${hash}/transactions`);
+  const { data, isError, error, refetch } = useExplorer<{ items: ExTx[] }>(
+    `/addresses/${hash}/transactions`,
+  );
+  if (isError)
+    return (
+      <Card>
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      </Card>
+    );
   return <Card>{!data ? <Spinner /> : <TxTable txs={data.items} symbol={symbol} />}</Card>;
 }
 
 function AddrTransfers({ hash }: { hash: string }) {
-  const { data } = useExplorer<{ items: ExTokenTransfer[] }>(`/addresses/${hash}/token-transfers`);
+  const { data, isError, error, refetch } = useExplorer<{ items: ExTokenTransfer[] }>(
+    `/addresses/${hash}/token-transfers`,
+  );
+  if (isError)
+    return (
+      <Card>
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      </Card>
+    );
   if (!data)
     return (
       <Card>
@@ -223,7 +240,15 @@ function AddrTransfers({ hash }: { hash: string }) {
 }
 
 function AddrTokens({ hash }: { hash: string }) {
-  const { data } = useExplorer<ExTokenBalance[]>(`/addresses/${hash}/token-balances`);
+  const { data, isError, error, refetch } = useExplorer<ExTokenBalance[]>(
+    `/addresses/${hash}/token-balances`,
+  );
+  if (isError)
+    return (
+      <Card>
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      </Card>
+    );
   if (!data)
     return (
       <Card>
@@ -272,9 +297,15 @@ function AddrTokens({ hash }: { hash: string }) {
 }
 
 function AddrInternal({ hash, symbol }: { hash: string; symbol: string }) {
-  const { data } = useExplorer<{ items: ExInternalTx[] }>(
+  const { data, isError, error, refetch } = useExplorer<{ items: ExInternalTx[] }>(
     `/addresses/${hash}/internal-transactions`,
   );
+  if (isError)
+    return (
+      <Card>
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      </Card>
+    );
   if (!data)
     return (
       <Card>
@@ -318,7 +349,15 @@ function AddrInternal({ hash, symbol }: { hash: string; symbol: string }) {
 }
 
 function AddrLogs({ hash }: { hash: string }) {
-  const { data } = useExplorer<{ items: ExLog[] }>(`/addresses/${hash}/logs`);
+  const { data, isError, error, refetch } = useExplorer<{ items: ExLog[] }>(
+    `/addresses/${hash}/logs`,
+  );
+  if (isError)
+    return (
+      <Card>
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      </Card>
+    );
   if (!data)
     return (
       <Card>

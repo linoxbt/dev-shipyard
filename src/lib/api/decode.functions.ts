@@ -15,7 +15,7 @@ import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
 import { labelRegistryAddress, isContractConfigured } from "@/lib/contracts";
 
 const SUBMIT_LABEL_SELECTOR = "0x194cab0d"; // submitLabel(address,string,string,string,bool)
-import { decodeCalldata, knownContractName } from "@/lib/decode-abi";
+import { decodeCalldata, knownContractName, decodeRevertData } from "@/lib/decode-abi";
 import {
   REVERT_PATTERNS,
   type DecodedTx,
@@ -64,6 +64,13 @@ interface RawCall {
   calls?: RawCall[];
 }
 
+// A malformed or pathologically deep debug_traceTransaction response could
+// otherwise recurse until it blows the call stack (RangeError). No real EVM
+// call stack goes anywhere near this deep (the protocol itself caps call
+// depth at 1024), so truncating here only ever affects garbage input, never
+// a legitimate trace.
+const MAX_CALL_DEPTH = 128;
+
 function mapCallNode(node: RawCall, path: string, depth: number, addrs: Set<string>): RouteCall {
   const type: CallType = node.error
     ? "failed"
@@ -78,17 +85,18 @@ function mapCallNode(node: RawCall, path: string, depth: number, addrs: Set<stri
     : decodeCalldata(node.input);
   const to = node.to ?? "0x";
   if (to && to !== "0x") addrs.add(to.toLowerCase());
+  const truncated = depth >= MAX_CALL_DEPTH && (node.calls?.length ?? 0) > 0;
   return {
     id: path,
     type,
     contractAddress: to,
-    fn: decoded.fn,
+    fn: truncated ? `${decoded.fn} [trace truncated — max depth reached]` : decoded.fn,
     args: decoded.args,
     events: [],
     gasUsed: node.gasUsed ? Number(BigInt(node.gasUsed)) : 0,
-    children: (node.calls ?? []).map((c, i) =>
-      mapCallNode(c, `${path}.${i + 1}`, depth + 1, addrs),
-    ),
+    children: truncated
+      ? []
+      : (node.calls ?? []).map((c, i) => mapCallNode(c, `${path}.${i + 1}`, depth + 1, addrs)),
   };
 }
 
@@ -290,12 +298,27 @@ export const decodeTransaction = createServerFn({ method: "POST" })
               blockNumber: receipt.blockNumber,
             });
           } catch (err: unknown) {
-            const e = err as { shortMessage?: string; details?: string; message?: string };
+            const e = err as {
+              shortMessage?: string;
+              details?: string;
+              message?: string;
+              data?: Hex;
+              cause?: { data?: Hex; cause?: { data?: Hex } };
+            };
             revertReason = e.shortMessage || e.details || e.message || "Reverted without reason";
             const pattern = Object.keys(REVERT_PATTERNS).find((p) => revertReason?.includes(p));
             if (pattern) {
               revertExplain = REVERT_PATTERNS[pattern].explain;
               revertFix = REVERT_PATTERNS[pattern].fix;
+            } else {
+              // Not a known OZ-style revert STRING — try decoding the raw
+              // revert bytes as a Panic(uint256) or one of DevStation's own
+              // known custom errors, which the string-matching table above
+              // can't catch (viem's shortMessage often just says "reverted"
+              // for these instead of including the raw reason text).
+              const rawData = e.data ?? e.cause?.data ?? e.cause?.cause?.data;
+              const decoded = decodeRevertData(rawData);
+              if (decoded) revertExplain = decoded;
             }
           }
         }

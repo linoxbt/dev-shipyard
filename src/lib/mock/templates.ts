@@ -70,14 +70,15 @@ contract SimpleERC20 {
         _;
     }
 
-    constructor(string memory name_, string memory symbol_, uint256 initialSupply_) {
+    constructor(string memory name_, string memory symbol_, uint256 initialSupply_, address initialOwner_) {
+        require(initialOwner_ != address(0), "ZERO_OWNER");
         name = name_;
         symbol = symbol_;
-        owner = msg.sender;
+        owner = initialOwner_;
         uint256 supply = initialSupply_ * 10 ** decimals;
         totalSupply = supply;
-        balanceOf[msg.sender] = supply;
-        emit Transfer(address(0), msg.sender, supply);
+        balanceOf[initialOwner_] = supply;
+        emit Transfer(address(0), initialOwner_, supply);
     }
 
     function transfer(address to, uint256 value) external returns (bool) {
@@ -145,12 +146,13 @@ contract SimpleERC721 {
     event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
     event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
 
-    constructor(string memory name_, string memory symbol_, string memory baseURI_, uint256 maxSupply_) {
+    constructor(string memory name_, string memory symbol_, string memory baseURI_, uint256 maxSupply_, address initialOwner_) {
+        require(initialOwner_ != address(0), "ZERO_OWNER");
         name = name_;
         symbol = symbol_;
         baseURI = baseURI_;
         maxSupply = maxSupply_;
-        owner = msg.sender;
+        owner = initialOwner_;
     }
 
     function mint(address to) external returns (uint256) {
@@ -351,11 +353,12 @@ contract SimpleStaking {
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
 
-    constructor(address stakingToken_, address rewardToken_, uint256 rewardRatePerBlock_) {
+    constructor(address stakingToken_, address rewardToken_, uint256 rewardRatePerBlock_, address initialOwner_) {
+        require(initialOwner_ != address(0), "ZERO_OWNER");
         stakingToken = IERC20(stakingToken_);
         rewardToken = IERC20(rewardToken_);
         rewardRatePerBlock = rewardRatePerBlock_;
-        owner = msg.sender;
+        owner = initialOwner_;
         lastUpdateBlock = block.number;
     }
 
@@ -462,10 +465,11 @@ contract SoulboundNFT {
 
     event Mint(address indexed to, uint256 indexed tokenId);
 
-    constructor(string memory name_, string memory symbol_) {
+    constructor(string memory name_, string memory symbol_, address initialOwner_) {
+        require(initialOwner_ != address(0), "ZERO_OWNER");
         name = name_;
         symbol = symbol_;
-        owner = msg.sender;
+        owner = initialOwner_;
     }
 
     function mint(address to) external returns (uint256) {
@@ -547,7 +551,7 @@ export const TEMPLATES: Template[] = [
     verified: true,
     deployCount: 0,
     solidity: ERC20_SRC,
-    abi: '[{"inputs":[{"name":"name_","type":"string"},{"name":"symbol_","type":"string"},{"name":"initialSupply_","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"name":"to","type":"address"},{"name":"value","type":"uint256"}],"name":"transfer","outputs":[{"type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"to","type":"address"},{"name":"amount","type":"uint256"}],"name":"mint","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"amount","type":"uint256"}],"name":"burn","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
+    abi: '[{"inputs":[{"name":"name_","type":"string"},{"name":"symbol_","type":"string"},{"name":"initialSupply_","type":"uint256"},{"name":"initialOwner_","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"name":"to","type":"address"},{"name":"value","type":"uint256"}],"name":"transfer","outputs":[{"type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"to","type":"address"},{"name":"amount","type":"uint256"}],"name":"mint","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"amount","type":"uint256"}],"name":"burn","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
     args: [
       {
         name: "name_",
@@ -572,6 +576,14 @@ export const TEMPLATES: Template[] = [
         placeholder: "1000000",
         helper: "Whole tokens to mint at deploy. Contract handles 18 decimals.",
       },
+      {
+        name: "initialOwner_",
+        label: "Owner",
+        type: "address",
+        placeholder: "0x...",
+        helper:
+          "Receives the full initial supply and controls minting. Defaults to your connected wallet.",
+      },
     ],
     author: "DevStation",
     version: "1.0.0",
@@ -589,7 +601,7 @@ export const TEMPLATES: Template[] = [
     verified: true,
     deployCount: 0,
     solidity: ERC721_SRC,
-    abi: '[{"inputs":[{"name":"name_","type":"string"},{"name":"symbol_","type":"string"},{"name":"baseURI_","type":"string"},{"name":"maxSupply_","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"name":"to","type":"address"}],"name":"mint","outputs":[{"type":"uint256"}],"stateMutability":"nonpayable","type":"function"}]',
+    abi: '[{"inputs":[{"name":"name_","type":"string"},{"name":"symbol_","type":"string"},{"name":"baseURI_","type":"string"},{"name":"maxSupply_","type":"uint256"},{"name":"initialOwner_","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"name":"to","type":"address"}],"name":"mint","outputs":[{"type":"uint256"}],"stateMutability":"nonpayable","type":"function"}]',
     args: [
       { name: "name_", label: "Collection Name", type: "string", placeholder: "e.g. QIE Genesis" },
       {
@@ -608,6 +620,13 @@ export const TEMPLATES: Template[] = [
         helper: "Token metadata base. Trailing slash recommended.",
       },
       { name: "maxSupply_", label: "Max Supply", type: "uint", placeholder: "10000" },
+      {
+        name: "initialOwner_",
+        label: "Owner",
+        type: "address",
+        placeholder: "0x...",
+        helper: "Controls minting. Defaults to your connected wallet.",
+      },
     ],
     author: "DevStation",
     version: "1.0.0",
@@ -679,7 +698,7 @@ export const TEMPLATES: Template[] = [
     verified: true,
     deployCount: 0,
     solidity: STAKING_SRC,
-    abi: '[{"inputs":[{"name":"stakingToken_","type":"address"},{"name":"rewardToken_","type":"address"},{"name":"rewardRatePerBlock_","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"name":"amount","type":"uint256"}],"name":"stake","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"amount","type":"uint256"}],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"claimReward","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
+    abi: '[{"inputs":[{"name":"stakingToken_","type":"address"},{"name":"rewardToken_","type":"address"},{"name":"rewardRatePerBlock_","type":"uint256"},{"name":"initialOwner_","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"name":"amount","type":"uint256"}],"name":"stake","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"amount","type":"uint256"}],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"claimReward","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
     args: [
       { name: "stakingToken_", label: "Staking Token", type: "address" },
       { name: "rewardToken_", label: "Reward Token", type: "address" },
@@ -688,6 +707,13 @@ export const TEMPLATES: Template[] = [
         label: "Reward Rate / Block (wei)",
         type: "uint",
         placeholder: "1000000000000000000",
+      },
+      {
+        name: "initialOwner_",
+        label: "Owner",
+        type: "address",
+        placeholder: "0x...",
+        helper: "Defaults to your connected wallet.",
       },
     ],
     author: "DevStation",
@@ -731,7 +757,7 @@ export const TEMPLATES: Template[] = [
     verified: true,
     deployCount: 0,
     solidity: SOULBOUND_SRC,
-    abi: '[{"inputs":[{"name":"name_","type":"string"},{"name":"symbol_","type":"string"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"name":"to","type":"address"}],"name":"mint","outputs":[{"type":"uint256"}],"stateMutability":"nonpayable","type":"function"}]',
+    abi: '[{"inputs":[{"name":"name_","type":"string"},{"name":"symbol_","type":"string"},{"name":"initialOwner_","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"name":"to","type":"address"}],"name":"mint","outputs":[{"type":"uint256"}],"stateMutability":"nonpayable","type":"function"}]',
     args: [
       { name: "name_", label: "Name", type: "string", placeholder: "QIE Builder Badge" },
       {
@@ -741,6 +767,13 @@ export const TEMPLATES: Template[] = [
         maxLength: 8,
         uppercase: true,
         placeholder: "QBB",
+      },
+      {
+        name: "initialOwner_",
+        label: "Owner",
+        type: "address",
+        placeholder: "0x...",
+        helper: "Controls minting. Defaults to your connected wallet.",
       },
     ],
     author: "DevStation",

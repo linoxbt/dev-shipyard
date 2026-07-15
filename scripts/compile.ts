@@ -20,6 +20,12 @@ const input = {
   sources: Object.fromEntries(CONTRACTS.map((n) => [`${n}.sol`, { content: readSource(n) }])),
   settings: {
     optimizer: { enabled: true, runs: 200 },
+    // Pinned below Cancun: QIE's EVM doesn't implement the MCOPY opcode
+    // (0x5e) that solc emits by default for string-returning view functions
+    // on recent solc versions, which made ContractLabelRegistry's
+    // getLabel/batchGetLabels REVERT on-chain after the first deploy.
+    // "shanghai" is the newest fork that avoids MCOPY entirely.
+    evmVersion: "shanghai",
     outputSelection: { "*": { "*": ["abi", "evm.bytecode.object"] } },
   },
 };

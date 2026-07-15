@@ -249,3 +249,21 @@ export function Spinner({ label = "Loading" }: { label?: string }) {
     </div>
   );
 }
+
+// Shown when a query settles into an error state (e.g. the explorer backend
+// is down or rate-limited) instead of leaving the page spinning forever.
+export function ErrorState({ message, onRetry }: { message?: string; onRetry?: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-2 px-4 py-10 text-center font-mono text-xs">
+      <span className="text-danger">Couldn't load this data{message ? `: ${message}` : "."}</span>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="rounded border border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
+        >
+          Retry
+        </button>
+      )}
+    </div>
+  );
+}

@@ -3,8 +3,15 @@ pragma solidity ^0.8.20;
 
 /// @title ProjectRegistry
 /// @notice On-chain record of contracts deployed through DevStation. Powers the
-///         Projects page and provides an auditable deployment trail. No external
-///         dependencies so it compiles standalone.
+///         Projects page. No external dependencies so it compiles standalone.
+/// @dev This is a self-reported log, not a verified audit trail: there is no
+///      on-chain check that `contractAddress` was actually deployed by
+///      `msg.sender`, or that `txHash` corresponds to a real transaction —
+///      only that the caller signed this particular recordDeployment call.
+///      Access control is scoped (a caller can only append to their own
+///      bucket, never someone else's), so this can't be used to pollute
+///      another wallet's history, but it should be read as "what this wallet
+///      told the registry it deployed," not independently verified fact.
 contract ProjectRegistry {
     struct Deployment {
         address contractAddress;
@@ -34,6 +41,8 @@ contract ProjectRegistry {
         string calldata network,
         string calldata txHash
     ) external {
+        require(contractAddress != address(0), "Invalid address");
+        require(bytes(txHash).length > 0, "txHash required");
         _deployments[msg.sender].push(
             Deployment({
                 contractAddress: contractAddress,

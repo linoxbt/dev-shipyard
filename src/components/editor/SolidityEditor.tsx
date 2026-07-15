@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import Editor, { useMonaco, type Monaco } from "@monaco-editor/react";
+import Editor, { useMonaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 
 interface CompileDiagnostic {
@@ -17,7 +17,7 @@ interface Props {
   gotoLine?: { line: number; nonce: number };
 }
 
-export function SolidityEditor({ value, filename, onChange, diagnostics, gotoLine }: Props) {
+export function SolidityEditor({ value, onChange, diagnostics, gotoLine }: Props) {
   const monaco = useMonaco();
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const modelRef = useRef<editor.ITextModel | null>(null);

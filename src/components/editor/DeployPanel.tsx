@@ -1,17 +1,25 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Link } from "@tanstack/react-router";
 import { X, Rocket, ExternalLink, Copy, Check } from "lucide-react";
-import { useDeployContract, useWaitForTransactionReceipt, useSwitchChain } from "wagmi";
+import {
+  useDeployContract,
+  useWaitForTransactionReceipt,
+  useSwitchChain,
+  usePublicClient,
+} from "wagmi";
 import { useAccount } from "wagmi";
+import { encodeDeployData, type Abi } from "viem";
 import { toast } from "sonner";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
+import { useSponsoredDeploy } from "@/hooks/useSponsoredDeploy";
 import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import { VerifyCard } from "@/components/deploy/VerifyCard";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
-import { chainConfig } from "@/lib/chains";
+import { chainConfig, qieMainnet } from "@/lib/chains";
 import { chainById } from "@/lib/active-chain";
 import { slugForChainId } from "@/lib/explorer/network";
 import { encodeConstructorArgs } from "@/lib/verify/constructorArgs";
+import { parseArgs as parseAbiArgs } from "@/lib/abiArgParser";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
 
 interface ContractInfo {
@@ -46,8 +54,12 @@ export function DeployPanel({
   const contract = contracts[selected];
   const { address, isConnected, chainId: walletChainId } = useAccount();
   const { switchChainAsync } = useSwitchChain();
+  const publicClient = usePublicClient({ chainId });
   const { recordDeployment, onChain } = useProjectRegistry();
   const { deployContractAsync } = useDeployContract();
+  const { available: sponsorAvailable, deploySponsored } = useSponsoredDeploy();
+  const sponsorEligible = sponsorAvailable && chainId === qieMainnet.id;
+  const [useSponsor, setUseSponsor] = useState(false);
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   const [deploying, setDeploying] = useState(false);
   const [deployed, setDeployed] = useState<{ addr: `0x${string}` } | null>(null);
@@ -86,28 +98,54 @@ export function DeployPanel({
     const ts = new Date().toLocaleTimeString();
     const cfg = chainConfig(chainId);
     try {
-      const parsed = constructorArgs.map((a) => {
-        const v = args[a.name] ?? "";
-        if (a.type.startsWith("uint")) return BigInt(v || "0");
-        if (a.type === "bool") return v === "true";
-        if (a.type === "address") return v as `0x${string}`;
-        if (a.type.endsWith("[]")) return v ? v.split(",").map((x) => x.trim()) : [];
-        return v;
-      });
+      const parsed = parseAbiArgs(constructorArgs, args);
       // Remember the encoded args so the post-deploy VerifyCard can pass them
       // explicitly (more reliable than Blockscout's autodetect).
       setEncodedCtorArgs(encodeConstructorArgs(contract.abi, parsed));
 
       onLog({
-        text: `[${ts}] [Deploy] Deploying ${selected} to ${cfg.name}...`,
+        text: `[${ts}] [Deploy] Deploying ${selected} to ${cfg.name}${useSponsor && sponsorEligible ? " (gas-free, DevStation-sponsored)" : ""}...`,
         status: "pending",
       });
-      const hash = await deployContractAsync({
-        abi: contract.abi as [],
-        bytecode: contract.bytecode,
-        args: parsed.length > 0 ? parsed : undefined,
-        chainId,
-      });
+
+      // Pad the deploy's gas limit on chains whose eth_estimateGas lowballs
+      // constructor-heavy CREATE calls (documented for QIE in
+      // src/lib/contracts.ts — same root cause the sponsor route pads
+      // against). Best-effort: if estimation itself fails, fall through and
+      // let the wallet estimate as before rather than blocking the deploy.
+      let gasLimit: bigint | undefined;
+      if (!(useSponsor && sponsorEligible) && publicClient && address) {
+        try {
+          const data = encodeDeployData({
+            abi: contract.abi as Abi,
+            bytecode: contract.bytecode,
+            args: parsed as unknown[],
+          });
+          const estimate = await publicClient.estimateGas({ account: address, data });
+          gasLimit = estimate * 4n;
+        } catch {
+          /* fall back to wallet-side estimation */
+        }
+      }
+
+      const hash =
+        useSponsor && sponsorEligible
+          ? (
+              await deploySponsored({
+                abi: contract.abi as unknown[],
+                bytecode: contract.bytecode,
+                args: parsed,
+                chainId,
+                requesterAddress: address,
+              })
+            ).txHash
+          : await deployContractAsync({
+              abi: contract.abi as [],
+              bytecode: contract.bytecode,
+              args: parsed.length > 0 ? parsed : undefined,
+              gas: gasLimit,
+              chainId,
+            });
       setTxHash(hash);
       onLog({ text: `[${ts}] [Deploy] TX submitted: ${hash}`, status: "success" });
       onLog({ text: `[${ts}] [Deploy] Waiting for confirmation...`, status: "pending" });
@@ -175,7 +213,6 @@ export function DeployPanel({
   ]);
 
   const [copied, setCopied] = useState(false);
-  const cfg = chainConfig(chainId);
 
   return (
     <div className="fixed inset-y-0 right-0 z-50 w-[400px] max-w-[92vw] border-l border-border bg-surface shadow-lg">
@@ -241,7 +278,13 @@ export function DeployPanel({
                       value={args[a.name] ?? ""}
                       onChange={(e) => setArgs((p) => ({ ...p, [a.name]: e.target.value }))}
                       placeholder={a.type === "address" ? "0x..." : ""}
-                      className="mt-0.5 w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground placeholder:text-meta"
+                      className={`mt-0.5 w-full rounded border bg-background px-2 py-1 font-mono text-[11px] text-foreground placeholder:text-meta ${
+                        a.type === "address" &&
+                        (args[a.name] ?? "").length > 0 &&
+                        !/^0x[a-fA-F0-9]{40}$/.test((args[a.name] ?? "").trim())
+                          ? "border-danger focus:border-danger"
+                          : "border-border"
+                      }`}
                     />
                   )}
                 </div>
@@ -249,6 +292,29 @@ export function DeployPanel({
             </div>
           ) : (
             <p className="font-mono text-[11px] text-meta">No constructor arguments</p>
+          )}
+
+          {/* Gas sponsorship (QIE mainnet only) */}
+          {sponsorEligible && (
+            <div className="space-y-1">
+              <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={useSponsor}
+                  onChange={(e) => setUseSponsor(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-border"
+                />
+                Gas-free deploy (DevStation pays)
+              </label>
+              {useSponsor && (
+                <p className="text-[10px] text-warning">
+                  This is hand-written/pasted source — DevStation can't verify who ends up owning
+                  it. If the constructor uses <code>msg.sender</code> instead of an explicit owner
+                  argument, the sponsor wallet (not you) may end up in control. Check your source
+                  first, or deploy with your own wallet instead.
+                </p>
+              )}
+            </div>
           )}
 
           {/* Deploy button */}

@@ -1,5 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Boxes, FileText, Coins, BarChart3, Activity, Gauge, DollarSign } from "lucide-react";
+import {
+  Boxes,
+  FileText,
+  Coins,
+  BarChart3,
+  Activity,
+  Gauge,
+  DollarSign,
+  AlertTriangle,
+} from "lucide-react";
 import { useExplorer } from "@/hooks/useExplorer";
 import { SearchBar } from "@/components/explorer/SearchBar";
 import { Card, Spinner } from "@/components/explorer/ui";
@@ -29,8 +38,20 @@ function ExplorerHome() {
   const symbol = nativeSymbol(chainId);
   const family = familyForSlug(slug);
   const { stats, gas, coinPrice, change24h, marketCap } = useStatsOverview(chainId);
-  const { data: blocks } = useExplorer<ExBlock[]>("/main-page/blocks", { refetchInterval: 12_000 });
-  const { data: txs } = useExplorer<ExTx[]>("/main-page/transactions", { refetchInterval: 12_000 });
+  const { data: blocks, error: blocksError } = useExplorer<ExBlock[]>("/main-page/blocks", {
+    refetchInterval: 12_000,
+  });
+  const { data: txs, error: txsError } = useExplorer<ExTx[]>("/main-page/transactions", {
+    refetchInterval: 12_000,
+  });
+  // With placeholderData: keepPreviousData (see useExplorer), a failed
+  // background refetch leaves `data` as the last successful snapshot instead
+  // of surfacing an error state — otherwise correct for avoiding UI flicker,
+  // but it means a dead backend can silently freeze this feed forever with
+  // no indication it's stopped updating. `error` is non-null exactly when
+  // the most recent fetch attempt failed, even while stale `data` persists.
+  const blocksStale = !!blocksError && !!blocks;
+  const txsStale = !!txsError && !!txs;
 
   return (
     <div className="space-y-5">
@@ -78,12 +99,14 @@ function ExplorerHome() {
           title="Latest Blocks"
           action={<ViewAll to="/explorer/$network/blocks" label="View all blocks →" />}
         >
+          {blocksStale && <StaleBanner />}
           {blocks ? <BlockFeed blocks={blocks.slice(0, 6)} /> : <Spinner />}
         </Card>
         <Card
           title="Latest Transactions"
           action={<ViewAll to="/explorer/$network/txns" label="View all transactions →" />}
         >
+          {txsStale && <StaleBanner />}
           {txs ? <TxFeed txs={txs.slice(0, 6)} symbol={symbol} /> : <Spinner />}
         </Card>
       </div>
@@ -92,6 +115,18 @@ function ExplorerHome() {
         <DollarSign className="h-3 w-3" /> Live {family.label} {networkLabel(slug)} data. Prices and
         stats update automatically.
       </p>
+    </div>
+  );
+}
+
+// Shown over a feed that's still displaying its last successful snapshot
+// because the most recent background refresh failed — makes clear the data
+// isn't necessarily live right now, instead of freezing silently.
+function StaleBanner() {
+  return (
+    <div className="mb-2 flex items-center gap-1.5 rounded border border-warning/30 bg-warning/10 px-2.5 py-1.5 font-mono text-[10px] text-warning">
+      <AlertTriangle className="h-3 w-3 shrink-0" />
+      Showing last-known data — live updates are currently failing.
     </div>
   );
 }

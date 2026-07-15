@@ -11,6 +11,7 @@ import {
 } from "@/lib/chains";
 import { projectRegistryAbi } from "@/lib/abis/projectRegistry";
 import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
+import { projectRegistryAddress, isContractConfigured } from "@/lib/contracts";
 
 function clientFor(chainId: number) {
   const chain = SUPPORTED_CHAINS.find((c) => c.id === chainId) ?? qieTestnet;
@@ -416,6 +417,52 @@ export interface EcosystemLabel {
   timestamp: number; // epoch seconds
 }
 
+// The deployed ContractLabelRegistry.submitLabel takes `autoLabeled` as a
+// caller-supplied bool with NO on-chain access control tying it to a real
+// DevStation deploy — anyone can call it directly (bypassing the app UI
+// entirely) with autoLabeled=true and get an instantly-"AUTO"/trusted label
+// for any address. Since the already-deployed contract's bytecode can't be
+// patched, this cross-checks every autoLabeled=true claim against
+// ProjectRegistry's own recordDeployment history: it's only trusted as
+// "AUTO" if that exact (submitter, contractAddress) pair actually deployed
+// through DevStation. Anything that doesn't match is downgraded to
+// COMMUNITY (unverified, pending) client-side, regardless of what the raw
+// on-chain flag says. Fails closed: if the registry lookup itself fails,
+// every autoLabeled claim on this response is downgraded rather than trusted.
+async function verifiedAutoDeployPairs(chainId: number): Promise<Set<string> | null> {
+  const registry = projectRegistryAddress(chainId);
+  if (!isContractConfigured(registry)) return new Set();
+  try {
+    const api = chainConfig(chainId).explorerApiUrl;
+    const url = `${api}?module=account&action=txlist&address=${registry}&sort=asc`;
+    const resp = await fetch(url);
+    const json = (await resp.json()) as {
+      result?: Array<{ to?: string; from: string; input?: string; isError?: string }>;
+    };
+    const txs = Array.isArray(json.result) ? json.result : [];
+    const pairs = new Set<string>();
+    for (const t of txs) {
+      if (t.to?.toLowerCase() !== registry.toLowerCase()) continue;
+      if (!(t.input ?? "").startsWith(RECORD_DEPLOYMENT_SELECTOR)) continue;
+      if (t.isError !== "0") continue;
+      try {
+        const decoded = decodeFunctionData({
+          abi: projectRegistryAbi,
+          data: t.input as `0x${string}`,
+        });
+        if (decoded.functionName !== "recordDeployment") continue;
+        const contractAddress = (decoded.args[0] as string).toLowerCase();
+        pairs.add(`${t.from.toLowerCase()}:${contractAddress}`);
+      } catch {
+        /* skip un-decodable */
+      }
+    }
+    return pairs;
+  } catch {
+    return null; // couldn't verify — caller fails closed
+  }
+}
+
 export const getAllLabels = createServerFn({ method: "GET" })
   .inputValidator(templateStatsInput)
   .handler(async ({ data }) => {
@@ -459,7 +506,15 @@ export const getAllLabels = createServerFn({ method: "GET" })
           /* skip un-decodable */
         }
       }
-      return { chainId, labels: [...byAddr.values()].reverse() }; // newest first
+
+      const verifiedPairs = await verifiedAutoDeployPairs(chainId);
+      const labels = [...byAddr.values()].map((l) => {
+        if (!l.autoLabeled) return l;
+        const pairKey = `${l.submitter.toLowerCase()}:${l.address.toLowerCase()}`;
+        const verified = verifiedPairs !== null && verifiedPairs.has(pairKey);
+        return verified ? l : { ...l, autoLabeled: false };
+      });
+      return { chainId, labels: labels.reverse() }; // newest first
     } catch {
       return { chainId, labels: [] as EcosystemLabel[] };
     }

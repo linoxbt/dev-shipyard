@@ -3,6 +3,7 @@ import { Copy, Check, Eye, EyeOff, Lock, Trash2, Wallet, Fuel } from "lucide-rea
 import { toast } from "sonner";
 import { useAccount, useBalance, useConnect } from "wagmi";
 import { useBurner } from "@/lib/burner/store";
+import { copySensitive } from "@/lib/clipboard";
 import { chainConfig, gasLink } from "@/lib/chains";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useQusdcBalance } from "@/hooks/useQusdc";
@@ -170,7 +171,7 @@ function BurnerControls() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
-                navigator.clipboard.writeText(seed);
+                void copySensitive(seed);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               }}

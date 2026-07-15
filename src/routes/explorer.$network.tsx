@@ -45,7 +45,6 @@ export const Route = createFileRoute("/explorer/$network")({
 function ExplorerNetworkLayout() {
   const { network } = Route.useParams();
   const slug = (isNetworkSlug(network) ? network : DEFAULT_NETWORK_SLUG) as NetworkSlug;
-  const navigate = useNavigate();
   const { select } = useActiveChain();
   const chainId = chainIdForSlug(slug);
   const cfg = chainConfig(chainId);

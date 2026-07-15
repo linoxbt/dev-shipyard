@@ -3,6 +3,7 @@ import { AlertTriangle, Copy, Check, Eye, KeyRound, Wallet } from "lucide-react"
 import { toast } from "sonner";
 import { useConnect } from "wagmi";
 import { useBurner } from "@/lib/burner/store";
+import { copySensitive } from "@/lib/clipboard";
 
 type Mode = "menu" | "create" | "backup" | "unlock" | "import";
 
@@ -226,7 +227,7 @@ function BackupView({ mnemonic, onDone }: { mnemonic: string; onDone: () => void
       </div>
       <button
         onClick={() => {
-          navigator.clipboard.writeText(mnemonic);
+          void copySensitive(mnemonic);
           setCopied(true);
           setTimeout(() => setCopied(false), 1500);
         }}
@@ -235,6 +236,9 @@ function BackupView({ mnemonic, onDone }: { mnemonic: string; onDone: () => void
         {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
         {copied ? "Copied" : "Copy to clipboard"}
       </button>
+      <p className="font-mono text-[10px] text-meta">
+        Cleared from your clipboard automatically after 30s where supported.
+      </p>
       <label className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
         <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} />I have
         safely backed up my seed phrase

@@ -245,7 +245,11 @@ async function main() {
   for (const name of CONTRACTS) {
     const { abi, bytecode } = artifact(name);
     process.stdout.write(`Deploying ${name}... `);
-    const hash = await walletClient.deployContract({ abi: abi as [], bytecode, args: [] });
+    // ContractLabelRegistry takes the authorized auto-labeler address as its
+    // sole constructor arg — defaults to this deployer wallet, which is also
+    // the address DevStation's own deploy flow signs auto-labels from.
+    const args = name === "ContractLabelRegistry" ? [account.address] : [];
+    const hash = await walletClient.deployContract({ abi: abi as [], bytecode, args });
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     if (!receipt.contractAddress) throw new Error(`${name}: no contract address in receipt`);
     deployed[name] = receipt.contractAddress;

@@ -11,7 +11,13 @@ import {
   Radio,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import {
+  useReadContract,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+  usePublicClient,
+  useAccount,
+} from "wagmi";
 import { parseEther } from "viem";
 import { slugForChainId } from "@/lib/explorer/network";
 import { parseArgs } from "@/lib/abiArgParser";
@@ -297,6 +303,8 @@ function WriteFunctionRow({
   const payable = fn.stateMutability === "payable";
 
   const { writeContractAsync, isPending } = useWriteContract();
+  const { address } = useAccount();
+  const publicClient = usePublicClient({ chainId });
   const {
     isLoading: isConfirming,
     isSuccess,
@@ -307,13 +315,37 @@ function WriteFunctionRow({
     setErr(null);
     try {
       const args = parseArgs(fn.inputs, values);
+      const value = payable && ethValue ? parseEther(ethValue) : undefined;
+
+      // Pad the gas limit — some chains' eth_estimateGas lowballs
+      // storage-writing calls (documented for QIE in src/lib/contracts.ts).
+      // Best-effort: an estimation failure here just falls back to letting
+      // the wallet estimate, same as before this fix.
+      let gas: bigint | undefined;
+      if (publicClient && address) {
+        try {
+          const estimate = await publicClient.estimateContractGas({
+            address: contractAddress,
+            abi: abi as [],
+            functionName: fn.name,
+            args,
+            account: address,
+            value,
+          });
+          gas = estimate * 4n;
+        } catch {
+          /* fall back to wallet-side estimation */
+        }
+      }
+
       const hash = await writeContractAsync({
         address: contractAddress,
         abi: abi as [],
         functionName: fn.name,
         args,
         chainId,
-        value: payable && ethValue ? parseEther(ethValue) : undefined,
+        value,
+        gas,
       });
       setTxHash(hash);
     } catch (e) {

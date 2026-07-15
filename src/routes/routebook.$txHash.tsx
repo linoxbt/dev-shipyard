@@ -14,7 +14,6 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { AddressChip } from "@/components/shared/AddressChip";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { CodeBlock } from "@/components/shared/CodeBlock";
 import { type RouteCall, type DecodedArg } from "@/lib/mock/transactions";
 import { findLabel } from "@/lib/mock/labels";
 import { SUPPORTED_CHAINS, nativeSymbol } from "@/lib/chains";

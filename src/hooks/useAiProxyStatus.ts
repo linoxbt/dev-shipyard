@@ -8,10 +8,10 @@ export function useAiProxyStatus() {
     queryFn: async () => {
       try {
         const r = await fetch("/api/ai", { method: "GET" });
-        if (!r.ok) return { configured: false, provider: null as string | null };
-        return (await r.json()) as { configured: boolean; provider: string | null };
+        if (!r.ok) return { configured: false };
+        return (await r.json()) as { configured: boolean };
       } catch {
-        return { configured: false, provider: null as string | null };
+        return { configured: false };
       }
     },
     staleTime: 60_000,

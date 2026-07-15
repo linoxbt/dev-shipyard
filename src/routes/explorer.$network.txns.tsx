@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useExplorer, withPageParams, type PagedResponse } from "@/hooks/useExplorer";
-import { Card, Spinner } from "@/components/explorer/ui";
+import { Card, Spinner, ErrorState } from "@/components/explorer/ui";
 import { TxTable, Pager } from "@/components/explorer/lists";
 import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
 import { nativeSymbol } from "@/lib/chains";
@@ -17,13 +17,15 @@ function TxnsPage() {
   const [stack, setStack] = useState<Array<Record<string, unknown> | null>>([null]);
   const cursor = stack[stack.length - 1];
   const path = withPageParams("/transactions", cursor);
-  const { data, isFetching } = useExplorer<PagedResponse<ExTx>>(path);
+  const { data, isFetching, isError, error, refetch } = useExplorer<PagedResponse<ExTx>>(path);
 
   return (
     <div className="space-y-4">
       <h1 className="font-mono text-lg font-bold text-foreground">Transactions</h1>
       <Card>
-        {!data ? (
+        {isError ? (
+          <ErrorState message={error?.message} onRetry={() => refetch()} />
+        ) : !data ? (
           <Spinner />
         ) : (
           <>

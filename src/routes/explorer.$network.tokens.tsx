@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useExplorer, withPageParams, type PagedResponse } from "@/hooks/useExplorer";
-import { Card, Spinner, TokenLink, AddrLink } from "@/components/explorer/ui";
+import { Card, Spinner, ErrorState, TokenLink, AddrLink } from "@/components/explorer/ui";
 import { Pager } from "@/components/explorer/lists";
 import { formatUnits, withCommas } from "@/lib/explorer/format";
 import type { ExToken } from "@/lib/explorer/types";
@@ -15,13 +15,15 @@ function TokensPage() {
   const [stack, setStack] = useState<Array<Record<string, unknown> | null>>([null]);
   const cursor = stack[stack.length - 1];
   const path = withPageParams("/tokens", cursor);
-  const { data, isFetching } = useExplorer<PagedResponse<ExToken>>(path);
+  const { data, isFetching, isError, error, refetch } = useExplorer<PagedResponse<ExToken>>(path);
 
   return (
     <div className="space-y-4">
       <h1 className="font-mono text-lg font-bold text-foreground">Tokens</h1>
       <Card>
-        {!data ? (
+        {isError ? (
+          <ErrorState message={error?.message} onRetry={() => refetch()} />
+        ) : !data ? (
           <Spinner />
         ) : (
           <>

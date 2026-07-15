@@ -3,14 +3,7 @@ import { ArrowRight, Boxes, FileText } from "lucide-react";
 import type { ExTx, ExBlock } from "@/lib/explorer/types";
 import { formatQie, formatUnits, timeAgo, withCommas } from "@/lib/explorer/format";
 import { useExplorerNetwork } from "@/lib/explorer/network";
-import {
-  TxLink,
-  AddrLink,
-  BlockLink,
-  StatusPill,
-  MethodPill,
-  CopyBtn,
-} from "@/components/explorer/ui";
+import { TxLink, AddrLink, BlockLink, MethodPill, CopyBtn } from "@/components/explorer/ui";
 
 /* ── Transactions table ── */
 

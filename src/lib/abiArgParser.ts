@@ -4,6 +4,24 @@
 export function parseArg(value: string, type: string): unknown {
   const v = value.trim();
 
+  // MUST come before the uint/int prefix check below: "uint256[]" and
+  // "int128[]" both start with "uint"/"int" too, so checking array-ness
+  // first is the only way a numeric array doesn't get routed into
+  // BigInt(v) — which throws on anything but a single plain number.
+  if (type.endsWith("[]")) {
+    const inner = type.slice(0, -2);
+    try {
+      const arr = JSON.parse(v) as unknown[];
+      if (!Array.isArray(arr)) return [];
+      // Recursively coerce each element to the inner type.
+      return arr.map((el) => parseArg(typeof el === "string" ? el : JSON.stringify(el), inner));
+    } catch {
+      // Fall back to comma-separated parsing for convenience.
+      if (!v) return [];
+      return v.split(",").map((el) => parseArg(el, inner));
+    }
+  }
+
   if (type === "address") return v as `0x${string}`;
 
   if (type.startsWith("uint") || type.startsWith("int")) {
@@ -25,20 +43,6 @@ export function parseArg(value: string, type: string): unknown {
   }
 
   if (type === "bytes" || /^bytes\d+$/.test(type)) return v as `0x${string}`;
-
-  if (type.endsWith("[]")) {
-    const inner = type.slice(0, -2);
-    try {
-      const arr = JSON.parse(v) as unknown[];
-      if (!Array.isArray(arr)) return [];
-      // Recursively coerce each element to the inner type.
-      return arr.map((el) => parseArg(typeof el === "string" ? el : JSON.stringify(el), inner));
-    } catch {
-      // Fall back to comma-separated parsing for convenience.
-      if (!v) return [];
-      return v.split(",").map((el) => parseArg(el, inner));
-    }
-  }
 
   return v; // string and anything else
 }

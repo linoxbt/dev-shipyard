@@ -37,6 +37,7 @@ import { Route as DocsFaqRouteImport } from './routes/docs.faq'
 import { Route as DocsExplorerRouteImport } from './routes/docs.explorer'
 import { Route as DocsEditorRouteImport } from './routes/docs.editor'
 import { Route as DocsAiRouteImport } from './routes/docs.ai'
+import { Route as ApiSponsorDeployRouteImport } from './routes/api.sponsor-deploy'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
 import { Route as ExplorerNetworkIndexRouteImport } from './routes/explorer.$network.index'
@@ -192,6 +193,11 @@ const DocsAiRoute = DocsAiRouteImport.update({
   path: '/ai',
   getParentRoute: () => DocsRoute,
 } as any)
+const ApiSponsorDeployRoute = ApiSponsorDeployRouteImport.update({
+  id: '/api/sponsor-deploy',
+  path: '/api/sponsor-deploy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAiRoute = ApiAiRouteImport.update({
   id: '/api/ai',
   path: '/api/ai',
@@ -275,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/api/sponsor-deploy': typeof ApiSponsorDeployRoute
   '/docs/ai': typeof DocsAiRoute
   '/docs/editor': typeof DocsEditorRoute
   '/docs/explorer': typeof DocsExplorerRoute
@@ -317,6 +324,7 @@ export interface FileRoutesByTo {
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/api/sponsor-deploy': typeof ApiSponsorDeployRoute
   '/docs/ai': typeof DocsAiRoute
   '/docs/editor': typeof DocsEditorRoute
   '/docs/explorer': typeof DocsExplorerRoute
@@ -361,6 +369,7 @@ export interface FileRoutesById {
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/api/sponsor-deploy': typeof ApiSponsorDeployRoute
   '/docs/ai': typeof DocsAiRoute
   '/docs/editor': typeof DocsEditorRoute
   '/docs/explorer': typeof DocsExplorerRoute
@@ -407,6 +416,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/settings'
     | '/api/ai'
+    | '/api/sponsor-deploy'
     | '/docs/ai'
     | '/docs/editor'
     | '/docs/explorer'
@@ -449,6 +459,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/settings'
     | '/api/ai'
+    | '/api/sponsor-deploy'
     | '/docs/ai'
     | '/docs/editor'
     | '/docs/explorer'
@@ -492,6 +503,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/settings'
     | '/api/ai'
+    | '/api/sponsor-deploy'
     | '/docs/ai'
     | '/docs/editor'
     | '/docs/explorer'
@@ -537,6 +549,7 @@ export interface RootRouteChildren {
   OverviewRoute: typeof OverviewRoute
   SettingsRoute: typeof SettingsRoute
   ApiAiRoute: typeof ApiAiRoute
+  ApiSponsorDeployRoute: typeof ApiSponsorDeployRoute
   LaunchkitAiRoute: typeof LaunchkitAiRoute
   LaunchkitDeployRoute: typeof LaunchkitDeployRoute
   LaunchkitEditorRoute: typeof LaunchkitEditorRoute
@@ -747,6 +760,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsAiRouteImport
       parentRoute: typeof DocsRoute
     }
+    '/api/sponsor-deploy': {
+      id: '/api/sponsor-deploy'
+      path: '/api/sponsor-deploy'
+      fullPath: '/api/sponsor-deploy'
+      preLoaderRoute: typeof ApiSponsorDeployRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ai': {
       id: '/api/ai'
       path: '/api/ai'
@@ -934,6 +954,7 @@ const rootRouteChildren: RootRouteChildren = {
   OverviewRoute: OverviewRoute,
   SettingsRoute: SettingsRoute,
   ApiAiRoute: ApiAiRoute,
+  ApiSponsorDeployRoute: ApiSponsorDeployRoute,
   LaunchkitAiRoute: LaunchkitAiRoute,
   LaunchkitDeployRoute: LaunchkitDeployRoute,
   LaunchkitEditorRoute: LaunchkitEditorRoute,

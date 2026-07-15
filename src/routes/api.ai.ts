@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 
 // Server-side AI proxy. When the deployment sets a server-only key (NO VITE_
 // prefix, so it never enters the client bundle), the browser calls THIS route
@@ -12,6 +13,15 @@ import { createFileRoute } from "@tanstack/react-router";
 //
 // Enable on the client with VITE_AI_PROXY=true (public, just a flag). Without a
 // server key, POST returns 501 and the client falls back to its direct path.
+//
+// Rate-limited (see rateLimit.server.ts): this route holds a shared,
+// operator-funded provider key with no per-user auth, so an unlimited proxy
+// would let anyone burn that key's entire budget. Both a per-IP and a global
+// cap apply; neither is a hard distributed guarantee (see that module's
+// header comment), but it closes the "loop a curl command forever" case.
+const PER_IP_LIMIT = 20;
+const GLOBAL_LIMIT = 300;
+const WINDOW_MS = 5 * 60 * 1000;
 
 type Provider = "anthropic" | "openai";
 
@@ -106,6 +116,12 @@ async function upstreamRequest(
     // Some provider nodes (0G's router included) have exactly one backing
     // node per model, so transient 404/500s are expected — retry up to 3
     // total attempts with a short backoff before surfacing the failure.
+    // Only retry statuses that can plausibly succeed on a retry (routing
+    // hiccups, rate limits, upstream 5xx) — a 400/401/403 means the request
+    // or key is bad and will fail identically every time, so retrying it
+    // just triples the latency (and, behind a shared rate-limited proxy,
+    // the load) for a request that was never going to succeed.
+    const RETRYABLE = new Set([404, 408, 409, 429, 500, 502, 503, 504]);
     let res: Response | undefined;
     for (let attempt = 0; attempt < 3; attempt++) {
       res = await fetch(`${c.anthropic.endpoint}/v1/messages`, {
@@ -114,7 +130,7 @@ async function upstreamRequest(
         body,
         signal,
       });
-      if (res.ok) break;
+      if (res.ok || !RETRYABLE.has(res.status)) break;
       if (attempt < 2) await sleep(600 * (attempt + 1));
     }
     return res as Response;
@@ -146,27 +162,26 @@ export const Route = createFileRoute("/api/ai")({
     handlers: {
       GET: () => {
         const c = serverConfig();
-        const e = process.env;
-        return Response.json({
-          configured: isConfigured(c),
-          provider: c.provider,
-          // Diagnostic only: which key env vars this server function can see
-          // (booleans — never the values). Lets us tell whether the host is
-          // actually passing the key to the function. `build` confirms the
-          // OpenRouter-aware code is the one running.
-          build: "ai-2",
-          seen: {
-            OPENROUTER_API_KEY: !!e.OPENROUTER_API_KEY,
-            OPENAI_API_KEY: !!e.OPENAI_API_KEY,
-            AI_API_KEY: !!e.AI_API_KEY,
-            ANTHROPIC_API_KEY: !!e.ANTHROPIC_API_KEY,
-            AI_PROVIDER: e.AI_PROVIDER || null,
-            VITE_AI_PROXY: e.VITE_AI_PROXY || null,
-          },
-        });
+        // Deliberately minimal: earlier versions of this endpoint also
+        // returned which specific key env vars were set (booleans, not
+        // values) for debugging. That's reconnaissance for the abuse this
+        // route rate-limits against, so it's gone — an anonymous caller only
+        // learns whether SOME provider is configured, not which one/how.
+        return Response.json({ configured: isConfigured(c) });
       },
 
       POST: async ({ request }) => {
+        const ip = clientKeyFromRequest(request);
+        if (
+          !checkRateLimit(`ai:ip:${ip}`, PER_IP_LIMIT, WINDOW_MS) ||
+          !checkRateLimit("ai:global", GLOBAL_LIMIT, WINDOW_MS)
+        ) {
+          return Response.json(
+            { error: { message: "Rate limit exceeded. Try again shortly." } },
+            { status: 429 },
+          );
+        }
+
         const c = serverConfig();
         if (!isConfigured(c)) {
           return Response.json(

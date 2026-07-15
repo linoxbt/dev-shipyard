@@ -1,4 +1,4 @@
-import { decodeFunctionData, type Abi } from "viem";
+import { decodeFunctionData, decodeErrorResult, type Abi, type Hex } from "viem";
 import { projectRegistryAbi } from "@/lib/abis/projectRegistry";
 import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
 import { projectRegistryAddress, labelRegistryAddress } from "@/lib/contracts";
@@ -189,6 +189,51 @@ export function decodeCalldata(input?: string): DecodedCall {
     }
   }
   return { fn: input.slice(0, 10), args: [] };
+}
+
+// Standard Panic(uint256) selector — part of the Solidity ABI spec itself
+// (emitted by assert/overflow/array-bounds/etc. checks), so unlike custom
+// errors it can be decoded WITHOUT knowing the reverting contract's ABI.
+const PANIC_SELECTOR = "0x4e487b71";
+const PANIC_CODES: Record<number, string> = {
+  0x01: "Assertion failed",
+  0x11: "Arithmetic overflow or underflow",
+  0x12: "Division or modulo by zero",
+  0x21: "Invalid enum value",
+  0x22: "Incorrectly encoded storage byte array",
+  0x31: ".pop() called on an empty array",
+  0x32: "Array index out of bounds",
+  0x41: "Out of memory",
+  0x51: "Called an uninitialized/invalid internal function",
+};
+
+// Best-effort revert-data decoder: tries the universal Panic(uint256) format
+// first, then falls back to decoding as a custom error from one of
+// DevStation's own known ABIs. Arbitrary third-party contracts' custom
+// errors genuinely can't be decoded without their specific ABI — that's a
+// hard limitation, not something this can work around — so this returns
+// undefined rather than guessing when neither applies.
+export function decodeRevertData(data: Hex | undefined): string | undefined {
+  if (!data || data.length < 10) return undefined;
+  if (data.startsWith(PANIC_SELECTOR)) {
+    try {
+      const code = Number(BigInt(`0x${data.slice(PANIC_SELECTOR.length)}`));
+      return PANIC_CODES[code] ?? `Panic (unrecognized code 0x${code.toString(16)})`;
+    } catch {
+      return undefined;
+    }
+  }
+  for (const abi of KNOWN_ABIS) {
+    try {
+      const { errorName, args } = decodeErrorResult({ abi, data });
+      return args && args.length > 0
+        ? `${errorName}(${args.map(stringify).join(", ")})`
+        : errorName;
+    } catch {
+      /* try next ABI */
+    }
+  }
+  return undefined;
 }
 
 // Built-in names for the DevStation registries on a given chain, so they never
