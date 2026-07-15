@@ -14,6 +14,8 @@ import { compile, DEFAULT_SOLC_VERSION, type CompileOutput } from "@/lib/compile
 import { chatStream } from "@/lib/ai";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
+import { useSponsorTopup } from "@/hooks/useSponsorTopup";
+import { qieMainnet } from "@/lib/chains";
 import { slugForChainId } from "@/lib/explorer/network";
 import {
   submitStandardJsonVerification,
@@ -43,7 +45,7 @@ export interface ConstructorInput {
 }
 
 export interface ToolStep {
-  kind: "compile" | "deploy" | "record" | "verify";
+  kind: "compile" | "deploy" | "record" | "verify" | "topup";
   status: "running" | "ok" | "error";
   title: string;
   detail?: string;
@@ -158,6 +160,8 @@ export function useCodeAgent() {
   const publicClient = usePublicClient();
   const { chainId, chain, walletMismatch, syncWallet } = useActiveChain();
   const { recordDeployment } = useProjectRegistry();
+  const { available: sponsorAvailable, ensureFunded } = useSponsorTopup();
+  const sponsorEligible = sponsorAvailable && chainId === qieMainnet.id;
 
   // Hydrate the saved run once on mount.
   useEffect(() => {
@@ -235,6 +239,42 @@ export function useCodeAgent() {
           throw new Error(`Switch your wallet to ${chain.name} to deploy.`);
         });
       }
+
+      // Gas top-up (QIE mainnet only, when configured): tops up THIS wallet
+      // with just enough QIE to cover the deploy, same mechanism as the
+      // LaunchKit deploy wizard. Auto-applied without asking — unlike the
+      // old sponsor-broadcasts-the-deploy design, a top-up changes nothing
+      // about who ends up owning the contract, so there's no tradeoff to
+      // surface to the user here. Best-effort: a failed top-up doesn't block
+      // the deploy attempt, which may still succeed if the wallet already
+      // has enough gas.
+      if (sponsorEligible) {
+        const tIdx = push({
+          type: "tool",
+          step: { kind: "topup", status: "running", title: "Requesting a gas top-up…" },
+        });
+        try {
+          const result = await ensureFunded({
+            abi: artifact.abi,
+            bytecode: artifact.bytecode,
+            args,
+            chainId,
+            requesterAddress: address,
+          });
+          updateStep(tIdx, {
+            status: "ok",
+            title: result.toppedUp ? "Wallet funded" : "Wallet already had enough gas",
+            txHash: result.txHash ?? undefined,
+          });
+        } catch (e) {
+          updateStep(tIdx, {
+            status: "error",
+            title: "Gas top-up failed",
+            detail: e instanceof Error ? e.message : undefined,
+          });
+        }
+      }
+
       const hash = await deployContractAsync({
         abi: artifact.abi as [],
         bytecode: artifact.bytecode,

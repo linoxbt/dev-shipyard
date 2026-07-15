@@ -12,6 +12,7 @@ import {
   Rocket,
   BookMarked,
   ShieldCheck,
+  Fuel,
   Copy,
   Check,
   Trash2,
@@ -395,7 +396,9 @@ function StepCard({ step, explorerSlug }: { step: ToolStep; explorerSlug: string
         ? BookMarked
         : step.kind === "verify"
           ? ShieldCheck
-          : Hammer;
+          : step.kind === "topup"
+            ? Fuel
+            : Hammer;
   const statusIcon =
     step.status === "running" ? (
       <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />

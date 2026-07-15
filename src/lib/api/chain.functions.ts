@@ -4,7 +4,11 @@ import { createPublicClient, http, formatUnits, decodeFunctionData } from "viem"
 import {
   qieTestnet,
   qieMainnet,
+  botTestnet,
+  botMainnet,
+  arcTestnet,
   avalancheMainnet,
+  goatTestnet,
   goatMainnet,
   SUPPORTED_CHAINS,
   chainConfig,
@@ -17,6 +21,23 @@ function clientFor(chainId: number) {
   const chain = SUPPORTED_CHAINS.find((c) => c.id === chainId) ?? qieTestnet;
   return createPublicClient({ chain, transport: http() });
 }
+
+// Groups a chain id by FAMILY (testnet + mainnet of the same chain share a
+// key) — used so "unique wallets" is deduped within a family (a wallet that
+// deployed on both QIE testnet and QIE mainnet is one QIE user) without
+// merging unrelated ecosystems together (a wallet on QIE and a wallet on BOT
+// Chain are two separate users, not one). Falls back to the chain id itself
+// for anything not explicitly mapped, so an unmapped chain just never dedupes
+// with another instead of erroring.
+const CHAIN_FAMILY: Record<number, string> = {
+  [qieTestnet.id]: "qie",
+  [qieMainnet.id]: "qie",
+  [botTestnet.id]: "bot",
+  [botMainnet.id]: "bot",
+  [arcTestnet.id]: "arc",
+  [goatTestnet.id]: "goat",
+  [goatMainnet.id]: "goat",
+};
 
 const chainInput = z.object({ chainId: z.number().optional() });
 
@@ -183,11 +204,14 @@ export const getEcosystemStats = createServerFn({ method: "GET" })
     return { chainId, totalContracts, totalUsers };
   });
 
-// Combined ecosystem stats across BOTH networks (testnet + mainnet), so the
+// Combined ecosystem stats across every configured chain, so the
 // Overview/landing show one universal number rather than a per-chain figure:
 //   - totalContracts: sum of each chain's onchain totalDeployments counter
-//   - totalUsers:     unique wallets across both chains (union of the deployer
-//     address sets, so a wallet active on both networks is counted once)
+//   - totalUsers:     unique wallets PER CHAIN FAMILY, summed. QIE testnet and
+//     QIE mainnet share one dedup set (a wallet that deployed on both is one
+//     QIE user), but that set is never merged with another family's — a
+//     wallet on QIE and a wallet on BOT Chain are two separate users, not
+//     one, even though today only QIE actually has a registry deployed.
 const combinedStatsInput = z.object({
   chains: z
     .array(z.object({ chainId: z.number(), registry: z.string().regex(/^0x[a-fA-F0-9]{40}$/) }))
@@ -198,7 +222,7 @@ export const getCombinedEcosystemStats = createServerFn({ method: "GET" })
   .inputValidator(combinedStatsInput)
   .handler(async ({ data }) => {
     let totalContracts = 0;
-    const deployers = new Set<string>();
+    const deployersByFamily = new Map<string, Set<string>>();
 
     await Promise.all(
       data.chains.map(async ({ chainId, registry }) => {
@@ -215,7 +239,8 @@ export const getCombinedEcosystemStats = createServerFn({ method: "GET" })
           /* skip this chain's counter if unreachable */
         }
 
-        // Union the deployer addresses from this chain's recordDeployment txs.
+        // Union the deployer addresses from this chain's recordDeployment
+        // txs into its family's set (see CHAIN_FAMILY above).
         try {
           const api = chainConfig(chainId).explorerApiUrl;
           const url = `${api}?module=account&action=txlist&address=${registry}&sort=asc`;
@@ -224,13 +249,19 @@ export const getCombinedEcosystemStats = createServerFn({ method: "GET" })
             result?: Array<{ to?: string; from: string; input?: string; isError?: string }>;
           };
           const txs = Array.isArray(json.result) ? json.result : [];
+          const familyKey = CHAIN_FAMILY[chainId] ?? String(chainId);
+          let familySet = deployersByFamily.get(familyKey);
+          if (!familySet) {
+            familySet = new Set<string>();
+            deployersByFamily.set(familyKey, familySet);
+          }
           for (const t of txs) {
             if (
               t.to?.toLowerCase() === registry.toLowerCase() &&
               (t.input ?? "").startsWith(RECORD_DEPLOYMENT_SELECTOR) &&
               t.isError === "0"
             ) {
-              deployers.add(t.from.toLowerCase());
+              familySet.add(t.from.toLowerCase());
             }
           }
         } catch {
@@ -239,7 +270,8 @@ export const getCombinedEcosystemStats = createServerFn({ method: "GET" })
       }),
     );
 
-    return { totalContracts, totalUsers: deployers.size };
+    const totalUsers = [...deployersByFamily.values()].reduce((sum, set) => sum + set.size, 0);
+    return { totalContracts, totalUsers };
   });
 
 // Per-template deploy counts, derived from the registry's successful

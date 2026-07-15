@@ -31,7 +31,7 @@ export const Route = createFileRoute("/overview")({
 
 function Overview() {
   const { address } = useAccount();
-  const { chainId, chain, config } = useActiveChain();
+  const { chainId, config } = useActiveChain();
   const allProjects = useProjects((s) => s.projects);
   // Scope "Your Deployments" to the connected wallet AND the selected network,
   // so the count tracks the network switch. Legacy records without a chainId
@@ -68,7 +68,7 @@ function Overview() {
 
       <div className="space-y-6 p-6">
         {/* Stat cards */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat
             value={
               globalStats.totalDeployments != null
@@ -91,11 +91,6 @@ function Overview() {
                 ? `across ${new Set(projects.map((p) => p.templateId)).size} templates`
                 : "connect a wallet"
             }
-          />
-          <Stat
-            value={online ? gas.text : "—"}
-            label="Gas Price"
-            sub={`≈ ${gas.txCostQie.toFixed(gas.txCostQie < 0.0001 ? 9 : 6)} ${chain.nativeCurrency.symbol} per tx`}
           />
           <Stat
             value={TEMPLATES.length.toString()}
