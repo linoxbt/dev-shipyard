@@ -13,7 +13,8 @@
     "format": "prettier --write .",
     "test": "bun test",
     "contracts:compile": "bun run scripts/compile.ts",
-    "contracts:deploy": "bun run scripts/deploy.ts"
+    "contracts:deploy": "bun run scripts/deploy.ts",
+    "contracts:verify": "bun run scripts/verify.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

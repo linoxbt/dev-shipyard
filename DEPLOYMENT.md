@@ -168,8 +168,9 @@ until (re)deployed.
 ## Deploying registries to a new chain
 
 ```bash
-bun run contracts:compile                       # compile both registries
+bun run contracts:compile                             # compile both registries
 bun run contracts:deploy <family> [testnet|mainnet]   # deploy + print addresses
+bun run contracts:verify <family> [testnet|mainnet]   # source-verify on the explorer
 ```
 
 `<family>` is one of `qie` (default), `bot`, `xlayer`, `arc` (testnet only),
@@ -181,6 +182,12 @@ After deploying, copy the printed addresses into the matching
 `VITE_{PROJECT,LABEL}_REGISTRY_ADDRESS_<FAMILY>_<NETWORK>` vars (see the
 [table above](#registry-contract-addresses)) in your host's env config, then
 rebuild.
+
+`contracts:verify` needs no private key — it reads the addresses back out of
+`.env.local` (the same vars above) and recompiles from source to submit the
+exact solc standard-JSON input to the chain's Blockscout explorer. Run it
+after deploying (once the explorer has indexed the new address, usually
+within a minute or two of the deploy tx confirming).
 
 ---
 

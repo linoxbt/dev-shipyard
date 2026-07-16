@@ -1,5 +1,9 @@
 // Compiles the DevStation contracts with solc and writes:
-//   - contracts/out/<Name>.json       (full standard-JSON artifact)
+//   - contracts/out/<Name>.json       ({abi, bytecode} only — NOT the full
+//                                      standard-JSON input; scripts/verify.ts
+//                                      recompiles from source instead of
+//                                      reading this file, since verification
+//                                      needs the exact solc input)
 //   - src/lib/abis/<name>.ts          (typed ABI + bytecode for the frontend)
 //
 // Run: bun run scripts/compile.ts
