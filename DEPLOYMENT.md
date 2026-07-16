@@ -14,7 +14,7 @@ so far.
 - [Network configuration](#network-configuration)
 - [Registry contract addresses](#registry-contract-addresses)
 - [Deploying registries to a new chain](#deploying-registries-to-a-new-chain)
-- [Sponsored deploys (QIE mainnet)](#sponsored-deploys-qie-mainnet)
+- [Sponsored deploys (QIE mainnet & BOT Chain mainnet)](#sponsored-deploys-qie-mainnet--bot-chain-mainnet)
 - [Avalanche and Arbitrum (temporarily disabled)](#avalanche-and-arbitrum-temporarily-disabled)
 - [X Layer (temporarily disabled)](#x-layer-temporarily-disabled)
 
@@ -131,7 +131,7 @@ vars (QIE keeps its legacy no-suffix names for backward compatibility).
 | QIE | Testnet `1983` | `0x75d7b39bc827367c409e1a2bf805bd5f337ca27b` | `0x177294293e6e785a83e036a95de1697e3cc04748` |
 | QIE | Mainnet `1990` | `0x673e3d4d7f6043d0384e95ce0c110f09e09ec708` | `0xb6075e4cad1f7e7e779e49dcf7df08949797ed81` |
 | BOT Chain | Testnet `968` | _not wired in_ | _not wired in_ |
-| BOT Chain | Mainnet `677` | _not yet deployed_ | _not yet deployed_ |
+| BOT Chain | Mainnet `677` | `0xd7b68abdbae4496cb0bf5ce6c8684bc6f3dd9c9b` | `0x341b13cbab421cd318da7906d894ac1ba5b9fd3f` |
 | Arc | Testnet | _not yet deployed_ | _not yet deployed_ |
 | Avalanche | Testnet / Mainnet | _not yet deployed_ | _not yet deployed_ |
 | GOAT Network | Testnet / Mainnet | _not yet deployed_ | _not yet deployed_ |
@@ -152,6 +152,11 @@ live on `scan.bohr.life` — a deployed contract can't be un-deployed from an
 immutable chain), but their addresses have been removed from local config, so
 DevStation no longer reads or writes them. Redeploy with the steps below and
 set the two `VITE_..._BOT_TESTNET` vars again to bring that back.
+
+BOT Chain mainnet's pair above was deployed in two separate transactions
+(the deployer wallet ran low on BOT mid-deploy), so the two contracts sit at
+different block heights but share the same deployer/`autoLabeler` address —
+functionally identical to a single-run deploy.
 
 When an address is unset for a network, DevStation falls back to local
 history and hides the registry-backed UI (Projects, Label Registry, ecosystem
@@ -179,56 +184,78 @@ rebuild.
 
 ---
 
-## Sponsored deploys (QIE mainnet)
+## Sponsored deploys (QIE mainnet & BOT Chain mainnet)
 
-Optional, off by default. When `SPONSOR_PRIVATE_KEY` is set, DevStation can
-**top up a visitor's own wallet** with just enough QIE to cover a deploy — a
-"Gas-free deploy (DevStation tops up your wallet)" checkbox appears in
-LaunchKit's deploy wizard and the editor's Deploy panel, **QIE mainnet
-only**. The client and server both hard-check the chain; this never applies
-to testnet or any other chain family.
+Optional, off by default, configured **per chain**. When that chain's sponsor
+private key is set, DevStation can **top up a visitor's own wallet** with
+just enough native gas token to cover a deploy — a "Gas-free deploy
+(DevStation tops up your wallet)" checkbox appears in LaunchKit's deploy
+wizard and the editor's Deploy panel, on that chain's **mainnet only**. The
+client and server both hard-check the chain against a small eligible-chains
+table (`SPONSOR_ELIGIBLE_CHAIN_IDS` in `src/lib/sponsor/pricing.ts`); this
+never applies to testnet or any other chain family — every testnet here
+already has a public faucet.
+
+| Chain | Sponsor key env var | Budget env var |
+| --- | --- | --- |
+| QIE mainnet | `SPONSOR_PRIVATE_KEY` | `SPONSOR_DAILY_BUDGET_QIE` |
+| BOT Chain mainnet | `SPONSOR_PRIVATE_KEY_BOT` | `SPONSOR_DAILY_BUDGET_BOT` |
 
 **The sponsor wallet never broadcasts the deploy itself.** It sends a plain
-QIE transfer to the requester's own connected wallet (`src/routes/api.sponsor-topup.ts`),
-sized from a gas estimate of the actual deploy plus the two registry writes
-that follow it (`ONCHAIN_WRITE_GAS` × 2, from `src/lib/contracts.ts`), minus
-whatever QIE that wallet already has. The requester's wallet then signs and
-sends everything itself — the CREATE, `ProjectRegistry.recordDeployment`,
-`ContractLabelRegistry.submitLabel` — exactly like a normal self-paid deploy.
-That means the connected wallet is **always** the genuine deployer of
-record: no ownership caveats, no constructor-argument workarounds, no
-registry-misattribution risk to design around.
+native-token transfer to the requester's own connected wallet
+(`src/routes/api.sponsor-topup.ts`), sized from a gas estimate of the actual
+deploy plus the two registry writes that follow it (`ONCHAIN_WRITE_GAS` × 2,
+from `src/lib/contracts.ts`), minus whatever balance that wallet already has.
+The requester's wallet then signs and sends everything itself — the CREATE,
+`ProjectRegistry.recordDeployment`, `ContractLabelRegistry.submitLabel` —
+exactly like a normal self-paid deploy. That means the connected wallet is
+**always** the genuine deployer of record: no ownership caveats, no
+constructor-argument workarounds, no registry-misattribution risk to design
+around.
 
 **This is genuinely new infrastructure, not a config toggle to flip lightly.**
 Unlike `PRIVATE_KEY` above — a one-off local CLI key used only to deploy
-DevStation's own registries — `SPONSOR_PRIVATE_KEY` is held live by the
-running server and spends real QIE mainnet funds in response to requests.
-Treat it like an exchange hot wallet.
+DevStation's own registries — each `SPONSOR_PRIVATE_KEY*` is held live by the
+running server and spends real mainnet funds in response to requests. Treat
+each like an exchange hot wallet, and use a separate dedicated wallet per
+chain rather than reusing one key across chains.
 
 **Abuse model (read before enabling) — this is a real token faucet, not just
 a gas payer.** There is deliberately **no per-wallet or per-IP gate** — any
-visitor can request a top-up for any wallet address. Because the QIE lands
-directly in that wallet before any deploy happens, nothing forces it to
-actually be spent on a deploy — a requester can simply keep it. The only
-backstop is `SPONSOR_DAILY_BUDGET_QIE` (default `5`): a rolling 24h spend
-ceiling, computed by summing the sponsor wallet's own outgoing value *and*
-gas fees from the chain's explorer tx history (no separate database —
-consistent with the rest of this app). Sponsorship stops once spend crosses
-**90% of this value**, not 100% — the 10% headroom exists because this check
-isn't atomic across concurrent requests; it reduces, not eliminates, the
-chance of a burst of simultaneous requests overshooting the configured cap.
-Once the daily cap is hit, top-up requests start failing with
-`budget_exhausted` until spend rolls off the 24h window. The app can't lose
-more than roughly the configured daily budget per day; that whole budget
-could still be drained by one actor within minutes if they choose to, with
-nothing to show for it on DevStation's side (no deploy, no registry record).
+visitor can request a top-up for any wallet address, on any sponsor-eligible
+chain. Because the native token lands directly in that wallet before any
+deploy happens, nothing forces it to actually be spent on a deploy — a
+requester can simply keep it. The only backstop is that chain's daily
+budget var (default `5`): a rolling 24h spend ceiling per chain, computed by
+summing that chain's sponsor wallet's own outgoing value *and* gas fees from
+the chain's explorer tx history (no separate database — consistent with the
+rest of this app). Sponsorship stops once spend crosses **90% of this
+value**, not 100% — the 10% headroom exists because this check isn't atomic
+across concurrent requests; it reduces, not eliminates, the chance of a
+burst of simultaneous requests overshooting the configured cap. Once a
+chain's daily cap is hit, top-up requests on that chain start failing with
+`budget_exhausted` until spend rolls off the 24h window — the other chain is
+unaffected, since each has its own independent budget. The app can't lose
+more than roughly the configured daily budget per chain per day; that whole
+budget could still be drained by one actor within minutes if they choose to,
+with nothing to show for it on DevStation's side (no deploy, no registry
+record).
 
-**A wallet that already has enough QIE gets no top-up** — the server checks
-the requester's current balance first and only sends the shortfall, so
-sponsorship doesn't hand out free QIE to wallets that don't need it.
+**A wallet that already has enough of the native token gets no top-up** —
+the server checks the requester's current balance first and only sends the
+shortfall, so sponsorship doesn't hand out free tokens to wallets that don't
+need it.
 
-Enable it by setting `SPONSOR_PRIVATE_KEY` (and optionally
-`SPONSOR_DAILY_BUDGET_QIE`) on the host and rebuilding — see `.env.example`.
+Enable a chain by setting its sponsor private key (and optionally its daily
+budget var) on the host and rebuilding — see `.env.example`.
+
+**Open question for BOT Chain specifically:** the padding math in
+`paddedTopupCost` (10x the gas estimate, 1.5x the gas price) was tuned
+against a real undershoot observed on QIE, whose `eth_estimateGas` returns
+meaningfully different numbers between two back-to-back calls for the same
+transaction. Nothing has confirmed whether BOT Chain's estimator behaves the
+same way — the same margin is reused there as the only data point available,
+but watch the first few live sponsored BOT mainnet deploys closely.
 
 ---
 

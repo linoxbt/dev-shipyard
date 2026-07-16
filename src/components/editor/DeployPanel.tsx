@@ -15,13 +15,13 @@ import { useSponsorTopup } from "@/hooks/useSponsorTopup";
 import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import { VerifyCard } from "@/components/deploy/VerifyCard";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
-import { chainConfig, qieMainnet } from "@/lib/chains";
+import { chainConfig, nativeSymbol } from "@/lib/chains";
 import { chainById } from "@/lib/active-chain";
 import { slugForChainId } from "@/lib/explorer/network";
 import { encodeConstructorArgs } from "@/lib/verify/constructorArgs";
 import { parseArgs as parseAbiArgs } from "@/lib/abiArgParser";
 import { ONCHAIN_WRITE_GAS } from "@/lib/contracts";
-import { paddedTopupCost } from "@/lib/sponsor/pricing";
+import { paddedTopupCost, isSponsorEligibleChain } from "@/lib/sponsor/pricing";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
 
 interface ContractInfo {
@@ -59,12 +59,12 @@ export function DeployPanel({
   const publicClient = usePublicClient({ chainId });
   const { recordDeployment, onChain } = useProjectRegistry();
   const { deployContractAsync } = useDeployContract();
+  const onSponsorChain = isSponsorEligibleChain(chainId);
   const {
     available: sponsorAvailable,
     checking: sponsorChecking,
     ensureFunded,
-  } = useSponsorTopup();
-  const onSponsorChain = chainId === qieMainnet.id;
+  } = useSponsorTopup(chainId);
   const sponsorEligible = sponsorAvailable && onSponsorChain;
   const [useSponsor, setUseSponsor] = useState(false);
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
@@ -156,9 +156,9 @@ export function DeployPanel({
       // explicitly (more reliable than Blockscout's autodetect).
       setEncodedCtorArgs(encodeConstructorArgs(contract.abi, parsed));
 
-      // Gas sponsorship tops up THIS wallet with just enough QIE to cover
-      // the deploy (and the registry write after it) — it never broadcasts
-      // anything itself. The deploy below runs exactly like a normal
+      // Gas sponsorship tops up THIS wallet with just enough native gas
+      // token to cover the deploy (and the registry write after it) — it
+      // never broadcasts anything itself. The deploy below runs exactly like a normal
       // self-paid deploy either way, so the connected wallet is always the
       // genuine deployer of record.
       if (useSponsor && sponsorEligible) {
@@ -361,9 +361,10 @@ export function DeployPanel({
             <p className="font-mono text-[11px] text-meta">No constructor arguments</p>
           )}
 
-          {/* Gas sponsorship (QIE mainnet only) — inert once the wallet is
-              confirmed to already hold enough QIE, since offering it then
-              would be a no-op at best and confusing at worst. */}
+          {/* Gas sponsorship (sponsor-eligible mainnets only) — inert once
+              the wallet is confirmed to already hold enough native gas
+              token, since offering it then would be a no-op at best and
+              confusing at worst. */}
           {sponsorEligible ? (
             needsTopup === false ? (
               <label className="flex cursor-not-allowed items-center gap-1.5 font-mono text-[11px] text-meta opacity-60">
@@ -373,7 +374,7 @@ export function DeployPanel({
                   disabled
                   className="h-3.5 w-3.5 rounded border-border"
                 />
-                Gas-free deploy — not needed, your wallet already has enough QIE
+                Gas-free deploy — not needed, your wallet already has enough {nativeSymbol(chainId)}
               </label>
             ) : (
               <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">

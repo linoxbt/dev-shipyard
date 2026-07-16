@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { qieMainnet } from "@/lib/chains";
 
 interface SponsorStatusResponse {
   configured: boolean;
@@ -26,21 +25,23 @@ export interface SponsorError extends Error {
   reason: "not_configured" | "wrong_chain" | "invalid_body" | "budget_exhausted" | "topup_failed";
 }
 
-// Gas top-up on QIE mainnet: POSTs the compiled bytecode + args to
-// /api/sponsor-topup, which sends the REQUESTER'S OWN wallet just enough QIE
-// to cover the deploy (the server never broadcasts anything itself). The
-// caller is responsible for running the actual deploy afterward through the
-// connected wallet, exactly like a normal self-paid deploy — top-up first,
-// then the existing deploy flow, unchanged. Only ever available on QIE
-// mainnet (see api.sponsor-topup.ts) — callers should gate the UI on
-// `available` AND the active chain being qieMainnet.id; the server
-// independently re-checks the chain too.
-export function useSponsorTopup() {
+// Gas top-up on whichever sponsor-eligible mainnet is active: POSTs the
+// compiled bytecode + args to /api/sponsor-topup, which sends the
+// REQUESTER'S OWN wallet just enough native gas token to cover the deploy
+// (the server never broadcasts anything itself). The caller is responsible
+// for running the actual deploy afterward through the connected wallet,
+// exactly like a normal self-paid deploy — top-up first, then the existing
+// deploy flow, unchanged. Only ever available on sponsor-eligible mainnets
+// (see isSponsorEligibleChain in lib/sponsor/pricing.ts, and
+// api.sponsor-topup.ts) — callers should gate the UI on `available`, which
+// already reflects the passed-in chainId; the server independently
+// re-checks the chain too.
+export function useSponsorTopup(chainId: number) {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["sponsor-topup-status"],
+    queryKey: ["sponsor-topup-status", chainId],
     queryFn: async (): Promise<SponsorStatusResponse> => {
-      const res = await fetch("/api/sponsor-topup");
-      if (!res.ok) return { configured: false, dailyBudgetQie: 0, chainId: qieMainnet.id };
+      const res = await fetch(`/api/sponsor-topup?chainId=${chainId}`);
+      if (!res.ok) return { configured: false, dailyBudgetQie: 0, chainId };
       return res.json();
     },
     staleTime: 60_000,

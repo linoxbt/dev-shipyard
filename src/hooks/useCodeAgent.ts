@@ -15,7 +15,7 @@ import { chatStream } from "@/lib/ai";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useSponsorTopup } from "@/hooks/useSponsorTopup";
-import { qieMainnet } from "@/lib/chains";
+import { isSponsorEligibleChain } from "@/lib/sponsor/pricing";
 import { slugForChainId } from "@/lib/explorer/network";
 import {
   submitStandardJsonVerification,
@@ -160,8 +160,8 @@ export function useCodeAgent() {
   const publicClient = usePublicClient();
   const { chainId, chain, walletMismatch, syncWallet } = useActiveChain();
   const { recordDeployment } = useProjectRegistry();
-  const { available: sponsorAvailable, ensureFunded } = useSponsorTopup();
-  const sponsorEligible = sponsorAvailable && chainId === qieMainnet.id;
+  const { available: sponsorAvailable, ensureFunded } = useSponsorTopup(chainId);
+  const sponsorEligible = sponsorAvailable && isSponsorEligibleChain(chainId);
 
   // Hydrate the saved run once on mount.
   useEffect(() => {
@@ -240,9 +240,10 @@ export function useCodeAgent() {
         });
       }
 
-      // Gas top-up (QIE mainnet only, when configured): tops up THIS wallet
-      // with just enough QIE to cover the deploy, same mechanism as the
-      // LaunchKit deploy wizard. Auto-applied without asking — unlike the
+      // Gas top-up (sponsor-eligible mainnets only, when configured): tops
+      // up THIS wallet with just enough native gas token to cover the
+      // deploy, same mechanism as the LaunchKit deploy wizard. Auto-applied
+      // without asking — unlike the
       // old sponsor-broadcasts-the-deploy design, a top-up changes nothing
       // about who ends up owning the contract, so there's no tradeoff to
       // surface to the user here. Best-effort: a failed top-up doesn't block
@@ -334,9 +335,10 @@ export function useCodeAgent() {
         });
       }
 
-      // Source-verify on the QIE explorer via the standard-input path (handles
-      // OpenZeppelin imports). Best-effort: never fail the deploy, and don't
-      // block the conversation longer than ~1 min on the verifier queue.
+      // Source-verify on the active chain's explorer via the standard-input
+      // path (handles OpenZeppelin imports). Best-effort: never fail the
+      // deploy, and don't block the conversation longer than ~1 min on the
+      // verifier queue.
       const vIdx = push({
         type: "tool",
         step: { kind: "verify", status: "running", title: "Verifying source on the explorer…" },

@@ -28,7 +28,7 @@ import {
   type Template,
   type ConstructorArg,
 } from "@/lib/mock/templates";
-import { DEFAULT_GAS_GWEI, qieMainnet } from "@/lib/chains";
+import { DEFAULT_GAS_GWEI, nativeSymbol } from "@/lib/chains";
 import { chainById } from "@/lib/active-chain";
 import { slugForChainId, devstationExplorerBase } from "@/lib/explorer/network";
 import { useActiveChain } from "@/hooks/useActiveChain";
@@ -36,7 +36,7 @@ import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useContractLabels } from "@/hooks/useContractLabels";
 import { useSponsorTopup } from "@/hooks/useSponsorTopup";
 import { ONCHAIN_WRITE_GAS } from "@/lib/contracts";
-import { paddedTopupCost } from "@/lib/sponsor/pricing";
+import { paddedTopupCost, isSponsorEligibleChain } from "@/lib/sponsor/pricing";
 import { useUserTemplates } from "@/lib/user-templates";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
 import { VerifyCard } from "@/components/deploy/VerifyCard";
@@ -70,12 +70,12 @@ function DeployWizard() {
   const publicClient = usePublicClient();
   const [mismatchOpen, setMismatchOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const onSponsorChain = isSponsorEligibleChain(chain.id);
   const {
     available: sponsorAvailable,
     checking: sponsorChecking,
     ensureFunded,
-  } = useSponsorTopup();
-  const onSponsorChain = chain.id === qieMainnet.id;
+  } = useSponsorTopup(chain.id);
   const sponsorEligible = sponsorAvailable && onSponsorChain;
   const [useSponsor, setUseSponsor] = useState(false);
 
@@ -234,9 +234,9 @@ function DeployWizard() {
         qualifiedName: contract.qualifiedName,
         constructorArgs: encodeConstructorArgs(contract.abi as unknown[], encodedArgs),
       });
-      // Gas sponsorship tops up THIS wallet with just enough QIE to cover
-      // the deploy (and the registry writes after it) — it never broadcasts
-      // anything itself. Everything below runs exactly like a normal
+      // Gas sponsorship tops up THIS wallet with just enough native gas
+      // token to cover the deploy (and the registry writes after it) — it
+      // never broadcasts anything itself. Everything below runs exactly like a normal
       // self-paid deploy either way, so the connected wallet is always the
       // genuine deployer of record.
       if (useSponsor && sponsorEligible) {
@@ -414,7 +414,7 @@ function DeployWizard() {
 
   /* ─────── STAGE: CONFIGURE ─────── */
   if (stage === "configure" && template) {
-    const gasQIE = (template.estimatedGas * DEFAULT_GAS_GWEI) / 1e9;
+    const gasCostNative = (template.estimatedGas * DEFAULT_GAS_GWEI) / 1e9;
     return (
       <div>
         <PageHeader
@@ -524,7 +524,14 @@ function DeployWizard() {
                   label="Est. Gas"
                   value={`~${template.estimatedGas.toLocaleString()} units`}
                 />
-                <PreviewRow label="Est. Cost" value={<span>~{gasQIE.toFixed(6)} QIE</span>} />
+                <PreviewRow
+                  label="Est. Cost"
+                  value={
+                    <span>
+                      ~{gasCostNative.toFixed(6)} {nativeSymbol(chain.id)}
+                    </span>
+                  }
+                />
                 <PreviewRow label="Compiled" value="In-browser (solc)" />
                 <PreviewRow label="Registry" value={projectName || template.name} />
               </dl>
@@ -565,7 +572,8 @@ function DeployWizard() {
                     disabled
                     className="h-3.5 w-3.5 rounded border-border"
                   />
-                  Gas-free deploy — not needed, your wallet already has enough QIE
+                  Gas-free deploy — not needed, your wallet already has enough{" "}
+                  {nativeSymbol(chain.id)}
                 </span>
               ) : (
                 <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
@@ -1032,9 +1040,9 @@ function generateEnv(
 # Project: ${projectName || template.name}
 # Template: ${template.name}
 
-QIE_RPC_URL=${config.rpcUrl}
-QIE_CHAIN_ID=${chainId}
-QIE_EXPLORER=${devstationExplorerBase(slugForChainId(chainId))}
+RPC_URL=${config.rpcUrl}
+CHAIN_ID=${chainId}
+EXPLORER=${devstationExplorerBase(slugForChainId(chainId))}
 
 CONTRACT_ADDRESS=${result.address}
 DEPLOY_TX_HASH=${result.txHash}
