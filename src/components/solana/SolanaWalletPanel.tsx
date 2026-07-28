@@ -10,7 +10,7 @@ import { ConnectModal } from "@/components/web3/ConnectModal";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { useSolanaBurner } from "@/lib/solana/burner/store";
 import { useSolanaPref } from "@/lib/solana/active-solana";
-import { solanaChain } from "@/lib/solana/chains";
+import { solanaChain, solanaGasLink } from "@/lib/solana/chains";
 import { truncateAddress } from "@/lib/wallet";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +32,7 @@ export function SolanaWalletPanel({ className }: { className?: string }) {
   const [busy, setBusy] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const [airdropFailed, setAirdropFailed] = useState(false);
 
   const refreshBalance = useCallback(async () => {
     if (!wallet.connected) return setBalance(null);
@@ -44,6 +45,7 @@ export function SolanaWalletPanel({ className }: { className?: string }) {
 
   useEffect(() => {
     refreshBalance();
+    setAirdropFailed(false);
   }, [refreshBalance, wallet.address, cluster]);
 
   const doUnlock = async () => {
@@ -61,14 +63,21 @@ export function SolanaWalletPanel({ className }: { className?: string }) {
 
   const doAirdrop = async () => {
     setBusy(true);
+    setAirdropFailed(false);
     try {
       await wallet.airdrop(1);
       toast.success("Airdropped 1 devnet SOL");
       refreshBalance();
-    } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : "Airdrop failed (devnet faucet may be rate-limited)",
-      );
+    } catch {
+      // The public devnet RPC's requestAirdrop is shared across everyone
+      // hitting it and gets exhausted for hours at a time — Solana's own
+      // error message for this literally says "...airdrop faucet has run
+      // dry... visit https://faucet.solana.com for alternate sources of test
+      // SOL". Surface that path instead of leaving a dead-end error: a
+      // real <a> the user clicks themselves, not a window.open() from deep
+      // inside an async catch, which popup blockers usually kill.
+      setAirdropFailed(true);
+      toast.error("In-app devnet faucet is rate-limited or dry right now.");
     } finally {
       setBusy(false);
     }
@@ -118,6 +127,16 @@ export function SolanaWalletPanel({ className }: { className?: string }) {
             >
               <Droplet className="h-3 w-3" /> Airdrop
             </button>
+          )}
+          {isDevnet && airdropFailed && wallet.address && (
+            <a
+              href={`${solanaGasLink(cluster).url}?address=${wallet.address}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-1 font-mono text-[10px] text-warning hover:bg-warning/20"
+            >
+              <Droplet className="h-3 w-3" /> Open faucet
+            </a>
           )}
           <button
             onClick={() => (wallet.source === "adapter" ? wallet.disconnectAdapter() : lock())}
