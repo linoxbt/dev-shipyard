@@ -13,10 +13,19 @@ import {
 } from "@/lib/explorer/network";
 import { nativeSymbol } from "@/lib/chains";
 
+import { isSolanaSlug } from "@/lib/chain-family";
+import { SolanaStats } from "@/components/solana/explorer/SolanaStats";
+
 export const Route = createFileRoute("/explorer/$network/stats")({
   head: () => ({ meta: [{ title: "Stats - Explorer" }] }),
-  component: StatsPage,
+  component: StatsRoute,
 });
+
+function StatsRoute() {
+  const { network } = Route.useParams();
+  if (isSolanaSlug(network)) return <SolanaStats cluster={network} />;
+  return <StatsPage />;
+}
 
 function StatsPage() {
   const { network } = Route.useParams();

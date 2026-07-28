@@ -14,18 +14,17 @@ function Editor() {
     <DocPage
       title="Contract Editor"
       icon={Code2}
-      intro="The Contract Editor compiles Solidity entirely in your browser using a real solc pipeline loaded in a Web Worker. There is nothing to install and no backend compile step."
+      intro="The Contract Editor writes and compiles contracts for the network you\u2019ve selected \u2014 Solidity via a real in-browser solc pipeline on EVM networks, and the right language and toolchain elsewhere. There is nothing to install."
     >
       <P>
-        External imports such as OpenZeppelin are resolved from a CDN before compilation, so common
-        libraries work out of the box.
+        On EVM networks, external imports such as OpenZeppelin are resolved from a CDN before compilation, so common libraries work out of the box. Other networks use their own standard libraries.
       </P>
       <P>From the editor you can:</P>
       <Bullets
         items={[
-          "Write or paste Solidity and compile against a chosen compiler version.",
+          "Write or paste a contract and compile it against a chosen compiler version.",
           "Read compiler errors and warnings inline with source locations.",
-          "Deploy the compiled contract straight to the selected QIE network.",
+          "Deploy the compiled contract straight to the selected network.",
           "Open the deployed contract in the interaction panel to call its functions.",
           "Drive an interactive terminal with commands (compile, solc <version>, ls, cat, clear, help).",
         ]}

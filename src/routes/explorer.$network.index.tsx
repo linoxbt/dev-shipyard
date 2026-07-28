@@ -26,10 +26,21 @@ import {
 } from "@/lib/explorer/network";
 import { nativeSymbol } from "@/lib/chains";
 import type { ExTx, ExBlock } from "@/lib/explorer/types";
+import { isSolanaSlug } from "@/lib/chain-family";
+import { SolanaExplorerHome } from "@/components/solana/explorer/SolanaExplorerHome";
+import { isStacksNetwork } from "@/lib/stacks/chains";
+import { StacksExplorerHome } from "@/components/stacks/explorer/StacksExplorerHome";
 
 export const Route = createFileRoute("/explorer/$network/")({
-  component: ExplorerHome,
+  component: ExplorerIndexRoute,
 });
+
+function ExplorerIndexRoute() {
+  const { network } = Route.useParams();
+  if (isSolanaSlug(network)) return <SolanaExplorerHome cluster={network} />;
+  if (isStacksNetwork(network)) return <StacksExplorerHome network={network} />;
+  return <ExplorerHome />;
+}
 
 function ExplorerHome() {
   const { network } = Route.useParams();

@@ -42,6 +42,9 @@ import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
 import { VerifyCard } from "@/components/deploy/VerifyCard";
 import { compile } from "@/lib/compiler";
 import { encodeConstructorArgs } from "@/lib/verify/constructorArgs";
+import { useActiveFamily } from "@/lib/active-network";
+import { SolanaDeployView } from "@/components/solana/features/SolanaDeployView";
+import { StacksDeployView } from "@/components/stacks/features/StacksDeployView";
 
 const search = z.object({ template: z.string().optional() });
 
@@ -50,8 +53,15 @@ export const Route = createFileRoute("/launchkit/deploy")({
   head: () => ({
     meta: [{ title: "Deploy a Contract — DevStation LaunchKit" }],
   }),
-  component: DeployWizard,
+  component: DeployRoute,
 });
+
+function DeployRoute() {
+  const family = useActiveFamily((s) => s.family);
+  if (family === "solana") return <SolanaDeployView />;
+  if (family === "stacks") return <StacksDeployView />;
+  return <DeployWizard />;
+}
 
 type Stage = "select" | "configure" | "deploying" | "success";
 

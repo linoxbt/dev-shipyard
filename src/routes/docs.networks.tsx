@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DocPage, P, Table, PageNav } from "@/components/docs/primitives";
+import { DocPage, P, H3, Table, PageNav } from "@/components/docs/primitives";
 import { docNeighbors } from "@/components/docs/nav";
 
 export const Route = createFileRoute("/docs/networks")({
@@ -12,66 +12,61 @@ function Networks() {
   return (
     <DocPage
       title="Networks"
-      intro="DevStation supports 4 EVM chains — QIE, BOT Chain, Arc, and GOAT Network — most with a Testnet and Mainnet. The selected network is authoritative for every read and write in the app. (Avalanche and Arbitrum are temporarily disabled — see the note below.)"
+      intro="DevStation spans several networks across different virtual machines. Pick one from the selector and the whole console follows it — the editor's language, the templates, the deploy path, the explorer, and analytics all switch to match. The selected network is authoritative for every read and write."
     >
       <P>
-        When a connected wallet is on a different chain, the console surfaces a mismatch prompt
-        before any transaction is sent. Reads always use the selected network's RPC.
+        When a connected wallet is on a different network, the console surfaces a mismatch prompt
+        before any transaction is sent. Reads always use the selected network&apos;s endpoint.
+      </P>
+
+      <H3>EVM networks</H3>
+      <P>
+        Solidity contracts, compiled in-browser with solc, deployed with any EVM wallet. Explorers
+        are Blockscout-compatible, so blocks, transactions, addresses and verification all work
+        natively.
       </P>
       <Table
-        head={["Property", "QIE Testnet", "QIE Mainnet"]}
+        head={["Network", "Chain ID", "Token", "Type"]}
         rows={[
-          ["Chain ID", "1983", "1990"],
-          ["Native token", "QIE", "QIE"],
-          ["RPC", "rpc1testnet.qie.digital", "rpc1mainnet.qie.digital"],
-          ["Explorer", "testnet.qie.digital", "mainnet.qie.digital"],
+          ["QIE", "1983 / 1990", "QIE", "Testnet / Mainnet"],
+          ["BOT Chain", "968 / 677", "BOT", "Testnet / Mainnet"],
+          ["Arc", "5042002", "USDC", "Testnet"],
+          ["GOAT Network", "48816 / 2345", "BTC", "Testnet / Mainnet"],
         ]}
       />
-      <Table
-        head={["Property", "BOT Chain Testnet", "BOT Chain Mainnet"]}
-        rows={[
-          ["Chain ID", "968", "677"],
-          ["Native token", "BOT", "BOT"],
-          ["RPC", "rpc.bohr.life", "rpc.botchain.ai"],
-          ["Explorer", "scan.bohr.life", "scan.botchain.ai"],
-        ]}
-      />
-      <Table
-        head={["Property", "Arc Testnet"]}
-        rows={[
-          ["Chain ID", "5042002"],
-          ["Native token", "USDC"],
-          ["RPC", "rpc.testnet.arc.network"],
-          ["Explorer", "testnet.arcscan.app"],
-        ]}
-      />
-      <P>Arc does not have a mainnet yet.</P>
-      <Table
-        head={["Property", "GOAT Network Testnet", "GOAT Network Mainnet"]}
-        rows={[
-          ["Chain ID", "48816", "2345"],
-          ["Native token", "BTC", "BTC"],
-          ["RPC", "rpc.testnet3.goat.network", "rpc.goat.network"],
-          ["Explorer", "explorer.testnet3.goat.network", "explorer.goat.network"],
-        ]}
-      />
+      <P>Arc has no mainnet yet.</P>
+
+      <H3>Solana</H3>
       <P>
-        Add a network to a wallet manually with the values above, or let DevStation request the
-        network switch for you when you connect.
+        Rust / Anchor programs and SPL tokens. Wallets are the in-app DevStation wallet (with a
+        recovery phrase) or a browser wallet like Phantom. The explorer reads the Solana RPC
+        directly.
       </P>
+      <Table
+        head={["Network", "Cluster", "Token"]}
+        rows={[
+          ["Solana Devnet", "devnet", "SOL"],
+          ["Solana Mainnet", "mainnet-beta", "SOL"],
+        ]}
+      />
+
+      <H3>Stacks</H3>
       <P>
-        <strong>Avalanche and Arbitrum are temporarily disabled</strong> — commented out of the
-        network switcher and Explorer dropdown, not deleted. Avalanche's official explorer
-        (Snowtrace) runs on Routescan rather than Blockscout, and DevStation already has a working
-        adapter for it (blocks, transactions, and addresses all work natively); Arbitrum runs a
-        community Blockscout mirror. Both can be re-enabled in code without any new integration work
-        — see <code>src/lib/chains.ts</code>'s <code>SUPPORTED_CHAINS</code> comment.
+        Clarity contracts on the Bitcoin L2, with a post-condition coverage auditor built into the
+        editor. Sign with a generated DevStation wallet or Leather / Xverse.
       </P>
+      <Table
+        head={["Network", "Token"]}
+        rows={[
+          ["Stacks Testnet", "STX"],
+          ["Stacks Mainnet", "STX"],
+        ]}
+      />
+
       <P>
-        <strong>X Layer</strong> is not currently available in DevStation. Its explorer (OKLink)
-        requires a registered API key DevStation doesn't have yet, so support is temporarily
-        disabled rather than shipped with a half-working experience — it'll return once a key is
-        available.
+        Add a network to a wallet manually, or let DevStation request the switch when you connect.
+        Endpoints (RPCs and explorers) are configurable — the defaults are each network&apos;s
+        public infrastructure, overridable via environment variables.
       </P>
       <PageNav prev={prev} next={next} />
     </DocPage>

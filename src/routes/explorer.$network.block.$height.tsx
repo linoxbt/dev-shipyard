@@ -13,11 +13,25 @@ import {
 } from "@/lib/explorer/network";
 import { nativeSymbol } from "@/lib/chains";
 import type { ExBlock, ExTx } from "@/lib/explorer/types";
+import { isSolanaSlug } from "@/lib/chain-family";
+import { SolanaBlockDetail } from "@/components/solana/explorer/SolanaBlockDetail";
+import { isStacksNetwork } from "@/lib/stacks/chains";
+import { StacksBlockDetail } from "@/components/stacks/explorer/StacksBlockDetail";
 
 export const Route = createFileRoute("/explorer/$network/block/$height")({
   head: () => ({ meta: [{ title: "Block - Explorer" }] }),
-  component: BlockPage,
+  component: BlockRoute,
 });
+
+function BlockRoute() {
+  const { network, height } = Route.useParams();
+  if (isSolanaSlug(network)) {
+    const slot = Number(height);
+    return <SolanaBlockDetail cluster={network} slot={Number.isFinite(slot) ? slot : 0} />;
+  }
+  if (isStacksNetwork(network)) return <StacksBlockDetail network={network} id={height} />;
+  return <BlockPage />;
+}
 
 function BlockPage() {
   const { network, height } = Route.useParams();

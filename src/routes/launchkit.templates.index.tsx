@@ -5,6 +5,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { TEMPLATES, CATEGORIES, categoryColor, type TemplateCategory } from "@/lib/mock/templates";
 import { useUserTemplates } from "@/lib/user-templates";
 import { useTemplateDeploys } from "@/hooks/useTemplateDeploys";
+import { useActiveFamily } from "@/lib/active-network";
+import { SolanaTemplatesView } from "@/components/solana/features/SolanaTemplatesView";
+import { StacksTemplatesView } from "@/components/stacks/features/StacksTemplatesView";
 
 export const Route = createFileRoute("/launchkit/templates/")({
   head: () => ({
@@ -16,8 +19,16 @@ export const Route = createFileRoute("/launchkit/templates/")({
       },
     ],
   }),
-  component: TemplateGallery,
+  component: TemplatesRoute,
 });
+
+// Render the Solana or EVM Templates page based on the active chain family.
+function TemplatesRoute() {
+  const family = useActiveFamily((s) => s.family);
+  if (family === "solana") return <SolanaTemplatesView />;
+  if (family === "stacks") return <StacksTemplatesView />;
+  return <TemplateGallery />;
+}
 
 type CatFilter = "All" | TemplateCategory;
 

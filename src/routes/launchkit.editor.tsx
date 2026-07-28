@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Folder,
@@ -50,11 +51,22 @@ import {
 } from "@/lib/staticAnalysis";
 import { cn } from "@/lib/utils";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
+import { useActiveFamily } from "@/lib/active-network";
+import { SolanaEditorView } from "@/components/solana/features/SolanaEditorView";
+import { StacksEditorView } from "@/components/stacks/features/StacksEditorView";
 
 export const Route = createFileRoute("/launchkit/editor")({
+  validateSearch: z.object({ template: z.string().optional() }),
   head: () => ({ meta: [{ title: "Contract Editor — DevStation" }] }),
-  component: EditorPage,
+  component: EditorRoute,
 });
+
+function EditorRoute() {
+  const family = useActiveFamily((s) => s.family);
+  if (family === "solana") return <SolanaEditorView />;
+  if (family === "stacks") return <StacksEditorView />;
+  return <EditorPage />;
+}
 
 function EditorPage() {
   const ws = useWorkspace();

@@ -3,7 +3,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { WalletProfile } from "@/components/web3/WalletProfile";
+import { SolanaWalletProfile } from "@/components/solana/SolanaWalletProfile";
+import { StacksWalletProfile } from "@/components/stacks/StacksWalletProfile";
 import { NetworkSelector } from "@/components/web3/NetworkSelector";
+import { useActiveFamily } from "@/lib/active-network";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { getNetworkStatus } from "@/lib/api/chain.functions";
 import { useTheme, type Theme } from "@/lib/theme";
@@ -46,7 +49,7 @@ function SettingsPage() {
       <div className="grid gap-6 p-6 lg:grid-cols-2">
         <div className="lg:col-span-2">
           <Section title="Wallet & Profile">
-            <WalletProfile />
+            <FamilyWalletProfile />
           </Section>
         </div>
 
@@ -129,6 +132,15 @@ function SettingsPage() {
       </div>
     </div>
   );
+}
+
+// Shows the wallet profile for the active chain family so the connected
+// Solana/Stacks wallet (and its management) appears — not just the EVM one.
+function FamilyWalletProfile() {
+  const family = useActiveFamily((s) => s.family);
+  if (family === "solana") return <SolanaWalletProfile />;
+  if (family === "stacks") return <StacksWalletProfile />;
+  return <WalletProfile />;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

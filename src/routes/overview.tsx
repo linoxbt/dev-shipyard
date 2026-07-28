@@ -238,7 +238,7 @@ function Overview() {
                     Decode Transaction
                   </button>
                 )}
-                <p className="text-[10px] text-meta">Works with any QIE transaction.</p>
+                <p className="text-[10px] text-meta">Works with any supported transaction.</p>
               </div>
             </Panel>
 

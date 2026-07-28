@@ -12,7 +12,7 @@ function LaunchKit() {
   return (
     <DocPage
       title="Templates & Deploy"
-      intro="LaunchKit is the deployment surface. It ships with self-contained, audited templates that compile with no external dependencies, so a deploy is fast and predictable."
+      intro="LaunchKit is the deployment surface. It ships with self-contained, audited templates for each network \u2014 tokens, NFTs, programs and more \u2014 that compile with no external dependencies, so a deploy is fast and predictable. The catalog below is the EVM (Solidity) set; selecting a non-EVM network swaps in that ecosystem\u2019s templates."
     >
       <Table
         head={["Template", "Category", "What it is"]}
@@ -33,7 +33,7 @@ function LaunchKit() {
         validates and encodes the arguments, compiles the source in a browser worker, and sends the
         creation transaction through your wallet. On success you get the contract address, the
         transaction hash, the block, a downloadable .env file, and one-click links into Routebook
-        and the QIE explorer.
+        and the built-in explorer.
       </P>
       <Callout>
         You can also submit your own template to the community catalog from the Templates page. It

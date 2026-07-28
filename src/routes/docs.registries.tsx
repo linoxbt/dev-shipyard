@@ -15,7 +15,7 @@ function Registries() {
     <DocPage
       title="Onchain Registries"
       icon={ShieldCheck}
-      intro="DevStation keeps the records that matter onchain. Two registry contracts back the app, so your deployment history and contract labels are auditable and portable rather than locked in a private database."
+      intro="On EVM networks, DevStation keeps the records that matter onchain. Two registry contracts back the app, so your deployment history and contract labels are auditable and portable rather than locked in a private database. Non-EVM networks record DevStation activity locally instead."
     >
       <H3>ProjectRegistry</H3>
       <P>
@@ -46,9 +46,9 @@ uint256 public totalDeployments;`}
         the submitter. Routebook and the Label Registry page read from it.
       </P>
       <Callout>
-        Registry writes use an explicit gas limit. QIE&apos;s gas estimator can under-report the gas
-        a storage-writing call needs, so DevStation pins a safe limit to keep these transactions
-        from running out of gas. At QIE&apos;s gas price this costs a negligible fraction of a QIE.
+        Registry writes use an explicit gas limit. some networks’ gas estimators under-report the gas a
+        storage-writing call needs, so DevStation pins a safe limit to keep these transactions from
+        running out of gas — a negligible cost at typical gas prices.
       </Callout>
       <PageNav prev={prev} next={next} />
     </DocPage>

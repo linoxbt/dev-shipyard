@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Rocket, Search, Compass, FolderGit2 } from "lucide-react";
+import { Rocket, Search, Compass, FolderGit2, Wallet } from "lucide-react";
 import { DocPage, P, CardGrid, FeatureCard, PageNav } from "@/components/docs/primitives";
 import { docNeighbors } from "@/components/docs/nav";
 
@@ -13,41 +13,58 @@ function Introduction() {
   return (
     <DocPage
       title="Introduction"
-      intro="DevStation is a multichain developer console spanning 4 EVM chains — QIE, BOT Chain, Arc, and GOAT Network. Deploy contracts from audited templates, write and compile Solidity in the browser, decode any transaction, and label contracts onchain."
+      intro="DevStation is one developer console for every network you build on. Deploy from audited templates, write and compile contracts in the browser, decode any transaction, and explore the chain — without installing a local toolchain."
     >
       <P>
-        DevStation brings the everyday work of a smart-contract developer into one console: writing,
-        compiling, deploying, inspecting, and labeling contracts across every supported chain.
-        Everything runs against live networks, and the records that matter (your deployments and the
-        contract label registry) live onchain, per chain, not in a private database.
+        Most tooling assumes a single chain, and usually a single virtual machine. DevStation does
+        not. The same surfaces — templates, editor, AI, deploy, explorer — adapt to whichever network
+        you select, in that network&apos;s own language and with its own wallet, while everything
+        that should feel identical everywhere stays identical.
       </P>
-      <P>The console is organized into two products and a set of shared tools:</P>
+      <P>
+        Pick a network once and the whole console follows it: the editor switches language and
+        compiler, the templates change to that ecosystem&apos;s standards, the deploy flow uses the
+        right signing path, and the explorer and analytics point at the right data source. You never
+        assemble a per-chain toolchain, and you never learn a second UI.
+      </P>
+      <P>The console is organised into two products and a set of shared tools:</P>
       <CardGrid>
         <FeatureCard
           icon={Rocket}
           title="LaunchKit"
-          body="Deploy audited contract templates, write your own Solidity in the in-browser editor, and generate contracts with AI — on any supported chain."
+          body="Deploy audited templates, write contracts in the in-browser editor with real compilation, and generate them with AI — on any supported network."
           to="/launchkit/templates"
         />
         <FeatureCard
           icon={Search}
           title="Routebook"
-          body="Decode any transaction, on any supported chain, into a readable call tree with events, internal calls, and onchain contract labels."
+          body="Decode a transaction into a readable call tree: internal calls, decoded arguments, token movements, events, and revert reasons."
           to="/routebook"
         />
         <FeatureCard
           icon={Compass}
           title="Explorer"
-          body="A built-in block explorer for blocks, transactions, and addresses across every supported chain, without leaving the console."
+          body="A built-in block explorer for blocks, transactions, addresses, and tokens across every supported network, without leaving the console."
           to="/explorer"
+        />
+        <FeatureCard
+          icon={Wallet}
+          title="Wallets"
+          body="Connect an existing wallet, or generate a DevStation wallet in-app — every generated wallet shows its recovery phrase before you continue."
+          to="/settings"
         />
         <FeatureCard
           icon={FolderGit2}
           title="Projects"
-          body="A per-wallet history of every contract you have deployed through DevStation, backed by the onchain ProjectRegistry on each chain."
+          body="A per-wallet history of everything you have shipped through DevStation, backed by onchain registries where the network supports them."
           to="/launchkit/projects"
         />
       </CardGrid>
+      <P>
+        Where networks genuinely differ, these docs say so rather than papering over it — different
+        chains have different compilers, different wallet standards, and different ideas of what a
+        &quot;contract&quot; even is. The Networks page is the reference for what each one supports.
+      </P>
       <PageNav next={next} />
     </DocPage>
   );

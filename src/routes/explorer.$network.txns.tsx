@@ -7,10 +7,22 @@ import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
 import { nativeSymbol } from "@/lib/chains";
 import type { ExTx } from "@/lib/explorer/types";
 
+import { isSolanaSlug } from "@/lib/chain-family";
+import { SolanaTxns } from "@/components/solana/explorer/SolanaTxns";
+import { isStacksNetwork } from "@/lib/stacks/chains";
+import { StacksTxns } from "@/components/stacks/explorer/StacksTxns";
+
 export const Route = createFileRoute("/explorer/$network/txns")({
   head: () => ({ meta: [{ title: "Transactions - Explorer" }] }),
-  component: TxnsPage,
+  component: TxnsRoute,
 });
+
+function TxnsRoute() {
+  const { network } = Route.useParams();
+  if (isSolanaSlug(network)) return <SolanaTxns cluster={network} />;
+  if (isStacksNetwork(network)) return <StacksTxns network={network} />;
+  return <TxnsPage />;
+}
 
 function TxnsPage() {
   const symbol = nativeSymbol(chainIdForSlug(useExplorerNetwork()));

@@ -17,11 +17,22 @@ import { formatQie, formatUnits, formatGwei, timeAgo, withCommas } from "@/lib/e
 import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
 import { nativeSymbol } from "@/lib/chains";
 import type { ExTx, ExLog, ExTokenTransfer } from "@/lib/explorer/types";
+import { isSolanaSlug } from "@/lib/chain-family";
+import { SolanaTxDetail } from "@/components/solana/explorer/SolanaTxDetail";
+import { isStacksNetwork } from "@/lib/stacks/chains";
+import { StacksTxDetail } from "@/components/stacks/explorer/StacksTxDetail";
 
 export const Route = createFileRoute("/explorer/$network/tx/$hash")({
   head: () => ({ meta: [{ title: "Transaction - Explorer" }] }),
-  component: TxPage,
+  component: TxRoute,
 });
+
+function TxRoute() {
+  const { network, hash } = Route.useParams();
+  if (isSolanaSlug(network)) return <SolanaTxDetail cluster={network} signature={hash} />;
+  if (isStacksNetwork(network)) return <StacksTxDetail network={network} txid={hash} />;
+  return <TxPage />;
+}
 
 interface TxDetail extends ExTx {
   gas_used?: string | null;

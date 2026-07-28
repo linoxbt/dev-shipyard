@@ -23,6 +23,9 @@ import { DEFAULT_CHAIN } from "@/lib/chains";
 import { formatGas } from "@/lib/format-gas";
 import { withCommas } from "@/lib/explorer/format";
 import { EXPLORER_CHAIN_FAMILIES } from "@/lib/explorer/network";
+// Non-EVM chain families the console also supports, counted alongside the EVM
+// ones so the "Networks" stat reflects the whole console, not just EVM.
+import { NON_EVM_FAMILY_COUNT } from "@/lib/chain-families";
 import { TEMPLATES } from "@/lib/mock/templates";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +36,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Deploy contracts from audited templates, write and compile Solidity in the browser, decode any transaction, and explore the chain. The multichain developer console for QIE, BOT Chain, Arc, and GOAT Network.",
+          "Deploy contracts from audited templates, write and compile in the browser, decode any transaction, and explore the chain. One developer console for every network you build on.",
       },
     ],
   }),
@@ -169,9 +172,9 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
             tagline ? "animate-fade-up" : "opacity-0",
           )}
         >
-          The multichain developer console for 4 EVM chains — QIE, BOT Chain, Arc, and GOAT Network.
-          Build, ship, and inspect smart contracts across Testnet and Mainnet — no local toolchain
-          required.
+          One console for every network you build on. Write, compile, deploy, and inspect —
+          testnet or mainnet, whatever the virtual machine — without installing a single local
+          toolchain.
         </p>
 
         <div
@@ -218,10 +221,13 @@ function StatsBand() {
       value: stats.totalDeployments != null ? withCommas(stats.totalDeployments) : "—",
     },
     { label: "Users", value: stats.onChain ? withCommas(stats.uniqueDeployers) : "—" },
-    // Chain families (QIE, BOT Chain, Arc, GOAT Network), matching the "4 EVM
-    // chains" copy elsewhere on this page — not a raw count of
-    // testnet+mainnet entries, which would read "7" and contradict it.
-    { label: "Networks", value: EXPLORER_CHAIN_FAMILIES.length.toString() },
+    // Distinct chain families, not a raw count of testnet+mainnet entries
+    // (which would double-count and read misleadingly high). This is a live
+    // count, so the landing copy stays correct as networks are added.
+    {
+      label: "Networks",
+      value: (EXPLORER_CHAIN_FAMILIES.length + NON_EVM_FAMILY_COUNT).toString(),
+    },
     { label: "Gas", value: net?.status === "online" ? gas.text : "—" },
   ];
   return (
@@ -246,7 +252,7 @@ const FEATURES = [
   {
     icon: Rocket,
     title: "LaunchKit",
-    body: "Deploy audited templates in seconds, or write your own Solidity in the in-browser editor with real solc compilation. No CLI, no setup.",
+    body: "Deploy audited templates in seconds, or write your own contract in the in-browser editor with real compilation for the chain you target. No CLI, no setup.",
   },
   {
     icon: Search,
@@ -261,12 +267,12 @@ const FEATURES = [
   {
     icon: Sparkles,
     title: "Code with AI",
-    body: "Describe a contract in plain language and get production-ready Solidity back. Bring your own key, or use the server proxy.",
+    body: "Describe a contract in plain language and get production-ready code back in the right language for the chain you're on. Bring your own key, or use the server proxy.",
   },
   {
     icon: ShieldCheck,
     title: "Onchain registries",
-    body: "Every deployment is recorded onchain in the ProjectRegistry, and contracts get human-readable names in the Label Registry.",
+    body: "Deployments are recorded in onchain registries where the network supports it, and contracts get human-readable names in the Label Registry.",
   },
   {
     icon: Tags,
@@ -354,17 +360,17 @@ const STEPS = [
   {
     n: 1,
     title: "Connect",
-    body: "Connect MetaMask or generate an in-app wallet, then pick any supported chain — the console defaults to BOT Chain mainnet.",
+    body: "Connect an existing wallet or generate one in-app — with a recovery phrase you keep — then pick any supported network.",
   },
   {
     n: 2,
     title: "Build",
-    body: "Pick a template or write Solidity in the editor. Everything compiles in your browser.",
+    body: "Pick a template or write your contract in the editor. Compilation happens for you — no toolchain to install.",
   },
   {
     n: 3,
     title: "Deploy",
-    body: "Send the deployment through your wallet. It is recorded onchain in the registries.",
+    body: "Sign the deployment with your wallet and watch it land, with the result linked straight into the explorer.",
   },
   {
     n: 4,

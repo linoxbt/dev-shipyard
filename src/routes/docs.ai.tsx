@@ -14,14 +14,12 @@ function CodeWithAI() {
     <DocPage
       title="Code with AI"
       icon={Sparkles}
-      intro="Code with AI writes, audits, and deploys Solidity for you. It has two modes: a Chat that drafts and reviews contracts, and an autonomous Agent that builds and ships a contract end to end."
+      intro="Code with AI writes, audits, and deploys contracts for you \u2014 in the right language for the network you\u2019re on. It has two modes: a Chat that drafts and reviews contracts, and an autonomous Agent that builds and ships one end to end."
     >
       <H2>Chat mode</H2>
       <P>
         Describe what you want and the assistant writes production-grade Solidity, or paste an
-        existing contract and ask for a security review (findings are graded by severity). Every
-        generated code block has an Open in Editor button that drops the source straight into the
-        Contract Editor to compile and deploy.
+        existing contract and ask for a security review (findings are graded by severity). Every generated code block has an Open in Editor button that drops the source straight into the Contract Editor to compile and deploy. The assistant tailors its language and idioms to the network you have selected.
       </P>
 
       <H2>Agent mode</H2>
@@ -43,7 +41,7 @@ function CodeWithAI() {
           },
           {
             title: "Record",
-            body: "Saves the deployment to My Projects and links to the DevStation explorer.",
+            body: "Saves the deployment to My Projects and links to the built-in explorer.",
           },
         ]}
       />

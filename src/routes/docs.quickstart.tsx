@@ -12,35 +12,34 @@ function Quickstart() {
   return (
     <DocPage
       title="Quickstart"
-      intro="Deploy your first contract on QIE Testnet in under a minute."
+      intro="Deploy your first contract in under a minute — on whichever network you choose."
     >
       <Steps
         steps={[
           {
             title: "Connect a wallet",
-            body: "Open DevStation and connect an injected wallet (such as MetaMask), or generate an in-app burner wallet from the sidebar. Pick QIE Testnet from the network selector for this walkthrough — the console defaults to BOT Chain mainnet.",
+            body: "Open DevStation and connect an injected wallet, or generate a DevStation wallet from the sidebar — generated wallets show you a recovery phrase before you continue. Pick any testnet from the network selector; the whole console follows your choice.",
           },
           {
-            title: "Get testnet QIE for gas",
-            body: "You need a small amount of QIE to pay for gas. Use the get-gas link in the wallet panel to reach the QIE faucet or swap.",
+            title: "Get testnet funds for gas",
+            body: "You need a small amount of the network\u2019s token to pay fees. Use the faucet / get-gas link in the wallet panel for the selected network.",
           },
           {
             title: "Pick a template",
-            body: "Open LaunchKit, choose a template such as SimpleERC20, and fill in the constructor fields in the guided form.",
+            body: "Open LaunchKit and choose a template for your network \u2014 a fungible token, an NFT, a program, and more \u2014 then fill in the fields in the guided form.",
           },
           {
             title: "Deploy",
-            body: "DevStation compiles the contract in your browser, sends the creation transaction through your wallet, and waits for the receipt.",
+            body: "DevStation compiles the contract for you and sends the transaction through your wallet, then waits for it to confirm.",
           },
           {
             title: "Inspect and share",
-            body: "From the success screen, open the deployment in Routebook or on the QIE explorer, and download a ready-to-use .env file.",
+            body: "From the success screen, open the deployment in Routebook or the built-in explorer, and download a ready-to-use .env file.",
           },
         ]}
       />
       <Callout>
-        Everything in the quickstart works the same on QIE Mainnet. Switch networks from the
-        selector at the bottom of the sidebar before you deploy.
+        Everything in the quickstart works the same on mainnet. Switch networks from the selector at the bottom of the sidebar before you deploy.
       </Callout>
       <P>
         From here, read about the networks DevStation supports, or jump straight into LaunchKit and

@@ -14,7 +14,7 @@ function Faq() {
     <DocPage title="FAQ" intro="Common questions about using DevStation.">
       <FaqItem
         q="Do I need to install anything?"
-        a="No. Compilation runs in your browser and deployment goes through your wallet. There is no CLI or local toolchain to set up."
+        a="No. Compilation runs in the console and deployment goes through your wallet. There is no CLI or local toolchain to set up, on any supported network."
       />
       <FaqItem
         q="Where are my projects stored?"
@@ -26,20 +26,18 @@ function Faq() {
       />
       <FaqItem
         q="Is DevStation free?"
-        a="The console is free to use. You only pay QIE network gas for the transactions you send, such as deployments and label submissions."
+        a="The console is free to use. You only pay the selected network\u2019s gas for the transactions you send, such as deployments."
       />
       <div className="mt-8 rounded border border-border bg-surface p-5">
         <p className="font-mono text-sm text-foreground">Still have a question?</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          See the official QIE documentation for network-level details.
+          See the Networks page for per-network chain IDs, RPCs, and explorers.
         </p>
         <a
-          href="https://docs.qie.digital"
-          target="_blank"
-          rel="noreferrer"
+          href="/docs/networks"
           className="mt-3 inline-flex items-center gap-1.5 font-mono text-xs text-primary hover:underline"
         >
-          Official QIE Docs <ExternalLink className="h-3 w-3" />
+          Networks reference <ExternalLink className="h-3 w-3" />
         </a>
       </div>
       <PageNav prev={prev} />

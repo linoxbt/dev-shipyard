@@ -14,7 +14,7 @@ function Routebook() {
     <DocPage
       title="Inspect Transactions"
       icon={Search}
-      intro="Routebook turns a raw QIE transaction into something you can read. Paste any transaction hash and it decodes the call into a tree of internal calls, decoded arguments, and emitted events."
+      intro="Routebook turns a raw transaction into something you can read. Paste a transaction hash (or a Solana signature) and it decodes the call into a tree of internal calls, decoded arguments, token movements, and emitted events."
     >
       <P>Onchain contract labels are applied where they exist, so addresses read as names.</P>
       <P>Use Routebook to:</P>

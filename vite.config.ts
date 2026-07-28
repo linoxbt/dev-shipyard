@@ -33,4 +33,10 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Allow the app to be reached through a Cloudflare quick tunnel (random
+  // *.trycloudflare.com host) for local sharing. Dev-server only; no effect on
+  // production builds. `true` = accept any Host header.
+  vite: {
+    server: { allowedHosts: true },
+  },
 });

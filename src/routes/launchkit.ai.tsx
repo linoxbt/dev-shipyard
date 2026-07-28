@@ -5,11 +5,21 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { AiChat } from "@/components/ai/AiChat";
 import { AgentChat } from "@/components/ai/AgentChat";
 import { cn } from "@/lib/utils";
+import { useActiveFamily } from "@/lib/active-network";
+import { SolanaAiView } from "@/components/solana/features/SolanaAiView";
+import { StacksAiView } from "@/components/stacks/features/StacksAiView";
 
 export const Route = createFileRoute("/launchkit/ai")({
   head: () => ({ meta: [{ title: "Code with AI — DevStation" }] }),
-  component: CodeWithAi,
+  component: AiRoute,
 });
+
+function AiRoute() {
+  const family = useActiveFamily((s) => s.family);
+  if (family === "solana") return <SolanaAiView />;
+  if (family === "stacks") return <StacksAiView />;
+  return <CodeWithAi />;
+}
 
 type Mode = "chat" | "agent";
 

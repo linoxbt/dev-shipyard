@@ -5,10 +5,22 @@ import { Card, Spinner, ErrorState } from "@/components/explorer/ui";
 import { BlockTable, Pager } from "@/components/explorer/lists";
 import type { ExBlock } from "@/lib/explorer/types";
 
+import { isSolanaSlug } from "@/lib/chain-family";
+import { SolanaBlocks } from "@/components/solana/explorer/SolanaBlocks";
+import { isStacksNetwork } from "@/lib/stacks/chains";
+import { StacksBlocks } from "@/components/stacks/explorer/StacksBlocks";
+
 export const Route = createFileRoute("/explorer/$network/blocks")({
   head: () => ({ meta: [{ title: "Blocks - Explorer" }] }),
-  component: BlocksPage,
+  component: BlocksRoute,
 });
+
+function BlocksRoute() {
+  const { network } = Route.useParams();
+  if (isSolanaSlug(network)) return <SolanaBlocks cluster={network} />;
+  if (isStacksNetwork(network)) return <StacksBlocks network={network} />;
+  return <BlocksPage />;
+}
 
 function BlocksPage() {
   const [stack, setStack] = useState<Array<Record<string, unknown> | null>>([null]);

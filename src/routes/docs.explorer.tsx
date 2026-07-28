@@ -14,15 +14,10 @@ function ExplorerDocs() {
     <DocPage
       title="Explorer"
       icon={Compass}
-      intro="A native, Etherscan-style block explorer built into DevStation, covering every supported chain. It reads the live chain and is scoped to the network in the URL, so a link always names its chain."
+      intro="A native block explorer built into DevStation, covering every supported network. It reads the live chain and is scoped to the network in the URL, so a link always names its network."
     >
       <P>
-        Open it at <code>/explorer/testnet</code> or <code>/explorer/mainnet</code> for QIE, or a
-        prefixed slug like <code>/explorer/bot-mainnet</code> or{" "}
-        <code>/explorer/avalanche-mainnet</code> for the other chains (the bare{" "}
-        <code>/explorer</code> redirects to your selected network). A prominent Testnet/Mainnet
-        badge in the header makes the active chain unmistakable, and a network dropdown switches
-        between any chain + network combination.
+        Open it at a network slug like <code>/explorer/testnet</code>, <code>/explorer/bot-mainnet</code>, or <code>/explorer/solana-devnet</code> (the bare <code>/explorer</code> redirects to your selected network). A prominent Testnet/Mainnet badge in the header makes the active network unmistakable, and a dropdown switches between any network.
       </P>
 
       <H2>Dashboard</H2>
@@ -74,7 +69,7 @@ function ExplorerDocs() {
           },
           {
             title: "Submit",
-            body: "DevStation sends it to that chain's explorer and polls until it confirms, then links to the verified contract.",
+            body: "DevStation sends it to that network's explorer and polls until it confirms, then links to the verified contract.",
           },
         ]}
       />

@@ -47,8 +47,15 @@ function RoutebookHome() {
   useEffect(() => setRecent(storage.loadInspections()), []);
 
   const submit = () => {
-    if (!hash.trim()) return;
-    navigate({ to: "/routebook/$txHash", params: { txHash: hash.trim() } });
+    const v = hash.trim();
+    if (!v) return;
+    // A Solana signature is base58 (no 0x) and ~87-88 chars; route it to the
+    // Solana decoder. EVM hashes are 0x + 64 hex.
+    if (!v.startsWith("0x") && v.length >= 80) {
+      navigate({ to: "/routebook/solana/$signature", params: { signature: v } });
+      return;
+    }
+    navigate({ to: "/routebook/$txHash", params: { txHash: v } });
   };
 
   // Demo txs live on Mainnet — switch the active chain so the decoder reads the
@@ -78,7 +85,7 @@ function RoutebookHome() {
                   value={hash}
                   onChange={(e) => setHash(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && submit()}
-                  placeholder="Paste a transaction hash... 0x..."
+                  placeholder="Paste a tx hash (0x… EVM) or Solana signature…"
                   className="w-full rounded border border-border bg-background py-3 pl-10 pr-3 font-mono text-sm text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
                 />
               </div>

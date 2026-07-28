@@ -14,7 +14,7 @@ function LabelRegistry() {
     <DocPage
       title="Label Registry"
       icon={Tags}
-      intro="The Label Registry gives contracts human-readable names so the ecosystem reads like English instead of hex. Labels are stored onchain in the ContractLabelRegistry and are visible across Routebook and the rest of the console."
+      intro="The Label Registry gives contracts human-readable names so the ecosystem reads like English instead of hex. On EVM networks, labels are stored onchain in the ContractLabelRegistry and are visible across Routebook and the rest of the console."
     >
       <Table
         head={["Source", "Meaning"]}
@@ -26,7 +26,7 @@ function LabelRegistry() {
       />
       <P>
         Anyone can submit a label for a contract from the Label Registry page. Submitting writes a
-        transaction to the registry, so you need a connected wallet and a little QIE for gas.
+        transaction to the registry, so you need a connected wallet and a little of the network\u2019s token for gas.
       </P>
       <PageNav prev={prev} next={next} />
     </DocPage>

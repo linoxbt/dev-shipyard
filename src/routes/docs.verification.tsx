@@ -14,7 +14,7 @@ function Verification() {
     <DocPage
       title="Contract Verification"
       icon={ShieldCheck}
-      intro="After a deploy, DevStation can submit your contract source to the QIE explorer for verification."
+      intro="On EVM networks, after a deploy DevStation can submit your contract source to the network\u2019s explorer for verification."
     >
       <P>
         It resolves the exact compiler build, sends the flattened source, and lets the explorer
@@ -22,12 +22,12 @@ function Verification() {
         Projects page.
       </P>
       <P>
-        You can also verify any contract manually in the QIE Explorer: open the Verify Contract form
+        You can also verify any contract manually in the built-in explorer: open the Verify Contract form
         (from the explorer header, or from any unverified contract page), paste your flattened
         source, choose the compiler and options, and publish.
       </P>
       <Callout tone="warning">
-        Verification depends on the QIE explorer&apos;s verifier service. If the explorer cannot
+        Verification depends on the network explorer’s verifier service. If the explorer cannot
         confirm a submission, the contract still works and is fully usable. The verification request
         is correct and will complete once the explorer service accepts it.
       </Callout>
