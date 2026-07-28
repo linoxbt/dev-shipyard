@@ -200,10 +200,22 @@ export async function unlockVault(
   } catch {
     throw new Error("Incorrect password");
   }
-  if (vault.kind === "mnemonic") {
-    const mnemonic = new TextDecoder().decode(plain);
-    return { keypair: keypairFromMnemonic(mnemonic), kind: "mnemonic", secret: mnemonic };
+  // The password was correct (AES-GCM's auth tag verified above) — anything
+  // that throws past this point means the decrypted payload itself doesn't
+  // match what `kind` claims it should be (e.g. a vault written by a stale
+  // browser tab running mismatched code across a deploy). Surface that
+  // distinctly from "Incorrect password" so the fix (remove + recreate the
+  // wallet) is obvious rather than a raw library error.
+  try {
+    if (vault.kind === "mnemonic") {
+      const mnemonic = new TextDecoder().decode(plain);
+      return { keypair: keypairFromMnemonic(mnemonic), kind: "mnemonic", secret: mnemonic };
+    }
+    const kp = Keypair.fromSecretKey(new Uint8Array(plain));
+    return { keypair: kp, kind: "secret", secret: bs58.encode(kp.secretKey) };
+  } catch {
+    throw new Error(
+      "This wallet's saved data looks corrupted and can't be restored. Remove it below and generate a new one.",
+    );
   }
-  const kp = Keypair.fromSecretKey(new Uint8Array(plain));
-  return { keypair: kp, kind: "secret", secret: bs58.encode(kp.secretKey) };
 }

@@ -57,12 +57,19 @@ const mapTxRow = (t: any): StacksTxRow => ({
 });
 
 export const getStacksLatestTxns = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ network: z.enum(["stacks-testnet", "stacks-mainnet"]), limit: z.number().optional() }))
+  .inputValidator(
+    z.object({
+      network: z.enum(["stacks-testnet", "stacks-mainnet"]),
+      limit: z.number().optional(),
+    }),
+  )
   .handler(async ({ data }) => {
     try {
       const api = stacksChain(data.network).apiUrl;
       const limit = Math.min(50, data.limit ?? 20);
-      const j = await fetch(`${api}/extended/v1/tx?limit=${limit}`, { headers: hiroHeaders() }).then((r) => r.json());
+      const j = await fetch(`${api}/extended/v1/tx?limit=${limit}`, {
+        headers: hiroHeaders(),
+      }).then((r) => r.json());
       return { network: data.network, txns: (j?.results ?? []).map(mapTxRow) as StacksTxRow[] };
     } catch {
       return { network: data.network, txns: [] as StacksTxRow[] };
@@ -81,7 +88,9 @@ export const getStacksBlocks = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     try {
       const api = stacksChain(data.network).apiUrl;
-      const j = await fetch(`${api}/extended/v2/blocks?limit=25`, { headers: hiroHeaders() }).then((r) => r.json());
+      const j = await fetch(`${api}/extended/v2/blocks?limit=25`, { headers: hiroHeaders() }).then(
+        (r) => r.json(),
+      );
       const blocks: StacksBlockRow[] = (j?.results ?? []).map((b: any) => ({
         height: b.height,
         hash: b.hash,
@@ -95,11 +104,18 @@ export const getStacksBlocks = createServerFn({ method: "GET" })
   });
 
 export const getStacksBlock = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ network: z.enum(["stacks-testnet", "stacks-mainnet"]), id: z.string().min(1).max(80) }))
+  .inputValidator(
+    z.object({
+      network: z.enum(["stacks-testnet", "stacks-mainnet"]),
+      id: z.string().min(1).max(80),
+    }),
+  )
   .handler(async ({ data }) => {
     try {
       const api = stacksChain(data.network).apiUrl;
-      const b: any = await fetch(`${api}/extended/v2/blocks/${data.id}`, { headers: hiroHeaders() }).then((r) => r.json());
+      const b: any = await fetch(`${api}/extended/v2/blocks/${data.id}`, {
+        headers: hiroHeaders(),
+      }).then((r) => r.json());
       if (!b || b.error) return { ok: false as const, error: b?.error ?? "Block not found" };
       let txns: StacksTxRow[] = [];
       try {
@@ -138,7 +154,12 @@ export interface ContractFn {
 }
 
 export const getStacksAddress = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ network: z.enum(["stacks-testnet", "stacks-mainnet"]), principal: z.string().min(3).max(120) }))
+  .inputValidator(
+    z.object({
+      network: z.enum(["stacks-testnet", "stacks-mainnet"]),
+      principal: z.string().min(3).max(120),
+    }),
+  )
   .handler(async ({ data }) => {
     try {
       const api = stacksChain(data.network).apiUrl;
@@ -146,16 +167,20 @@ export const getStacksAddress = createServerFn({ method: "GET" })
       const isContract = p.includes(".");
 
       const [bal, txs] = await Promise.all([
-        fetch(`${api}/extended/v1/address/${p}/balances`, { headers: hiroHeaders() }).then((r) => r.json()),
+        fetch(`${api}/extended/v1/address/${p}/balances`, { headers: hiroHeaders() }).then((r) =>
+          r.json(),
+        ),
         fetch(`${api}/extended/v1/address/${p}/transactions?limit=25`, { headers: hiroHeaders() })
           .then((r) => r.json())
           .catch(() => ({ results: [] })),
       ]);
 
-      const fungible: FtHolding[] = Object.entries(bal?.fungible_tokens ?? {}).map(([token, v]: [string, any]) => ({
-        token,
-        balance: v?.balance ?? "0",
-      }));
+      const fungible: FtHolding[] = Object.entries(bal?.fungible_tokens ?? {}).map(
+        ([token, v]: [string, any]) => ({
+          token,
+          balance: v?.balance ?? "0",
+        }),
+      );
       const nftCount = Object.values(bal?.non_fungible_tokens ?? {}).reduce(
         (acc: number, v: any) => acc + Number(v?.count ?? 0),
         0,
@@ -166,7 +191,9 @@ export const getStacksAddress = createServerFn({ method: "GET" })
       let bnsNames: string[] = [];
       if (!isContract) {
         try {
-          const n: any = await fetch(`${api}/v1/addresses/stacks/${p}`, { headers: hiroHeaders() }).then((r) => r.json());
+          const n: any = await fetch(`${api}/v1/addresses/stacks/${p}`, {
+            headers: hiroHeaders(),
+          }).then((r) => r.json());
           bnsNames = Array.isArray(n?.names) ? n.names : [];
         } catch {
           /* no names */
@@ -186,8 +213,14 @@ export const getStacksAddress = createServerFn({ method: "GET" })
           contractFns = (iface?.functions ?? []).map((f: any) => ({
             name: f.name,
             access: f.access,
-            args: (f.args ?? []).map((a: any) => ({ name: a.name, type: typeof a.type === "string" ? a.type : JSON.stringify(a.type) })),
-            outputs: typeof f.outputs?.type === "string" ? f.outputs.type : JSON.stringify(f.outputs?.type ?? ""),
+            args: (f.args ?? []).map((a: any) => ({
+              name: a.name,
+              type: typeof a.type === "string" ? a.type : JSON.stringify(a.type),
+            })),
+            outputs:
+              typeof f.outputs?.type === "string"
+                ? f.outputs.type
+                : JSON.stringify(f.outputs?.type ?? ""),
           }));
         } catch {
           /* no interface */
@@ -198,7 +231,10 @@ export const getStacksAddress = createServerFn({ method: "GET" })
           }).then((r) => r.json());
           contractSource = src?.source ?? null;
           if (contractSource) {
-            coverage = diffPostConditions(auditContract(contractSource), { postConditionMode: "deny", declaredCount: 1 });
+            coverage = diffPostConditions(auditContract(contractSource), {
+              postConditionMode: "deny",
+              declaredCount: 1,
+            });
           }
         } catch {
           /* no source */
@@ -249,7 +285,41 @@ export const getStacksTx = createServerFn({ method: "GET" })
       }));
 
       const method = t.contract_call?.function_name;
-      const args = (t.contract_call?.function_args ?? []).map((a: any) => ({ name: a.name, type: a.type, repr: a.repr }));
+      const args = (t.contract_call?.function_args ?? []).map((a: any) => ({
+        name: a.name,
+        type: a.type,
+        repr: a.repr,
+      }));
+
+      // Plain STX transfer — the ONE tx type with none of the contract_call
+      // fields above, so without this a "send STX" tx showed nothing beyond
+      // sender/nonce/fee. Amount is in microSTX from the API.
+      const tokenTransfer = t.token_transfer
+        ? {
+            recipient: t.token_transfer.recipient_address as string,
+            amountStx: Number(t.token_transfer.amount ?? 0) / 1_000_000,
+            memoHex: t.token_transfer.memo ?? null,
+          }
+        : null;
+
+      // Clarity VM execution cost — the Stacks analog of EVM gas usage.
+      const execCost = {
+        readCount: t.execution_cost_read_count ?? null,
+        readLength: t.execution_cost_read_length ?? null,
+        writeCount: t.execution_cost_write_count ?? null,
+        writeLength: t.execution_cost_write_length ?? null,
+        runtime: t.execution_cost_runtime ?? null,
+      };
+
+      // The tx's Clarity return value — `(ok ...)` / `(err ...)` for contract
+      // calls and deploys, present for every status including failures (an
+      // aborted tx's failure reason shows up here too).
+      const txResult = t.tx_result
+        ? { hex: t.tx_result.hex as string, repr: t.tx_result.repr as string }
+        : null;
+
+      const sponsored = !!t.sponsored;
+      const sponsorAddress = t.sponsor_address ?? null;
 
       // Asset/log events emitted by the transaction.
       const events = (t.events ?? []).map((ev: any) => {
@@ -311,6 +381,11 @@ export const getStacksTx = createServerFn({ method: "GET" })
         postConditionMode: t.post_condition_mode ?? "deny",
         postConditions,
         auditResult,
+        tokenTransfer,
+        execCost,
+        txResult,
+        sponsored,
+        sponsorAddress,
       };
     } catch (e) {
       return { ok: false as const, error: e instanceof Error ? e.message : "Hiro API error" };
@@ -341,7 +416,8 @@ export const stacksCallReadOnly = createServerFn({ method: "POST" })
           body: JSON.stringify({ sender: data.sender, arguments: data.args }),
         },
       ).then((r) => r.json());
-      if (res?.okay === false) return { ok: false as const, error: res?.cause ?? "Read-only call failed" };
+      if (res?.okay === false)
+        return { ok: false as const, error: res?.cause ?? "Read-only call failed" };
       return { ok: true as const, resultHex: res?.result ?? "" };
     } catch (e) {
       return { ok: false as const, error: e instanceof Error ? e.message : "Hiro API error" };
@@ -354,7 +430,9 @@ export const getStacksMempool = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     try {
       const api = stacksChain(data.network).apiUrl;
-      const j = await fetch(`${api}/extended/v1/tx/mempool?limit=25`, { headers: hiroHeaders() }).then((r) => r.json());
+      const j = await fetch(`${api}/extended/v1/tx/mempool?limit=25`, {
+        headers: hiroHeaders(),
+      }).then((r) => r.json());
       const txns: StacksTxRow[] = (j?.results ?? []).map((t: any) => ({
         txid: t.tx_id,
         type: t.tx_type,
@@ -381,7 +459,9 @@ export const getStacksTokens = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     try {
       const api = stacksChain(data.network).apiUrl;
-      const j = await fetch(`${api}/metadata/v1/ft?limit=30&order_by=name`, { headers: hiroHeaders() }).then((r) => r.json());
+      const j = await fetch(`${api}/metadata/v1/ft?limit=30&order_by=name`, {
+        headers: hiroHeaders(),
+      }).then((r) => r.json());
       const tokens: TokenRow[] = (j?.results ?? []).map((t: any) => ({
         contract: t.contract_principal ?? t.principal ?? "",
         name: t.name ?? "—",
@@ -396,11 +476,18 @@ export const getStacksTokens = createServerFn({ method: "GET" })
 
 // BNS: resolve a name (e.g. "muneeb.btc") to its owner principal.
 export const resolveStacksBns = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ network: z.enum(["stacks-testnet", "stacks-mainnet"]), name: z.string().min(3).max(80) }))
+  .inputValidator(
+    z.object({
+      network: z.enum(["stacks-testnet", "stacks-mainnet"]),
+      name: z.string().min(3).max(80),
+    }),
+  )
   .handler(async ({ data }) => {
     try {
       const api = stacksChain(data.network).apiUrl;
-      const j: any = await fetch(`${api}/v1/names/${data.name}`, { headers: hiroHeaders() }).then((r) => r.json());
+      const j: any = await fetch(`${api}/v1/names/${data.name}`, { headers: hiroHeaders() }).then(
+        (r) => r.json(),
+      );
       if (j?.address) return { ok: true as const, address: j.address as string };
       return { ok: false as const, error: "Name not found" };
     } catch {
