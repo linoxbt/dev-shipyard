@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Loader2, ExternalLink, Copy, Check } from "lucide-react";
+import { Loader2, Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { getSolanaAddress } from "@/lib/api/solana-explorer.functions";
-import { solanaExplorerLink, type SolanaCluster } from "@/lib/solana/chains";
+import { type SolanaCluster } from "@/lib/solana/chains";
 import { truncateAddress } from "@/lib/wallet";
 
 const KNOWN_OWNERS: Record<string, string> = {
@@ -18,7 +18,13 @@ function fmtUtc(t: number | null): string {
   return new Date(t * 1000).toUTCString().replace("GMT", "UTC");
 }
 
-export function SolanaAddressDetail({ cluster, address }: { cluster: SolanaCluster; address: string }) {
+export function SolanaAddressDetail({
+  cluster,
+  address,
+}: {
+  cluster: SolanaCluster;
+  address: string;
+}) {
   const q = useQuery({
     queryKey: ["sol-addr-detail", cluster, address],
     queryFn: () => getSolanaAddress({ data: { cluster, address } }),
@@ -30,14 +36,6 @@ export function SolanaAddressDetail({ cluster, address }: { cluster: SolanaClust
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-mono text-lg font-bold text-foreground">Account</h1>
-        <a
-          href={solanaExplorerLink(cluster, "address", address)}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 font-mono text-[11px] text-meta hover:text-primary"
-        >
-          Solana Explorer <ExternalLink className="h-3 w-3" />
-        </a>
       </div>
 
       {q.isLoading && (
@@ -46,13 +44,17 @@ export function SolanaAddressDetail({ cluster, address }: { cluster: SolanaClust
         </div>
       )}
       {d && !d.ok && (
-        <div className="rounded border border-danger/40 bg-danger/10 p-4 font-mono text-sm text-danger">{d.error}</div>
+        <div className="rounded border border-danger/40 bg-danger/10 p-4 font-mono text-sm text-danger">
+          {d.error}
+        </div>
       )}
 
       {d && d.ok && (
         <>
           <div className="rounded border border-border bg-surface">
-            <div className="border-b border-border px-4 py-2 font-mono text-xs font-bold text-foreground">Overview</div>
+            <div className="border-b border-border px-4 py-2 font-mono text-xs font-bold text-foreground">
+              Overview
+            </div>
             <div className="divide-y divide-border">
               <Row label="Address">
                 <span className="inline-flex items-center gap-2 break-all text-foreground">
@@ -65,7 +67,11 @@ export function SolanaAddressDetail({ cluster, address }: { cluster: SolanaClust
                     }}
                     className="text-meta hover:text-foreground"
                   >
-                    {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+                    {copied ? (
+                      <Check className="h-3 w-3 text-success" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
                   </button>
                 </span>
               </Row>
@@ -97,7 +103,9 @@ export function SolanaAddressDetail({ cluster, address }: { cluster: SolanaClust
               <span className="text-right">Slot</span>
               <span className="text-right">Result</span>
             </div>
-            {d.signatures.length === 0 && <div className="px-4 py-3 font-mono text-xs text-meta">No transactions</div>}
+            {d.signatures.length === 0 && (
+              <div className="px-4 py-3 font-mono text-xs text-meta">No transactions</div>
+            )}
             {d.signatures.map((s) => (
               <Link
                 key={s.signature}

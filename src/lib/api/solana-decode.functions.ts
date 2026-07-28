@@ -43,6 +43,12 @@ export interface BalanceChange {
   mint?: string;
 }
 
+export interface AccountEntry {
+  pubkey: string;
+  signer: boolean;
+  writable: boolean;
+}
+
 export const decodeSolanaTransaction = createServerFn({ method: "GET" })
   .inputValidator(input)
   .handler(async ({ data }) => {
@@ -116,6 +122,12 @@ export const decodeSolanaTransaction = createServerFn({ method: "GET" })
       }
     }
 
+    const accounts: AccountEntry[] = message.accountKeys.map((k) => ({
+      pubkey: k.pubkey.toBase58(),
+      signer: k.signer,
+      writable: k.writable,
+    }));
+
     return {
       ok: true as const,
       signature: data.signature,
@@ -127,6 +139,7 @@ export const decodeSolanaTransaction = createServerFn({ method: "GET" })
       feeSol: (meta?.fee ?? 0) / LAMPORTS_PER_SOL,
       computeUnits: meta?.computeUnitsConsumed ?? null,
       accountCount: accountKeys.length,
+      accounts,
       instructions,
       solChanges,
       tokenChanges,

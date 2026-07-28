@@ -87,16 +87,6 @@ export function solanaChain(id: SolanaCluster): SolanaChain {
   return BY_ID[id] ?? solanaDevnet;
 }
 
-/** Public explorer link for an address / tx signature / block on a cluster. */
-export function solanaExplorerLink(
-  id: SolanaCluster,
-  kind: "address" | "tx" | "block",
-  value: string,
-): string {
-  const chain = solanaChain(id);
-  return `${chain.explorerUrl}/${kind}/${value}${chain.explorerClusterParam}`;
-}
-
 /** "Get SOL" link: devnet → faucet, mainnet → explorer (no DEX guess). */
 export function solanaGasLink(id: SolanaCluster): { url: string; label: string } {
   const chain = solanaChain(id);

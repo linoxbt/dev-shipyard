@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, ExternalLink, CheckCircle2, XCircle, ArrowDownUp, Coins, FileText } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, ArrowDownUp, Coins, FileText } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ChainLogo } from "@/lib/chain-logos";
 import { decodeSolanaTransaction } from "@/lib/api/solana-decode.functions";
 import { useSolanaPref } from "@/lib/solana/active-solana";
-import { solanaExplorerLink, type SolanaCluster } from "@/lib/solana/chains";
+import { type SolanaCluster } from "@/lib/solana/chains";
 import { truncateAddress } from "@/lib/wallet";
 
 export const Route = createFileRoute("/routebook/solana/$signature")({
@@ -81,21 +81,16 @@ function SolanaTx() {
               />
               <Stat label="Slot" value={data.slot.toLocaleString()} />
               <Stat label="Fee" value={`${data.feeSol.toFixed(6)} SOL`} />
-              <Stat label="Compute" value={data.computeUnits ? data.computeUnits.toLocaleString() : "—"} />
+              <Stat
+                label="Compute"
+                value={data.computeUnits ? data.computeUnits.toLocaleString() : "—"}
+              />
             </div>
 
             <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] text-meta">
               <span>Cluster: {data.cluster === "solana-mainnet" ? "Mainnet Beta" : "Devnet"}</span>
               <span>Accounts: {data.accountCount}</span>
               {data.blockTime && <span>{new Date(data.blockTime * 1000).toLocaleString()}</span>}
-              <a
-                href={solanaExplorerLink(data.cluster, "tx", data.signature)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-primary hover:underline"
-              >
-                Open on Solana Explorer <ExternalLink className="h-3 w-3" />
-              </a>
             </div>
 
             {data.err && (
@@ -107,13 +102,20 @@ function SolanaTx() {
             {/* Instructions */}
             <Section icon={FileText} title={`Instructions (${data.instructions.length})`}>
               {data.instructions.map((ix) => (
-                <div key={ix.index} className="border-b border-border px-4 py-2 font-mono text-xs last:border-0">
+                <div
+                  key={ix.index}
+                  className="border-b border-border px-4 py-2 font-mono text-xs last:border-0"
+                >
                   <div className="flex items-center gap-2">
-                    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">#{ix.index}</span>
+                    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">
+                      #{ix.index}
+                    </span>
                     <span className="font-bold text-foreground">{ix.program}</span>
                     <span className="text-meta">· {ix.type}</span>
                   </div>
-                  {ix.summary && <div className="mt-1 break-all text-muted-foreground">{ix.summary}</div>}
+                  {ix.summary && (
+                    <div className="mt-1 break-all text-muted-foreground">{ix.summary}</div>
+                  )}
                 </div>
               ))}
             </Section>
@@ -122,7 +124,12 @@ function SolanaTx() {
             {(data.solChanges.length > 0 || data.tokenChanges.length > 0) && (
               <Section icon={ArrowDownUp} title="Balance changes">
                 {data.solChanges.map((c) => (
-                  <ChangeRow key={`sol-${c.account}`} account={c.account} delta={c.delta} unit="SOL" />
+                  <ChangeRow
+                    key={`sol-${c.account}`}
+                    account={c.account}
+                    delta={c.delta}
+                    unit="SOL"
+                  />
                 ))}
                 {data.tokenChanges.map((c, i) => (
                   <ChangeRow

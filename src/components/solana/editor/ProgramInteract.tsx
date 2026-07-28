@@ -4,11 +4,11 @@
 // wallet via Anchor. Anchor is imported dynamically so it never runs during SSR.
 
 import { useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { PublicKey, Keypair, SystemProgram, type Transaction } from "@solana/web3.js";
-import { ChevronRight, Play, Loader2, ExternalLink, KeyRound, Wand2 } from "lucide-react";
+import { ChevronRight, Play, Loader2, KeyRound, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
-import { solanaExplorerLink } from "@/lib/solana/chains";
 import { cn } from "@/lib/utils";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -96,7 +96,13 @@ export function ProgramInteract({ programId, idl }: { programId: string; idl: un
       </div>
       <div className="divide-y divide-border">
         {instructions.map((ix) => (
-          <InstructionForm key={ix.name} ix={ix} programId={programId} idl={parsed} wallet={wallet} />
+          <InstructionForm
+            key={ix.name}
+            ix={ix}
+            programId={programId}
+            idl={parsed}
+            wallet={wallet}
+          />
         ))}
       </div>
     </div>
@@ -153,7 +159,9 @@ function InstructionForm({
       const fullIdl = { ...(idl as any), address: programId };
       const program = new anchor.Program(fullIdl, provider);
 
-      const argValues = (ix.args ?? []).map((a) => coerceArg(a.type, args[a.name] ?? "", anchor.BN));
+      const argValues = (ix.args ?? []).map((a) =>
+        coerceArg(a.type, args[a.name] ?? "", anchor.BN),
+      );
 
       const accountMap: Record<string, PublicKey> = {};
       const signers: Keypair[] = [];
@@ -263,14 +271,13 @@ function InstructionForm({
           </button>
 
           {sig && (
-            <a
-              href={solanaExplorerLink(wallet.cluster, "tx", sig)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 truncate font-mono text-[10px] text-primary hover:underline"
+            <Link
+              to="/explorer/$network/tx/$hash"
+              params={{ network: wallet.cluster, hash: sig }}
+              className="truncate font-mono text-[10px] text-primary hover:underline"
             >
-              {sig} <ExternalLink className="h-2.5 w-2.5 shrink-0" />
-            </a>
+              {sig}
+            </Link>
           )}
         </div>
       )}

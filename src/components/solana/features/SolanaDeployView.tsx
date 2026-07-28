@@ -3,16 +3,16 @@
 // works embedded in the shared route.
 
 import { useMemo, useState } from "react";
-import { useSearch } from "@tanstack/react-router";
-import { Rocket, ExternalLink, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
+import { useSearch, Link } from "@tanstack/react-router";
+import { Rocket, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SolanaWalletPanel } from "@/components/solana/SolanaWalletPanel";
 import { SolanaClusterSelector } from "@/components/solana/SolanaClusterSelector";
 import { useSolanaDeploy, type DeployResult } from "@/lib/solana/deploy";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
-import { solanaExplorerLink } from "@/lib/solana/chains";
 import { SOLANA_TEMPLATES, solanaTemplate } from "@/lib/solana/templates";
+import type { SolanaCluster } from "@/lib/solana/chains";
 import { recordSolanaDeploy } from "@/lib/solana/deploy-history";
 import { metadataUploadEnabled, uploadTokenMetadata } from "@/lib/solana/metadata-upload";
 
@@ -61,7 +61,15 @@ export function SolanaDeployView() {
       }
       const res = isNft
         ? await deploy.deployNft({ name, symbol, uri: finalUri, count: Math.max(1, supply) })
-        : await deploy.deployToken({ name, symbol, uri: finalUri, decimals, supply, fixedSupply, freezable });
+        : await deploy.deployToken({
+            name,
+            symbol,
+            uri: finalUri,
+            decimals,
+            supply,
+            fixedSupply,
+            freezable,
+          });
       setResult(res);
       recordSolanaDeploy({
         kind: isNft ? "nft" : "token",
@@ -141,7 +149,11 @@ export function SolanaDeployView() {
                       onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
                       className="block w-full font-mono text-[11px] text-muted-foreground file:mr-3 file:rounded file:border-0 file:bg-primary file:px-2 file:py-1 file:font-mono file:text-[11px] file:text-primary-foreground"
                     />
-                    {imageFile && <span className="shrink-0 font-mono text-[10px] text-success">{imageFile.name}</span>}
+                    {imageFile && (
+                      <span className="shrink-0 font-mono text-[10px] text-success">
+                        {imageFile.name}
+                      </span>
+                    )}
                   </div>
                 ) : (
                   <input
@@ -208,8 +220,14 @@ export function SolanaDeployView() {
                 disabled={busy}
                 className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 font-mono text-sm text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
               >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-                {busy ? "Deploying…" : `Deploy on ${wallet.cluster === "solana-devnet" ? "Devnet" : "Mainnet"}`}
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Rocket className="h-4 w-4" />
+                )}
+                {busy
+                  ? "Deploying…"
+                  : `Deploy on ${wallet.cluster === "solana-devnet" ? "Devnet" : "Mainnet"}`}
               </button>
             </div>
           )}
@@ -222,12 +240,14 @@ export function SolanaDeployView() {
               <ResultRow
                 label="Mint / Asset"
                 value={result.mint}
-                href={solanaExplorerLink(wallet.cluster, "address", result.mint)}
+                kind="address"
+                cluster={wallet.cluster}
               />
               <ResultRow
                 label="Transaction"
                 value={result.signature}
-                href={solanaExplorerLink(wallet.cluster, "tx", result.signature)}
+                kind="tx"
+                cluster={wallet.cluster}
               />
             </div>
           )}
@@ -235,11 +255,15 @@ export function SolanaDeployView() {
 
         <div className="space-y-4">
           <div className="rounded border border-border bg-surface p-4">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-meta">Cluster</div>
+            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-meta">
+              Cluster
+            </div>
             <SolanaClusterSelector />
           </div>
           <div className="rounded border border-border bg-surface p-4">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-meta">Wallet</div>
+            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-meta">
+              Wallet
+            </div>
             <SolanaWalletPanel />
           </div>
         </div>
@@ -248,18 +272,27 @@ export function SolanaDeployView() {
   );
 }
 
-function ResultRow({ label, value, href }: { label: string; value: string; href: string }) {
+function ResultRow({
+  label,
+  value,
+  kind,
+  cluster,
+}: {
+  label: string;
+  value: string;
+  kind: "address" | "tx";
+  cluster: SolanaCluster;
+}) {
   return (
     <div className="flex items-center gap-2">
       <span className="w-24 shrink-0 text-meta">{label}</span>
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1 truncate text-primary hover:underline"
+      <Link
+        to={kind === "address" ? "/explorer/$network/address/$hash" : "/explorer/$network/tx/$hash"}
+        params={{ network: cluster, hash: value }}
+        className="truncate text-primary hover:underline"
       >
-        {value} <ExternalLink className="h-3 w-3 shrink-0" />
-      </a>
+        {value}
+      </Link>
     </div>
   );
 }

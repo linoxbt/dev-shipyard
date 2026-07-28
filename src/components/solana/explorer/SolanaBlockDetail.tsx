@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Loader2, ExternalLink } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { getSolanaBlock } from "@/lib/api/solana-explorer.functions";
-import { solanaExplorerLink, type SolanaCluster } from "@/lib/solana/chains";
+import { type SolanaCluster } from "@/lib/solana/chains";
 import { truncateAddress } from "@/lib/wallet";
 
 function fmtUtc(t: number | null): string {
@@ -20,15 +20,9 @@ export function SolanaBlockDetail({ cluster, slot }: { cluster: SolanaCluster; s
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="font-mono text-lg font-bold text-foreground">Block {slot.toLocaleString()}</h1>
-        <a
-          href={solanaExplorerLink(cluster, "block", String(slot))}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 font-mono text-[11px] text-meta hover:text-primary"
-        >
-          Solana Explorer <ExternalLink className="h-3 w-3" />
-        </a>
+        <h1 className="font-mono text-lg font-bold text-foreground">
+          Block {slot.toLocaleString()}
+        </h1>
       </div>
 
       {q.isLoading && (
@@ -37,13 +31,17 @@ export function SolanaBlockDetail({ cluster, slot }: { cluster: SolanaCluster; s
         </div>
       )}
       {d && !d.ok && (
-        <div className="rounded border border-danger/40 bg-danger/10 p-4 font-mono text-sm text-danger">{d.error}</div>
+        <div className="rounded border border-danger/40 bg-danger/10 p-4 font-mono text-sm text-danger">
+          {d.error}
+        </div>
       )}
 
       {d && d.ok && (
         <>
           <div className="rounded border border-border bg-surface">
-            <div className="border-b border-border px-4 py-2 font-mono text-xs font-bold text-foreground">Overview</div>
+            <div className="border-b border-border px-4 py-2 font-mono text-xs font-bold text-foreground">
+              Overview
+            </div>
             <div className="divide-y divide-border">
               <Row label="Slot">{d.slot.toLocaleString()}</Row>
               <Row label="Parent Slot">
@@ -70,7 +68,9 @@ export function SolanaBlockDetail({ cluster, slot }: { cluster: SolanaCluster; s
             <div className="border-b border-border px-4 py-2 font-mono text-xs font-bold text-foreground">
               Block Transactions
             </div>
-            {d.signatures.length === 0 && <div className="px-4 py-3 font-mono text-xs text-meta">No transactions</div>}
+            {d.signatures.length === 0 && (
+              <div className="px-4 py-3 font-mono text-xs text-meta">No transactions</div>
+            )}
             {d.signatures.map((sig) => (
               <Link
                 key={sig}

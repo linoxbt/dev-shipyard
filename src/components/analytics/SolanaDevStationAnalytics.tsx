@@ -11,10 +11,10 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Package, Coins, Image as ImageIcon, Cpu, ExternalLink, Info, Rocket } from "lucide-react";
+import { Package, Coins, Image as ImageIcon, Cpu, Info, Rocket } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { loadSolanaDeploys, type SolanaDeploy } from "@/lib/solana/deploy-history";
-import { solanaExplorerLink, type SolanaCluster } from "@/lib/solana/chains";
+import { type SolanaCluster } from "@/lib/solana/chains";
 import { truncateAddress } from "@/lib/wallet";
 
 const AMBER = "#f59e0b";
@@ -42,7 +42,8 @@ export function SolanaDevStationAnalytics({ cluster }: { cluster: SolanaCluster 
 
   const { series, byType, kpis } = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const d of deploys) counts.set(dayKey(d.timestamp), (counts.get(dayKey(d.timestamp)) ?? 0) + 1);
+    for (const d of deploys)
+      counts.set(dayKey(d.timestamp), (counts.get(dayKey(d.timestamp)) ?? 0) + 1);
     const series: Array<{ day: string; count: number }> = [];
     for (let i = 29; i >= 0; i--) {
       const dt = new Date();
@@ -61,7 +62,13 @@ export function SolanaDevStationAnalytics({ cluster }: { cluster: SolanaCluster 
     return {
       series,
       byType,
-      kpis: { total: deploys.length, tokens, nfts, programs, latest: deploys[0]?.timestamp ?? null },
+      kpis: {
+        total: deploys.length,
+        tokens,
+        nfts,
+        programs,
+        latest: deploys[0]?.timestamp ?? null,
+      },
     };
   }, [deploys]);
 
@@ -70,11 +77,14 @@ export function SolanaDevStationAnalytics({ cluster }: { cluster: SolanaCluster 
       <div className="p-4 lg:p-6">
         <div className="mx-auto max-w-lg rounded border border-border bg-surface p-6 text-center">
           <Package className="mx-auto h-8 w-8 text-meta" />
-          <h2 className="mt-3 font-mono text-sm font-bold text-foreground">No DevStation deploys yet</h2>
+          <h2 className="mt-3 font-mono text-sm font-bold text-foreground">
+            No DevStation deploys yet
+          </h2>
           <p className="mt-2 font-mono text-xs text-muted-foreground">
-            Deploy a token, NFT, or program on Solana {cluster === "solana-mainnet" ? "Mainnet" : "Devnet"}{" "}
-            through DevStation and it will show up here. Solana has no on-chain DevStation registry
-            (unlike the EVM chains), so this reflects deploys made in this browser.
+            Deploy a token, NFT, or program on Solana{" "}
+            {cluster === "solana-mainnet" ? "Mainnet" : "Devnet"} through DevStation and it will
+            show up here. Solana has no on-chain DevStation registry (unlike the EVM chains), so
+            this reflects deploys made in this browser.
           </p>
           <Link
             to="/launchkit/templates"
@@ -107,10 +117,31 @@ export function SolanaDevStationAnalytics({ cluster }: { cluster: SolanaCluster 
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="#1f2933" vertical={false} />
-              <XAxis dataKey="day" tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }} axisLine={false} tickLine={false} interval={4} />
-              <YAxis width={28} allowDecimals={false} tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v} deploys`, ""]} />
-              <Area type="monotone" dataKey="count" stroke={AMBER} strokeWidth={2} fill="url(#solDepFill)" />
+              <XAxis
+                dataKey="day"
+                tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }}
+                axisLine={false}
+                tickLine={false}
+                interval={4}
+              />
+              <YAxis
+                width={28}
+                allowDecimals={false}
+                tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                formatter={(v: number) => [`${v} deploys`, ""]}
+              />
+              <Area
+                type="monotone"
+                dataKey="count"
+                stroke={AMBER}
+                strokeWidth={2}
+                fill="url(#solDepFill)"
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -120,10 +151,27 @@ export function SolanaDevStationAnalytics({ cluster }: { cluster: SolanaCluster 
         <Card title="Deployments by type" subtitle="token / NFT / program">
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byType} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 8 }}>
+              <BarChart
+                data={byType}
+                layout="vertical"
+                margin={{ top: 4, right: 16, bottom: 0, left: 8 }}
+              >
                 <CartesianGrid stroke="#1f2933" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={70} tick={{ fill: "#9ca3af", fontSize: 10, fontFamily: "monospace" }} axisLine={false} tickLine={false} />
+                <XAxis
+                  type="number"
+                  allowDecimals={false}
+                  tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={70}
+                  tick={{ fill: "#9ca3af", fontSize: 10, fontFamily: "monospace" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#ffffff08" }} />
                 <Bar dataKey="count" radius={[0, 3, 3, 0]}>
                   {byType.map((b) => (
@@ -135,11 +183,20 @@ export function SolanaDevStationAnalytics({ cluster }: { cluster: SolanaCluster 
           </div>
         </Card>
 
-        <Card title="Summary" subtitle={`Solana ${cluster === "solana-mainnet" ? "Mainnet" : "Devnet"}`}>
+        <Card
+          title="Summary"
+          subtitle={`Solana ${cluster === "solana-mainnet" ? "Mainnet" : "Devnet"}`}
+        >
           <div className="divide-y divide-border">
             <Row label="Total deployments" value={kpis.total.toLocaleString()} />
-            <Row label="Last deploy" value={kpis.latest ? new Date(kpis.latest * 1000).toLocaleString() : "—"} />
-            <Row label="Most recent asset" value={deploys[0] ? truncateAddress(deploys[0].address, 6, 6) : "—"} />
+            <Row
+              label="Last deploy"
+              value={kpis.latest ? new Date(kpis.latest * 1000).toLocaleString() : "—"}
+            />
+            <Row
+              label="Most recent asset"
+              value={deploys[0] ? truncateAddress(deploys[0].address, 6, 6) : "—"}
+            />
           </div>
         </Card>
       </div>
@@ -151,11 +208,10 @@ export function SolanaDevStationAnalytics({ cluster }: { cluster: SolanaCluster 
           <span className="text-right">When</span>
         </div>
         {deploys.slice(0, 12).map((d) => (
-          <a
+          <Link
             key={d.address}
-            href={solanaExplorerLink(cluster, d.kind === "program" ? "address" : "address", d.address)}
-            target="_blank"
-            rel="noreferrer"
+            to="/explorer/$network/address/$hash"
+            params={{ network: cluster, hash: d.address }}
             className="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 border-t border-border px-4 py-2 font-mono text-xs hover:bg-surface-2"
           >
             <span className="min-w-0">
@@ -165,17 +221,16 @@ export function SolanaDevStationAnalytics({ cluster }: { cluster: SolanaCluster 
             <span className="hidden text-right sm:block" style={{ color: KIND_COLOR[d.kind] }}>
               {d.kind}
             </span>
-            <span className="inline-flex items-center gap-1 text-right text-meta">
+            <span className="text-right text-meta">
               {d.timestamp ? new Date(d.timestamp * 1000).toLocaleDateString() : "—"}
-              <ExternalLink className="h-3 w-3" />
             </span>
-          </a>
+          </Link>
         ))}
       </Card>
 
       <p className="flex items-center gap-1.5 font-mono text-[10px] text-meta">
-        <Info className="h-3 w-3" /> Solana has no on-chain DevStation registry yet, so this reflects
-        deployments made through DevStation in this browser.
+        <Info className="h-3 w-3" /> Solana has no on-chain DevStation registry yet, so this
+        reflects deployments made through DevStation in this browser.
       </p>
     </div>
   );
@@ -199,7 +254,15 @@ function Kpi({ icon: Icon, label, value }: { icon: typeof Package; label: string
     </div>
   );
 }
-function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Card({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded border border-border bg-surface">
       <div className="flex items-baseline justify-between border-b border-border px-4 py-2">

@@ -5,12 +5,11 @@
 // program id + IDL. Same look as the EVM side; Solana-specific behavior.
 
 import { useMemo, useState } from "react";
-import { useSearch } from "@tanstack/react-router";
+import { useSearch, Link } from "@tanstack/react-router";
 import Editor from "@monaco-editor/react";
 import {
   Rocket,
   Loader2,
-  ExternalLink,
   CheckCircle2,
   Hammer,
   Info,
@@ -28,13 +27,13 @@ import { FileExplorer } from "@/components/shared/FileExplorer";
 import { useCodeWorkspace } from "@/hooks/useCodeWorkspace";
 import { useSolanaDeploy, type ProgramDeployResult } from "@/lib/solana/deploy";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
-import { solanaExplorerLink } from "@/lib/solana/chains";
 import { SOLANA_TEMPLATES, solanaTemplate } from "@/lib/solana/templates";
 import { recordSolanaDeploy } from "@/lib/solana/deploy-history";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_SOURCE =
-  SOLANA_TEMPLATES.find((t) => t.kind === "program")?.source ?? "// Write your Anchor program here\n";
+  SOLANA_TEMPLATES.find((t) => t.kind === "program")?.source ??
+  "// Write your Anchor program here\n";
 
 export function SolanaEditorView() {
   const search = useSearch({ strict: false }) as { template?: string };
@@ -66,7 +65,9 @@ export function SolanaEditorView() {
     if (!deploy.remoteBuildEnabled) {
       append("✗ Build service not configured (set VITE_SOLANA_BUILD_API).");
       setBottomTab("terminal");
-      return toast.error("Custom-program builds need VITE_SOLANA_BUILD_API. Deploy a token/NFT template instead.");
+      return toast.error(
+        "Custom-program builds need VITE_SOLANA_BUILD_API. Deploy a token/NFT template instead.",
+      );
     }
     setResult(null);
     setBottomTab("terminal");
@@ -144,11 +145,18 @@ export function SolanaEditorView() {
       {/* === PANELS === */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* File explorer (desktop rail + mobile drawer) */}
-        {filesOpen && <div className="fixed inset-0 z-30 bg-black/50 sm:hidden" onClick={() => setFilesOpen(false)} />}
+        {filesOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-black/50 sm:hidden"
+            onClick={() => setFilesOpen(false)}
+          />
+        )}
         <aside
           className={cn(
             "shrink-0 border-r border-border bg-[#0d1117]",
-            filesOpen ? "fixed inset-y-0 left-0 z-40 w-64 sm:static sm:z-auto sm:w-[210px]" : "hidden sm:block sm:w-[210px]",
+            filesOpen
+              ? "fixed inset-y-0 left-0 z-40 w-64 sm:static sm:z-auto sm:w-[210px]"
+              : "hidden sm:block sm:w-[210px]",
           )}
         >
           <FileExplorer ws={ws} className="h-full" />
@@ -183,7 +191,10 @@ export function SolanaEditorView() {
               <BottomTab active={bottomTab === "terminal"} onClick={() => setBottomTab("terminal")}>
                 <TerminalIcon className="h-3 w-3" /> Terminal
               </BottomTab>
-              <BottomTab active={bottomTab === "inspector"} onClick={() => setBottomTab("inspector")}>
+              <BottomTab
+                active={bottomTab === "inspector"}
+                onClick={() => setBottomTab("inspector")}
+              >
                 <Search className="h-3 w-3" /> Inspector
               </BottomTab>
             </div>
@@ -198,8 +209,8 @@ export function SolanaEditorView() {
                     <div className="flex items-start gap-2 rounded border border-border bg-surface-2 p-2.5 font-mono text-[11px] text-muted-foreground">
                       <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-meta" />
                       <span>
-                        Arbitrary Rust/Anchor builds require <code>VITE_SOLANA_BUILD_API</code>. Token
-                        &amp; NFT templates deploy in-browser without it.
+                        Arbitrary Rust/Anchor builds require <code>VITE_SOLANA_BUILD_API</code>.
+                        Token &amp; NFT templates deploy in-browser without it.
                       </span>
                     </div>
                   )}
@@ -208,14 +219,13 @@ export function SolanaEditorView() {
                       <div className="flex items-center gap-2 text-success">
                         <CheckCircle2 className="h-4 w-4" /> Program deployed
                       </div>
-                      <a
-                        href={solanaExplorerLink(wallet.cluster, "address", result.programId)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 truncate text-primary hover:underline"
+                      <Link
+                        to="/explorer/$network/address/$hash"
+                        params={{ network: wallet.cluster, hash: result.programId }}
+                        className="truncate text-primary hover:underline"
                       >
-                        {result.programId} <ExternalLink className="h-3 w-3 shrink-0" />
-                      </a>
+                        {result.programId}
+                      </Link>
                     </div>
                   )}
                   {result && <ProgramInteract programId={result.programId} idl={result.idl} />}
@@ -244,13 +254,23 @@ function langFor(path: string): string {
   return "plaintext";
 }
 
-function BottomTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function BottomTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
       className={cn(
         "flex items-center gap-1 border-b-2 px-2.5 py-1.5 font-mono text-[11px] transition",
-        active ? "border-primary text-primary" : "border-transparent text-meta hover:text-foreground",
+        active
+          ? "border-primary text-primary"
+          : "border-transparent text-meta hover:text-foreground",
       )}
     >
       {children}
