@@ -14,7 +14,7 @@ import { solanaChain } from "@/lib/solana/chains";
 import { truncateAddress } from "@/lib/wallet";
 import { cn } from "@/lib/utils";
 
-type Mode = "idle" | "create" | "unlock";
+type Mode = "idle" | "unlock";
 
 export function SolanaWalletPanel({ className }: { className?: string }) {
   const wallet = useSolanaWallet();
@@ -23,7 +23,6 @@ export function SolanaWalletPanel({ className }: { className?: string }) {
 
   const burnerExists = useSolanaBurner((s) => s.exists);
   const burnerUnlocked = useSolanaBurner((s) => s.unlocked);
-  const createWallet = useSolanaBurner((s) => s.createWallet);
   const unlock = useSolanaBurner((s) => s.unlock);
   const lock = useSolanaBurner((s) => s.lock);
 
@@ -47,30 +46,6 @@ export function SolanaWalletPanel({ className }: { className?: string }) {
     refreshBalance();
   }, [refreshBalance, wallet.address, cluster]);
 
-  const doCreate = async () => {
-    if (password.length < 8) return toast.error("Use a password of at least 8 characters.");
-    setBusy(true);
-    try {
-      const mnemonic = await createWallet(password);
-      setMode("idle");
-      setPassword("");
-      toast.success("Solana wallet created", {
-        description: "Back up your seed phrase — it is shown only once.",
-      });
-      // Surface the seed phrase once via clipboard for convenience on a local test box.
-      try {
-        await navigator.clipboard.writeText(mnemonic);
-        toast.message("Seed phrase copied to clipboard (back it up now).");
-      } catch {
-        /* clipboard blocked — user can reveal it later */
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to create wallet");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const doUnlock = async () => {
     setBusy(true);
     try {
@@ -91,7 +66,9 @@ export function SolanaWalletPanel({ className }: { className?: string }) {
       toast.success("Airdropped 1 devnet SOL");
       refreshBalance();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Airdrop failed (devnet faucet may be rate-limited)");
+      toast.error(
+        e instanceof Error ? e.message : "Airdrop failed (devnet faucet may be rate-limited)",
+      );
     } finally {
       setBusy(false);
     }
@@ -111,13 +88,21 @@ export function SolanaWalletPanel({ className }: { className?: string }) {
         <div className="flex items-center gap-2 rounded border border-border bg-background px-2.5 py-2 font-mono text-xs">
           <Wallet className="h-3.5 w-3.5 text-primary" />
           <span className="text-foreground">{truncateAddress(wallet.address)}</span>
-          <button onClick={copyAddress} className="text-meta hover:text-foreground" title="Copy address">
+          <button
+            onClick={copyAddress}
+            className="text-meta hover:text-foreground"
+            title="Copy address"
+          >
             {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
           </button>
           <span className="ml-auto text-meta">
             {balance === null ? "…" : `${balance.toFixed(3)} SOL`}
           </span>
-          <button onClick={refreshBalance} className="text-meta hover:text-foreground" title="Refresh balance">
+          <button
+            onClick={refreshBalance}
+            className="text-meta hover:text-foreground"
+            title="Refresh balance"
+          >
             <RefreshCw className="h-3 w-3" />
           </button>
         </div>
@@ -138,7 +123,11 @@ export function SolanaWalletPanel({ className }: { className?: string }) {
             onClick={() => (wallet.source === "adapter" ? wallet.disconnectAdapter() : lock())}
             className="ml-auto inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 font-mono text-[10px] text-meta hover:border-danger hover:text-danger"
           >
-            {wallet.source === "adapter" ? <LogOut className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+            {wallet.source === "adapter" ? (
+              <LogOut className="h-3 w-3" />
+            ) : (
+              <Lock className="h-3 w-3" />
+            )}
             {wallet.source === "adapter" ? "Disconnect" : "Lock"}
           </button>
         </div>
@@ -146,9 +135,8 @@ export function SolanaWalletPanel({ className }: { className?: string }) {
     );
   }
 
-  // Password form (create / unlock)
+  // Password form (unlock)
   if (mode !== "idle") {
-    const submit = mode === "create" ? doCreate : doUnlock;
     return (
       <div className={cn("space-y-2", className)}>
         <input
@@ -156,17 +144,17 @@ export function SolanaWalletPanel({ className }: { className?: string }) {
           autoFocus
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder={mode === "create" ? "New password (min 8 chars)" : "Password"}
+          onKeyDown={(e) => e.key === "Enter" && doUnlock()}
+          placeholder="Password"
           className="w-full rounded border border-border bg-background px-2.5 py-1.5 font-mono text-xs text-foreground outline-none focus:border-primary"
         />
         <div className="flex gap-2">
           <button
-            onClick={submit}
+            onClick={doUnlock}
             disabled={busy}
             className="flex-1 rounded bg-primary px-2 py-1.5 font-mono text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {busy ? "…" : mode === "create" ? "Create" : "Unlock"}
+            {busy ? "…" : "Unlock"}
           </button>
           <button
             onClick={() => {

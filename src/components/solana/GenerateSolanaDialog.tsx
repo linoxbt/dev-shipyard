@@ -33,7 +33,13 @@ export function GenerateSolanaDialog({ onClose }: { onClose: () => void }) {
       const s = await burner.createWallet(password);
       setSecret(s);
       setMode("backup");
-      setFamily("solana");
+      // Deliberately NOT setFamily("solana") here — the sidebar's
+      // FamilyWalletPanel switches which panel is mounted based on the
+      // active family, and this dialog is rendered underneath whichever
+      // panel opened it. Flipping family before the backup screen is
+      // dismissed unmounts this whole dialog mid-render, so the seed phrase
+      // never actually gets shown. done() (below) sets it once the user has
+      // confirmed the backup.
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to create wallet");
     } finally {
@@ -74,14 +80,16 @@ export function GenerateSolanaDialog({ onClose }: { onClose: () => void }) {
       <div className="w-full max-w-md rounded border border-border bg-surface p-6">
         <div className="mb-4 flex items-center gap-2">
           <Wallet className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-base font-bold text-foreground">Solana DevStation Wallet</h2>
+          <h2 className="font-mono text-base font-bold text-foreground">
+            Solana DevStation Wallet
+          </h2>
         </div>
 
         {mode === "menu" && (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Generate a self-custody Solana dev wallet, encrypted with a password and stored only in
-              this browser. Ideal for devnet.
+              Generate a self-custody Solana dev wallet, encrypted with a password and stored only
+              in this browser. Ideal for devnet.
             </p>
             <button
               onClick={() => setMode("create")}
@@ -104,7 +112,12 @@ export function GenerateSolanaDialog({ onClose }: { onClose: () => void }) {
             <Pw value={password} onChange={setPassword} placeholder="At least 8 characters" />
             <Label>Confirm Password</Label>
             <Pw value={confirm} onChange={setConfirm} placeholder="Re-enter password" />
-            <Actions onCancel={() => setMode("menu")} onConfirm={handleCreate} label={busy ? "Creating…" : "Create Wallet"} busy={busy} />
+            <Actions
+              onCancel={() => setMode("menu")}
+              onConfirm={handleCreate}
+              label={busy ? "Creating…" : "Create Wallet"}
+              busy={busy}
+            />
           </div>
         )}
 
@@ -112,14 +125,28 @@ export function GenerateSolanaDialog({ onClose }: { onClose: () => void }) {
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
               Unlock your Solana wallet
-              {burner.address ? ` (${burner.address.slice(0, 4)}…${burner.address.slice(-4)})` : ""}.
+              {burner.address ? ` (${burner.address.slice(0, 4)}…${burner.address.slice(-4)})` : ""}
+              .
             </p>
             <Label>Password</Label>
-            <Pw value={password} onChange={setPassword} placeholder="Wallet password" onEnter={handleUnlock} />
-            <button onClick={() => setMode("menu")} className="font-mono text-[11px] text-meta hover:text-primary">
+            <Pw
+              value={password}
+              onChange={setPassword}
+              placeholder="Wallet password"
+              onEnter={handleUnlock}
+            />
+            <button
+              onClick={() => setMode("menu")}
+              className="font-mono text-[11px] text-meta hover:text-primary"
+            >
               Use a different wallet
             </button>
-            <Actions onCancel={onClose} onConfirm={handleUnlock} label={busy ? "Unlocking…" : "Unlock"} busy={busy} />
+            <Actions
+              onCancel={onClose}
+              onConfirm={handleUnlock}
+              label={busy ? "Unlocking…" : "Unlock"}
+              busy={busy}
+            />
           </div>
         )}
 
@@ -135,11 +162,18 @@ export function GenerateSolanaDialog({ onClose }: { onClose: () => void }) {
             />
             <Label>Encryption Password</Label>
             <Pw value={password} onChange={setPassword} placeholder="At least 8 characters" />
-            <Actions onCancel={() => setMode("menu")} onConfirm={handleImport} label={busy ? "Importing…" : "Import Wallet"} busy={busy} />
+            <Actions
+              onCancel={() => setMode("menu")}
+              onConfirm={handleImport}
+              label={busy ? "Importing…" : "Import Wallet"}
+              busy={busy}
+            />
           </div>
         )}
 
-        {mode === "backup" && <SeedPhraseBackup mnemonic={secret} onDone={done} chainLabel="Solana" />}
+        {mode === "backup" && (
+          <SeedPhraseBackup mnemonic={secret} onDone={done} chainLabel="Solana" />
+        )}
       </div>
     </div>
   );
@@ -183,10 +217,17 @@ function Actions({
 }) {
   return (
     <div className="flex justify-end gap-2 pt-1">
-      <button onClick={onCancel} className="rounded border border-border px-3 py-2 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary">
+      <button
+        onClick={onCancel}
+        className="rounded border border-border px-3 py-2 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
+      >
         Cancel
       </button>
-      <button onClick={onConfirm} disabled={busy} className="rounded bg-primary px-4 py-2 font-mono text-xs font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-40">
+      <button
+        onClick={onConfirm}
+        disabled={busy}
+        className="rounded bg-primary px-4 py-2 font-mono text-xs font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
+      >
         {label}
       </button>
     </div>

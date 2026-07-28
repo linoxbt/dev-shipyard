@@ -12,7 +12,8 @@ import {
   hasVault,
   keypairFromSecretB64,
   loadVault,
-  saveVault,
+  saveVaultFromMnemonic,
+  saveVaultFromSecretKey,
   secretKeyToB64,
   unlockVault,
 } from "./vault";
@@ -38,8 +39,8 @@ interface SolanaBurnerState {
   unlock: (password: string) => Promise<void>;
   lock: () => void;
   remove: () => void;
-  /** Reveal the base58 secret key (requires the password again). */
-  revealSecret: (password: string) => Promise<string>;
+  /** Reveal the passphrase (generated wallets) or secret key (imported wallets), password-gated. */
+  reveal: (password: string) => Promise<{ kind: "mnemonic" | "secret"; secret: string }>;
   refresh: () => void;
   /** Restore an unlocked session (sessionStorage) after a page refresh. */
   restoreSession: () => void;
@@ -56,7 +57,7 @@ export const useSolanaBurner = create<SolanaBurnerState>((set) => ({
 
   createWallet: async (password) => {
     const { keypair: kp, mnemonic } = createKeypairWithMnemonic();
-    await saveVault(kp, password);
+    await saveVaultFromMnemonic(mnemonic, kp, password);
     activate(kp);
     saveSolanaSession(secretKeyToB64(kp));
     set({ exists: true, unlocked: true, address: kp.publicKey.toBase58() });
@@ -65,14 +66,14 @@ export const useSolanaBurner = create<SolanaBurnerState>((set) => ({
 
   importWallet: async (secretBase58, password) => {
     const kp = Keypair.fromSecretKey(bs58.decode(secretBase58.trim()));
-    await saveVault(kp, password);
+    await saveVaultFromSecretKey(kp, password);
     activate(kp);
     saveSolanaSession(secretKeyToB64(kp));
     set({ exists: true, unlocked: true, address: kp.publicKey.toBase58() });
   },
 
   unlock: async (password) => {
-    const kp = await unlockVault(password);
+    const { keypair: kp } = await unlockVault(password);
     activate(kp);
     saveSolanaSession(secretKeyToB64(kp));
     set({ unlocked: true, address: kp.publicKey.toBase58() });
@@ -91,9 +92,9 @@ export const useSolanaBurner = create<SolanaBurnerState>((set) => ({
     set({ exists: false, unlocked: false, address: null });
   },
 
-  revealSecret: async (password) => {
-    const kp = await unlockVault(password);
-    return bs58.encode(kp.secretKey);
+  reveal: async (password) => {
+    const { kind, secret } = await unlockVault(password);
+    return { kind, secret };
   },
 
   refresh: () => {
