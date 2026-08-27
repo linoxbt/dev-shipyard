@@ -15,6 +15,7 @@ so far.
 - [Registry contract addresses](#registry-contract-addresses)
 - [Deploying registries to a new chain](#deploying-registries-to-a-new-chain)
 - [Sponsored deploys (QIE mainnet & BOT Chain mainnet)](#sponsored-deploys-qie-mainnet--bot-chain-mainnet)
+- [AI proxy setup](#ai-proxy-setup)
 
 ---
 
@@ -245,3 +246,44 @@ meaningfully different numbers between two back-to-back calls for the same
 transaction. Nothing has confirmed whether BOT Chain's estimator behaves the
 same way — the same margin is reused there as the only data point available,
 but watch the first few live sponsored BOT mainnet deploys closely.
+
+---
+
+## AI proxy setup
+
+The "Code with AI" panel can either use each visitor's own key or route through
+this app's `/api/ai` proxy on an operator-provided key. For the proxy, the
+whole setup is **two variables**:
+
+| Variable             | Value          | Notes                                                  |
+| -------------------- | -------------- | ------------------------------------------------------ |
+| `VITE_AI_PROXY`      | `true`         | Public flag — routes the browser through `/api/ai`.    |
+| `OPENROUTER_API_KEY` | `sk-or-v1-...` | Server-only. One key serves every model in the picker. |
+
+Optional: `OPENAI_MODEL` pins the default model (any OpenRouter id, e.g.
+`anthropic/claude-sonnet-5`). Without it the code defaults to that same model.
+
+### Two traps worth knowing
+
+**1. Don't file an OpenRouter key under another provider's variable.** The
+resolution order in `src/routes/api.ai.ts` is:
+
+```
+openaiKey = OPENAI_API_KEY || AI_API_KEY || OPENROUTER_API_KEY
+provider  = AI_PROVIDER || (openaiKey ? "openai" : ANTHROPIC_API_KEY ? "anthropic" : "openai")
+```
+
+so a key sitting in `ANTHROPIC_API_KEY` sends the app down the Anthropic
+branch — which then talks the Anthropic Messages protocol to whatever
+`ANTHROPIC_ENDPOINT` points at. This happened in production: an OpenRouter key
+was stored as `ANTHROPIC_API_KEY` with `ANTHROPIC_ENDPOINT` left pointing at an
+unrelated project's router, and the only symptom was a bare
+`401 Invalid API key or token`. `configProblem()` now catches that specific
+shape and names the offending variable instead. If you use OpenRouter, leave
+`ANTHROPIC_API_KEY`, `ANTHROPIC_ENDPOINT`, `OPENAI_API_KEY` and `AI_API_KEY`
+unset.
+
+**2. Env changes need a redeploy.** The proxy runs inside the Nitro server
+function, which reads `process.env` from the environment captured at deploy
+time. Editing a variable in the Netlify dashboard does **not** affect the
+running function — trigger a redeploy afterwards, or the old value stays live.
