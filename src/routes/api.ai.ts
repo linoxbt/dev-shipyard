@@ -79,6 +79,32 @@ function isConfigured(c: ServerConfig): boolean {
   return c.provider === "anthropic" ? !!c.anthropic.key : !!c.openai.endpoint && !!c.openai.key;
 }
 
+// Catch env misconfigurations that are *detectable from the key's own shape*
+// and would otherwise surface as a bare upstream 401 with no clue which var is
+// wrong. This is a real failure we hit in production: an OpenRouter key
+// (sk-or-...) had been stored as ANTHROPIC_API_KEY, with ANTHROPIC_ENDPOINT
+// pointed at an unrelated router — so the proxy dutifully sent an OpenRouter
+// key, in Anthropic Messages format, to a third party, and all the operator
+// saw was "Invalid API key or token".
+//
+// Returns an operator-facing message, or null when nothing looks wrong. Only
+// ever shown on POST (never GET) — see the GET handler's note about not
+// handing anonymous callers a map of which keys are set.
+function configProblem(c: ServerConfig): string | null {
+  if (c.provider === "anthropic") {
+    if (c.anthropic.key.startsWith("sk-or-")) {
+      return "ANTHROPIC_API_KEY holds an OpenRouter key (sk-or-...). Set OPENROUTER_API_KEY instead, and either unset ANTHROPIC_API_KEY or set AI_PROVIDER=openai.";
+    }
+    if (c.anthropic.key && !c.anthropic.key.startsWith("sk-ant-")) {
+      return "ANTHROPIC_API_KEY does not look like an Anthropic key (expected sk-ant-...). Check which provider that key belongs to.";
+    }
+    if (!c.anthropic.endpoint.includes("anthropic.com")) {
+      return `ANTHROPIC_ENDPOINT points at ${c.anthropic.endpoint}, which is not Anthropic. Unset it unless you are deliberately proxying.`;
+    }
+  }
+  return null;
+}
+
 const MAX_TOKENS = 4096;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -195,6 +221,17 @@ export const Route = createFileRoute("/api/ai")({
           return Response.json(
             { error: { message: "Server AI proxy is not configured." } },
             { status: 501 },
+          );
+        }
+
+        // Fail loudly on a provably-wrong key/endpoint pairing rather than
+        // forwarding it and returning whatever 401 the upstream emits.
+        const problem = configProblem(c);
+        if (problem) {
+          console.error(`[api/ai] misconfigured: ${problem}`);
+          return Response.json(
+            { error: { message: `Server AI proxy is misconfigured. ${problem}` } },
+            { status: 500 },
           );
         }
 
