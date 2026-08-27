@@ -15,7 +15,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { chatStream, SOLIDITY_SYSTEM_PROMPT, type ChatMessage } from "@/lib/ai";
-import { useAiSettings, AI_PROVIDERS, AI_PROVIDER_LIST, resolveEndpoint } from "@/lib/ai-settings";
+import {
+  useAiSettings,
+  AI_PROVIDERS,
+  AI_PROVIDER_LIST,
+  resolveEndpoint,
+  modelsByVendor,
+} from "@/lib/ai-settings";
 import { useAiProxyStatus } from "@/hooks/useAiProxyStatus";
 import { useAiChatStore, type ChatSession } from "@/lib/ai-chat-store";
 import { useAiIntake } from "@/lib/ai-intake";
@@ -476,16 +482,22 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
+        {preset.blurb && <p className="mt-1 font-mono text-[10px] text-meta">{preset.blurb}</p>}
       </div>
 
       {/* Model (from the provider's hardcoded list) */}
       <div>
         <label className={labelCls}>Model</label>
         <select className={fieldCls} value={s.model} onChange={(e) => s.setModel(e.target.value)}>
-          {preset.models.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
+          {modelsByVendor(preset).map((group) => (
+            <optgroup key={group.vendor} label={group.vendor}>
+              {group.models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.label}
+                  {model.note ? ` — ${model.note}` : ""}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>

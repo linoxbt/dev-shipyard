@@ -63,12 +63,19 @@ function CodeWithAI() {
       </P>
       <Bullets
         items={[
-          "OpenAI (gpt-4o, gpt-4.1, and more)",
-          "Claude (Anthropic native)",
-          "OpenRouter (one key, many models)",
+          "OpenRouter (default) — one key reaches all 15 models below",
+          "Anthropic: Claude Opus 5, Sonnet 5, Fable 5, Opus 4.8, Haiku 4.5",
+          "OpenAI: GPT-5.6 Sol / Terra / Luna, GPT-5.5, GPT-5.4 Mini",
+          "DeepSeek: V4 Pro, V4 Flash",
+          "Google Gemini 3.7 Flash, xAI Grok 4.6, Qwen3.8 Max",
+          "Or go direct to OpenAI / Anthropic with that vendor's own key",
         ]}
       />
-      <P>Pick a provider, model, and key in Settings.</P>
+      <P>
+        Pick a provider, model, and key in Settings. The model dropdown is grouped by vendor and
+        shows each model&apos;s indicative price per 1M tokens, so the cost tradeoff is visible
+        before you pick.
+      </P>
 
       <PageNav prev={prev} next={next} />
     </DocPage>

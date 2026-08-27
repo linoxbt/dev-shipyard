@@ -82,13 +82,14 @@ The Solidity assistant works in two modes, resolved from Settings:
 - **Server proxy** (`/api/ai`): the provider key stays server-side and never reaches the browser. Preferred for shared deployments.
 - **Direct, bring-your-own-key:** you paste a key in the UI; it is stored only in your browser.
 
-Supported providers (pick one, paste a key, save):
+**OpenRouter is the default**, and for most people the only one worth configuring: a single OpenRouter key reaches all 15 models in the picker, so there's no per-vendor account to manage. The picker is grouped by vendor — Anthropic and OpenAI first, then DeepSeek, then Google/xAI/Qwen.
 
-| Provider           | Format            | Notes                                                       |
-| ------------------ | ----------------- | ----------------------------------------------------------- |
-| OpenAI             | OpenAI            | `gpt-4o`, `gpt-4.1`, `o4-mini`, and more.                   |
-| Claude (Anthropic) | Anthropic native  | `claude-opus-4-x`, `claude-sonnet-4-x`, `claude-haiku-4-x`. |
-| OpenRouter         | OpenAI-compatible | Access many models with one key.                            |
+| Provider          | Format            | Models                                                                      |
+| ----------------- | ----------------- | --------------------------------------------------------------------------- |
+| **OpenRouter** ⭐ | OpenAI-compatible | 15 models across Anthropic, OpenAI, DeepSeek, Google, xAI and Qwen.         |
+| OpenAI direct     | OpenAI            | GPT-5.6 (Sol/Terra/Luna), GPT-5.5, GPT-5.4 Mini — with your OpenAI key.     |
+| Claude direct     | Anthropic native  | Claude Opus 5, Sonnet 5, Fable 5, Opus 4.8, Haiku 4.5 — your Anthropic key. |
+| FreeModel         | OpenAI-compatible | FreeModel's GPT-5.x line.                                                   |
 
 ### Wallets
 
@@ -153,10 +154,12 @@ Per-chain network endpoints and registry contract addresses are covered in **[DE
 
 The AI provider, model, and key are chosen in the app's Settings and stored in the browser, so no env var is required for bring-your-own-key use. For the server-proxy mode, configure a server-side key and set:
 
-| Variable                                                      | Purpose                                                                                      |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `VITE_AI_PROXY`                                               | `"true"` to route AI requests through the `/api/ai` server proxy                             |
-| `OPENROUTER_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | Server-side provider key for the proxy (no `VITE_` prefix, so it never ships to the browser) |
+| Variable                               | Purpose                                                                                                                                  |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_AI_PROXY`                        | `"true"` to route AI requests through the `/api/ai` server proxy                                                                         |
+| `OPENROUTER_API_KEY`                   | **The recommended one.** A single OpenRouter key serves every model in the picker (no `VITE_` prefix, so it never ships to the browser). |
+| `OPENAI_MODEL`                         | Optional default model, e.g. `anthropic/claude-sonnet-5` — any OpenRouter model id.                                                      |
+| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | Alternatives, if you'd rather the proxy talk to one vendor directly.                                                                     |
 
 ### QIE ecosystem (optional)
 

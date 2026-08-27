@@ -38,26 +38,34 @@ function serverConfig(): ServerConfig {
   const e = process.env;
   // OpenRouter is an OpenAI-compatible provider, so it maps onto the "openai"
   // branch with the OpenRouter base URL. Setting OPENROUTER_API_KEY (e.g. in the
-  // Netlify env) is the simplest way to provide a default key for all users.
+  // Netlify env) is the simplest — and recommended — way to provide a default
+  // key for all users: that one key reaches every model in the app's picker
+  // (Claude, GPT, DeepSeek, Gemini, Grok, Qwen), so there's nothing else to
+  // configure per vendor.
   const openrouterKey = e.OPENROUTER_API_KEY || "";
   const openaiEndpoint =
     e.OPENAI_ENDPOINT ||
     e.AI_ENDPOINT ||
     (openrouterKey ? "https://openrouter.ai/api/v1/chat/completions" : "");
   const openaiKey = e.OPENAI_API_KEY || e.AI_API_KEY || openrouterKey;
+  // Default model when the operator doesn't pin one. Through OpenRouter this
+  // must be a fully-qualified `vendor/model` id; direct OpenAI takes a bare id.
   const openaiModel =
-    e.OPENAI_MODEL || e.AI_MODEL || (openrouterKey ? "openai/gpt-4o-mini" : "gpt-4o-mini");
+    e.OPENAI_MODEL || e.AI_MODEL || (openrouterKey ? "anthropic/claude-sonnet-5" : "gpt-5.6-sol");
 
+  // Prefer the OpenAI-compatible branch when a key for it exists — that's the
+  // OpenRouter path, which serves every vendor. Only fall through to Anthropic
+  // when an Anthropic key is the only thing configured.
   const provider: Provider =
     (e.AI_PROVIDER as Provider) ||
-    (e.ANTHROPIC_API_KEY ? "anthropic" : openaiKey ? "openai" : "anthropic");
+    (openaiKey ? "openai" : e.ANTHROPIC_API_KEY ? "anthropic" : "openai");
 
   return {
     provider,
     anthropic: {
       endpoint: e.ANTHROPIC_ENDPOINT || "https://api.anthropic.com",
       key: e.ANTHROPIC_API_KEY || "",
-      model: e.ANTHROPIC_MODEL || "claude-opus-4-8",
+      model: e.ANTHROPIC_MODEL || "claude-opus-5",
     },
     openai: {
       endpoint: openaiEndpoint,
