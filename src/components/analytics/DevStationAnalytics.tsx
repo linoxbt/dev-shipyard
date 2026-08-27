@@ -22,7 +22,16 @@ import { ChainLogo } from "@/lib/chain-logos";
 import { truncateAddress } from "@/lib/wallet";
 
 const AMBER = "#f59e0b";
-const CATEGORICAL = ["#9945FF", "#14b8a6", "#f59e0b", "#3b82f6", "#ec4899", "#22c55e", "#eab308", "#64748b"];
+const CATEGORICAL = [
+  "#9945FF",
+  "#14b8a6",
+  "#f59e0b",
+  "#3b82f6",
+  "#ec4899",
+  "#22c55e",
+  "#eab308",
+  "#64748b",
+];
 
 function dayKey(ts: number): string {
   return new Date(ts * 1000).toISOString().slice(0, 10);
@@ -52,7 +61,8 @@ export function DevStationAnalytics() {
   const { series, templates, deployers, kpis } = useMemo(() => {
     // Deployments per day over the last 30 days (gap-filled).
     const counts = new Map<string, number>();
-    for (const d of deployments) counts.set(dayKey(d.timestamp), (counts.get(dayKey(d.timestamp)) ?? 0) + 1);
+    for (const d of deployments)
+      counts.set(dayKey(d.timestamp), (counts.get(dayKey(d.timestamp)) ?? 0) + 1);
     const days: Array<{ day: string; count: number }> = [];
     for (let i = 29; i >= 0; i--) {
       const dt = new Date();
@@ -71,7 +81,8 @@ export function DevStationAnalytics() {
 
     // Top deployers.
     const dep = new Map<string, number>();
-    for (const d of deployments) dep.set(d.deployer.toLowerCase(), (dep.get(d.deployer.toLowerCase()) ?? 0) + 1);
+    for (const d of deployments)
+      dep.set(d.deployer.toLowerCase(), (dep.get(d.deployer.toLowerCase()) ?? 0) + 1);
     const deployers = [...dep.entries()]
       .map(([addr, count]) => ({ addr, count }))
       .sort((a, b) => b.count - a.count)
@@ -93,10 +104,10 @@ export function DevStationAnalytics() {
           <ChainLogo family={chain.name} size={40} className="mx-auto" />
           <h2 className="mt-3 font-mono text-sm font-bold text-foreground">{chain.name}</h2>
           <p className="mt-2 font-mono text-xs text-muted-foreground">
-            DevStation&apos;s on-chain <span className="text-foreground">ProjectRegistry</span> isn&apos;t
-            deployed on this network yet, so per-chain deploy analytics aren&apos;t available here.
-            Analytics are live on chains with the registry (QIE, BOT Chain). Switch networks, or
-            deploy a contract to start recording activity.
+            DevStation&apos;s on-chain <span className="text-foreground">ProjectRegistry</span>{" "}
+            isn&apos;t deployed on this network yet, so per-chain deploy analytics aren&apos;t
+            available here. Analytics are live on chains with the registry (QIE, BOT Chain). Switch
+            networks, or deploy a contract to start recording activity.
           </p>
           <Link
             to="/launchkit/templates"
@@ -135,10 +146,31 @@ export function DevStationAnalytics() {
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="#1f2933" vertical={false} />
-              <XAxis dataKey="day" tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }} axisLine={false} tickLine={false} interval={4} />
-              <YAxis width={28} allowDecimals={false} tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v} deploys`, ""]} />
-              <Area type="monotone" dataKey="count" stroke={AMBER} strokeWidth={2} fill="url(#depFill)" />
+              <XAxis
+                dataKey="day"
+                tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }}
+                axisLine={false}
+                tickLine={false}
+                interval={4}
+              />
+              <YAxis
+                width={28}
+                allowDecimals={false}
+                tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                formatter={(v: number) => [`${v} deploys`, ""]}
+              />
+              <Area
+                type="monotone"
+                dataKey="count"
+                stroke={AMBER}
+                strokeWidth={2}
+                fill="url(#depFill)"
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -152,10 +184,27 @@ export function DevStationAnalytics() {
               <Empty>No deployments yet</Empty>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={templates} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 8 }}>
+                <BarChart
+                  data={templates}
+                  layout="vertical"
+                  margin={{ top: 4, right: 16, bottom: 0, left: 8 }}
+                >
                   <CartesianGrid stroke="#1f2933" horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="name" width={90} tick={{ fill: "#9ca3af", fontSize: 10, fontFamily: "monospace" }} axisLine={false} tickLine={false} />
+                  <XAxis
+                    type="number"
+                    allowDecimals={false}
+                    tick={{ fill: "#6b7280", fontSize: 10, fontFamily: "monospace" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={90}
+                    tick={{ fill: "#9ca3af", fontSize: 10, fontFamily: "monospace" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#ffffff08" }} />
                   <Bar dataKey="count" radius={[0, 3, 3, 0]}>
                     {templates.map((_, i) => (
@@ -173,13 +222,21 @@ export function DevStationAnalytics() {
           <div className="max-h-64 overflow-y-auto">
             {deployers.length === 0 && <Empty>No deployers yet</Empty>}
             {deployers.map((d, i) => (
-              <div key={d.addr} className="flex items-center gap-3 border-b border-border px-4 py-2 font-mono text-xs last:border-0">
+              <div
+                key={d.addr}
+                className="flex items-center gap-3 border-b border-border px-4 py-2 font-mono text-xs last:border-0"
+              >
                 <span className="w-5 text-meta">#{i + 1}</span>
                 <span
                   className="inline-block h-2 w-2 rounded-full"
                   style={{ background: CATEGORICAL[i % CATEGORICAL.length] }}
                 />
-                <a href={`${explorerUrl}/address/${d.addr}`} target="_blank" rel="noreferrer" className="truncate text-primary hover:underline">
+                <a
+                  href={`${explorerUrl}/address/${d.addr}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="truncate text-primary hover:underline"
+                >
                   {truncateAddress(d.addr, 8, 6)}
                 </a>
                 <span className="ml-auto text-foreground">{d.count}</span>
@@ -208,7 +265,9 @@ export function DevStationAnalytics() {
               <span className="block truncate text-foreground">{d.projectName || "Untitled"}</span>
               <span className="block truncate text-meta">{d.templateId}</span>
             </span>
-            <span className="hidden text-right text-primary sm:block">{truncateAddress(d.deployer, 6, 4)}</span>
+            <span className="hidden text-right text-primary sm:block">
+              {truncateAddress(d.deployer, 6, 4)}
+            </span>
             <span className="inline-flex items-center gap-1 text-right text-meta">
               {d.timestamp ? new Date(d.timestamp * 1000).toLocaleDateString() : "—"}
               <ExternalLink className="h-3 w-3" />
@@ -219,7 +278,8 @@ export function DevStationAnalytics() {
       </Card>
 
       <p className="flex items-center gap-1.5 font-mono text-[10px] text-meta">
-        <Info className="h-3 w-3" /> Sourced live from DevStation&apos;s on-chain ProjectRegistry on {chain.name}.
+        <Info className="h-3 w-3" /> Sourced live from DevStation&apos;s on-chain ProjectRegistry on{" "}
+        {chain.name}.
       </p>
     </div>
   );
@@ -244,7 +304,15 @@ function Kpi({ icon: Icon, label, value }: { icon: typeof Package; label: string
   );
 }
 
-function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Card({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded border border-border bg-surface">
       <div className="flex items-baseline justify-between border-b border-border px-4 py-2">
@@ -257,5 +325,9 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="flex h-full items-center justify-center py-6 font-mono text-xs text-meta">{children}</div>;
+  return (
+    <div className="flex h-full items-center justify-center py-6 font-mono text-xs text-meta">
+      {children}
+    </div>
+  );
 }

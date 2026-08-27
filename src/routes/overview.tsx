@@ -22,7 +22,7 @@ export const Route = createFileRoute("/overview")({
       { title: "DevStation — Overview" },
       {
         name: "description",
-        content: "Your multichain builder console: deployments, network status, and quick tools.",
+        content: "Your QIE builder console: deployments, network status, and quick tools.",
       },
     ],
   }),
@@ -63,7 +63,7 @@ function Overview() {
       <PageHeader
         breadcrumb={["DevStation", "Overview"]}
         title="Overview"
-        subtitle="Your multichain builder console: deployments, network status, and quick tools."
+        subtitle="Your QIE builder console: deployments, network status, and quick tools."
       />
 
       <div className="space-y-6 p-6">

@@ -9,8 +9,8 @@
 // Usage:
 //   bun run scripts/compile.ts                       (if not already compiled)
 //   bun run scripts/verify.ts <family> <testnet|mainnet>
-//     e.g. bun run scripts/verify.ts bot mainnet
-//          bun run scripts/verify.ts qie mainnet
+//     e.g. bun run scripts/verify.ts qie mainnet
+//          bun run scripts/verify.ts bot mainnet
 
 import solc from "solc";
 import { encodeAbiParameters, type Abi } from "viem";
@@ -56,71 +56,6 @@ const CHAINS: Record<string, Partial<Record<NetworkKey, ChainDef>>> = {
       rpc: process.env.VITE_BOT_MAINNET_RPC || "https://rpc.botchain.ai",
       explorer: process.env.VITE_BOT_MAINNET_EXPLORER || "https://scan.botchain.ai",
       envSuffix: "BOT_MAINNET",
-    },
-  },
-  xlayer: {
-    testnet: {
-      id: Number(process.env.VITE_XLAYER_TESTNET_CHAIN_ID || 1952),
-      rpc: process.env.VITE_XLAYER_TESTNET_RPC || "https://testrpc.xlayer.tech/terigon",
-      explorer: process.env.VITE_XLAYER_TESTNET_EXPLORER || "https://www.oklink.com/xlayer-testnet",
-      envSuffix: "XLAYER_TESTNET",
-    },
-    mainnet: {
-      id: Number(process.env.VITE_XLAYER_MAINNET_CHAIN_ID || 196),
-      rpc: process.env.VITE_XLAYER_MAINNET_RPC || "https://rpc.xlayer.tech",
-      explorer: process.env.VITE_XLAYER_MAINNET_EXPLORER || "https://www.oklink.com/xlayer",
-      envSuffix: "XLAYER_MAINNET",
-    },
-  },
-  arc: {
-    testnet: {
-      id: Number(process.env.VITE_ARC_TESTNET_CHAIN_ID || 5042002),
-      rpc: process.env.VITE_ARC_TESTNET_RPC || "https://rpc.testnet.arc.network",
-      explorer: process.env.VITE_ARC_TESTNET_EXPLORER || "https://testnet.arcscan.app",
-      envSuffix: "ARC_TESTNET",
-    },
-  },
-  avalanche: {
-    testnet: {
-      id: Number(process.env.VITE_AVALANCHE_TESTNET_CHAIN_ID || 43113),
-      rpc: process.env.VITE_AVALANCHE_TESTNET_RPC || "https://api.avax-test.network/ext/bc/C/rpc",
-      explorer: process.env.VITE_AVALANCHE_TESTNET_EXPLORER || "https://testnet.snowtrace.io",
-      envSuffix: "AVALANCHE_TESTNET",
-    },
-    mainnet: {
-      id: Number(process.env.VITE_AVALANCHE_MAINNET_CHAIN_ID || 43114),
-      rpc: process.env.VITE_AVALANCHE_MAINNET_RPC || "https://api.avax.network/ext/bc/C/rpc",
-      explorer: process.env.VITE_AVALANCHE_MAINNET_EXPLORER || "https://snowtrace.io",
-      envSuffix: "AVALANCHE_MAINNET",
-    },
-  },
-  goat: {
-    testnet: {
-      id: Number(process.env.VITE_GOAT_TESTNET_CHAIN_ID || 48816),
-      rpc: process.env.VITE_GOAT_TESTNET_RPC || "https://rpc.testnet3.goat.network",
-      explorer: process.env.VITE_GOAT_TESTNET_EXPLORER || "https://explorer.testnet3.goat.network",
-      envSuffix: "GOAT_TESTNET",
-    },
-    mainnet: {
-      id: Number(process.env.VITE_GOAT_MAINNET_CHAIN_ID || 2345),
-      rpc: process.env.VITE_GOAT_MAINNET_RPC || "https://rpc.goat.network",
-      explorer: process.env.VITE_GOAT_MAINNET_EXPLORER || "https://explorer.goat.network",
-      envSuffix: "GOAT_MAINNET",
-    },
-  },
-  arbitrum: {
-    testnet: {
-      id: Number(process.env.VITE_ARBITRUM_TESTNET_CHAIN_ID || 421614),
-      rpc: process.env.VITE_ARBITRUM_TESTNET_RPC || "https://sepolia-rollup.arbitrum.io/rpc",
-      explorer:
-        process.env.VITE_ARBITRUM_TESTNET_EXPLORER || "https://arbitrum-sepolia.blockscout.com",
-      envSuffix: "ARBITRUM_TESTNET",
-    },
-    mainnet: {
-      id: Number(process.env.VITE_ARBITRUM_MAINNET_CHAIN_ID || 42161),
-      rpc: process.env.VITE_ARBITRUM_MAINNET_RPC || "https://arb1.arbitrum.io/rpc",
-      explorer: process.env.VITE_ARBITRUM_MAINNET_EXPLORER || "https://arbitrum.blockscout.com",
-      envSuffix: "ARBITRUM_MAINNET",
     },
   },
 };

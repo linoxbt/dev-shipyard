@@ -27,6 +27,7 @@ The script and the screen recording are separate; a video editor marries them.
 ## Script
 
 ### 0:00–0:12 — Landing (`/`)
+
 - **ON SCREEN:** Open https://devstation.online. Slow scroll the hero, pause on
   the feature grid.
 - **VOICEOVER:** "This is DevStation. The complete developer console for the QIE
@@ -34,6 +35,7 @@ The script and the screen recording are separate; a video editor marries them.
   onchain. Let me show you around."
 
 ### 0:12–0:24 — Overview (`/overview`)
+
 - **ON SCREEN:** Enter the app. Pan across the ecosystem stat cards and live
   feeds.
 - **VOICEOVER:** "The Overview is your home base. Live ecosystem stats, total
@@ -41,6 +43,7 @@ The script and the screen recording are separate; a video editor marries them.
   chain."
 
 ### 0:24–0:40 — LaunchKit Templates (`/launchkit/templates`)
+
 - **ON SCREEN:** Open Templates. Hover the gallery. Open ERC-20, scroll the
   source and ABI tabs.
 - **VOICEOVER:** "LaunchKit Templates are audited, ready to ship. ERC-20, NFT,
@@ -48,6 +51,7 @@ The script and the screen recording are separate; a video editor marries them.
   deploy count, with full source and ABI before you commit."
 
 ### 0:40–0:52 — Deploy flow (`/launchkit/deploy`)
+
 - **ON SCREEN:** Click Deploy. Show the guided constructor form, fill a field,
   point at the compile-then-deploy steps.
 - **VOICEOVER:** "Deploying is a guided flow. DevStation encodes your constructor
@@ -55,6 +59,7 @@ The script and the screen recording are separate; a video editor marries them.
   records it onchain."
 
 ### 0:52–1:08 — Contract Editor (`/launchkit/editor`)
+
 - **ON SCREEN:** Open the Editor. Type in the Monaco editor, run a compile, show
   the terminal output, then type `help` in the terminal.
 - **VOICEOVER:** "Prefer to write it yourself? The Contract Editor is a full
@@ -63,6 +68,7 @@ The script and the screen recording are separate; a video editor marries them.
   no setup."
 
 ### 1:08–1:32 — Code with AI (`/launchkit/ai`) — hero feature, give it room
+
 - **ON SCREEN:** Open Code with AI. In Chat, show a generated contract with the
   "editor" button. Switch to the Agent tab. Type "Create an ERC-20 with
   1,000,000,000 supply and deploy it." Show the steps (generating, compiling,
@@ -75,12 +81,14 @@ The script and the screen recording are separate; a video editor marries them.
   From a sentence to a live contract, without leaving the page."
 
 ### 1:32–1:42 — My Projects (`/launchkit/projects`)
+
 - **ON SCREEN:** Open Projects. Show the deployed contract list scoped to the
   wallet.
 - **VOICEOVER:** "Everything you deploy lands in My Projects, your personal
   onchain deployment history, read from the registry."
 
 ### 1:42–2:04 — Inspect + Labels (`/routebook`, `/routebook/labels`)
+
 - **ON SCREEN:** Open Routebook. Click a demo transaction. Show the decoded route
   graph, token movements, decoded method and arguments. Then open the Label
   Registry.
@@ -90,6 +98,7 @@ The script and the screen recording are separate; a video editor marries them.
   Label Registry, human-readable contract labels, stored onchain for everyone."
 
 ### 2:04–2:30 — QIE Explorer (`/explorer/testnet`)
+
 - **ON SCREEN:** Open the Explorer dashboard. Show price, gas, live feeds. Click
   a transaction, then an address, then a token page with holders.
 - **VOICEOVER:** "DevStation also ships a native QIE block explorer. Live price,
@@ -98,17 +107,20 @@ The script and the screen recording are separate; a video editor marries them.
   labeled, reading the live chain."
 
 ### 2:30–2:40 — Activity (`/activity`)
+
 - **ON SCREEN:** Open Activity. Show the ecosystem-wide deployment feed.
 - **VOICEOVER:** "Activity shows every contract deployed through DevStation
   across the ecosystem, recorded onchain in the Project Registry."
 
 ### 2:40–2:52 — Docs, Wallet, Settings (`/docs`, wallet panel, `/settings`)
+
 - **ON SCREEN:** Open Docs index briefly. Open the wallet panel. Open Settings.
 - **VOICEOVER:** "It is all documented in a built-in guide. Connect an injected
   wallet or generate an encrypted in-app one, and tune your AI provider and
   network in Settings."
 
 ### 2:52–3:00 — Close (`/`)
+
 - **ON SCREEN:** Return to the landing page. End card with logo and URL.
 - **VOICEOVER:** "DevStation. Build, deploy, and understand contracts on QIE. Try
   it now at devstation dot online."

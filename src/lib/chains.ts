@@ -34,7 +34,7 @@ export const qieMainnet = defineChain({
 });
 
 // BOT Chain (docs.botchain.ai / dev-docs.botchain.ai). Second chain family
-// added alongside QIE — same shape as the QIE config above, purely additive.
+// alongside QIE — same shape as the QIE config above.
 const BOT_TESTNET_RPC = import.meta.env.VITE_BOT_TESTNET_RPC || "https://rpc.bohr.life";
 const BOT_TESTNET_EXPLORER = import.meta.env.VITE_BOT_TESTNET_EXPLORER || "https://scan.bohr.life";
 const BOT_TESTNET_CHAIN_ID = Number(import.meta.env.VITE_BOT_TESTNET_CHAIN_ID || 968);
@@ -66,178 +66,12 @@ export const botMainnet = defineChain({
   testnet: false,
 });
 
-// X Layer (OKX's L2, docs at web3.okx.com/xlayer/docs). Runs OKLink as its
-// explorer, not Blockscout — see CHAIN_CONFIG below and network.ts for what
-// that means for internal explorer support.
-const XLAYER_TESTNET_RPC =
-  import.meta.env.VITE_XLAYER_TESTNET_RPC || "https://testrpc.xlayer.tech/terigon";
-const XLAYER_TESTNET_EXPLORER =
-  import.meta.env.VITE_XLAYER_TESTNET_EXPLORER || "https://www.oklink.com/xlayer-testnet";
-const XLAYER_TESTNET_CHAIN_ID = Number(import.meta.env.VITE_XLAYER_TESTNET_CHAIN_ID || 1952);
+// DevStation is a QIE-first console: QIE leads, BOT Chain is also supported.
+// Both run Blockscout, so the explorer, registries and verification work the
+// same way on each.
+export const SUPPORTED_CHAINS = [qieTestnet, qieMainnet, botTestnet, botMainnet] as const;
 
-const XLAYER_MAINNET_RPC = import.meta.env.VITE_XLAYER_MAINNET_RPC || "https://rpc.xlayer.tech";
-const XLAYER_MAINNET_EXPLORER =
-  import.meta.env.VITE_XLAYER_MAINNET_EXPLORER || "https://www.oklink.com/xlayer";
-const XLAYER_MAINNET_CHAIN_ID = Number(import.meta.env.VITE_XLAYER_MAINNET_CHAIN_ID || 196);
-
-export const xlayerTestnet = defineChain({
-  id: XLAYER_TESTNET_CHAIN_ID,
-  name: "X Layer Testnet",
-  nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
-  rpcUrls: { default: { http: [XLAYER_TESTNET_RPC] } },
-  blockExplorers: { default: { name: "OKLink", url: XLAYER_TESTNET_EXPLORER } },
-  testnet: true,
-});
-
-export const xlayerMainnet = defineChain({
-  id: XLAYER_MAINNET_CHAIN_ID,
-  name: "X Layer Mainnet",
-  nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
-  rpcUrls: { default: { http: [XLAYER_MAINNET_RPC] } },
-  blockExplorers: { default: { name: "OKLink", url: XLAYER_MAINNET_EXPLORER } },
-  testnet: false,
-});
-
-// Arc (Circle's stablecoin-native L1, docs.arc.io). Testnet only — no
-// mainnet exists yet. Runs Blockscout (ArcScan).
-const ARC_TESTNET_RPC = import.meta.env.VITE_ARC_TESTNET_RPC || "https://rpc.testnet.arc.network";
-const ARC_TESTNET_EXPLORER =
-  import.meta.env.VITE_ARC_TESTNET_EXPLORER || "https://testnet.arcscan.app";
-const ARC_TESTNET_CHAIN_ID = Number(import.meta.env.VITE_ARC_TESTNET_CHAIN_ID || 5042002);
-
-export const arcTestnet = defineChain({
-  id: ARC_TESTNET_CHAIN_ID,
-  name: "Arc Testnet",
-  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
-  rpcUrls: { default: { http: [ARC_TESTNET_RPC] } },
-  blockExplorers: { default: { name: "ArcScan", url: ARC_TESTNET_EXPLORER } },
-  testnet: true,
-});
-
-// Avalanche (avax.network). Runs Snowtrace/Routescan as its explorer, not
-// Blockscout — see CHAIN_CONFIG below and network.ts for what that means.
-// Testnet RPC default is publicnode's mirror, not Avalanche's own
-// api.avax-test.network — the official endpoint sits behind Cloudflare bot
-// protection that 403s server-side requests (confirmed: every RPC call from
-// this app's server functions, e.g. eth_getTransactionByHash, got a
-// Cloudflare "Attention Required" HTML page instead of JSON). publicnode's
-// mirror serves the same live Fuji testnet data without that block.
-const AVALANCHE_TESTNET_RPC =
-  import.meta.env.VITE_AVALANCHE_TESTNET_RPC || "https://avalanche-fuji-c-chain-rpc.publicnode.com";
-const AVALANCHE_TESTNET_EXPLORER =
-  import.meta.env.VITE_AVALANCHE_TESTNET_EXPLORER || "https://testnet.snowtrace.io";
-const AVALANCHE_TESTNET_CHAIN_ID = Number(import.meta.env.VITE_AVALANCHE_TESTNET_CHAIN_ID || 43113);
-
-const AVALANCHE_MAINNET_RPC =
-  import.meta.env.VITE_AVALANCHE_MAINNET_RPC || "https://api.avax.network/ext/bc/C/rpc";
-const AVALANCHE_MAINNET_EXPLORER =
-  import.meta.env.VITE_AVALANCHE_MAINNET_EXPLORER || "https://snowtrace.io";
-const AVALANCHE_MAINNET_CHAIN_ID = Number(import.meta.env.VITE_AVALANCHE_MAINNET_CHAIN_ID || 43114);
-
-export const avalancheTestnet = defineChain({
-  id: AVALANCHE_TESTNET_CHAIN_ID,
-  name: "Avalanche Fuji Testnet",
-  nativeCurrency: { name: "AVAX", symbol: "AVAX", decimals: 18 },
-  rpcUrls: { default: { http: [AVALANCHE_TESTNET_RPC] } },
-  blockExplorers: { default: { name: "Snowtrace", url: AVALANCHE_TESTNET_EXPLORER } },
-  testnet: true,
-});
-
-export const avalancheMainnet = defineChain({
-  id: AVALANCHE_MAINNET_CHAIN_ID,
-  name: "Avalanche C-Chain",
-  nativeCurrency: { name: "AVAX", symbol: "AVAX", decimals: 18 },
-  rpcUrls: { default: { http: [AVALANCHE_MAINNET_RPC] } },
-  blockExplorers: { default: { name: "Snowtrace", url: AVALANCHE_MAINNET_EXPLORER } },
-  testnet: false,
-});
-
-// GOAT Network (Bitcoin L2, docs.goat.network). Gas token is BTC. Runs
-// Blockscout.
-const GOAT_TESTNET_RPC =
-  import.meta.env.VITE_GOAT_TESTNET_RPC || "https://rpc.testnet3.goat.network";
-const GOAT_TESTNET_EXPLORER =
-  import.meta.env.VITE_GOAT_TESTNET_EXPLORER || "https://explorer.testnet3.goat.network";
-const GOAT_TESTNET_CHAIN_ID = Number(import.meta.env.VITE_GOAT_TESTNET_CHAIN_ID || 48816);
-
-const GOAT_MAINNET_RPC = import.meta.env.VITE_GOAT_MAINNET_RPC || "https://rpc.goat.network";
-const GOAT_MAINNET_EXPLORER =
-  import.meta.env.VITE_GOAT_MAINNET_EXPLORER || "https://explorer.goat.network";
-const GOAT_MAINNET_CHAIN_ID = Number(import.meta.env.VITE_GOAT_MAINNET_CHAIN_ID || 2345);
-
-export const goatTestnet = defineChain({
-  id: GOAT_TESTNET_CHAIN_ID,
-  name: "GOAT Network Testnet3",
-  nativeCurrency: { name: "BTC", symbol: "BTC", decimals: 18 },
-  rpcUrls: { default: { http: [GOAT_TESTNET_RPC] } },
-  blockExplorers: { default: { name: "GOAT Explorer", url: GOAT_TESTNET_EXPLORER } },
-  testnet: true,
-});
-
-export const goatMainnet = defineChain({
-  id: GOAT_MAINNET_CHAIN_ID,
-  name: "GOAT Network",
-  nativeCurrency: { name: "BTC", symbol: "BTC", decimals: 18 },
-  rpcUrls: { default: { http: [GOAT_MAINNET_RPC] } },
-  blockExplorers: { default: { name: "GOAT Explorer", url: GOAT_MAINNET_EXPLORER } },
-  testnet: false,
-});
-
-// Arbitrum. Gas is paid in ETH (ARB is a separate governance-only token, not
-// used for gas). Official explorer is Arbiscan (Etherscan-family); we use
-// the community Blockscout mirror instead so DevStation's own explorer
-// dashboard works the same way it does for every other chain here.
-const ARBITRUM_TESTNET_RPC =
-  import.meta.env.VITE_ARBITRUM_TESTNET_RPC || "https://sepolia-rollup.arbitrum.io/rpc";
-const ARBITRUM_TESTNET_EXPLORER =
-  import.meta.env.VITE_ARBITRUM_TESTNET_EXPLORER || "https://arbitrum-sepolia.blockscout.com";
-const ARBITRUM_TESTNET_CHAIN_ID = Number(import.meta.env.VITE_ARBITRUM_TESTNET_CHAIN_ID || 421614);
-
-const ARBITRUM_MAINNET_RPC =
-  import.meta.env.VITE_ARBITRUM_MAINNET_RPC || "https://arb1.arbitrum.io/rpc";
-const ARBITRUM_MAINNET_EXPLORER =
-  import.meta.env.VITE_ARBITRUM_MAINNET_EXPLORER || "https://arbitrum.blockscout.com";
-const ARBITRUM_MAINNET_CHAIN_ID = Number(import.meta.env.VITE_ARBITRUM_MAINNET_CHAIN_ID || 42161);
-
-export const arbitrumTestnet = defineChain({
-  id: ARBITRUM_TESTNET_CHAIN_ID,
-  name: "Arbitrum Sepolia",
-  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-  rpcUrls: { default: { http: [ARBITRUM_TESTNET_RPC] } },
-  blockExplorers: { default: { name: "Blockscout", url: ARBITRUM_TESTNET_EXPLORER } },
-  testnet: true,
-});
-
-export const arbitrumMainnet = defineChain({
-  id: ARBITRUM_MAINNET_CHAIN_ID,
-  name: "Arbitrum One",
-  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-  rpcUrls: { default: { http: [ARBITRUM_MAINNET_RPC] } },
-  blockExplorers: { default: { name: "Blockscout", url: ARBITRUM_MAINNET_EXPLORER } },
-  testnet: false,
-});
-
-export const SUPPORTED_CHAINS = [
-  qieTestnet,
-  qieMainnet,
-  botTestnet,
-  botMainnet,
-  // xlayerTestnet, xlayerMainnet — temporarily disabled. X Layer's explorer
-  // (OKLink) needs a registered API key DevStation doesn't have yet, so it
-  // only ever got the minimal RPC-only explorer page; commented out here
-  // (not deleted) until that key is available. Re-enable by uncommenting
-  // these two plus the matching entries in explorer/network.ts.
-  arcTestnet,
-  // avalancheTestnet, avalancheMainnet — temporarily disabled. Commented out
-  // here (not deleted); re-enable by uncommenting these two plus the
-  // matching entries in explorer/network.ts.
-  goatTestnet,
-  goatMainnet,
-  // arbitrumTestnet, arbitrumMainnet — temporarily disabled. Commented out
-  // here (not deleted); re-enable by uncommenting these two plus the
-  // matching entries in explorer/network.ts.
-] as const;
-export const DEFAULT_CHAIN = botMainnet;
+export const DEFAULT_CHAIN = qieMainnet;
 
 export const CHAIN_CONFIG = {
   [qieTestnet.id]: {
@@ -268,73 +102,10 @@ export const CHAIN_CONFIG = {
     faucetUrl: null,
     name: "BOT Chain Mainnet",
   },
-  [xlayerTestnet.id]: {
-    rpcUrl: XLAYER_TESTNET_RPC,
-    explorerUrl: XLAYER_TESTNET_EXPLORER,
-    explorerApiUrl: `${XLAYER_TESTNET_EXPLORER}/api`,
-    faucetUrl: "https://web3.okx.com/xlayer/faucet",
-    name: "X Layer Testnet",
-  },
-  [xlayerMainnet.id]: {
-    rpcUrl: XLAYER_MAINNET_RPC,
-    explorerUrl: XLAYER_MAINNET_EXPLORER,
-    explorerApiUrl: `${XLAYER_MAINNET_EXPLORER}/api`,
-    faucetUrl: null,
-    name: "X Layer Mainnet",
-  },
-  [arcTestnet.id]: {
-    rpcUrl: ARC_TESTNET_RPC,
-    explorerUrl: ARC_TESTNET_EXPLORER,
-    explorerApiUrl: `${ARC_TESTNET_EXPLORER}/api`,
-    faucetUrl: "https://faucet.circle.com",
-    name: "Arc Testnet",
-  },
-  [avalancheTestnet.id]: {
-    rpcUrl: AVALANCHE_TESTNET_RPC,
-    explorerUrl: AVALANCHE_TESTNET_EXPLORER,
-    explorerApiUrl: `${AVALANCHE_TESTNET_EXPLORER}/api`,
-    faucetUrl: "https://core.app/tools/testnet-faucet/?subnet=c&token=c",
-    name: "Avalanche Fuji Testnet",
-  },
-  [avalancheMainnet.id]: {
-    rpcUrl: AVALANCHE_MAINNET_RPC,
-    explorerUrl: AVALANCHE_MAINNET_EXPLORER,
-    explorerApiUrl: `${AVALANCHE_MAINNET_EXPLORER}/api`,
-    faucetUrl: null,
-    name: "Avalanche C-Chain",
-  },
-  [goatTestnet.id]: {
-    rpcUrl: GOAT_TESTNET_RPC,
-    explorerUrl: GOAT_TESTNET_EXPLORER,
-    explorerApiUrl: `${GOAT_TESTNET_EXPLORER}/api`,
-    faucetUrl: null,
-    name: "GOAT Network Testnet3",
-  },
-  [goatMainnet.id]: {
-    rpcUrl: GOAT_MAINNET_RPC,
-    explorerUrl: GOAT_MAINNET_EXPLORER,
-    explorerApiUrl: `${GOAT_MAINNET_EXPLORER}/api`,
-    faucetUrl: null,
-    name: "GOAT Network",
-  },
-  [arbitrumTestnet.id]: {
-    rpcUrl: ARBITRUM_TESTNET_RPC,
-    explorerUrl: ARBITRUM_TESTNET_EXPLORER,
-    explorerApiUrl: `${ARBITRUM_TESTNET_EXPLORER}/api`,
-    faucetUrl: null,
-    name: "Arbitrum Sepolia",
-  },
-  [arbitrumMainnet.id]: {
-    rpcUrl: ARBITRUM_MAINNET_RPC,
-    explorerUrl: ARBITRUM_MAINNET_EXPLORER,
-    explorerApiUrl: `${ARBITRUM_MAINNET_EXPLORER}/api`,
-    faucetUrl: null,
-    name: "Arbitrum One",
-  },
 } as const;
 
 export function chainConfig(chainId: number) {
-  return CHAIN_CONFIG[chainId as keyof typeof CHAIN_CONFIG] ?? CHAIN_CONFIG[qieTestnet.id];
+  return CHAIN_CONFIG[chainId as keyof typeof CHAIN_CONFIG] ?? CHAIN_CONFIG[qieMainnet.id];
 }
 
 // Fallback gas price (Gwei) shown before the live RPC value arrives.

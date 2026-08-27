@@ -13,26 +13,24 @@ function Introduction() {
   return (
     <DocPage
       title="Introduction"
-      intro="DevStation is one developer console for every network you build on. Deploy from audited templates, write and compile contracts in the browser, decode any transaction, and explore the chain — without installing a local toolchain."
+      intro="DevStation is the developer console for QIE. Deploy from audited templates, write and compile Solidity in the browser, decode any transaction, and explore the chain — without installing a local toolchain."
     >
       <P>
-        Most tooling assumes a single chain, and usually a single virtual machine. DevStation does
-        not. The same surfaces — templates, editor, AI, deploy, explorer — adapt to whichever network
-        you select, in that network&apos;s own language and with its own wallet, while everything
-        that should feel identical everywhere stays identical.
+        Everything a QIE developer needs sits in one place: audited templates, a real in-browser
+        Solidity compiler, an AI contract author, a transaction decoder, and a native block
+        explorer. Nothing to install, and nothing that only works on someone else&apos;s machine.
       </P>
       <P>
-        Pick a network once and the whole console follows it: the editor switches language and
-        compiler, the templates change to that ecosystem&apos;s standards, the deploy flow uses the
-        right signing path, and the explorer and analytics point at the right data source. You never
-        assemble a per-chain toolchain, and you never learn a second UI.
+        Pick a network once — QIE Testnet or Mainnet, or BOT Chain — and the whole console follows
+        it: templates, the deploy flow, the explorer, and analytics all point at that network. The
+        selected network is authoritative for every read and write.
       </P>
       <P>The console is organised into two products and a set of shared tools:</P>
       <CardGrid>
         <FeatureCard
           icon={Rocket}
           title="LaunchKit"
-          body="Deploy audited templates, write contracts in the in-browser editor with real compilation, and generate them with AI — on any supported network."
+          body="Deploy audited templates, write contracts in the in-browser editor with real compilation, and generate them with AI."
           to="/launchkit/templates"
         />
         <FeatureCard

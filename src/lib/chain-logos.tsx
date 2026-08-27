@@ -1,7 +1,7 @@
 // Per-chain logos for the explorer header (and anywhere a chain mark is shown).
 //
 // Keyed by the chain family's *label* — the same string the explorer header
-// already renders (e.g. "QIE", "BOT Chain", "Arc", "GOAT Network", "Solana").
+// already renders (e.g. "QIE", "BOT Chain").
 // Assets live in public/chains/*.svg; drop official brand files there to
 // upgrade the look — the mapping and fallback stay the same. Any chain without
 // a mapped asset (or whose image fails to load) renders a colored monogram
@@ -18,18 +18,14 @@ interface LogoMeta {
 }
 
 // Match against the family label. Keys are lowercased and matched by prefix so
-// "BOT Chain" and "GOAT Network" resolve without exact-string coupling.
+// "BOT Chain" resolves without exact-string coupling.
 const LOGOS: Array<{ match: string; meta: LogoMeta }> = [
-  // EVM (chain-family chooser) uses the Ethereum mark.
-  { match: "evm", meta: { src: "/chains/ethereum.svg", color: "#627EEA" } },
-  { match: "ethereum", meta: { src: "/chains/ethereum.svg", color: "#627EEA" } },
-  { match: "solana", meta: { src: "/chains/solana.svg", color: "#9945FF" } },
-  { match: "stacks", meta: { src: "/chains/stacks.svg", color: "#5546FF" } },
   // Real per-chain brand logos (fetched into public/chains/).
   { match: "qie", meta: { src: "/chains/qie.png", color: "#0A66FF" } },
   { match: "bot", meta: { src: "/chains/bot.png", color: "#111827" } },
-  { match: "arc", meta: { src: "/chains/arc.png", color: "#2775CA" } },
-  { match: "goat", meta: { src: "/chains/goat.png", color: "#F7931A" } },
+  // Generic EVM mark, for anywhere a non-family-specific chain badge is shown.
+  { match: "evm", meta: { src: "/chains/ethereum.svg", color: "#627EEA" } },
+  { match: "ethereum", meta: { src: "/chains/ethereum.svg", color: "#627EEA" } },
 ];
 
 export function chainLogo(familyLabel: string): LogoMeta {

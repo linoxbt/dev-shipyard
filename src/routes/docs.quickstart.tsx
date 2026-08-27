@@ -39,7 +39,8 @@ function Quickstart() {
         ]}
       />
       <Callout>
-        Everything in the quickstart works the same on mainnet. Switch networks from the selector at the bottom of the sidebar before you deploy.
+        Everything in the quickstart works the same on mainnet. Switch networks from the selector at
+        the bottom of the sidebar before you deploy.
       </Callout>
       <P>
         From here, read about the networks DevStation supports, or jump straight into LaunchKit and

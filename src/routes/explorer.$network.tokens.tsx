@@ -6,22 +6,10 @@ import { Pager } from "@/components/explorer/lists";
 import { formatUnits, withCommas } from "@/lib/explorer/format";
 import type { ExToken } from "@/lib/explorer/types";
 
-import { isSolanaSlug } from "@/lib/chain-family";
-import { SolanaTokens } from "@/components/solana/explorer/SolanaTokens";
-import { isStacksNetwork } from "@/lib/stacks/chains";
-import { StacksTokens } from "@/components/stacks/explorer/StacksTokens";
-
 export const Route = createFileRoute("/explorer/$network/tokens")({
   head: () => ({ meta: [{ title: "Tokens - Explorer" }] }),
-  component: TokensRoute,
+  component: TokensPage,
 });
-
-function TokensRoute() {
-  const { network } = Route.useParams();
-  if (isSolanaSlug(network)) return <SolanaTokens cluster={network} />;
-  if (isStacksNetwork(network)) return <StacksTokens network={network} />;
-  return <TokensPage />;
-}
 
 function TokensPage() {
   const [stack, setStack] = useState<Array<Record<string, unknown> | null>>([null]);

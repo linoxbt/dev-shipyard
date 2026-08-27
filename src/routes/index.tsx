@@ -23,20 +23,17 @@ import { DEFAULT_CHAIN } from "@/lib/chains";
 import { formatGas } from "@/lib/format-gas";
 import { withCommas } from "@/lib/explorer/format";
 import { EXPLORER_CHAIN_FAMILIES } from "@/lib/explorer/network";
-// Non-EVM chain families the console also supports, counted alongside the EVM
-// ones so the "Networks" stat reflects the whole console, not just EVM.
-import { NON_EVM_FAMILY_COUNT } from "@/lib/chain-families";
 import { TEMPLATES } from "@/lib/mock/templates";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "DevStation — The multichain developer console" },
+      { title: "DevStation — The QIE developer console" },
       {
         name: "description",
         content:
-          "Deploy contracts from audited templates, write and compile in the browser, decode any transaction, and explore the chain. One developer console for every network you build on.",
+          "The developer console for QIE. Deploy contracts from audited templates, write and compile Solidity in the browser, decode any transaction, and explore the chain — no local toolchain required.",
       },
     ],
   }),
@@ -148,7 +145,7 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] text-meta">
           <Terminal className="h-3.5 w-3.5 text-primary" />
           <span className="text-primary">devstation</span>
-          <span>~ Multichain Builder Console</span>
+          <span>~ QIE Builder Console</span>
         </div>
 
         <h1 className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-5xl font-bold leading-tight sm:text-7xl">
@@ -172,9 +169,9 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
             tagline ? "animate-fade-up" : "opacity-0",
           )}
         >
-          One console for every network you build on. Write, compile, deploy, and inspect —
-          testnet or mainnet, whatever the virtual machine — without installing a single local
-          toolchain.
+          The complete developer console for QIE. Write, compile, deploy, and inspect — testnet or
+          mainnet — without installing a single local toolchain. BOT Chain is supported too, with
+          the same tools.
         </p>
 
         <div
@@ -204,9 +201,8 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
 /* ─────────────── Live stats ─────────────── */
 
 function StatsBand() {
-  // The app's actual default chain (BOT Chain mainnet) — not hardcoded to
-  // QIE, which used to show a stale gas price for a chain nobody actually
-  // lands on by default.
+  // The app's default chain (QIE mainnet) — read from DEFAULT_CHAIN rather
+  // than hardcoded, so this stat can't drift from what users actually land on.
   const { data: net } = useNetworkStatus(DEFAULT_CHAIN.id);
   // Universal across Testnet + Mainnet.
   const stats = useCombinedDeployStats();
@@ -224,10 +220,7 @@ function StatsBand() {
     // Distinct chain families, not a raw count of testnet+mainnet entries
     // (which would double-count and read misleadingly high). This is a live
     // count, so the landing copy stays correct as networks are added.
-    {
-      label: "Networks",
-      value: (EXPLORER_CHAIN_FAMILIES.length + NON_EVM_FAMILY_COUNT).toString(),
-    },
+    { label: "Networks", value: EXPLORER_CHAIN_FAMILIES.length.toString() },
     { label: "Gas", value: net?.status === "online" ? gas.text : "—" },
   ];
   return (
@@ -257,22 +250,22 @@ const FEATURES = [
   {
     icon: Search,
     title: "Routebook",
-    body: "Decode any transaction, on any supported chain, into a readable call tree: internal calls, decoded arguments, token transfers, events, and revert reasons.",
+    body: "Decode any QIE transaction into a readable call tree: internal calls, decoded arguments, token transfers, events, and revert reasons.",
   },
   {
     icon: Compass,
     title: "Explorer",
-    body: "A native, Etherscan-style block explorer for blocks, transactions, addresses, tokens, and holders — across every supported chain and network.",
+    body: "A native, Etherscan-style block explorer for QIE blocks, transactions, addresses, tokens, and holders — on both testnet and mainnet.",
   },
   {
     icon: Sparkles,
     title: "Code with AI",
-    body: "Describe a contract in plain language and get production-ready code back in the right language for the chain you're on. Bring your own key, or use the server proxy.",
+    body: "Describe a contract in plain language and get production-ready, audited Solidity back. Bring your own key, or use the built-in server proxy.",
   },
   {
     icon: ShieldCheck,
     title: "Onchain registries",
-    body: "Deployments are recorded in onchain registries where the network supports it, and contracts get human-readable names in the Label Registry.",
+    body: "Every deployment is recorded in an onchain ProjectRegistry on QIE, and contracts get human-readable names in the onchain Label Registry.",
   },
   {
     icon: Tags,
@@ -287,8 +280,8 @@ function Features() {
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
         <SectionHeading
           kicker="Everything in one console"
-          title="The complete multichain developer workflow"
-          subtitle="Write, deploy, inspect, and explore — all against live networks across 4 chains and counting, with the records that matter kept onchain."
+          title="The complete QIE developer workflow"
+          subtitle="Write, deploy, inspect, and explore — all against live QIE networks, with the records that matter kept onchain."
         />
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
@@ -318,7 +311,7 @@ function TemplatesShowcase() {
         <SectionHeading
           kicker="LaunchKit templates"
           title="Ship in 60 seconds"
-          subtitle="Self-contained, audited contracts. Configure the constructor, deploy to any supported chain, and get a verified onchain record."
+          subtitle="Self-contained, audited contracts. Configure the constructor, deploy to QIE, and get a verified onchain record."
         />
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {TEMPLATES.map((t) => (
@@ -360,7 +353,7 @@ const STEPS = [
   {
     n: 1,
     title: "Connect",
-    body: "Connect an existing wallet or generate one in-app — with a recovery phrase you keep — then pick any supported network.",
+    body: "Connect an existing wallet or generate one in-app — with a recovery phrase you keep — then pick QIE testnet or mainnet.",
   },
   {
     n: 2,
@@ -407,7 +400,7 @@ function CtaBand() {
     <section className="border-b border-border bg-surface">
       <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
         <h2 className="font-mono text-2xl font-bold text-foreground sm:text-3xl">
-          Start building — 4 chains and counting
+          Start building on QIE
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
           Free to use. You only pay network gas for what you deploy. No installs, no signup.
@@ -472,7 +465,7 @@ function Footer() {
             <Github className="h-4 w-4" />
           </a>
           <span className="font-mono text-[10px] text-meta">
-            DevStation — the multichain developer console
+            DevStation — the QIE developer console
           </span>
         </div>
       </div>

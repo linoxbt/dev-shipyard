@@ -10,9 +10,8 @@ import { chainConfig } from "@/lib/chains";
 // Flow: submitVerification() POSTs the source + compiler settings, then the
 // client polls getVerificationStatus() until the contract reports is_verified.
 
-// Resolve the exact compiler build name Blockscout (and Sourcify) expect
+// Resolve the exact compiler build name Blockscout expects
 // (e.g. "0.8.20" → "v0.8.20+commit.a1b79de6"). Cached per server instance.
-// Exported for reuse by sourcify.functions.ts, which needs the same lookup.
 let releasesCache: Record<string, string> | null = null;
 export async function longCompilerVersion(short: string): Promise<string> {
   if (!releasesCache) {

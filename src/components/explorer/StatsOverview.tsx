@@ -48,7 +48,7 @@ export function useStatsOverview(chainId: number) {
         : null;
   // Blockscout returns market_cap: "0" (i.e. "we don't have this") rather than
   // null when it has no real figure — treat 0 the same as missing. Chains
-  // with no Blockscout market_cap at all (e.g. Avalanche, via Routescan) fall
+  // with no Blockscout market_cap at all fall
   // back to CoinGecko's market cap the same way price does above.
   const marketCap = isTestnet
     ? null

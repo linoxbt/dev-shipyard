@@ -7,9 +7,7 @@
 //   2. Compile artifacts first:   bun run scripts/compile.ts
 //   3. Deploy to QIE testnet:     bun run scripts/deploy.ts            (default)
 //      Deploy to QIE mainnet:     bun run scripts/deploy.ts mainnet
-//      Deploy to any other chain: bun run scripts/deploy.ts <family> <testnet|mainnet>
-//        e.g. bot testnet, xlayer mainnet, arc testnet (arc has no mainnet
-//        yet), avalanche mainnet, goat testnet, arbitrum mainnet
+//      Deploy to BOT Chain:       bun run scripts/deploy.ts bot <testnet|mainnet>
 //
 // The script prints the deployed addresses AND the exact VITE_ env lines to
 // paste into .env.local. It also writes deployment-output.json (gitignored).
@@ -35,7 +33,6 @@ type ChainDef = {
   envSuffix: string;
 };
 
-// Families with no mainnet yet (Arc) simply omit that key.
 const CHAINS: Record<string, Partial<Record<NetworkKey, ChainDef>>> = {
   qie: {
     testnet: {
@@ -71,90 +68,6 @@ const CHAINS: Record<string, Partial<Record<NetworkKey, ChainDef>>> = {
       explorer: process.env.VITE_BOT_MAINNET_EXPLORER || "https://scan.botchain.ai",
       nativeSymbol: "BOT",
       envSuffix: "BOT_MAINNET",
-    },
-  },
-  xlayer: {
-    testnet: {
-      id: Number(process.env.VITE_XLAYER_TESTNET_CHAIN_ID || 1952),
-      name: "X Layer Testnet",
-      rpc: process.env.VITE_XLAYER_TESTNET_RPC || "https://testrpc.xlayer.tech/terigon",
-      explorer: process.env.VITE_XLAYER_TESTNET_EXPLORER || "https://www.oklink.com/xlayer-testnet",
-      nativeSymbol: "OKB",
-      envSuffix: "XLAYER_TESTNET",
-    },
-    mainnet: {
-      id: Number(process.env.VITE_XLAYER_MAINNET_CHAIN_ID || 196),
-      name: "X Layer Mainnet",
-      rpc: process.env.VITE_XLAYER_MAINNET_RPC || "https://rpc.xlayer.tech",
-      explorer: process.env.VITE_XLAYER_MAINNET_EXPLORER || "https://www.oklink.com/xlayer",
-      nativeSymbol: "OKB",
-      envSuffix: "XLAYER_MAINNET",
-    },
-  },
-  arc: {
-    testnet: {
-      id: Number(process.env.VITE_ARC_TESTNET_CHAIN_ID || 5042002),
-      name: "Arc Testnet",
-      rpc: process.env.VITE_ARC_TESTNET_RPC || "https://rpc.testnet.arc.network",
-      explorer: process.env.VITE_ARC_TESTNET_EXPLORER || "https://testnet.arcscan.app",
-      nativeSymbol: "USDC",
-      envSuffix: "ARC_TESTNET",
-    },
-    // No Arc mainnet yet.
-  },
-  avalanche: {
-    testnet: {
-      id: Number(process.env.VITE_AVALANCHE_TESTNET_CHAIN_ID || 43113),
-      name: "Avalanche Fuji Testnet",
-      rpc: process.env.VITE_AVALANCHE_TESTNET_RPC || "https://api.avax-test.network/ext/bc/C/rpc",
-      explorer: process.env.VITE_AVALANCHE_TESTNET_EXPLORER || "https://testnet.snowtrace.io",
-      nativeSymbol: "AVAX",
-      envSuffix: "AVALANCHE_TESTNET",
-    },
-    mainnet: {
-      id: Number(process.env.VITE_AVALANCHE_MAINNET_CHAIN_ID || 43114),
-      name: "Avalanche C-Chain",
-      rpc: process.env.VITE_AVALANCHE_MAINNET_RPC || "https://api.avax.network/ext/bc/C/rpc",
-      explorer: process.env.VITE_AVALANCHE_MAINNET_EXPLORER || "https://snowtrace.io",
-      nativeSymbol: "AVAX",
-      envSuffix: "AVALANCHE_MAINNET",
-    },
-  },
-  goat: {
-    testnet: {
-      id: Number(process.env.VITE_GOAT_TESTNET_CHAIN_ID || 48816),
-      name: "GOAT Network Testnet3",
-      rpc: process.env.VITE_GOAT_TESTNET_RPC || "https://rpc.testnet3.goat.network",
-      explorer: process.env.VITE_GOAT_TESTNET_EXPLORER || "https://explorer.testnet3.goat.network",
-      nativeSymbol: "BTC",
-      envSuffix: "GOAT_TESTNET",
-    },
-    mainnet: {
-      id: Number(process.env.VITE_GOAT_MAINNET_CHAIN_ID || 2345),
-      name: "GOAT Network",
-      rpc: process.env.VITE_GOAT_MAINNET_RPC || "https://rpc.goat.network",
-      explorer: process.env.VITE_GOAT_MAINNET_EXPLORER || "https://explorer.goat.network",
-      nativeSymbol: "BTC",
-      envSuffix: "GOAT_MAINNET",
-    },
-  },
-  arbitrum: {
-    testnet: {
-      id: Number(process.env.VITE_ARBITRUM_TESTNET_CHAIN_ID || 421614),
-      name: "Arbitrum Sepolia",
-      rpc: process.env.VITE_ARBITRUM_TESTNET_RPC || "https://sepolia-rollup.arbitrum.io/rpc",
-      explorer:
-        process.env.VITE_ARBITRUM_TESTNET_EXPLORER || "https://arbitrum-sepolia.blockscout.com",
-      nativeSymbol: "ETH",
-      envSuffix: "ARBITRUM_TESTNET",
-    },
-    mainnet: {
-      id: Number(process.env.VITE_ARBITRUM_MAINNET_CHAIN_ID || 42161),
-      name: "Arbitrum One",
-      rpc: process.env.VITE_ARBITRUM_MAINNET_RPC || "https://arb1.arbitrum.io/rpc",
-      explorer: process.env.VITE_ARBITRUM_MAINNET_EXPLORER || "https://arbitrum.blockscout.com",
-      nativeSymbol: "ETH",
-      envSuffix: "ARBITRUM_MAINNET",
     },
   },
 };

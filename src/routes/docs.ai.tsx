@@ -19,7 +19,10 @@ function CodeWithAI() {
       <H2>Chat mode</H2>
       <P>
         Describe what you want and the assistant writes production-grade Solidity, or paste an
-        existing contract and ask for a security review (findings are graded by severity). Every generated code block has an Open in Editor button that drops the source straight into the Contract Editor to compile and deploy. The assistant tailors its language and idioms to the network you have selected.
+        existing contract and ask for a security review (findings are graded by severity). Every
+        generated code block has an Open in Editor button that drops the source straight into the
+        Contract Editor to compile and deploy. The assistant tailors its language and idioms to the
+        network you have selected.
       </P>
 
       <H2>Agent mode</H2>

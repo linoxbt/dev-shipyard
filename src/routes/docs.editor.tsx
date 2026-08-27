@@ -17,7 +17,9 @@ function Editor() {
       intro="The Contract Editor writes and compiles contracts for the network you\u2019ve selected \u2014 Solidity via a real in-browser solc pipeline on EVM networks, and the right language and toolchain elsewhere. There is nothing to install."
     >
       <P>
-        On EVM networks, external imports such as OpenZeppelin are resolved from a CDN before compilation, so common libraries work out of the box. Other networks use their own standard libraries.
+        On EVM networks, external imports such as OpenZeppelin are resolved from a CDN before
+        compilation, so common libraries work out of the box. Other networks use their own standard
+        libraries.
       </P>
       <P>From the editor you can:</P>
       <Bullets

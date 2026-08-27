@@ -17,7 +17,11 @@ function ExplorerDocs() {
       intro="A native block explorer built into DevStation, covering every supported network. It reads the live chain and is scoped to the network in the URL, so a link always names its network."
     >
       <P>
-        Open it at a network slug like <code>/explorer/testnet</code>, <code>/explorer/bot-mainnet</code>, or <code>/explorer/solana-devnet</code> (the bare <code>/explorer</code> redirects to your selected network). A prominent Testnet/Mainnet badge in the header makes the active network unmistakable, and a dropdown switches between any network.
+        Open it at a network slug like <code>/explorer/mainnet</code>,{" "}
+        <code>/explorer/testnet</code>, or <code>/explorer/bot-mainnet</code> (the bare{" "}
+        <code>/explorer</code> redirects to your selected network). A prominent Testnet/Mainnet
+        badge in the header makes the active network unmistakable, and a dropdown switches between
+        any network.
       </P>
 
       <H2>Dashboard</H2>

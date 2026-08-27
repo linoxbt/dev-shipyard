@@ -20,8 +20,8 @@ import { getChainPriceHistory } from "@/lib/api/chain.functions";
 interface TxPoint {
   date: string;
   // Blockscout instances disagree on this field's name — QIE/BOT Chain send
-  // "transaction_count", Arc/GOAT Network/the Arbitrum community mirror send
-  // "transactions_count" (confirmed live against all of them). Read either.
+  // "transaction_count"; other Blockscout builds send "transactions_count".
+  // Read either.
   transaction_count?: number;
   transactions_count?: number;
 }
@@ -145,8 +145,8 @@ function PriceChart({ symbol = "QIE" }: { symbol?: string }) {
     .filter((p): p is { date: string; price: number } => p.price != null);
 
   // Some chains' own explorer has no price-chart history at all (no oracle
-  // configured — confirmed empty chart_data on BOT Chain/Arc/GOAT Network's
-  // Blockscout, and Avalanche has no Blockscout to ask). Fall back to
+  // configured — confirmed empty chart_data on BOT Chain's Blockscout).
+  // Fall back to
   // CoinGecko's own history wherever a coin id is known, same chains that
   // already get a live price/market-cap fallback in StatsOverview.
   const needsFallback = !isTestnet && data != null && explorerPoints.length === 0;

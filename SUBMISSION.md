@@ -7,12 +7,12 @@
 
 ## 1. Basic Info
 
-| Field | Value |
-|---|---|
-| **Team Name** | _[your team / handle]_ |
-| **Project Name** | DevStation |
+| Field                | Value                              |
+| -------------------- | ---------------------------------- |
+| **Team Name**        | _[your team / handle]_             |
+| **Project Name**     | DevStation                         |
 | **Project Category** | Developer Tooling / Infrastructure |
-| **Live App** | https://devstation.online |
+| **Live App**         | https://devstation.online          |
 
 ### Project Description
 
@@ -55,12 +55,12 @@ single browser tab.
 
 ## 2. Links
 
-| Field | Value |
-|---|---|
-| **Live App / Demo** | https://devstation.online |
-| **GitHub Repo** | https://github.com/linoxbt/dev-shipyard |
-| **Demo Video** | _[paste your video URL once recorded]_ |
-| **Docs** | https://devstation.online/docs |
+| Field               | Value                                   |
+| ------------------- | --------------------------------------- |
+| **Live App / Demo** | https://devstation.online               |
+| **GitHub Repo**     | https://github.com/linoxbt/dev-shipyard |
+| **Demo Video**      | _[paste your video URL once recorded]_  |
+| **Docs**            | https://devstation.online/docs          |
 
 ---
 

@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Stacks">
-  <rect x="2" y="2" width="60" height="60" rx="14" fill="#5546FF"/>
-  <path d="M22 24l10 12 10-12" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M22 40l10-12 10 12" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <line x1="16" y1="22" x2="48" y2="22" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/>
-  <line x1="16" y1="42" x2="48" y2="42" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/>
-</svg>

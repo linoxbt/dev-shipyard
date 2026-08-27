@@ -15,8 +15,6 @@ so far.
 - [Registry contract addresses](#registry-contract-addresses)
 - [Deploying registries to a new chain](#deploying-registries-to-a-new-chain)
 - [Sponsored deploys (QIE mainnet & BOT Chain mainnet)](#sponsored-deploys-qie-mainnet--bot-chain-mainnet)
-- [Avalanche and Arbitrum (temporarily disabled)](#avalanche-and-arbitrum-temporarily-disabled)
-- [X Layer (temporarily disabled)](#x-layer-temporarily-disabled)
 
 ---
 
@@ -78,26 +76,19 @@ pattern. Defaults match each chain's own docs (confirmed live via direct RPC
 calls when each chain was added), so these are only needed to override an
 endpoint. QIE's vars have no family infix for backward compatibility.
 
-| Chain | Network | RPC var | Explorer var | Chain ID var | Default chain ID |
-| --- | --- | --- | --- | --- | --- |
-| QIE | Testnet | `VITE_QIE_TESTNET_RPC` | `VITE_QIE_TESTNET_EXPLORER` | `VITE_QIE_TESTNET_CHAIN_ID` | `1983` |
-| QIE | Mainnet | `VITE_QIE_MAINNET_RPC` | `VITE_QIE_MAINNET_EXPLORER` | `VITE_QIE_MAINNET_CHAIN_ID` | `1990` |
-| BOT Chain | Testnet | `VITE_BOT_TESTNET_RPC` | `VITE_BOT_TESTNET_EXPLORER` | `VITE_BOT_TESTNET_CHAIN_ID` | `968` |
-| BOT Chain | Mainnet | `VITE_BOT_MAINNET_RPC` | `VITE_BOT_MAINNET_EXPLORER` | `VITE_BOT_MAINNET_CHAIN_ID` | `677` |
-| Arc | Testnet | `VITE_ARC_TESTNET_RPC` | `VITE_ARC_TESTNET_EXPLORER` | `VITE_ARC_TESTNET_CHAIN_ID` | `5042002` |
-| Avalanche | Testnet (Fuji) | `VITE_AVALANCHE_TESTNET_RPC` | `VITE_AVALANCHE_TESTNET_EXPLORER` | `VITE_AVALANCHE_TESTNET_CHAIN_ID` | `43113` |
-| Avalanche | Mainnet (C-Chain) | `VITE_AVALANCHE_MAINNET_RPC` | `VITE_AVALANCHE_MAINNET_EXPLORER` | `VITE_AVALANCHE_MAINNET_CHAIN_ID` | `43114` |
-| GOAT Network | Testnet (Testnet3) | `VITE_GOAT_TESTNET_RPC` | `VITE_GOAT_TESTNET_EXPLORER` | `VITE_GOAT_TESTNET_CHAIN_ID` | `48816` |
-| GOAT Network | Mainnet | `VITE_GOAT_MAINNET_RPC` | `VITE_GOAT_MAINNET_EXPLORER` | `VITE_GOAT_MAINNET_CHAIN_ID` | `2345` |
-| Arbitrum | Sepolia | `VITE_ARBITRUM_TESTNET_RPC` | `VITE_ARBITRUM_TESTNET_EXPLORER` | `VITE_ARBITRUM_TESTNET_CHAIN_ID` | `421614` |
-| Arbitrum | One (mainnet) | `VITE_ARBITRUM_MAINNET_RPC` | `VITE_ARBITRUM_MAINNET_EXPLORER` | `VITE_ARBITRUM_MAINNET_CHAIN_ID` | `42161` |
+| Chain     | Network | RPC var                | Explorer var                | Chain ID var                | Default chain ID |
+| --------- | ------- | ---------------------- | --------------------------- | --------------------------- | ---------------- |
+| QIE       | Testnet | `VITE_QIE_TESTNET_RPC` | `VITE_QIE_TESTNET_EXPLORER` | `VITE_QIE_TESTNET_CHAIN_ID` | `1983`           |
+| QIE       | Mainnet | `VITE_QIE_MAINNET_RPC` | `VITE_QIE_MAINNET_EXPLORER` | `VITE_QIE_MAINNET_CHAIN_ID` | `1990`           |
+| BOT Chain | Testnet | `VITE_BOT_TESTNET_RPC` | `VITE_BOT_TESTNET_EXPLORER` | `VITE_BOT_TESTNET_CHAIN_ID` | `968`            |
+| BOT Chain | Mainnet | `VITE_BOT_MAINNET_RPC` | `VITE_BOT_MAINNET_EXPLORER` | `VITE_BOT_MAINNET_CHAIN_ID` | `677`            |
 
 Extras:
 
-| Variable | Purpose |
-| --- | --- |
-| `VITE_QIE_DEX_URL` | "Get QIE for gas" link (default `https://www.swap.dex.qie.digital/swap`) |
-| `VITE_BOT_DEX_URL` | "Get BOT for gas" link (default `https://dex.botchain.ai/#/swap`) |
+| Variable             | Purpose                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------ |
+| `VITE_QIE_DEX_URL`   | "Get QIE for gas" link (default `https://www.swap.dex.qie.digital/swap`)                   |
+| `VITE_BOT_DEX_URL`   | "Get BOT for gas" link (default `https://dex.botchain.ai/#/swap`)                          |
 | `VITE_QUSDC_ADDRESS` | QUSDC (QIE stablecoin) token address; when set, the wallet shows a read-only QUSDC balance |
 
 ### Explorer availability per chain
@@ -105,16 +96,12 @@ Extras:
 DevStation's built-in Explorer reads a chain's own Blockscout v2 API. Every
 currently-active chain runs Blockscout:
 
-| Chain | Explorer backend | DevStation Explorer |
-| --- | --- | --- |
-| QIE, BOT Chain, Arc, GOAT Network | Blockscout | Full dashboard (blocks, txs, addresses, tokens) |
+| Chain          | Explorer backend | DevStation Explorer                             |
+| -------------- | ---------------- | ----------------------------------------------- |
+| QIE, BOT Chain | Blockscout       | Full dashboard (blocks, txs, addresses, tokens) |
 
-Contract **verification** works on all 4 active chains, through each chain's
-own Blockscout explorer. (Avalanche, when re-enabled, verifies through
-[Sourcify](https://sourcify.dev) instead — a free, keyless, public
-verification service that recompiles from source and matches onchain
-bytecode directly via its own RPC, since Snowtrace/Routescan has no
-verification API of its own.)
+Contract **verification** works on both chains, through each chain's own
+Blockscout explorer.
 
 ---
 
@@ -126,16 +113,12 @@ Label Registry. Each chain is a **separate deployment** — addresses are not
 shared across chains. Configure them with the `VITE_{PROJECT,LABEL}_REGISTRY_ADDRESS_<FAMILY>_<NETWORK>`
 vars (QIE keeps its legacy no-suffix names for backward compatibility).
 
-| Chain | Network | ProjectRegistry | ContractLabelRegistry |
-| --- | --- | --- | --- |
-| QIE | Testnet `1983` | `0x75d7b39bc827367c409e1a2bf805bd5f337ca27b` | `0x177294293e6e785a83e036a95de1697e3cc04748` |
-| QIE | Mainnet `1990` | `0x673e3d4d7f6043d0384e95ce0c110f09e09ec708` | `0xb6075e4cad1f7e7e779e49dcf7df08949797ed81` |
-| BOT Chain | Testnet `968` | _not wired in_ | _not wired in_ |
-| BOT Chain | Mainnet `677` | `0xd7b68abdbae4496cb0bf5ce6c8684bc6f3dd9c9b` | `0x341b13cbab421cd318da7906d894ac1ba5b9fd3f` |
-| Arc | Testnet | _not yet deployed_ | _not yet deployed_ |
-| Avalanche | Testnet / Mainnet | _not yet deployed_ | _not yet deployed_ |
-| GOAT Network | Testnet / Mainnet | _not yet deployed_ | _not yet deployed_ |
-| Arbitrum | Testnet / Mainnet | _not yet deployed_ | _not yet deployed_ |
+| Chain     | Network        | ProjectRegistry                              | ContractLabelRegistry                        |
+| --------- | -------------- | -------------------------------------------- | -------------------------------------------- |
+| QIE       | Testnet `1983` | `0x75d7b39bc827367c409e1a2bf805bd5f337ca27b` | `0x177294293e6e785a83e036a95de1697e3cc04748` |
+| QIE       | Mainnet `1990` | `0x673e3d4d7f6043d0384e95ce0c110f09e09ec708` | `0xb6075e4cad1f7e7e779e49dcf7df08949797ed81` |
+| BOT Chain | Testnet `968`  | _not wired in_                               | _not wired in_                               |
+| BOT Chain | Mainnet `677`  | `0xd7b68abdbae4496cb0bf5ce6c8684bc6f3dd9c9b` | `0x341b13cbab421cd318da7906d894ac1ba5b9fd3f` |
 
 QIE mainnet was redeployed separately from testnet (v2 contract source — see
 `contracts/ContractLabelRegistry.sol`'s `@dev` note — plus this is a distinct
@@ -173,8 +156,7 @@ bun run contracts:deploy <family> [testnet|mainnet]   # deploy + print addresses
 bun run contracts:verify <family> [testnet|mainnet]   # source-verify on the explorer
 ```
 
-`<family>` is one of `qie` (default), `bot`, `xlayer`, `arc` (testnet only),
-`avalanche`, `goat`, `arbitrum`. Requires `PRIVATE_KEY` (an unprefixed,
+`<family>` is one of `qie` (default) or `bot`. Requires `PRIVATE_KEY` (an unprefixed,
 server-only var — **never** add it to a hosted deploy, the running app has no
 use for it) set to a funded deployer key in `.env.local`.
 
@@ -203,9 +185,9 @@ table (`SPONSOR_ELIGIBLE_CHAIN_IDS` in `src/lib/sponsor/pricing.ts`); this
 never applies to testnet or any other chain family — every testnet here
 already has a public faucet.
 
-| Chain | Sponsor key env var | Budget env var |
-| --- | --- | --- |
-| QIE mainnet | `SPONSOR_PRIVATE_KEY` | `SPONSOR_DAILY_BUDGET_QIE` |
+| Chain             | Sponsor key env var       | Budget env var             |
+| ----------------- | ------------------------- | -------------------------- |
+| QIE mainnet       | `SPONSOR_PRIVATE_KEY`     | `SPONSOR_DAILY_BUDGET_QIE` |
 | BOT Chain mainnet | `SPONSOR_PRIVATE_KEY_BOT` | `SPONSOR_DAILY_BUDGET_BOT` |
 
 **The sponsor wallet never broadcasts the deploy itself.** It sends a plain
@@ -234,7 +216,7 @@ chain. Because the native token lands directly in that wallet before any
 deploy happens, nothing forces it to actually be spent on a deploy — a
 requester can simply keep it. The only backstop is that chain's daily
 budget var (default `5`): a rolling 24h spend ceiling per chain, computed by
-summing that chain's sponsor wallet's own outgoing value *and* gas fees from
+summing that chain's sponsor wallet's own outgoing value _and_ gas fees from
 the chain's explorer tx history (no separate database — consistent with the
 rest of this app). Sponsorship stops once spend crosses **90% of this
 value**, not 100% — the 10% headroom exists because this check isn't atomic
@@ -263,66 +245,3 @@ meaningfully different numbers between two back-to-back calls for the same
 transaction. Nothing has confirmed whether BOT Chain's estimator behaves the
 same way — the same margin is reused there as the only data point available,
 but watch the first few live sponsored BOT mainnet deploys closely.
-
----
-
-## Avalanche and Arbitrum (temporarily disabled)
-
-Both are **not currently active** in DevStation — commented out of
-`src/lib/chains.ts`'s `SUPPORTED_CHAINS` and `src/lib/explorer/network.ts`'s
-slug maps, not deleted, so neither appears in the wallet's network switcher
-or the Explorer dropdown. Unlike X Layer below, this isn't blocked on a
-missing API key — both chains' integrations (Avalanche's Routescan adapter,
-Arbitrum's community Blockscout mirror) are fully built and were working;
-they're just switched off.
-
-| Property | Avalanche Testnet (Fuji) | Avalanche Mainnet (C-Chain) |
-| --- | --- | --- |
-| Chain ID | `43113` | `43114` |
-| Native token | AVAX | AVAX |
-| RPC | `avalanche-fuji-c-chain-rpc.publicnode.com` | `api.avax.network/ext/bc/C/rpc` |
-| Explorer | `testnet.snowtrace.io` | `snowtrace.io` |
-| Env vars | `VITE_AVALANCHE_TESTNET_{RPC,EXPLORER,CHAIN_ID}` | `VITE_AVALANCHE_MAINNET_{RPC,EXPLORER,CHAIN_ID}` |
-
-| Property | Arbitrum Sepolia | Arbitrum One |
-| --- | --- | --- |
-| Chain ID | `421614` | `42161` |
-| Native token | ETH | ETH |
-| RPC | `sepolia-rollup.arbitrum.io/rpc` | `arb1.arbitrum.io/rpc` |
-| Explorer | `arbitrum-sepolia.blockscout.com` | `arbitrum.blockscout.com` |
-| Env vars | `VITE_ARBITRUM_TESTNET_{RPC,EXPLORER,CHAIN_ID}` | `VITE_ARBITRUM_MAINNET_{RPC,EXPLORER,CHAIN_ID}` |
-
-To re-enable either: uncomment its two chain exports in `SUPPORTED_CHAINS`
-(`chains.ts`) and the matching import, `NetworkSlug` entries, `SLUG_CHAIN_ID`
-entries, and `EXPLORER_CHAIN_FAMILIES` entry in `network.ts` — each spot has
-a comment marking exactly what to restore. The registry-deploy script and
-Sourcify verification already support both chains unchanged, since neither
-depends on `SUPPORTED_CHAINS`.
-
----
-
-## X Layer (temporarily disabled)
-
-X Layer (OKX's L2) is **not currently active** in DevStation — it's commented
-out of `src/lib/chains.ts`'s `SUPPORTED_CHAINS` and `src/lib/explorer/network.ts`'s
-slug maps, not deleted, so it doesn't appear in the wallet's network switcher
-or the Explorer dropdown. Reason: its explorer (OKLink) requires a registered
-`OK-ACCESS-KEY` API key DevStation doesn't have (confirmed: OKLink's API
-401s without one), so the only thing it could offer today is a minimal
-RPC-only page — commented out rather than shipped as a half-working chain.
-
-| Property | Testnet | Mainnet |
-| --- | --- | --- |
-| Chain ID | `1952` | `196` |
-| Native token | OKB | OKB |
-| RPC | `testrpc.xlayer.tech/terigon` | `rpc.xlayer.tech` |
-| Explorer | `oklink.com/xlayer-testnet` | `oklink.com/xlayer` |
-| Env vars | `VITE_XLAYER_TESTNET_{RPC,EXPLORER,CHAIN_ID}` | `VITE_XLAYER_MAINNET_{RPC,EXPLORER,CHAIN_ID}` |
-
-To re-enable once an OKLink key is available: uncomment `xlayerTestnet`/
-`xlayerMainnet` in `SUPPORTED_CHAINS` (`chains.ts`) and the matching import,
-`NetworkSlug` entries, `SLUG_CHAIN_ID` entries, and `EXPLORER_CHAIN_FAMILIES`
-entry in `network.ts` — each spot has a comment marking exactly what to
-restore. Verification (Sourcify) and the registry-deploy script already
-support X Layer unchanged, since neither depends on it being in
-`SUPPORTED_CHAINS`.

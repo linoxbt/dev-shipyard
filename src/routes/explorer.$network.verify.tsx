@@ -5,9 +5,8 @@ import { z } from "zod";
 import { Card } from "@/components/explorer/ui";
 import { useExplorerNetwork, chainIdForSlug, familyForSlug } from "@/lib/explorer/network";
 import { useVerifyContract } from "@/hooks/useVerifyContract";
-import { SOLC_VERSIONS, DEFAULT_SOLC_VERSION, compile } from "@/lib/compiler";
+import { SOLC_VERSIONS, DEFAULT_SOLC_VERSION } from "@/lib/compiler";
 import { contractNameOf } from "@/lib/solidity-name";
-import { isSourcifyChain } from "@/lib/api/sourcify.functions";
 
 const search = z.object({
   address: z.string().optional(),
@@ -41,11 +40,9 @@ function VerifyPage() {
   const [optimizationRuns, setOptimizationRuns] = useState(200);
   const [license, setLicense] = useState("mit");
   const [sourceCode, setSourceCode] = useState("");
-  const [compiling, setCompiling] = useState(false);
   const [compileError, setCompileError] = useState("");
 
-  const usesSourcify = isSourcifyChain(chainId);
-  const busy = compiling || state === "submitting" || state === "pending";
+  const busy = state === "submitting" || state === "pending";
   const addrValid = /^0x[a-fA-F0-9]{40}$/.test(address.trim());
   const canSubmit = addrValid && sourceCode.trim().length > 0 && !busy;
 
@@ -60,45 +57,6 @@ function VerifyPage() {
     if (!canSubmit) return;
     setCompileError("");
     const name = contractName.trim() || contractNameOf(sourceCode) || "Contract";
-
-    // Sourcify-backed chains (Avalanche, X Layer) always need the full solc
-    // standard-JSON input, not raw source — compile in-browser first, same as
-    // ManualVerify's flow, rather than sending pasted text Sourcify can't use.
-    if (usesSourcify) {
-      setCompiling(true);
-      try {
-        const out = await compile({
-          sources: { "Contract.sol": sourceCode },
-          version: compilerVersion,
-          mainFile: "Contract.sol",
-        });
-        if (out.status === "error") {
-          setCompileError(out.errors[0]?.formattedMessage || "Compilation failed.");
-          return;
-        }
-        const entries = Object.entries(out.contracts).filter(([, c]) => c.bytecode.length > 2);
-        if (entries.length === 0) {
-          setCompileError("No deployable contract found in that source.");
-          return;
-        }
-        entries.sort((a, b) => b[1].bytecode.length - a[1].bytecode.length);
-        const [, picked] = entries[0];
-        void verify({
-          chainId,
-          address: address.trim() as `0x${string}`,
-          contractName: name,
-          sourceCode,
-          compilerVersion,
-          standardJsonInput: out.standardJsonInput,
-          qualifiedContractName: picked.qualifiedName,
-        });
-      } catch (e) {
-        setCompileError(e instanceof Error ? e.message : "Compilation failed.");
-      } finally {
-        setCompiling(false);
-      }
-      return;
-    }
 
     void verify({
       chainId,
@@ -121,27 +79,9 @@ function VerifyPage() {
         </h1>
       </div>
       <p className="font-mono text-xs text-meta">
-        {usesSourcify ? (
-          <>
-            {family.label} verifies through{" "}
-            <a
-              href="https://sourcify.dev"
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary hover:underline"
-            >
-              Sourcify
-            </a>{" "}
-            (its own explorer doesn&apos;t verify source). Paste single-file / flattened Solidity —
-            DevStation compiles it in your browser and submits the exact build to Sourcify.
-          </>
-        ) : (
-          <>
-            Verify a contract&apos;s source on the {family.label} {network} explorer (single-file /
-            flattened Solidity). Once verified, the contract page shows its source, ABI, and
-            Read/Write functions.
-          </>
-        )}
+        Verify a contract&apos;s source on the {family.label} {network} explorer (single-file /
+        flattened Solidity). Once verified, the contract page shows its source, ABI, and Read/Write
+        functions.
       </p>
 
       <Card title="Contract details">
@@ -175,22 +115,20 @@ function VerifyPage() {
               </select>
             </Field>
 
-            {!usesSourcify && (
-              <Field label="License">
-                <select
-                  value={license}
-                  onChange={(e) => setLicense(e.target.value)}
-                  disabled={busy}
-                  className="w-full rounded border border-border bg-background px-2 py-1.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none disabled:opacity-60"
-                >
-                  {LICENSES.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
+            <Field label="License">
+              <select
+                value={license}
+                onChange={(e) => setLicense(e.target.value)}
+                disabled={busy}
+                className="w-full rounded border border-border bg-background px-2 py-1.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none disabled:opacity-60"
+              >
+                {LICENSES.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
             <Field label="Contract Name">
               <input
@@ -202,32 +140,30 @@ function VerifyPage() {
               />
             </Field>
 
-            {!usesSourcify && (
-              <Field label="Optimization">
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={optimization}
-                      onChange={(e) => setOptimization(e.target.checked)}
-                      disabled={busy}
-                      className="h-3.5 w-3.5"
-                    />
-                    Enabled
-                  </label>
-                  {optimization && (
-                    <input
-                      type="number"
-                      value={optimizationRuns}
-                      onChange={(e) => setOptimizationRuns(Number(e.target.value) || 200)}
-                      disabled={busy}
-                      className="w-24 rounded border border-border bg-background px-2 py-1 font-mono text-xs text-foreground focus:border-primary focus:outline-none disabled:opacity-60"
-                      title="Optimizer runs"
-                    />
-                  )}
-                </div>
-              </Field>
-            )}
+            <Field label="Optimization">
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={optimization}
+                    onChange={(e) => setOptimization(e.target.checked)}
+                    disabled={busy}
+                    className="h-3.5 w-3.5"
+                  />
+                  Enabled
+                </label>
+                {optimization && (
+                  <input
+                    type="number"
+                    value={optimizationRuns}
+                    onChange={(e) => setOptimizationRuns(Number(e.target.value) || 200)}
+                    disabled={busy}
+                    className="w-24 rounded border border-border bg-background px-2 py-1 font-mono text-xs text-foreground focus:border-primary focus:outline-none disabled:opacity-60"
+                    title="Optimizer runs"
+                  />
+                )}
+              </div>
+            </Field>
           </div>
 
           <Field label="Solidity Source Code (flattened / single file)" required>
@@ -291,7 +227,7 @@ function VerifyPage() {
                 className="inline-flex items-center gap-1.5 rounded bg-primary px-4 py-2 font-mono text-xs font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
               >
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                {compiling ? "Compiling…" : busy ? "Verifying…" : "Verify & Publish"}
+                {busy ? "Verifying…" : "Verify & Publish"}
               </button>
             )}
             {(state === "failed" || state === "verified") && (

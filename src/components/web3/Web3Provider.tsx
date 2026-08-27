@@ -3,8 +3,6 @@ import { WagmiProvider, useAccount, useConnect } from "wagmi";
 import { wagmiConfig } from "@/lib/wagmi";
 import { useBurner } from "@/lib/burner/store";
 import { loadBurnerSession, touchBurnerSession, isBurnerSessionIdle } from "@/lib/burner/session";
-import { SolanaProvider } from "@/components/solana/SolanaProvider";
-import { ExtraBurnerLifecycle } from "@/components/shared/ExtraBurnerLifecycle";
 
 // Auto-locks the burner wallet after IDLE_LOCK_MS of no tracked activity —
 // see session.ts's header comment for why this exists (the decrypted
@@ -73,10 +71,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     <WagmiProvider config={wagmiConfig} reconnectOnMount>
       <WalletAutoReconnect />
       <BurnerIdleLock />
-      <ExtraBurnerLifecycle />
-      {/* Solana (non-EVM) wallet context, nested inside so it coexists with
-          wagmi without altering EVM state. */}
-      <SolanaProvider>{children}</SolanaProvider>
+      {children}
     </WagmiProvider>
   );
 }

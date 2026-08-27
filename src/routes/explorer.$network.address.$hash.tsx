@@ -30,22 +30,11 @@ import type {
   ExLog,
   ExInternalTx,
 } from "@/lib/explorer/types";
-import { isSolanaSlug } from "@/lib/chain-family";
-import { SolanaAddressDetail } from "@/components/solana/explorer/SolanaAddressDetail";
-import { isStacksNetwork } from "@/lib/stacks/chains";
-import { StacksAddressDetail } from "@/components/stacks/explorer/StacksAddressDetail";
 
 export const Route = createFileRoute("/explorer/$network/address/$hash")({
   head: () => ({ meta: [{ title: "Address - Explorer" }] }),
-  component: AddressRoute,
+  component: AddressPage,
 });
-
-function AddressRoute() {
-  const { network, hash } = Route.useParams();
-  if (isSolanaSlug(network)) return <SolanaAddressDetail cluster={network} address={hash} />;
-  if (isStacksNetwork(network)) return <StacksAddressDetail network={network} principal={hash} />;
-  return <AddressPage />;
-}
 
 function AddressPage() {
   const { hash } = Route.useParams();

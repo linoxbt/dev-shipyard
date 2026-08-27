@@ -6,10 +6,6 @@ import {
   qieMainnet,
   botTestnet,
   botMainnet,
-  arcTestnet,
-  avalancheMainnet,
-  goatTestnet,
-  goatMainnet,
   SUPPORTED_CHAINS,
   chainConfig,
 } from "@/lib/chains";
@@ -34,9 +30,6 @@ const CHAIN_FAMILY: Record<number, string> = {
   [qieMainnet.id]: "qie",
   [botTestnet.id]: "bot",
   [botMainnet.id]: "bot",
-  [arcTestnet.id]: "arc",
-  [goatTestnet.id]: "goat",
-  [goatMainnet.id]: "goat",
 };
 
 const chainInput = z.object({ chainId: z.number().optional() });
@@ -76,15 +69,10 @@ export const getNetworkStatus = createServerFn({ method: "GET" })
 // fetch price + 24h move server-side as a fallback there. Chains with no known
 // CoinGecko listing (e.g. BOT Chain, as of this writing) return ok:false and
 // the UI falls back to Blockscout's own coin_price field, which BOT Chain's
-// explorer already populates natively. GOAT Network's gas token is real BTC,
-// so its price/market cap comes straight from CoinGecko's "bitcoin" listing —
-// GOAT's own Blockscout instance has no price oracle configured at all
-// (coin_price/market_cap are always null/"0" there, confirmed live).
+// explorer already populates natively.
 const COINGECKO_ID_BY_CHAIN: Record<number, string> = {
   [qieTestnet.id]: "qie",
   [qieMainnet.id]: "qie",
-  [avalancheMainnet.id]: "avalanche-2",
-  [goatMainnet.id]: "bitcoin",
 };
 
 const priceInput = z.object({ chainId: z.number() });
@@ -116,12 +104,11 @@ export const getChainPrice = createServerFn({ method: "GET" })
   });
 
 // 30-day price history fallback for the explorer's Price chart. Some chains'
-// own Blockscout instance has no price-chart history at all (BOT Chain, Arc,
-// and GOAT Network all confirmed live to return chart_data: [] from
-// /stats/charts/market — no oracle configured), and Avalanche/X Layer have no
-// Blockscout to ask in the first place. Wherever a CoinGecko id is known
-// (see COINGECKO_ID_BY_CHAIN above), CoinGecko's own market_chart endpoint
-// gives real daily closing prices to chart instead of an empty state.
+// own Blockscout instance has no price-chart history at all (BOT Chain
+// confirmed live to return chart_data: [] from /stats/charts/market — no
+// oracle configured). Wherever a CoinGecko id is known (see
+// COINGECKO_ID_BY_CHAIN above), CoinGecko's own market_chart endpoint gives
+// real daily closing prices to chart instead of an empty state.
 export const getChainPriceHistory = createServerFn({ method: "GET" })
   .inputValidator(priceInput)
   .handler(async ({ data }) => {

@@ -22,8 +22,8 @@ function Verification() {
         Projects page.
       </P>
       <P>
-        You can also verify any contract manually in the built-in explorer: open the Verify Contract form
-        (from the explorer header, or from any unverified contract page), paste your flattened
+        You can also verify any contract manually in the built-in explorer: open the Verify Contract
+        form (from the explorer header, or from any unverified contract page), paste your flattened
         source, choose the compiler and options, and publish.
       </P>
       <Callout tone="warning">

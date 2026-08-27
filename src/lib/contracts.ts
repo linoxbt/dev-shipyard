@@ -8,21 +8,7 @@
 // scripts/deploy.ts (per network) and pasting the addresses into .env.local.
 // See .env.example.
 
-import {
-  qieTestnet,
-  qieMainnet,
-  botTestnet,
-  botMainnet,
-  xlayerTestnet,
-  xlayerMainnet,
-  arcTestnet,
-  avalancheTestnet,
-  avalancheMainnet,
-  goatTestnet,
-  goatMainnet,
-  arbitrumTestnet,
-  arbitrumMainnet,
-} from "@/lib/chains";
+import { qieTestnet, qieMainnet, botTestnet, botMainnet } from "@/lib/chains";
 
 const env = import.meta.env;
 
@@ -51,15 +37,6 @@ const PROJECT_REGISTRY: Record<number, `0x${string}`> = {
   [qieMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_MAINNET, DEFAULT_PROJECT_REGISTRY),
   [botTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_BOT_TESTNET),
   [botMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_BOT_MAINNET),
-  [xlayerTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_XLAYER_TESTNET),
-  [xlayerMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_XLAYER_MAINNET),
-  [arcTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_ARC_TESTNET),
-  [avalancheTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_AVALANCHE_TESTNET),
-  [avalancheMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_AVALANCHE_MAINNET),
-  [goatTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_GOAT_TESTNET),
-  [goatMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_GOAT_MAINNET),
-  [arbitrumTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_ARBITRUM_TESTNET),
-  [arbitrumMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_ARBITRUM_MAINNET),
 };
 
 const LABEL_REGISTRY: Record<number, `0x${string}`> = {
@@ -70,15 +47,6 @@ const LABEL_REGISTRY: Record<number, `0x${string}`> = {
   [qieMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_MAINNET, DEFAULT_LABEL_REGISTRY),
   [botTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_BOT_TESTNET),
   [botMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_BOT_MAINNET),
-  [xlayerTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_XLAYER_TESTNET),
-  [xlayerMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_XLAYER_MAINNET),
-  [arcTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_ARC_TESTNET),
-  [avalancheTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_AVALANCHE_TESTNET),
-  [avalancheMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_AVALANCHE_MAINNET),
-  [goatTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_GOAT_TESTNET),
-  [goatMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_GOAT_MAINNET),
-  [arbitrumTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_ARBITRUM_TESTNET),
-  [arbitrumMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_ARBITRUM_MAINNET),
 };
 
 /** ProjectRegistry address for a given chain ("" when not deployed there). */

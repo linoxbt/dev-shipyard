@@ -41,7 +41,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
             Dev<span className="text-primary">Station</span>
           </div>
           <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
-            Multichain Builder Console
+            QIE Builder Console
           </div>
         </div>
       )}

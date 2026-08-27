@@ -20,15 +20,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WalletPanel } from "@/components/web3/WalletPanel";
-import { SolanaWalletPanel } from "@/components/solana/SolanaWalletPanel";
-import { StacksWalletPanel } from "@/components/stacks/StacksWalletPanel";
+
 import { NetworkSelector } from "@/components/web3/NetworkSelector";
 import { Logo } from "@/components/shared/Logo";
 import { useUi } from "@/lib/ui-state";
 import { useTheme } from "@/lib/theme";
-import { useActiveFamily } from "@/lib/active-network";
-import { useSolanaPref } from "@/lib/solana/active-solana";
-import { useStacksPref } from "@/lib/stacks/active-stacks";
 
 const NAV = [
   { to: "/overview", label: "Overview", icon: Home, exact: true },
@@ -65,19 +61,8 @@ const NAV = [
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const toggleSidebar = useUi((s) => s.toggleSidebar);
   const path = useRouterState({ select: (r) => r.location.pathname });
-  const family = useActiveFamily((s) => s.family);
-  const solCluster = useSolanaPref((s) => s.cluster);
-  const stxNet = useStacksPref((s) => s.network);
   const isActive = (to: string, exact?: boolean) =>
     exact ? path === to : path === to || path.startsWith(to + "/");
-  // The Explorer link follows the active family so selecting Solana/Stacks and
-  // then opening Explorer lands on the right explorer (not the EVM default).
-  const explorerTo =
-    family === "solana"
-      ? `/explorer/${solCluster}`
-      : family === "stacks"
-        ? `/explorer/${stxNet}`
-        : "/explorer";
 
   return (
     <>
@@ -95,7 +80,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="border-b border-border px-4 py-3">
-        <FamilyWalletPanel />
+        <WalletPanel />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
@@ -120,11 +105,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             );
           }
           if (!("to" in entry) || !entry.to) return null;
-          const to = entry.to === "/explorer" ? explorerTo : entry.to;
           return (
             <SidebarLink
               key={entry.to}
-              to={to}
+              to={entry.to}
               label={entry.label!}
               icon={entry.icon!}
               active={isActive(entry.to, entry.exact)}
@@ -203,15 +187,6 @@ function SidebarLink({
       {label}
     </Link>
   );
-}
-
-// Shows the Solana wallet panel when Solana is the active family, else the EVM
-// wallet panel — so the sidebar wallet always matches the selected network.
-function FamilyWalletPanel() {
-  const family = useActiveFamily((s) => s.family);
-  if (family === "solana") return <SolanaWalletPanel />;
-  if (family === "stacks") return <StacksWalletPanel />;
-  return <WalletPanel />;
 }
 
 // Compact dark/light toggle for the sidebar footer.

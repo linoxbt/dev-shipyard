@@ -51,9 +51,6 @@ import {
 } from "@/lib/staticAnalysis";
 import { cn } from "@/lib/utils";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
-import { useActiveFamily } from "@/lib/active-network";
-import { SolanaEditorView } from "@/components/solana/features/SolanaEditorView";
-import { StacksEditorView } from "@/components/stacks/features/StacksEditorView";
 
 export const Route = createFileRoute("/launchkit/editor")({
   validateSearch: z.object({ template: z.string().optional() }),
@@ -62,9 +59,6 @@ export const Route = createFileRoute("/launchkit/editor")({
 });
 
 function EditorRoute() {
-  const family = useActiveFamily((s) => s.family);
-  if (family === "solana") return <SolanaEditorView />;
-  if (family === "stacks") return <StacksEditorView />;
   return <EditorPage />;
 }
 

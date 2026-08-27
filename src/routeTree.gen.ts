@@ -42,15 +42,12 @@ import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
 import { Route as ExplorerNetworkIndexRouteImport } from './routes/explorer.$network.index'
-import { Route as RoutebookSolanaSignatureRouteImport } from './routes/routebook.solana.$signature'
 import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
 import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
 import { Route as ExplorerNetworkVerifyRouteImport } from './routes/explorer.$network.verify'
 import { Route as ExplorerNetworkTxnsRouteImport } from './routes/explorer.$network.txns'
 import { Route as ExplorerNetworkTokensRouteImport } from './routes/explorer.$network.tokens'
 import { Route as ExplorerNetworkStatsRouteImport } from './routes/explorer.$network.stats'
-import { Route as ExplorerNetworkProgramsRouteImport } from './routes/explorer.$network.programs'
-import { Route as ExplorerNetworkMempoolRouteImport } from './routes/explorer.$network.mempool'
 import { Route as ExplorerNetworkBlocksRouteImport } from './routes/explorer.$network.blocks'
 import { Route as ExplorerNetworkTxHashRouteImport } from './routes/explorer.$network.tx.$hash'
 import { Route as ExplorerNetworkTokenHashRouteImport } from './routes/explorer.$network.token.$hash'
@@ -222,12 +219,6 @@ const ExplorerNetworkIndexRoute = ExplorerNetworkIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ExplorerNetworkRoute,
 } as any)
-const RoutebookSolanaSignatureRoute =
-  RoutebookSolanaSignatureRouteImport.update({
-    id: '/routebook/solana/$signature',
-    path: '/routebook/solana/$signature',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const LaunchkitTemplatesSubmitRoute =
   LaunchkitTemplatesSubmitRouteImport.update({
     id: '/launchkit/templates/submit',
@@ -257,16 +248,6 @@ const ExplorerNetworkTokensRoute = ExplorerNetworkTokensRouteImport.update({
 const ExplorerNetworkStatsRoute = ExplorerNetworkStatsRouteImport.update({
   id: '/stats',
   path: '/stats',
-  getParentRoute: () => ExplorerNetworkRoute,
-} as any)
-const ExplorerNetworkProgramsRoute = ExplorerNetworkProgramsRouteImport.update({
-  id: '/programs',
-  path: '/programs',
-  getParentRoute: () => ExplorerNetworkRoute,
-} as any)
-const ExplorerNetworkMempoolRoute = ExplorerNetworkMempoolRouteImport.update({
-  id: '/mempool',
-  path: '/mempool',
   getParentRoute: () => ExplorerNetworkRoute,
 } as any)
 const ExplorerNetworkBlocksRoute = ExplorerNetworkBlocksRouteImport.update({
@@ -331,15 +312,12 @@ export interface FileRoutesByFullPath {
   '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
-  '/explorer/$network/mempool': typeof ExplorerNetworkMempoolRoute
-  '/explorer/$network/programs': typeof ExplorerNetworkProgramsRoute
   '/explorer/$network/stats': typeof ExplorerNetworkStatsRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
   '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
-  '/routebook/solana/$signature': typeof RoutebookSolanaSignatureRoute
   '/explorer/$network/': typeof ExplorerNetworkIndexRoute
   '/launchkit/templates/': typeof LaunchkitTemplatesIndexRoute
   '/explorer/$network/address/$hash': typeof ExplorerNetworkAddressHashRoute
@@ -377,15 +355,12 @@ export interface FileRoutesByTo {
   '/explorer': typeof ExplorerIndexRoute
   '/routebook': typeof RoutebookIndexRoute
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
-  '/explorer/$network/mempool': typeof ExplorerNetworkMempoolRoute
-  '/explorer/$network/programs': typeof ExplorerNetworkProgramsRoute
   '/explorer/$network/stats': typeof ExplorerNetworkStatsRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
   '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
-  '/routebook/solana/$signature': typeof RoutebookSolanaSignatureRoute
   '/explorer/$network': typeof ExplorerNetworkIndexRoute
   '/launchkit/templates': typeof LaunchkitTemplatesIndexRoute
   '/explorer/$network/address/$hash': typeof ExplorerNetworkAddressHashRoute
@@ -427,15 +402,12 @@ export interface FileRoutesById {
   '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
-  '/explorer/$network/mempool': typeof ExplorerNetworkMempoolRoute
-  '/explorer/$network/programs': typeof ExplorerNetworkProgramsRoute
   '/explorer/$network/stats': typeof ExplorerNetworkStatsRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
   '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
-  '/routebook/solana/$signature': typeof RoutebookSolanaSignatureRoute
   '/explorer/$network/': typeof ExplorerNetworkIndexRoute
   '/launchkit/templates/': typeof LaunchkitTemplatesIndexRoute
   '/explorer/$network/address/$hash': typeof ExplorerNetworkAddressHashRoute
@@ -478,15 +450,12 @@ export interface FileRouteTypes {
     | '/explorer/'
     | '/routebook/'
     | '/explorer/$network/blocks'
-    | '/explorer/$network/mempool'
-    | '/explorer/$network/programs'
     | '/explorer/$network/stats'
     | '/explorer/$network/tokens'
     | '/explorer/$network/txns'
     | '/explorer/$network/verify'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
-    | '/routebook/solana/$signature'
     | '/explorer/$network/'
     | '/launchkit/templates/'
     | '/explorer/$network/address/$hash'
@@ -524,15 +493,12 @@ export interface FileRouteTypes {
     | '/explorer'
     | '/routebook'
     | '/explorer/$network/blocks'
-    | '/explorer/$network/mempool'
-    | '/explorer/$network/programs'
     | '/explorer/$network/stats'
     | '/explorer/$network/tokens'
     | '/explorer/$network/txns'
     | '/explorer/$network/verify'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
-    | '/routebook/solana/$signature'
     | '/explorer/$network'
     | '/launchkit/templates'
     | '/explorer/$network/address/$hash'
@@ -573,15 +539,12 @@ export interface FileRouteTypes {
     | '/explorer/'
     | '/routebook/'
     | '/explorer/$network/blocks'
-    | '/explorer/$network/mempool'
-    | '/explorer/$network/programs'
     | '/explorer/$network/stats'
     | '/explorer/$network/tokens'
     | '/explorer/$network/txns'
     | '/explorer/$network/verify'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
-    | '/routebook/solana/$signature'
     | '/explorer/$network/'
     | '/launchkit/templates/'
     | '/explorer/$network/address/$hash'
@@ -609,7 +572,6 @@ export interface RootRouteChildren {
   RoutebookIndexRoute: typeof RoutebookIndexRoute
   LaunchkitTemplatesIdRoute: typeof LaunchkitTemplatesIdRoute
   LaunchkitTemplatesSubmitRoute: typeof LaunchkitTemplatesSubmitRoute
-  RoutebookSolanaSignatureRoute: typeof RoutebookSolanaSignatureRoute
   LaunchkitTemplatesIndexRoute: typeof LaunchkitTemplatesIndexRoute
 }
 
@@ -846,13 +808,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExplorerNetworkIndexRouteImport
       parentRoute: typeof ExplorerNetworkRoute
     }
-    '/routebook/solana/$signature': {
-      id: '/routebook/solana/$signature'
-      path: '/routebook/solana/$signature'
-      fullPath: '/routebook/solana/$signature'
-      preLoaderRoute: typeof RoutebookSolanaSignatureRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/launchkit/templates/submit': {
       id: '/launchkit/templates/submit'
       path: '/launchkit/templates/submit'
@@ -893,20 +848,6 @@ declare module '@tanstack/react-router' {
       path: '/stats'
       fullPath: '/explorer/$network/stats'
       preLoaderRoute: typeof ExplorerNetworkStatsRouteImport
-      parentRoute: typeof ExplorerNetworkRoute
-    }
-    '/explorer/$network/programs': {
-      id: '/explorer/$network/programs'
-      path: '/programs'
-      fullPath: '/explorer/$network/programs'
-      preLoaderRoute: typeof ExplorerNetworkProgramsRouteImport
-      parentRoute: typeof ExplorerNetworkRoute
-    }
-    '/explorer/$network/mempool': {
-      id: '/explorer/$network/mempool'
-      path: '/mempool'
-      fullPath: '/explorer/$network/mempool'
-      preLoaderRoute: typeof ExplorerNetworkMempoolRouteImport
       parentRoute: typeof ExplorerNetworkRoute
     }
     '/explorer/$network/blocks': {
@@ -983,8 +924,6 @@ const DocsRouteWithChildren = DocsRoute._addFileChildren(DocsRouteChildren)
 
 interface ExplorerNetworkRouteChildren {
   ExplorerNetworkBlocksRoute: typeof ExplorerNetworkBlocksRoute
-  ExplorerNetworkMempoolRoute: typeof ExplorerNetworkMempoolRoute
-  ExplorerNetworkProgramsRoute: typeof ExplorerNetworkProgramsRoute
   ExplorerNetworkStatsRoute: typeof ExplorerNetworkStatsRoute
   ExplorerNetworkTokensRoute: typeof ExplorerNetworkTokensRoute
   ExplorerNetworkTxnsRoute: typeof ExplorerNetworkTxnsRoute
@@ -998,8 +937,6 @@ interface ExplorerNetworkRouteChildren {
 
 const ExplorerNetworkRouteChildren: ExplorerNetworkRouteChildren = {
   ExplorerNetworkBlocksRoute: ExplorerNetworkBlocksRoute,
-  ExplorerNetworkMempoolRoute: ExplorerNetworkMempoolRoute,
-  ExplorerNetworkProgramsRoute: ExplorerNetworkProgramsRoute,
   ExplorerNetworkStatsRoute: ExplorerNetworkStatsRoute,
   ExplorerNetworkTokensRoute: ExplorerNetworkTokensRoute,
   ExplorerNetworkTxnsRoute: ExplorerNetworkTxnsRoute,
@@ -1048,7 +985,6 @@ const rootRouteChildren: RootRouteChildren = {
   RoutebookIndexRoute: RoutebookIndexRoute,
   LaunchkitTemplatesIdRoute: LaunchkitTemplatesIdRoute,
   LaunchkitTemplatesSubmitRoute: LaunchkitTemplatesSubmitRoute,
-  RoutebookSolanaSignatureRoute: RoutebookSolanaSignatureRoute,
   LaunchkitTemplatesIndexRoute: LaunchkitTemplatesIndexRoute,
 }
 export const routeTree = rootRouteImport

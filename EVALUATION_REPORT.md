@@ -33,20 +33,21 @@ The hard 80% — chain integration, in-browser compilation, a real wallet,
 persistence, deployed registries — is built and **verified on Testnet**. What
 remains is hardening (tests/CI), the Mainnet registry rollout, and polish.
 
-| Dimension | Rating | Note |
-| --- | --- | --- |
-| Build / type safety | ★★★★★ | `tsc --noEmit`, `eslint`, and `vite build` all clean |
-| Real functionality | ★★★★☆ | On-chain deploy, live decode, real wallet, AI — all working |
-| Architecture | ★★★★☆ | Single sources of truth (network, chains, storage); clean hooks |
-| Design system | ★★★★☆ | Cohesive terminal/amber/teal theme, semantic tokens |
-| Testing | ☆☆☆☆☆ | No unit/integration tests, no CI |
-| Production readiness | ★★★☆☆ | Testnet-ready; Mainnet registry + tests pending |
+| Dimension            | Rating | Note                                                            |
+| -------------------- | ------ | --------------------------------------------------------------- |
+| Build / type safety  | ★★★★★  | `tsc --noEmit`, `eslint`, and `vite build` all clean            |
+| Real functionality   | ★★★★☆  | On-chain deploy, live decode, real wallet, AI — all working     |
+| Architecture         | ★★★★☆  | Single sources of truth (network, chains, storage); clean hooks |
+| Design system        | ★★★★☆  | Cohesive terminal/amber/teal theme, semantic tokens             |
+| Testing              | ☆☆☆☆☆  | No unit/integration tests, no CI                                |
+| Production readiness | ★★★☆☆  | Testnet-ready; Mainnet registry + tests pending                 |
 
 ---
 
 ## 2. What the App Does
 
 ### LaunchKit
+
 - **Contract Editor** (`/launchkit/editor`) — Monaco + Solidity highlighting, a
   localStorage-persisted workspace, browser `solc` (0.7–0.8.26), a colored
   terminal, and **auto-compile** 800 ms after typing.
@@ -69,6 +70,7 @@ remains is hardening (tests/CI), the Mainnet registry rollout, and polish.
   on-chain + local, with Testnet/Mainnet badges).
 
 ### Routebook
+
 - **Inspector** (`/routebook/$txHash`) — live decode across both chains via a
   `createServerFn` over QIE RPC: call tree, ERC-20 movements, approval risk,
   human-readable revert reasons.
@@ -76,6 +78,7 @@ remains is hardening (tests/CI), the Mainnet registry rollout, and polish.
   `ContractLabelRegistry`.
 
 ### AI assistant
+
 - Three modes (`src/lib/ai.ts` + `ai-settings.ts`): **server proxy** (`/api/ai`,
   key stays server-side, set `VITE_AI_PROXY` + a server key), **direct Claude**
   (Messages API), and **direct OpenAI-compatible** (BYO key). Token streaming
@@ -83,6 +86,7 @@ remains is hardening (tests/CI), the Mainnet registry rollout, and polish.
   compile errors + source into chat; "use code" applies behind a real line diff.
 
 ### Global network
+
 - A single persisted preference (`useNetworkPref`/`useActiveChain`) is
   **selection-authoritative**: it drives every read regardless of the wallet's
   chain. A global Mainnet warning banner, a wallet-mismatch modal that blocks
@@ -93,15 +97,15 @@ remains is hardening (tests/CI), the Mainnet registry rollout, and polish.
 
 ## 3. Technology Stack
 
-| Layer | Choice |
-| --- | --- |
-| Framework | TanStack Start + Router (SSR, file-based, server routes) |
-| UI | React 19, Tailwind v4, shadcn/Radix |
-| Web3 | viem + wagmi 2.x (injected/MetaMask/EIP-6963 + in-app burner) |
-| Editor | Monaco + browser `solc` Web Worker |
-| AI | OpenAI-compatible + native Anthropic, streaming via SSE |
-| State | Zustand (network, chat, workspace, burner, UI), TanStack Query |
-| Build | Vite 7, Bun, Nitro (host-aware Vercel/Netlify presets) |
+| Layer     | Choice                                                         |
+| --------- | -------------------------------------------------------------- |
+| Framework | TanStack Start + Router (SSR, file-based, server routes)       |
+| UI        | React 19, Tailwind v4, shadcn/Radix                            |
+| Web3      | viem + wagmi 2.x (injected/MetaMask/EIP-6963 + in-app burner)  |
+| Editor    | Monaco + browser `solc` Web Worker                             |
+| AI        | OpenAI-compatible + native Anthropic, streaming via SSE        |
+| State     | Zustand (network, chat, workspace, burner, UI), TanStack Query |
+| Build     | Vite 7, Bun, Nitro (host-aware Vercel/Netlify presets)         |
 
 ~15k LOC under `src` (a large share is unused shadcn primitives in
 `components/ui/`).
@@ -128,6 +132,7 @@ Mainnet (1990) not yet deployed.
 ## 5. Architecture Notes
 
 **Strengths**
+
 - **Single sources of truth.** `chains.ts` (env-driven RPC/explorer/faucet/DEX),
   `useActiveChain` (network), `storage.ts` (persistence). The legacy hardcoded
   `chain.ts` singleton was removed.
@@ -140,10 +145,11 @@ Mainnet (1990) not yet deployed.
   404; stores hydrate post-mount to avoid hydration mismatches.
 
 **Weaknesses / risks**
+
 1. **No tests, no CI.** The single biggest gap for a tool that deploys contracts
    and signs transactions. At minimum, a GitHub Action running typecheck + lint
-   + build on PR, plus unit tests for `staticAnalysis`, `abiArgParser`, `diff`,
-   and the SSE parser.
+   - build on PR, plus unit tests for `staticAnalysis`, `abiArgParser`, `diff`,
+     and the SSE parser.
 2. **Mainnet registries not deployed.** Projects/labels fall back to localStorage
    on Mainnet until `contracts:deploy mainnet` is run.
 3. **Client-side BYO keys by design.** Acceptable for a personal console; the
