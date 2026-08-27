@@ -17,8 +17,15 @@ const env = import.meta.env;
 // source-verified on the QIE explorer. These are the live defaults so the
 // onchain features (Projects, Activity, ecosystem stats) work with zero env
 // config; a VITE_*_REGISTRY_ADDRESS_* override still wins for custom deployments.
-const DEFAULT_PROJECT_REGISTRY = "0x75d7b39bc827367c409e1a2bf805bd5f337ca27b";
-const DEFAULT_LABEL_REGISTRY = "0x177294293e6e785a83e036a95de1697e3cc04748";
+// Per-NETWORK defaults. These were previously a single pair reused for both
+// QIE networks, which meant an unset (or wrongly-set) mainnet var silently
+// fell back to the *testnet* registry address — reads would hit a contract
+// that exists but holds the wrong network's data, with no error anywhere.
+// Keeping them separate makes that impossible.
+const QIE_TESTNET_PROJECT_REGISTRY = "0x75d7b39bc827367c409e1a2bf805bd5f337ca27b";
+const QIE_TESTNET_LABEL_REGISTRY = "0x177294293e6e785a83e036a95de1697e3cc04748";
+const QIE_MAINNET_PROJECT_REGISTRY = "0x673e3d4d7f6043d0384e95ce0c110f09e09ec708";
+const QIE_MAINNET_LABEL_REGISTRY = "0xb6075e4cad1f7e7e779e49dcf7df08949797ed81";
 
 function envAddress(value: string | undefined, fallback = ""): `0x${string}` {
   return (value || fallback) as `0x${string}`;
@@ -32,9 +39,12 @@ function envAddress(value: string | undefined, fallback = ""): `0x${string}` {
 const PROJECT_REGISTRY: Record<number, `0x${string}`> = {
   [qieTestnet.id]: envAddress(
     env.VITE_PROJECT_REGISTRY_ADDRESS_TESTNET || env.VITE_PROJECT_REGISTRY_ADDRESS,
-    DEFAULT_PROJECT_REGISTRY,
+    QIE_TESTNET_PROJECT_REGISTRY,
   ),
-  [qieMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_MAINNET, DEFAULT_PROJECT_REGISTRY),
+  [qieMainnet.id]: envAddress(
+    env.VITE_PROJECT_REGISTRY_ADDRESS_MAINNET,
+    QIE_MAINNET_PROJECT_REGISTRY,
+  ),
   [botTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_BOT_TESTNET),
   [botMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_BOT_MAINNET),
 };
@@ -42,9 +52,9 @@ const PROJECT_REGISTRY: Record<number, `0x${string}`> = {
 const LABEL_REGISTRY: Record<number, `0x${string}`> = {
   [qieTestnet.id]: envAddress(
     env.VITE_LABEL_REGISTRY_ADDRESS_TESTNET || env.VITE_LABEL_REGISTRY_ADDRESS,
-    DEFAULT_LABEL_REGISTRY,
+    QIE_TESTNET_LABEL_REGISTRY,
   ),
-  [qieMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_MAINNET, DEFAULT_LABEL_REGISTRY),
+  [qieMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_MAINNET, QIE_MAINNET_LABEL_REGISTRY),
   [botTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_BOT_TESTNET),
   [botMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_BOT_MAINNET),
 };

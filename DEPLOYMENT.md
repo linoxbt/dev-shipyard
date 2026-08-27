@@ -124,11 +124,17 @@ vars (QIE keeps its legacy no-suffix names for backward compatibility).
 QIE mainnet was redeployed separately from testnet (v2 contract source — see
 `contracts/ContractLabelRegistry.sol`'s `@dev` note — plus this is a distinct
 deployer nonce sequence), so the two networks now have **different**
-addresses, unlike the earlier coincidental match. Both `VITE_PROJECT_REGISTRY_ADDRESS_MAINNET`
-and `VITE_LABEL_REGISTRY_ADDRESS_MAINNET` **must** be set wherever the app
-runs against QIE mainnet (including on the hosting dashboard, then rebuild) —
-without them, the app silently falls back to the old testnet-era default
-address, which is still live but does not have the v2 access-control fix.
+addresses, unlike the earlier coincidental match. `src/lib/contracts.ts` now
+carries a **separate default per network**, so leaving the mainnet vars unset
+falls back to the correct mainnet pair rather than the testnet one. Setting
+`VITE_PROJECT_REGISTRY_ADDRESS_MAINNET` / `VITE_LABEL_REGISTRY_ADDRESS_MAINNET`
+is still supported for custom deployments.
+
+If you do set them, **check the address actually holds contract code** —
+a wrong value here fails silently. Production had
+`VITE_PROJECT_REGISTRY_ADDRESS_MAINNET` pointed at a wallet (EOA) rather than
+the registry, so Projects, Activity and the ecosystem stats on QIE mainnet
+read a dead address with nothing surfacing an error.
 
 BOT Chain testnet previously had a deployed, source-verified pair
 (ProjectRegistry `0x4d6267f8...`, ContractLabelRegistry `0xe36ca612...`, still
