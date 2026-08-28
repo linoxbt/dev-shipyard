@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useConnectorClient } from "wagmi";
-import { buildPreview } from "@/lib/appgen/preview";
+import { buildPreview, PREVIEW_ERROR_TAG, type PreviewError } from "@/lib/appgen/preview";
 
 // Live preview of a generated app.
 //
@@ -32,12 +32,16 @@ interface Props {
   /** Chain the app was generated for, shown so it is obvious what a
    *  transaction from the preview would actually touch. */
   chainName: string;
+  /** Errors the running app reported. Without this a failed module is just a
+   *  white frame — invisible to the user and to the agent trying to fix it. */
+  onError?: (error: PreviewError) => void;
   className?: string;
 }
 
-export function PreviewFrame({ files, dir = "app", chainName, className }: Props) {
+export function PreviewFrame({ files, dir = "app", chainName, onError, className }: Props) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [runtimeErrors, setRuntimeErrors] = useState<PreviewError[]>([]);
   const { isConnected } = useAccount();
   const { data: connectorClient } = useConnectorClient();
 
@@ -50,10 +54,27 @@ export function PreviewFrame({ files, dir = "app", chainName, className }: Props
       setError(e instanceof Error ? e.message : "Could not build the preview.");
       return null;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [files, dir]);
 
   useEffect(() => () => bundle?.revoke(), [bundle]);
+  // A rebuilt app starts from a clean slate.
+  useEffect(() => setRuntimeErrors([]), [bundle]);
+
+  // Errors reported from inside the preview.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const msg = event.data as { tag?: string; error?: PreviewError } | undefined;
+      if (!msg || msg.tag !== PREVIEW_ERROR_TAG || !msg.error) return;
+      const frame = frameRef.current;
+      if (!frame || event.source !== frame.contentWindow) return;
+      setRuntimeErrors((prev) =>
+        prev.some((p) => p.message === msg.error!.message) ? prev : [...prev, msg.error!],
+      );
+      onError?.(msg.error);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [onError]);
 
   // Answer wallet requests coming from the preview.
   useEffect(() => {
@@ -107,6 +128,16 @@ export function PreviewFrame({ files, dir = "app", chainName, className }: Props
           </span>
         </span>
       </div>
+      {runtimeErrors.length > 0 && (
+        <div className="max-h-24 shrink-0 overflow-y-auto border-b border-danger/40 bg-danger/10 px-3 py-1.5 font-mono text-[10px] text-danger">
+          {runtimeErrors.slice(0, 3).map((e, i) => (
+            <div key={i} className="break-words">
+              {e.message}
+              {e.source ? ` (${e.source}:${e.line ?? "?"})` : ""}
+            </div>
+          ))}
+        </div>
+      )}
       {error ? (
         <div className="p-4 font-mono text-xs text-danger">{error}</div>
       ) : (

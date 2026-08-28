@@ -24,6 +24,63 @@ export interface PreviewBundle {
   revoke: () => void;
 }
 
+/** Tag for error reports posted out of the preview. */
+export const PREVIEW_ERROR_TAG = "devstation-preview-error";
+
+export interface PreviewError {
+  kind: "error" | "unhandledrejection" | "module";
+  message: string;
+  source?: string;
+  line?: number;
+  stack?: string;
+}
+
+// Injected into every preview. Without it a failed module leaves a white
+// frame and nothing else: no console the user can see, no signal the agent can
+// act on, and "the preview is blank" as the only available bug report. This
+// forwards anything that goes wrong to the host, which surfaces it in the UI
+// and feeds it back into the next turn of the conversation.
+const ERROR_REPORTER = `<script>
+(function () {
+  var TAG = ${JSON.stringify("devstation-preview-error")};
+  function send(payload) {
+    try { parent.postMessage({ tag: TAG, error: payload }, "*"); } catch (e) {}
+  }
+  window.addEventListener("error", function (e) {
+    // Failed module/script loads surface as an error event on the element.
+    if (e.target && e.target !== window && (e.target.src || e.target.href)) {
+      send({ kind: "module", message: "Failed to load " + (e.target.src || e.target.href) });
+      return;
+    }
+    send({
+      kind: "error",
+      message: String(e.message || "Script error"),
+      source: e.filename ? String(e.filename).slice(0, 120) : undefined,
+      line: e.lineno,
+      stack: e.error && e.error.stack ? String(e.error.stack).slice(0, 800) : undefined
+    });
+  }, true);
+  window.addEventListener("unhandledrejection", function (e) {
+    var r = e.reason;
+    send({
+      kind: "unhandledrejection",
+      message: r && r.message ? String(r.message) : String(r),
+      stack: r && r.stack ? String(r.stack).slice(0, 800) : undefined
+    });
+  });
+  // Nothing mounted after load usually means the entry module threw before
+  // render, which produces no error event of its own in some cases.
+  window.addEventListener("load", function () {
+    setTimeout(function () {
+      var root = document.getElementById("root");
+      if (root && root.childElementCount === 0 && document.body.innerText.trim() === "") {
+        send({ kind: "module", message: "The app loaded but rendered nothing — the entry module probably threw before mounting." });
+      }
+    }, 2500);
+  });
+})();
+</script>`;
+
 /** Relative import specifiers in a module, e.g. "./contract.js". */
 function relativeImports(source: string): string[] {
   const out = new Set<string>();
@@ -108,6 +165,11 @@ export function buildPreview(files: Record<string, string>, dir = "app"): Previe
       const target = urlFor.get(file);
       return target ? `src="${target}"` : whole;
     });
+
+    // Error reporter first, so it catches failures in the app's own modules.
+    page = page.includes("</head>")
+      ? page.replace("</head>", `${ERROR_REPORTER}\n</head>`)
+      : `${ERROR_REPORTER}\n${page}`;
 
     return { srcdoc: page, revoke };
   }
