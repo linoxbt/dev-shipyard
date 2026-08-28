@@ -13,12 +13,12 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Package, Users, Layers, Rocket, ExternalLink, TrendingUp, Info } from "lucide-react";
+import { Package, Users, Layers, Rocket, ChevronRight, TrendingUp, Info } from "lucide-react";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { getAllDeployments, getEcosystemStats } from "@/lib/api/chain.functions";
 import { projectRegistryAddress, isContractConfigured } from "@/lib/contracts";
-import { chainConfig } from "@/lib/chains";
 import { ChainLogo } from "@/lib/chain-logos";
+import { slugForChainId } from "@/lib/explorer/network";
 import { truncateAddress } from "@/lib/wallet";
 
 const AMBER = "#f59e0b";
@@ -41,7 +41,10 @@ export function DevStationAnalytics() {
   const { chainId, chain } = useActiveChain();
   const registry = projectRegistryAddress(chainId);
   const onChain = isContractConfigured(registry);
-  const explorerUrl = chainConfig(chainId).explorerUrl;
+  // Links stay inside DevStation's own explorer rather than bouncing out to
+  // Blockscout — the built-in explorer resolves contract labels and project
+  // names, which the external one cannot.
+  const network = slugForChainId(chainId);
 
   const deploysQ = useQuery({
     queryKey: ["analytics-deploys", chainId, registry],
@@ -56,7 +59,11 @@ export function DevStationAnalytics() {
     refetchInterval: 30_000,
   });
 
-  const deployments = deploysQ.data?.deployments ?? [];
+  // `?? []` allocates a NEW array on every render while the query is empty or
+  // loading, which changes the identity the analytics useMemo depends on and
+  // makes it recompute the whole 30-day series each render. Memoising the
+  // fallback keeps that identity stable.
+  const deployments = useMemo(() => deploysQ.data?.deployments ?? [], [deploysQ.data]);
 
   const { series, templates, deployers, kpis } = useMemo(() => {
     // Deployments per day over the last 30 days (gap-filled).
@@ -231,14 +238,13 @@ export function DevStationAnalytics() {
                   className="inline-block h-2 w-2 rounded-full"
                   style={{ background: CATEGORICAL[i % CATEGORICAL.length] }}
                 />
-                <a
-                  href={`${explorerUrl}/address/${d.addr}`}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  to="/explorer/$network/address/$hash"
+                  params={{ network, hash: d.addr }}
                   className="truncate text-primary hover:underline"
                 >
                   {truncateAddress(d.addr, 8, 6)}
-                </a>
+                </Link>
                 <span className="ml-auto text-foreground">{d.count}</span>
               </div>
             ))}
@@ -254,11 +260,10 @@ export function DevStationAnalytics() {
           <span className="text-right">When</span>
         </div>
         {deployments.slice(0, 12).map((d) => (
-          <a
+          <Link
             key={d.txHash}
-            href={`${explorerUrl}/tx/${d.txHash}`}
-            target="_blank"
-            rel="noreferrer"
+            to="/explorer/$network/tx/$hash"
+            params={{ network, hash: d.txHash }}
             className="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 border-t border-border px-4 py-2 font-mono text-xs hover:bg-surface-2"
           >
             <span className="min-w-0">
@@ -270,9 +275,9 @@ export function DevStationAnalytics() {
             </span>
             <span className="inline-flex items-center gap-1 text-right text-meta">
               {d.timestamp ? new Date(d.timestamp * 1000).toLocaleDateString() : "—"}
-              <ExternalLink className="h-3 w-3" />
+              <ChevronRight className="h-3 w-3" />
             </span>
-          </a>
+          </Link>
         ))}
         {deployments.length === 0 && <Empty>No deployments recorded yet</Empty>}
       </Card>
