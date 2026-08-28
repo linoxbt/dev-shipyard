@@ -4,7 +4,6 @@ import {
   Bot,
   Send,
   Square,
-  AlertTriangle,
   Loader2,
   CheckCircle2,
   XCircle,
@@ -89,17 +88,15 @@ export function AgentChat({ className }: { className?: string }) {
       {/* Target / warning banner */}
       <div
         className={cn(
-          "flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-3 py-1.5 font-mono text-[10px]",
-          targetChain.testnet
-            ? "border-border bg-background/40 text-meta"
-            : "border-warning/40 bg-warning/10 text-warning",
+          "flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border bg-background/40 px-3 py-1.5 font-mono text-[10px] text-meta",
         )}
       >
-        {!targetChain.testnet && <AlertTriangle className="h-3 w-3" />}
+        {/* Which chain a deploy lands on, stated plainly. Deliberately not a
+            warning: every network is a first-class target, and the wallet
+            already shows the real cost at signing time. */}
         <span>
-          Deploys go to <span className="font-bold">{targetChain.name}</span>
-          {targetChain.testnet ? " (test network)" : " — real gas, irreversible"} and are signed by
-          your connected wallet.
+          Deploys go to <span className="font-bold">{targetChain.name}</span> and are signed by your
+          connected wallet.
         </span>
         {!isConnected && <span className="text-warning">Connect a wallet to deploy.</span>}
       </div>

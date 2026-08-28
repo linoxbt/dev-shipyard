@@ -50,9 +50,9 @@ function CodeWithAI() {
       />
 
       <Callout tone="warning">
-        Agent deploys are real, wallet-signed transactions on the network you have selected. A
-        mainnet target shows a real-gas warning. You approve every transaction in your wallet, and
-        the run is saved so it survives a page refresh.
+        Agent deploys are real, wallet-signed transactions on the network you have selected —
+        whichever that is. You approve every transaction in your wallet, where the actual cost is
+        shown before you sign, and the run is saved so it survives a page refresh.
       </Callout>
 
       <H2>Providers</H2>

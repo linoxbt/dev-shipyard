@@ -107,7 +107,7 @@ function EditorPage() {
   };
   const dragRef = useRef<number | null>(null);
   const aiDragRef = useRef<number | null>(null);
-  const { chainId: connectedChainId, isTestnet } = useActiveChain();
+  const { chainId: connectedChainId } = useActiveChain();
 
   const activeSol = ws.activePath.endsWith(".sol") ? ws.activeContent : "";
 
@@ -544,13 +544,6 @@ function EditorPage() {
         {/* Wallet status */}
         <WalletPanel />
       </div>
-
-      {/* Mainnet warning */}
-      {!isTestnet && (
-        <div className="flex items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-1 font-mono text-[11px] text-warning">
-          ⚠ QIE Mainnet. Transactions cost real gas.
-        </div>
-      )}
 
       {/* === PANELS === */}
       <div className="flex flex-1 overflow-hidden">

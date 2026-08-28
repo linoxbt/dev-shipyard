@@ -4,8 +4,6 @@ import { Search, FileCode2, Coins, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { storage } from "@/lib/storage";
-import { useNetworkPref } from "@/lib/active-chain";
-import { qieMainnet } from "@/lib/chains";
 import { useTerminology } from "@/lib/terminology";
 
 // Two real QIE Mainnet transactions that show off the inspector without hunting
@@ -44,7 +42,6 @@ function RoutebookHome() {
   const [hash, setHash] = useState("");
   const [recent, setRecent] = useState<string[]>([]);
   const navigate = useNavigate();
-  const setPreferred = useNetworkPref((s) => s.setPreferred);
 
   useEffect(() => setRecent(storage.loadInspections()), []);
 
@@ -54,10 +51,11 @@ function RoutebookHome() {
     navigate({ to: "/routebook/$txHash", params: { txHash: v } });
   };
 
-  // Demo txs live on Mainnet — switch the active chain so the decoder reads the
-  // right network, then open the inspector.
+  // Opens a demo tx WITHOUT touching the user's selected network. The
+  // inspector's loader already searches every supported chain for the hash, so
+  // forcing a chain switch here was both unnecessary and wrong — it silently
+  // moved someone off the network they had chosen.
   const openDemo = (h: string) => {
-    setPreferred(qieMainnet.id);
     navigate({ to: "/routebook/$txHash", params: { txHash: h } });
   };
 

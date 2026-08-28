@@ -1,10 +1,8 @@
 // Real wallet/network state, backed by wagmi. `useWallet` keeps the same shape
 // the UI already consumes so existing call sites work unchanged.
 import { useCallback } from "react";
-import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
-import { qieTestnet } from "./chains";
-
-export const QIE_CHAIN_ID = qieTestnet.id;
+import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { DEFAULT_CHAIN } from "./chains";
 
 export interface WalletView {
   connected: boolean;
@@ -12,14 +10,12 @@ export interface WalletView {
   chainId: number;
   connect: () => void;
   disconnect: () => void;
-  switchToQIE: () => void;
 }
 
 export function useWallet(): WalletView {
   const { address, isConnected, chainId } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
-  const { switchChain } = useSwitchChain();
 
   const doConnect = useCallback(() => {
     const injectedConnector = connectors.find((c) => c.type === "injected") ?? connectors[0];
@@ -29,10 +25,9 @@ export function useWallet(): WalletView {
   return {
     connected: isConnected,
     address: address ?? null,
-    chainId: chainId ?? QIE_CHAIN_ID,
+    chainId: chainId ?? DEFAULT_CHAIN.id,
     connect: doConnect,
     disconnect: () => disconnect(),
-    switchToQIE: () => switchChain({ chainId: QIE_CHAIN_ID }),
   };
 }
 
