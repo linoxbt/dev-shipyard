@@ -25,6 +25,21 @@ End a message with EXACTLY ONE directive line, on its own line, as the LAST line
             { "name": "transfer emits Transfer", "call": "transfer", "args": ["$OTHER", "5"], "expect": { "emits": "Transfer" } }
           ]
         }
+      If the contract depends on ANOTHER contract — it pulls tokens with transferFrom, reads a price, gates on an NFT — declare that dependency in "deploy" and test the real behaviour. Never say a path is untestable because the dependency is missing; deploy a minimal mock for it:
+        {
+          "deploy": [
+            { "as": "$TOKEN", "contract": "MockERC20", "args": ["$WALLET", "1000000"],
+              "solidity": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\ncontract MockERC20 { mapping(address=>uint256) public balanceOf; mapping(address=>mapping(address=>uint256)) public allowance; constructor(address to,uint256 a){ balanceOf[to]=a; } function approve(address s,uint256 a) external returns(bool){ allowance[msg.sender][s]=a; return true; } function transfer(address t,uint256 a) external returns(bool){ require(balanceOf[msg.sender]>=a); balanceOf[msg.sender]-=a; balanceOf[t]+=a; return true; } function transferFrom(address f,address t,uint256 a) external returns(bool){ require(balanceOf[f]>=a); require(allowance[f][msg.sender]>=a); allowance[f][msg.sender]-=a; balanceOf[f]-=a; balanceOf[t]+=a; return true; } }" }
+          ],
+          "deployArgs": ["$TOKEN", "$WALLET"],
+          "tests": [ { "name": "vault holds the deposit", "call": "deposited", "args": ["$WALLET"], "expect": { "equals": "100" } } ]
+        }
+      Helpers deploy in order before the contract under test, and their addresses bind to the "$NAME" you choose, usable anywhere an address goes. Keep mocks minimal — just enough surface for the calls under test. Helper sources are compiled ONLY for the test run; they never appear in the contract that gets deployed or verified.
+
+      Time moves: the test chain starts at the real current time, and any test may set "warpSeconds" to advance the clock BEFORE its call. Use it to actually exercise cliffs, vesting schedules, timelocks and deadlines rather than skipping them:
+        { "name": "nothing vested before the cliff", "call": "claimable", "args": ["$WALLET"], "expect": { "equals": "0" } },
+        { "name": "half vests after 6 months", "call": "claimable", "args": ["$WALLET"], "warpSeconds": 15768000, "expect": { "equals": "500" } }
+
       Use "$WALLET" for the deployer/owner (the same placeholder @@DEPLOY uses; in tests it maps to a local test account) and "$OTHER" for a second account, to test access control. Numbers are JSON strings. Each test needs ONE of: "equals" (return value), "reverts" (true, or a substring of the revert reason), "emits" (event name); use "reverts": false for a call that must simply succeed. Tests run in order against the same instance, so state carries over. Cover the happy path, access control, and at least one failure case.
 
   @@REVIEW name=<ContractName>

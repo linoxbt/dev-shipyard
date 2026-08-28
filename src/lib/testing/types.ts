@@ -48,15 +48,79 @@ export const testCase = z.object({
   from: z.string().optional(),
   /** Native token to send with the call, in wei, as a decimal string. */
   value: z.string().optional(),
+  /** Advance the chain clock by this many seconds BEFORE the call. Lets a
+   *  suite exercise cliffs, vesting schedules, timelocks and deadlines
+   *  without waiting. Capped so a suite cannot ask for absurd arithmetic. */
+  warpSeconds: z
+    .number()
+    .int()
+    .min(0)
+    .max(100 * 365 * 24 * 60 * 60)
+    .optional(),
   expect: expectation,
 });
 
+/** A helper contract deployed BEFORE the contract under test, so a contract
+ *  with an external dependency can actually be exercised.
+ *
+ *  Without this, anything that calls out to another contract — a vault that
+ *  pulls tokens with transferFrom, an invoice contract, a staking pool — could
+ *  only be tested up to its first external call, because nothing existed at
+ *  the dependency's address. Helper sources are kept SEPARATE from the
+ *  contract under test on purpose: they are compiled only for the test run and
+ *  never end up in the source that gets deployed and verified onchain. */
+/** Placeholders the runner owns. A helper must never bind one of these:
+ *  rebinding "the deployer" to a contract makes an ownership assertion pass
+ *  while proving nothing, which is the worst possible silent failure in the
+ *  step that gates deployment. */
+export const RESERVED_PLACEHOLDERS: readonly string[] = [
+  OWNER_PLACEHOLDER,
+  OTHER_PLACEHOLDER,
+  WALLET_PLACEHOLDER,
+];
+
+/** Caps on what one suite may ask the browser to do. Each helper is a full
+ *  solc compile (seconds), run serially, so an unbounded list would freeze the
+ *  tab with nothing explaining why. Generous enough that no honest suite hits
+ *  them. */
+export const MAX_HELPERS = 5;
+export const MAX_HELPER_SOURCE_BYTES = 24_000;
+
+export const helperContract = z.object({
+  /** Placeholder the helper's address is bound to, e.g. "$TOKEN". Usable in
+   *  deployArgs, test args and expected values. */
+  as: z
+    .string()
+    .regex(/^\$[A-Z][A-Z0-9_]*$/, 'Must look like "$TOKEN" — $ then UPPER_SNAKE')
+    .refine((v) => !RESERVED_PLACEHOLDERS.includes(v), {
+      message: `Cannot reuse a built-in placeholder (${RESERVED_PLACEHOLDERS.join(", ")}) — pick another name such as $TOKEN`,
+    }),
+  /** Full Solidity source for the helper. Compiled for the test run only. */
+  solidity: z
+    .string()
+    .min(1)
+    .max(MAX_HELPER_SOURCE_BYTES, "Helper source is too large — keep mocks minimal"),
+  /** Which contract in that source to deploy. Defaults to the only one. */
+  contract: z.string().optional(),
+  args: z.array(argValue).default([]),
+});
+
 export const testSuite = z.object({
+  /** Helper contracts deployed first, in order. Each may reference earlier
+   *  helpers' placeholders in its own args. */
+  deploy: z
+    .array(helperContract)
+    .max(MAX_HELPERS, `At most ${MAX_HELPERS} helper contracts per suite`)
+    .refine((list) => new Set(list.map((h) => h.as)).size === list.length, {
+      message: "Two helpers claim the same placeholder — each needs a distinct name",
+    })
+    .default([]),
   /** Constructor arguments for the contract under test. */
   deployArgs: z.array(argValue).default([]),
   tests: z.array(testCase).min(1),
 });
 
+export type HelperContract = z.infer<typeof helperContract>;
 export type TestCase = z.infer<typeof testCase>;
 export type TestSuite = z.infer<typeof testSuite>;
 
@@ -69,6 +133,8 @@ export interface TestOutcome {
 }
 
 export interface SuiteResult {
+  /** Addresses assigned to helper placeholders, for reporting. */
+  helpers?: Record<string, string>;
   deployed: boolean;
   deployError?: string;
   outcomes: TestOutcome[];

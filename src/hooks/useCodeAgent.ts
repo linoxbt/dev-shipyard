@@ -609,6 +609,24 @@ export function useCodeAgent() {
               abi: artifact.abi as Abi,
               bytecode: artifact.bytecode,
               suite: parsedSuite.data,
+              // Helper contracts are compiled with the same in-browser solc
+              // the real contract uses, but SEPARATELY — they never enter the
+              // source that gets deployed and verified onchain.
+              compileHelper: async (source) => {
+                const out = await compile({
+                  sources: { "Helper.sol": source },
+                  version: DEFAULT_SOLC_VERSION,
+                  mainFile: "Helper.sol",
+                });
+                const contracts: Record<string, { abi: unknown[]; bytecode: `0x${string}` }> = {};
+                for (const [name, c] of Object.entries(out.contracts)) {
+                  contracts[name] = { abi: c.abi, bytecode: c.bytecode };
+                }
+                return {
+                  contracts,
+                  errors: out.errors.map((e) => e.formattedMessage || e.message),
+                };
+              },
             });
           } catch (e) {
             const why = e instanceof Error ? e.message : "The test runner failed to start.";
@@ -644,10 +662,13 @@ export function useCodeAgent() {
           }
 
           if (result.ok) {
+            const helperNote = Object.keys(result.helpers ?? {}).length
+              ? `helpers: ${Object.keys(result.helpers ?? {}).join(", ")} · `
+              : "";
             updateStep(sIdx, {
               status: "ok",
               title: `Tests passed (${result.passed}/${result.outcomes.length})`,
-              detail: result.outcomes.map((o) => `✓ ${o.name}`).join(" · "),
+              detail: helperNote + result.outcomes.map((o) => `✓ ${o.name}`).join(" · "),
             });
             convoRef.current.push({
               role: "user",

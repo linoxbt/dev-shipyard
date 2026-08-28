@@ -8,6 +8,12 @@ export type TemplateCategory =
   | "NFT"
   | "Custom";
 
+/** A known onchain address the deploy form can pre-fill for an argument.
+ *  Declared per-argument so seeding stays data-driven instead of a growing
+ *  if-chain in the wizard, and so a template can never hardcode an address
+ *  that is wrong on another network. */
+export type ArgDefaultSource = "wallet" | "qusdc" | "qieId";
+
 export interface ConstructorArg {
   name: string;
   label: string;
@@ -16,6 +22,10 @@ export interface ConstructorArg {
   helper?: string;
   maxLength?: number;
   uppercase?: boolean;
+  /** Pre-fill this argument from a known address for the ACTIVE chain. Left
+   *  blank when that address isn't deployed there, so the user is prompted
+   *  rather than handed a wrong-network address. */
+  defaultFrom?: ArgDefaultSource;
 }
 
 export interface Template {
@@ -64,6 +74,274 @@ export interface Template {
 export function templateNeedsImage(t: Template): boolean {
   return t.requiresImage ?? t.category === "NFT";
 }
+
+const STABLECOIN_INVOICES_SRC = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface IERC20 {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function transfer(address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+    function decimals() external view returns (uint8);
+}
+
+/// @title StablecoinInvoices
+/// @notice Issue invoices payable in a stablecoin (QUSDC on QIE) and collect
+///         them onchain, with a per-invoice paid/cancelled record.
+/// @dev Amounts are in the TOKEN'S OWN smallest unit. QUSDC has 6 decimals,
+///      not 18 — 1 QUSDC is 1_000_000. Never assume 1e18 here.
+///      Uses transferFrom, so a payer must approve() this contract for the
+///      invoice amount first. Pull-based on withdraw, and state is written
+///      before the external call on every path.
+contract StablecoinInvoices {
+    struct Invoice {
+        address payer;      // address(0) = payable by anyone
+        uint256 amount;     // in token smallest units
+        uint64  dueBy;      // unix seconds; 0 = no expiry
+        bool    paid;
+        bool    cancelled;
+        string  memo;
+    }
+
+    IERC20 public immutable token;
+    address public owner;
+    uint256 public invoiceCount;
+    uint256 public totalCollected;
+    mapping(uint256 => Invoice) private _invoices;
+
+    event InvoiceIssued(uint256 indexed id, address indexed payer, uint256 amount, string memo);
+    event InvoicePaid(uint256 indexed id, address indexed paidBy, uint256 amount);
+    event InvoiceCancelled(uint256 indexed id);
+    event Withdrawn(address indexed to, uint256 amount);
+    event OwnerChanged(address indexed previousOwner, address indexed newOwner);
+
+    error NotOwner();
+    error ZeroAddress();
+    error NotAContract();
+    error ZeroAmount();
+    error NoSuchInvoice();
+    error AlreadySettled();
+    error NotYourInvoice();
+    error PastDue();
+    error TransferFailed();
+    error NothingToWithdraw();
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert NotOwner();
+        _;
+    }
+
+    /// @param token_ Stablecoin accepted for payment (QUSDC on QIE Mainnet).
+    /// @param initialOwner Receives collected funds and may issue invoices.
+    constructor(address token_, address initialOwner) {
+        if (token_ == address(0) || initialOwner == address(0)) revert ZeroAddress();
+        // token is immutable: a wrong address means no invoice can ever be
+        // paid and nothing can be withdrawn, with no way to correct it.
+        if (token_.code.length == 0) revert NotAContract();
+        token = IERC20(token_);
+        owner = initialOwner;
+        emit OwnerChanged(address(0), initialOwner);
+    }
+
+    /// @notice Issue an invoice. \`payer\` may be address(0) for "anyone can pay".
+    /// @param amount In the token's smallest unit (QUSDC: 1 QUSDC = 1000000).
+    /// @param dueBy Unix seconds after which payment is refused; 0 = no expiry.
+    function issueInvoice(address payer, uint256 amount, uint64 dueBy, string calldata memo)
+        external
+        onlyOwner
+        returns (uint256 id)
+    {
+        if (amount == 0) revert ZeroAmount();
+        id = ++invoiceCount;
+        _invoices[id] = Invoice(payer, amount, dueBy, false, false, memo);
+        emit InvoiceIssued(id, payer, amount, memo);
+    }
+
+    /// @notice Pay an invoice. Approve this contract for \`amount\` first.
+    function payInvoice(uint256 id) external {
+        Invoice storage inv = _invoices[id];
+        if (inv.amount == 0) revert NoSuchInvoice();
+        if (inv.paid || inv.cancelled) revert AlreadySettled();
+        if (inv.payer != address(0) && inv.payer != msg.sender) revert NotYourInvoice();
+        if (inv.dueBy != 0 && block.timestamp > inv.dueBy) revert PastDue();
+
+        inv.paid = true;                       // effects before interaction
+        totalCollected += inv.amount;
+        emit InvoicePaid(id, msg.sender, inv.amount);
+
+        if (!token.transferFrom(msg.sender, address(this), inv.amount)) revert TransferFailed();
+    }
+
+    function cancelInvoice(uint256 id) external onlyOwner {
+        Invoice storage inv = _invoices[id];
+        if (inv.amount == 0) revert NoSuchInvoice();
+        if (inv.paid || inv.cancelled) revert AlreadySettled();
+        inv.cancelled = true;
+        emit InvoiceCancelled(id);
+    }
+
+    /// @notice Send the contract's entire token balance to \`to\`.
+    function withdraw(address to) external onlyOwner {
+        if (to == address(0)) revert ZeroAddress();
+        uint256 balance = token.balanceOf(address(this));
+        if (balance == 0) revert NothingToWithdraw();
+        emit Withdrawn(to, balance);
+        if (!token.transfer(to, balance)) revert TransferFailed();
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert ZeroAddress();
+        emit OwnerChanged(owner, newOwner);
+        owner = newOwner;
+    }
+
+    function getInvoice(uint256 id) external view returns (Invoice memory) {
+        if (_invoices[id].amount == 0) revert NoSuchInvoice();
+        return _invoices[id];
+    }
+
+    function isPayable(uint256 id) external view returns (bool) {
+        Invoice storage inv = _invoices[id];
+        return inv.amount != 0 && !inv.paid && !inv.cancelled
+            && (inv.dueBy == 0 || block.timestamp <= inv.dueBy);
+    }
+}
+`;
+
+const QIE_ID_GATE_SRC = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface IERC721Balance {
+    function balanceOf(address owner) external view returns (uint256);
+}
+
+/// @title QieIdGatedAllowlist
+/// @notice Access control gated on holding a QIE ID (.qie) name, with an
+///         onchain record of who claimed a place and when.
+/// @dev The gate is deliberately \`balanceOf(user) > 0\` and nothing else.
+///      QIE ID is an ERC-721 of .qie names — verified onchain: it answers
+///      supportsInterface(0x80ac58cd) and balanceOf(), but ownerOf() reverts
+///      for sequential ids (ids are not sequential), tokenURI is empty, and
+///      the ENS-style addr()/name() resolver calls revert. So "holds at least
+///      one name" is the only sound onchain check; do not add ownerOf or
+///      name-resolution logic on top of it, it will revert.
+///
+///      The registry address is a constructor parameter rather than a
+///      constant so this deploys on any network — pass the QIE ID address on
+///      QIE Mainnet, or any ERC-721 you want to gate on elsewhere.
+contract QieIdGatedAllowlist {
+    IERC721Balance public immutable gateToken;
+    address public owner;
+    uint256 public claimed;
+    uint256 public maxClaims;      // 0 = unlimited
+    bool public claimingOpen;
+
+    mapping(address => uint64) public claimedAt;   // 0 = has not claimed
+    address[] private _members;
+
+    event Claimed(address indexed member, uint256 position);
+    event ClaimingToggled(bool open);
+    event MaxClaimsChanged(uint256 maxClaims);
+    event OwnerChanged(address indexed previousOwner, address indexed newOwner);
+
+    error NotOwner();
+    error NotAContract();
+    error ZeroAddress();
+    error ClaimingClosed();
+    error NoQieId();
+    error AlreadyClaimed();
+    error AllocationFull();
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert NotOwner();
+        _;
+    }
+
+    /// @param gateToken_ ERC-721 whose holders may claim (QIE ID on QIE Mainnet).
+    /// @param initialOwner Can open/close claiming and change the cap.
+    /// @param maxClaims_ Maximum places; 0 for unlimited.
+    constructor(address gateToken_, address initialOwner, uint256 maxClaims_) {
+        if (gateToken_ == address(0) || initialOwner == address(0)) revert ZeroAddress();
+        // gateToken is immutable, so a wrong address here bricks the contract
+        // permanently — every read reverts and nobody can ever claim. Reject
+        // anything without code at deploy time rather than after the fact.
+        if (gateToken_.code.length == 0) revert NotAContract();
+        gateToken = IERC721Balance(gateToken_);
+        owner = initialOwner;
+        maxClaims = maxClaims_;
+        claimingOpen = true;
+        emit OwnerChanged(address(0), initialOwner);
+    }
+
+    /// @notice True when \`user\` holds at least one gate-token name.
+    /// @dev Deliberately a low-level staticcall rather than a direct call. A
+    ///      plain external call bubbles up any revert, which would make
+    ///      canClaim() -- a view the UI calls to decide whether to show a
+    ///      claim button -- throw instead of returning false. A gate that
+    ///      cannot answer is treated as "not a holder", never as an error.
+    function holdsQieId(address user) public view returns (bool) {
+        (bool ok, bytes memory data) = address(gateToken).staticcall(
+            abi.encodeWithSelector(IERC721Balance.balanceOf.selector, user)
+        );
+        if (!ok || data.length < 32) return false;
+        return abi.decode(data, (uint256)) > 0;
+    }
+
+    /// @notice Whether \`user\` could claim a place right now.
+    function canClaim(address user) external view returns (bool) {
+        if (!claimingOpen) return false;
+        if (claimedAt[user] != 0) return false;
+        if (maxClaims != 0 && claimed >= maxClaims) return false;
+        return holdsQieId(user);
+    }
+
+    /// @notice Claim a place. Requires a QIE ID and one claim per address.
+    function claim() external {
+        if (!claimingOpen) revert ClaimingClosed();
+        if (claimedAt[msg.sender] != 0) revert AlreadyClaimed();
+        if (maxClaims != 0 && claimed >= maxClaims) revert AllocationFull();
+        if (!holdsQieId(msg.sender)) revert NoQieId();
+
+        claimedAt[msg.sender] = uint64(block.timestamp);
+        _members.push(msg.sender);
+        claimed += 1;
+        emit Claimed(msg.sender, claimed);
+    }
+
+    function setClaimingOpen(bool open) external onlyOwner {
+        claimingOpen = open;
+        emit ClaimingToggled(open);
+    }
+
+    function setMaxClaims(uint256 maxClaims_) external onlyOwner {
+        maxClaims = maxClaims_;
+        emit MaxClaimsChanged(maxClaims_);
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert ZeroAddress();
+        emit OwnerChanged(owner, newOwner);
+        owner = newOwner;
+    }
+
+    function memberCount() external view returns (uint256) {
+        return _members.length;
+    }
+
+    /// @notice Paged member list. Deliberately paged: an unbounded getter
+    ///         grows until it reverts out-of-gas for every caller.
+    function membersPage(uint256 offset, uint256 limit) external view returns (address[] memory page) {
+        uint256 total = _members.length;
+        if (offset >= total) return new address[](0);
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        page = new address[](end - offset);
+        for (uint256 i = offset; i < end; i++) {
+            page[i - offset] = _members[i];
+        }
+    }
+}
+`;
 
 // All sources are self-contained (NO imports) so they compile with the
 // in-browser solc Web Worker, which cannot resolve npm/remote imports.
@@ -559,6 +837,83 @@ contract PaymentSplitter {
 
 export const TEMPLATES: Template[] = [
   {
+    id: "stablecoin-invoices",
+    name: "StablecoinInvoices",
+    displayName: "Stablecoin Invoices",
+    category: "DeFi",
+    description:
+      "Issue invoices payable in a stablecoin and collect them onchain, with a paid/cancelled record per invoice. Pre-filled with QUSDC on QIE Mainnet.",
+    longDescription:
+      "A merchant contract for onchain billing. Issue an invoice to a specific payer or to anyone, optionally with a due date, and let them settle it in QUSDC. Amounts are in the token's own smallest unit — QUSDC has 6 decimals, so 1 QUSDC is 1000000, not 1e18. Payers must approve() this contract for the amount before paying. State is written before every external transfer, and withdrawals are owner-only.",
+    tags: ["QUSDC", "Payments", "Invoicing", "Commerce"],
+    verified: true,
+    deployCount: 0,
+    solidity: STABLECOIN_INVOICES_SRC,
+    abi: '[{"inputs":[{"internalType":"address","name":"token_","type":"address"},{"internalType":"address","name":"initialOwner","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"AlreadySettled","type":"error"},{"inputs":[],"name":"NoSuchInvoice","type":"error"},{"inputs":[],"name":"NotAContract","type":"error"},{"inputs":[],"name":"NotOwner","type":"error"},{"inputs":[],"name":"NotYourInvoice","type":"error"},{"inputs":[],"name":"NothingToWithdraw","type":"error"},{"inputs":[],"name":"PastDue","type":"error"},{"inputs":[],"name":"TransferFailed","type":"error"},{"inputs":[],"name":"ZeroAddress","type":"error"},{"inputs":[],"name":"ZeroAmount","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"}],"name":"InvoiceCancelled","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"payer","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"string","name":"memo","type":"string"}],"name":"InvoiceIssued","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"paidBy","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"InvoicePaid","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnerChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Withdrawn","type":"event"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"cancelInvoice","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"getInvoice","outputs":[{"components":[{"internalType":"address","name":"payer","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint64","name":"dueBy","type":"uint64"},{"internalType":"bool","name":"paid","type":"bool"},{"internalType":"bool","name":"cancelled","type":"bool"},{"internalType":"string","name":"memo","type":"string"}],"internalType":"struct StablecoinInvoices.Invoice","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"invoiceCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"isPayable","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"payer","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint64","name":"dueBy","type":"uint64"},{"internalType":"string","name":"memo","type":"string"}],"name":"issueInvoice","outputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"payInvoice","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"token","outputs":[{"internalType":"contract IERC20","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalCollected","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"}],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
+    args: [
+      {
+        name: "token_",
+        label: "Stablecoin Address",
+        type: "address",
+        defaultFrom: "qusdc",
+        helper:
+          "Token accepted for payment. Pre-filled with QUSDC on QIE Mainnet (6 decimals); paste another ERC-20 to bill in something else.",
+      },
+      {
+        name: "initialOwner",
+        label: "Owner",
+        type: "address",
+        defaultFrom: "wallet",
+        helper: "Issues invoices and withdraws collected funds.",
+      },
+    ],
+    author: "DevStation",
+    version: "1.0.0",
+    estimatedGas: 1950000,
+  },
+  {
+    id: "qie-id-gate",
+    name: "QieIdGatedAllowlist",
+    displayName: "QIE ID Gated Allowlist",
+    category: "Utility",
+    description:
+      "An allowlist only holders of a QIE ID (.qie) name can claim a place on, with an optional cap and an onchain member record.",
+    longDescription:
+      "Gates access on holding a QIE ID name — the check is balanceOf(user) > 0 against the .qie ERC-721, which is the only sound onchain check that registry supports: ownerOf reverts for sequential ids, tokenURI is empty, and ENS-style resolution reverts. Useful for allowlists, early access, or any perk you want to reserve for people who hold a .qie name. The registry is a constructor argument, so the same contract gates on any ERC-721 on any network.",
+    tags: ["QIE ID", "Access Control", "Allowlist", "Identity"],
+    verified: true,
+    deployCount: 0,
+    solidity: QIE_ID_GATE_SRC,
+    abi: '[{"inputs":[{"internalType":"address","name":"gateToken_","type":"address"},{"internalType":"address","name":"initialOwner","type":"address"},{"internalType":"uint256","name":"maxClaims_","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"AllocationFull","type":"error"},{"inputs":[],"name":"AlreadyClaimed","type":"error"},{"inputs":[],"name":"ClaimingClosed","type":"error"},{"inputs":[],"name":"NoQieId","type":"error"},{"inputs":[],"name":"NotAContract","type":"error"},{"inputs":[],"name":"NotOwner","type":"error"},{"inputs":[],"name":"ZeroAddress","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"member","type":"address"},{"indexed":false,"internalType":"uint256","name":"position","type":"uint256"}],"name":"Claimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"bool","name":"open","type":"bool"}],"name":"ClaimingToggled","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"maxClaims","type":"uint256"}],"name":"MaxClaimsChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnerChanged","type":"event"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"canClaim","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"claim","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"claimed","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"claimedAt","outputs":[{"internalType":"uint64","name":"","type":"uint64"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"claimingOpen","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"gateToken","outputs":[{"internalType":"contract IERC721Balance","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"holdsQieId","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"maxClaims","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"memberCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"offset","type":"uint256"},{"internalType":"uint256","name":"limit","type":"uint256"}],"name":"membersPage","outputs":[{"internalType":"address[]","name":"page","type":"address[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bool","name":"open","type":"bool"}],"name":"setClaimingOpen","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"maxClaims_","type":"uint256"}],"name":"setMaxClaims","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
+    args: [
+      {
+        name: "gateToken_",
+        label: "Gate Token (ERC-721)",
+        type: "address",
+        defaultFrom: "qieId",
+        helper:
+          "Holders of this NFT may claim. Pre-filled with the QIE ID (.qie) registry on QIE Mainnet.",
+      },
+      {
+        name: "initialOwner",
+        label: "Owner",
+        type: "address",
+        defaultFrom: "wallet",
+        helper: "Can open or close claiming and change the cap.",
+      },
+      {
+        name: "maxClaims_",
+        label: "Max Claims",
+        type: "uint",
+        placeholder: "0",
+        helper: "Maximum places. Use 0 for unlimited.",
+      },
+    ],
+    author: "DevStation",
+    version: "1.0.0",
+    estimatedGas: 1380000,
+  },
+  {
     id: "simple-erc20",
     name: "SimpleERC20",
     displayName: "ERC-20 Token",
@@ -834,11 +1189,6 @@ export function getTemplate(id: string) {
  *  Never pass this to the compiler or the verifier — those need `template.name`. */
 export function templateLabel(t: Pick<Template, "name" | "displayName">, chainId: number): string {
   return applyTerminology(t.displayName ?? t.name, chainId);
-}
-
-/** A template's description in that chain's vocabulary. */
-export function templateDescription(t: Pick<Template, "description">, chainId: number): string {
-  return applyTerminology(t.description, chainId);
 }
 
 // Display labels for the category values. The raw TemplateCategory strings are

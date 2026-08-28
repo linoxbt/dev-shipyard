@@ -28,10 +28,12 @@ import {
   templateLabel,
   type Template,
   type ConstructorArg,
+  type ArgDefaultSource,
 } from "@/lib/data/templates";
 import { DEFAULT_GAS_GWEI, nativeSymbol } from "@/lib/chains";
 import { chainById } from "@/lib/active-chain";
 import { labelCategoryForTemplate } from "@/lib/labels/categories";
+import { qusdcAddress, qieIdAddress } from "@/lib/contracts";
 import { slugForChainId, devstationExplorerBase } from "@/lib/explorer/network";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
@@ -160,14 +162,27 @@ function DeployWizard() {
   const handleSelectTemplate = (t: Template) => {
     setTemplateId(t.id);
     setProjectName(t.name);
-    // Pre-fill an explicit owner/recipient arg with the connected wallet so
-    // a self-paid deploy still ends up owned by the deployer (see
-    // src/lib/mock/templates.ts — SimpleERC20/ERC721/Staking/SoulboundNFT no
-    // longer default ownership to msg.sender, which would otherwise hand
-    // ownership to the gas-sponsor wallet on a sponsored deploy).
+    // Pre-fill arguments from known addresses for the ACTIVE chain.
+    //
+    // Ownership args are seeded with the connected wallet because these
+    // templates deliberately take an explicit owner rather than msg.sender —
+    // on a gas-sponsored deploy msg.sender is the sponsor wallet, which would
+    // otherwise end up owning the contract (see src/lib/data/templates.ts).
+    //
+    // Token/registry args are seeded from the chain's own deployment, and are
+    // left BLANK where that contract does not exist on this network, so the
+    // user is prompted instead of being handed a wrong-network address.
+    const known: Record<ArgDefaultSource, string> = {
+      wallet: address ?? "",
+      qusdc: qusdcAddress(chain.id),
+      qieId: qieIdAddress(chain.id),
+    };
     const seeded: Record<string, string> = {};
-    if (address && t.args.some((a) => a.name === "initialOwner_")) {
-      seeded.initialOwner_ = address;
+    for (const a of t.args) {
+      const source = a.defaultFrom ?? (a.name === "initialOwner_" ? "wallet" : undefined);
+      if (!source) continue;
+      const value = known[source];
+      if (value) seeded[a.name] = value;
     }
     setArgs(seeded);
   };

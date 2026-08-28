@@ -97,6 +97,26 @@ export function qusdcAddress(chainId: number): `0x${string}` {
   return QUSDC[chainId] ?? ("" as `0x${string}`);
 }
 
+// QIE ID — the ".qie" name registry. Despite the "ID" branding this is a
+// plain ERC-721 of domain names, NOT an identity resolver: verified on
+// mainnet, supportsInterface(0x80ac58cd) returns true, 12,175 minted, and
+// balanceOf(holder) works. What does NOT work, and must not be built on:
+// ownerOf(1) reverts (token ids are not sequential), tokenURI is empty, and
+// the ENS-style addr()/name() resolver calls revert. So the only sound check
+// is "does this address hold at least one .qie name" via balanceOf.
+// Mainnet-only, like QUSDC — there is no published testnet deployment.
+const QIE_MAINNET_QIE_ID = "0x9aab56e7727af53A3131985BFB16d845319b7bdc";
+
+const QIE_ID: Record<number, `0x${string}`> = {
+  [qieTestnet.id]: envAddress(env.VITE_QIE_ID_ADDRESS_TESTNET),
+  [qieMainnet.id]: envAddress(env.VITE_QIE_ID_ADDRESS_MAINNET, QIE_MAINNET_QIE_ID),
+};
+
+/** QIE ID (.qie names) ERC-721 for a chain ("" where it isn't deployed). */
+export function qieIdAddress(chainId: number): `0x${string}` {
+  return QIE_ID[chainId] ?? ("" as `0x${string}`);
+}
+
 export function isContractConfigured(address: `0x${string}`): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(address);
 }
