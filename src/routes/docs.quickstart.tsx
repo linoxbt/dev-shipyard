@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { DocPage, P, Steps, Callout, PageNav } from "@/components/docs/primitives";
 import { docNeighbors } from "@/components/docs/nav";
+import { useTerminology } from "@/lib/terminology";
 
 export const Route = createFileRoute("/docs/quickstart")({
   head: () => ({ meta: [{ title: "Quickstart - DevStation Docs" }] }),
@@ -8,6 +9,7 @@ export const Route = createFileRoute("/docs/quickstart")({
 });
 
 function Quickstart() {
+  const { t } = useTerminology();
   const { prev, next } = docNeighbors("/docs/quickstart");
   return (
     <DocPage
@@ -26,7 +28,9 @@ function Quickstart() {
           },
           {
             title: "Pick a template",
-            body: "Open LaunchKit and choose a template for your network \u2014 a fungible token, an NFT, a program, and more \u2014 then fill in the fields in the guided form.",
+            body: t(
+              "Open LaunchKit and choose a template \u2014 an ERC-20 token, an NFT collection, staking, vesting, and more \u2014 then fill in the fields in the guided form.",
+            ),
           },
           {
             title: "Deploy",

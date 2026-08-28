@@ -45,7 +45,20 @@ interface CompileRequest {
   mainFile: string;
   optimize?: boolean;
   optimizerRuns?: number;
+  /** Target EVM version. Defaults to DEFAULT_EVM_VERSION — see the note there
+   *  for why leaving this to solc's default is not safe on QIE. */
+  evmVersion?: string;
 }
+
+// QIE's EVM does not implement MCOPY (0x5e). solc >= 0.8.25 emits it by
+// default (its default evmVersion moved to "cancun"), and any contract that
+// does will revert on QIE the moment it hits that opcode — typically in a
+// string-returning view, which is how ContractLabelRegistry.getLabel() ended
+// up unusable in production. "shanghai" is the newest target that predates
+// MCOPY, and bytecode built for it runs fine on cancun chains too, so pinning
+// it is safe for every chain DevStation supports rather than only QIE.
+// scripts/compile.ts pins the same value for the registry contracts.
+export const DEFAULT_EVM_VERSION = "shanghai";
 
 let nextId = 0;
 let worker: Worker | null = null;
@@ -66,6 +79,7 @@ export function compile({
   mainFile,
   optimize = false,
   optimizerRuns = 200,
+  evmVersion = DEFAULT_EVM_VERSION,
 }: CompileRequest): Promise<CompileOutput> {
   const id = ++nextId;
   const w = getWorker();
@@ -138,7 +152,7 @@ export function compile({
     };
 
     w.addEventListener("message", handler);
-    w.postMessage({ id, sources, version, mainFile, optimize, optimizerRuns });
+    w.postMessage({ id, sources, version, mainFile, optimize, optimizerRuns, evmVersion });
   });
 }
 

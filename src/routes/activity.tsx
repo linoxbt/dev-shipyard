@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { useCombinedDeployStats } from "@/hooks/useProjectRegistry";
 import { getAllDeploymentsCombined, type EcosystemDeployment } from "@/lib/api/chain.functions";
 import { projectRegistryAddress, isContractConfigured } from "@/lib/contracts";
-import { getTemplate } from "@/lib/mock/templates";
+import { getTemplate } from "@/lib/data/templates";
 import { qieTestnet, SUPPORTED_CHAINS } from "@/lib/chains";
 import { slugForChainId } from "@/lib/explorer/network";
 import { timeAgo, shortHash, shortAddr } from "@/lib/explorer/format";

@@ -80,6 +80,7 @@ export const CHAIN_CONFIG = {
     explorerApiUrl: `${TESTNET_EXPLORER}/api`,
     faucetUrl: "https://qie.digital/faucet",
     name: "QIE Testnet",
+    family: "qie",
   },
   [qieMainnet.id]: {
     rpcUrl: MAINNET_RPC,
@@ -87,6 +88,7 @@ export const CHAIN_CONFIG = {
     explorerApiUrl: `${MAINNET_EXPLORER}/api`,
     faucetUrl: null,
     name: "QIE Mainnet",
+    family: "qie",
   },
   [botTestnet.id]: {
     rpcUrl: BOT_TESTNET_RPC,
@@ -94,6 +96,7 @@ export const CHAIN_CONFIG = {
     explorerApiUrl: `${BOT_TESTNET_EXPLORER}/api`,
     faucetUrl: "https://faucet.botchain.ai/basic",
     name: "BOT Chain Testnet",
+    family: "bot",
   },
   [botMainnet.id]: {
     rpcUrl: BOT_MAINNET_RPC,
@@ -101,11 +104,32 @@ export const CHAIN_CONFIG = {
     explorerApiUrl: `${BOT_MAINNET_EXPLORER}/api`,
     faucetUrl: null,
     name: "BOT Chain Mainnet",
+    family: "bot",
   },
 } as const;
 
 export function chainConfig(chainId: number) {
   return CHAIN_CONFIG[chainId as keyof typeof CHAIN_CONFIG] ?? CHAIN_CONFIG[qieMainnet.id];
+}
+
+/** Which chain family a chain id belongs to. Groups a family's testnet and
+ *  mainnet together — the primitive behind QIE-native naming (see
+ *  src/lib/terminology.ts) and per-family stats. */
+export type ChainFamily = (typeof CHAIN_CONFIG)[keyof typeof CHAIN_CONFIG]["family"];
+
+export function chainFamily(chainId: number): ChainFamily | null {
+  // Deliberately NOT chainConfig(), which falls back to QIE Mainnet so RPC and
+  // explorer lookups always resolve to something usable. That fallback is
+  // wrong here: an unmapped chain must report "no family" rather than
+  // masquerading as QIE and inheriting QIE-only naming and features.
+  const cfg = CHAIN_CONFIG[chainId as keyof typeof CHAIN_CONFIG];
+  return cfg ? cfg.family : null;
+}
+
+/** True for QIE Testnet and QIE Mainnet. QIE is DevStation's core ecosystem,
+ *  so QIE-only features and QIE-native wording gate on this. */
+export function isQieChain(chainId: number): boolean {
+  return chainFamily(chainId) === "qie";
 }
 
 // Fallback gas price (Gwei) shown before the live RPC value arrives.

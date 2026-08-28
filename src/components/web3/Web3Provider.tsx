@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { WagmiProvider, useAccount, useConnect } from "wagmi";
 import { wagmiConfig } from "@/lib/wagmi";
 import { useBurner } from "@/lib/burner/store";
+import { useNetworkPref } from "@/lib/active-chain";
 import { loadBurnerSession, touchBurnerSession, isBurnerSessionIdle } from "@/lib/burner/session";
 
 // Auto-locks the burner wallet after IDLE_LOCK_MS of no tracked activity —
@@ -66,9 +67,21 @@ function WalletAutoReconnect() {
 // wagmi reuses that QueryClientProvider, so this only adds Wagmi. wagmiConfig
 // has ssr:true so SSR/hydration is safe, persists to localStorage, and
 // reconnectOnMount restores the last wallet after a refresh.
+// Applies the persisted network preference once, after mount. The store
+// deliberately starts on DEFAULT_CHAIN so SSR and the first client render
+// agree; this is what promotes it to the user's actual saved chain.
+function NetworkPrefHydrator() {
+  const hydrate = useNetworkPref((s) => s.hydrate);
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+  return null;
+}
+
 export function Web3Provider({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig} reconnectOnMount>
+      <NetworkPrefHydrator />
       <WalletAutoReconnect />
       <BurnerIdleLock />
       {children}

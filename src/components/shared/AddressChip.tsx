@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { truncateAddress } from "@/lib/wallet";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { slugForChainId } from "@/lib/explorer/network";
-import { findLabel } from "@/lib/mock/labels";
+import { useLabelName } from "@/hooks/useContractLabels";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -18,7 +18,11 @@ export function AddressChip({ address, showLabel = true, full = false, className
   const [copied, setCopied] = useState(false);
   const { chainId } = useActiveChain();
   const network = slugForChainId(chainId);
-  const label = showLabel ? findLabel(address) : undefined;
+  // Real on-chain names from ContractLabelRegistry. useAllLabels underneath is
+  // a shared React Query key with a 15s staleTime, so the many AddressChips on
+  // a Routebook call tree all read one cached fetch rather than one each.
+  const onChainName = useLabelName(showLabel ? address : undefined);
+  const label = onChainName ? { name: onChainName } : undefined;
 
   const copy = () => {
     navigator.clipboard.writeText(address);

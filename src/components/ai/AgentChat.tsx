@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { useAiSettings, AI_PROVIDERS } from "@/lib/ai-settings";
 import { useCodeAgent, type TimelineItem, type ToolStep } from "@/hooks/useCodeAgent";
 import { useEditorIntake } from "@/lib/editor-intake";
+import { useTerminology } from "@/lib/terminology";
 import { contractNameOf } from "@/lib/solidity-name";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils";
 // showing each tool step inline. Deploys are signed by the connected wallet on
 // the currently selected network.
 export function AgentChat({ className }: { className?: string }) {
+  const { t } = useTerminology();
   const [input, setInput] = useState("");
   const settings = useAiSettings();
   const configured = settings.proxy || !!(settings.keys[settings.provider] ?? "");
@@ -110,11 +112,9 @@ export function AgentChat({ className }: { className?: string }) {
               <>
                 <p>Describe a contract and I&apos;ll build it end to end:</p>
                 <ul className="ml-3 list-disc space-y-1">
+                  <li>{t('"Create an ERC-20 token called QIE Pizza (PIZZA) and deploy it."')}</li>
                   <li>
-                    &quot;Create an ERC-20 token called QIE Pizza (PIZZA) and deploy it.&quot;
-                  </li>
-                  <li>
-                    &quot;I need an NFT with a mint function. Deploy it to me as the owner.&quot;
+                    {t('"I need an NFT with a mint function. Deploy it to me as the owner."')}
                   </li>
                   <li>
                     &quot;Here&apos;s my contract source — compile, fix any errors, and

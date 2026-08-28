@@ -4,6 +4,8 @@ import { useExplorer, withPageParams, type PagedResponse } from "@/hooks/useExpl
 import { Card, Spinner, ErrorState, TokenLink, AddrLink } from "@/components/explorer/ui";
 import { Pager } from "@/components/explorer/lists";
 import { formatUnits, withCommas } from "@/lib/explorer/format";
+import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
+import { tokenStandardWithTechnical } from "@/lib/terminology";
 import type { ExToken } from "@/lib/explorer/types";
 
 export const Route = createFileRoute("/explorer/$network/tokens")({
@@ -12,6 +14,10 @@ export const Route = createFileRoute("/explorer/$network/tokens")({
 });
 
 function TokensPage() {
+  // The chain being BROWSED comes from the route param, not the globally
+  // selected network — those differ whenever someone opens an explorer link
+  // for a chain they aren't currently switched to.
+  const chainId = chainIdForSlug(useExplorerNetwork());
   const [stack, setStack] = useState<Array<Record<string, unknown> | null>>([null]);
   const cursor = stack[stack.length - 1];
   const path = withPageParams("/tokens", cursor);
@@ -49,7 +55,12 @@ function TokensPage() {
                           label={`${t.name ?? "Token"} (${t.symbol ?? ""})`}
                         />
                       </Td>
-                      <Td className="text-meta">{t.type}</Td>
+                      {/* Both names, because a title tooltip is unreachable on
+                          touch devices and the real EVM standard must never be
+                          something only a mouse user can discover. */}
+                      <Td className="text-meta">
+                        {tokenStandardWithTechnical(t.type ?? "", chainId)}
+                      </Td>
                       <Td>
                         <AddrLink hash={t.address} />
                       </Td>

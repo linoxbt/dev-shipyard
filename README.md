@@ -1,6 +1,6 @@
 # DevStation
 
-**The developer console for QIE.** Deploy. Debug. Analyze. Inspect.
+**The AI Developer OS for QIE and Web3.** Describe it. Build it. Ship it.
 
 DevStation is a complete, onchain developer console for **QIE**, with **BOT Chain** supported alongside it. It brings the everyday work of a smart-contract developer into one place: write and compile Solidity in the browser, deploy audited templates, generate and deploy contracts with an AI agent, decode any transaction, browse the chain with a built-in block explorer, and label contracts onchain. Everything runs against live networks, and the records that matter (your deployments and the contract label registry) live onchain, per chain, not in a private database.
 

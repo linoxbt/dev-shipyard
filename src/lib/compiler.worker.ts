@@ -12,6 +12,7 @@ type WorkerRequest = {
   mainFile?: string;
   optimize: boolean;
   optimizerRuns: number;
+  evmVersion?: string;
 };
 
 type ResolvedImport = { path: string; via: "cdn" };
@@ -222,6 +223,11 @@ async function doCompile(req: WorkerRequest) {
     ),
     settings: {
       optimizer: { enabled: req.optimize, runs: req.optimizerRuns },
+      // Pinned (see DEFAULT_EVM_VERSION in compiler.ts): solc's own default is
+      // "cancun" on >= 0.8.25, which emits MCOPY — an opcode QIE's EVM does
+      // not implement. This value is part of standardJsonInput, so the
+      // explorer reproduces byte-identical bytecode on verification.
+      evmVersion: req.evmVersion ?? "shanghai",
       outputSelection: {
         "*": { "*": ["abi", "evm.bytecode.object", "evm.deployedBytecode.object"], "": ["ast"] },
       },

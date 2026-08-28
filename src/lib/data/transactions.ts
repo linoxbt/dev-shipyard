@@ -67,12 +67,6 @@ export interface DecodedTx {
 }
 
 // No demo transactions. Routebook decodes only real on-chain transactions.
-export const DEMO_TXS: DecodedTx[] = [];
-
-export function findDemoTx(hash: string) {
-  const h = hash.toLowerCase();
-  return DEMO_TXS.find((t) => t.hash.toLowerCase() === h);
-}
 
 export const REVERT_PATTERNS: Record<string, { explain: string; fix: string }> = {
   "ERC20: insufficient allowance": {

@@ -25,9 +25,10 @@ import {
   getTemplate,
   categoryColor,
   templateNeedsImage,
+  templateLabel,
   type Template,
   type ConstructorArg,
-} from "@/lib/mock/templates";
+} from "@/lib/data/templates";
 import { DEFAULT_GAS_GWEI, nativeSymbol } from "@/lib/chains";
 import { chainById } from "@/lib/active-chain";
 import { slugForChainId, devstationExplorerBase } from "@/lib/explorer/network";
@@ -62,7 +63,7 @@ type Stage = "select" | "configure" | "deploying" | "success";
 function DeployWizard() {
   const { template: presetId } = Route.useSearch();
   const { address, isConnected } = useAccount();
-  const { chain, config, walletMismatch, walletChainId, syncWallet } = useActiveChain();
+  const { chainId, chain, config, walletMismatch, walletChainId, syncWallet } = useActiveChain();
   const { recordDeployment } = useProjectRegistry();
   const { submitLabel, onChain: labelsOnChain } = useContractLabels();
   const userTemplates = useUserTemplates((s) => s.templates);
@@ -317,7 +318,18 @@ function DeployWizard() {
         qualifiedName: contract.qualifiedName,
         compilerVersion: "0.8.20",
         constructorArgsEncoded: encodeConstructorArgs(contract.abi as unknown[], encodedArgs),
-      }).catch(() => {});
+      }).catch((err) => {
+        // Non-fatal: the contract IS deployed and the local record is already
+        // saved, so never fail the deploy here. But do not swallow it either —
+        // silently losing the registry write is why a deploy could succeed and
+        // then never appear on the Projects page with no explanation.
+        const why = err instanceof Error ? err.message : "unknown error";
+        log(
+          `[${ts()}] [Registry] Could not record this deploy onchain (${why}). ` +
+            `It is saved locally — you can register it later from Projects.`,
+          "warning",
+        );
+      });
 
       // Verify on-chain: register the contract's name in the ContractLabelRegistry
       // (a second signature). Non-blocking — deploy already succeeded.
@@ -384,7 +396,9 @@ function DeployWizard() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-bold text-foreground">{t.name}</span>
+                      <span className="font-mono text-sm font-bold text-foreground">
+                        {templateLabel(t, chainId)}
+                      </span>
                       <span
                         className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${categoryColor(
                           t.category,
@@ -422,8 +436,8 @@ function DeployWizard() {
     return (
       <div>
         <PageHeader
-          breadcrumb={["DevStation", "LaunchKit", "Deploy", template.name]}
-          title={`Configure ${template.name}`}
+          breadcrumb={["DevStation", "LaunchKit", "Deploy", templateLabel(template, chainId)]}
+          title={`Configure ${templateLabel(template, chainId)}`}
           subtitle="Step 2 of 3 — Fill in constructor arguments and review deployment."
         />
         <div className="grid gap-6 p-6 lg:grid-cols-5">
@@ -438,7 +452,9 @@ function DeployWizard() {
                 >
                   {template.category}
                 </span>
-                <span className="font-mono text-sm font-bold text-foreground">{template.name}</span>
+                <span className="font-mono text-sm font-bold text-foreground">
+                  {templateLabel(template, chainId)}
+                </span>
               </div>
               <p className="text-xs text-muted-foreground">{template.description}</p>
             </div>
@@ -521,7 +537,8 @@ function DeployWizard() {
                 Deployment Preview
               </h3>
               <dl className="space-y-2 font-mono text-xs">
-                <PreviewRow label="Template" value={template.name} />
+                <PreviewRow label="Template" value={templateLabel(template, chainId)} />
+                <PreviewRow label="Contract" value={template.name} />
                 <PreviewRow label="Network" value={`${chain.name} (Chain ${chain.id})`} />
                 <PreviewRow label="Compiler" value="Solidity 0.8.20" />
                 <PreviewRow
@@ -641,7 +658,7 @@ function DeployWizard() {
     return (
       <div>
         <PageHeader
-          breadcrumb={["DevStation", "LaunchKit", "Deploy", template.name]}
+          breadcrumb={["DevStation", "LaunchKit", "Deploy", templateLabel(template, chainId)]}
           title="Deploying…"
           subtitle="Step 3 of 3 — Compile, sign in your wallet, broadcast, confirm."
         />
@@ -674,7 +691,7 @@ function DeployWizard() {
     return (
       <div>
         <PageHeader
-          breadcrumb={["DevStation", "LaunchKit", "Deploy", template.name]}
+          breadcrumb={["DevStation", "LaunchKit", "Deploy", templateLabel(template, chainId)]}
           title="Deployed"
           subtitle="Your contract is live on-chain."
         />
@@ -689,7 +706,8 @@ function DeployWizard() {
                 <h2 className="font-mono text-lg font-bold text-success">Contract Deployed</h2>
                 <dl className="mt-3 grid grid-cols-1 gap-2 font-mono text-xs sm:grid-cols-2">
                   <SuccessRow label="Project" value={projectName || template.name} />
-                  <SuccessRow label="Template" value={template.name} />
+                  <SuccessRow label="Template" value={templateLabel(template, chainId)} />
+                  <SuccessRow label="Contract" value={template.name} />
                   <SuccessRow label="Network" value={`${chain.name} · ${chain.id}`} />
                   <SuccessRow label="Block" value={`#${deployResult.block.toLocaleString()}`} />
                   <SuccessRow

@@ -6,6 +6,9 @@ import { ONCHAIN_WRITE_GAS } from "@/lib/contracts";
 import { sponsorClients, sponsorConfig, isSponsorConfigured } from "@/lib/sponsor/wallet.server";
 import { getSponsorSpendLast24hWei } from "@/lib/sponsor/spend.server";
 import { paddedTopupCost, isSponsorEligibleChain } from "@/lib/sponsor/pricing";
+import { topupMessage, issuedAtProblem } from "@/lib/sponsor/request-auth";
+import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
+import { verifyMessage } from "viem";
 
 // Gas top-up for a deploy, on whichever mainnets are sponsor-eligible (see
 // isSponsorEligibleChain — QIE and BOT Chain mainnet today). The sponsor
@@ -28,6 +31,7 @@ import { paddedTopupCost, isSponsorEligibleChain } from "@/lib/sponsor/pricing";
 // POST { chainId, requesterAddress, abi, bytecode, args }
 //   → { ok: true, toppedUp: boolean, amountWei: string, txHash: string|null }
 //   → { ok: false, reason: "not_configured"|"wrong_chain"|"invalid_body"
+//                          |"unauthorized"|"rate_limited"
 //                          |"budget_exhausted"|"topup_failed",
 //       message }
 // GET ?chainId=<id> → { configured, dailyBudgetQie, chainId } for that
@@ -40,7 +44,22 @@ const bodySchema = z.object({
   abi: z.array(z.unknown()).min(1),
   bytecode: z.string().regex(/^0x[0-9a-fA-F]+$/),
   args: z.array(z.unknown()).default([]),
+  // Proof the caller controls requesterAddress. See sponsor/request-auth.ts —
+  // without it this endpoint funds any address anyone names.
+  signature: z.string().regex(/^0x[0-9a-fA-F]+$/),
+  issuedAt: z.number(),
 });
+
+// This endpoint spends real mainnet funds, so it is limited far more tightly
+// than the AI proxy. Per-wallet is the meaningful one (an attacker can rotate
+// IPs more cheaply than they can produce signatures from distinct wallets);
+// per-IP blunts trivially-scripted abuse; the global cap bounds the blast
+// radius of a distributed attempt within a window. The rolling 24h on-chain
+// budget remains the final backstop.
+const TOPUP_PER_WALLET_LIMIT = 3;
+const TOPUP_PER_IP_LIMIT = 5;
+const TOPUP_GLOBAL_LIMIT = 40;
+const TOPUP_WINDOW_MS = 60 * 60 * 1000;
 
 function fail(reason: string, message: string, status: number) {
   return Response.json({ ok: false, reason, message }, { status });
@@ -96,7 +115,67 @@ export const Route = createFileRoute("/api/sponsor-topup")({
         if (!parsed.success) {
           return fail("invalid_body", "Malformed sponsor-topup request.", 400);
         }
-        const { chainId, requesterAddress, abi, bytecode } = parsed.data;
+        const { chainId, requesterAddress, abi, bytecode, signature, issuedAt } = parsed.data;
+        const requesterKey = requesterAddress.toLowerCase();
+
+        // --- Authorisation, before any RPC work or spending -----------------
+        // Reject a stale or future-dated request first (cheapest check), then
+        // verify the signature actually recovers to the address we would be
+        // funding. Both must pass before the wallet is touched.
+        const timeProblem = issuedAtProblem(issuedAt);
+        if (timeProblem) {
+          return fail(
+            "unauthorized",
+            timeProblem === "future"
+              ? "Request timestamp is in the future. Check your system clock."
+              : "This top-up request has expired. Try the deploy again.",
+            401,
+          );
+        }
+
+        // viem's pure verifyMessage recovers an EOA signature with no RPC call.
+        // That is deliberate: it runs BEFORE the rate-limit check, so it must
+        // stay cheap and must not let an unauthenticated caller drive RPC
+        // traffic. The trade-off is that it does not support smart-contract
+        // wallets (ERC-1271) — fine today, because every configured connector
+        // (injected, metaMask, the in-app burner) is an EOA. If a
+        // contract-wallet connector is ever added, switch to
+        // publicClient.verifyMessage and move this AFTER the rate-limit check.
+        let signatureValid = false;
+        try {
+          signatureValid = await verifyMessage({
+            address: requesterAddress as `0x${string}`,
+            message: topupMessage({ address: requesterAddress, chainId, issuedAt }),
+            signature: signature as `0x${string}`,
+          });
+        } catch {
+          signatureValid = false;
+        }
+        if (!signatureValid) {
+          return fail(
+            "unauthorized",
+            "Could not verify that you control this wallet. Reconnect and try again.",
+            401,
+          );
+        }
+
+        // --- Abuse limits ----------------------------------------------------
+        const ip = clientKeyFromRequest(request);
+        if (
+          !checkRateLimit(
+            `topup:wallet:${requesterKey}`,
+            TOPUP_PER_WALLET_LIMIT,
+            TOPUP_WINDOW_MS,
+          ) ||
+          !checkRateLimit(`topup:ip:${ip}`, TOPUP_PER_IP_LIMIT, TOPUP_WINDOW_MS) ||
+          !checkRateLimit("topup:global", TOPUP_GLOBAL_LIMIT, TOPUP_WINDOW_MS)
+        ) {
+          return fail(
+            "rate_limited",
+            "Too many gas top-up requests. Wait a little, or deploy with your own gas.",
+            429,
+          );
+        }
 
         // Only chains in the eligible-chains table (mainnets with a
         // configured sponsor wallet) are ever reachable here — chainId

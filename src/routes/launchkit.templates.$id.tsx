@@ -4,7 +4,16 @@ import { Rocket, ChevronDown, ChevronRight, Code2, Pencil } from "lucide-react";
 import { useAccount } from "wagmi";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CodeBlock } from "@/components/shared/CodeBlock";
-import { getTemplate, categoryColor, type Template } from "@/lib/mock/templates";
+import {
+  getTemplate,
+  categoryColor,
+  categoryLabel,
+  templateLabel,
+  type Template,
+} from "@/lib/data/templates";
+import { isQieChain } from "@/lib/chains";
+import { applyTerminology } from "@/lib/terminology";
+import { useActiveChain } from "@/hooks/useActiveChain";
 import { useUserTemplates } from "@/lib/user-templates";
 import { useTemplateDeploys } from "@/hooks/useTemplateDeploys";
 import { useEditorIntake } from "@/lib/editor-intake";
@@ -15,7 +24,11 @@ export const Route = createFileRoute("/launchkit/templates/$id")({
   loader: ({ params }) => ({ tpl: getTemplate(params.id) ?? null, id: params.id }),
   head: ({ loaderData }) => ({
     meta: [
-      { title: loaderData?.tpl ? `${loaderData.tpl.name} — DevStation` : "Template — DevStation" },
+      {
+        title: loaderData?.tpl
+          ? `${loaderData.tpl.displayName ?? loaderData.tpl.name} — DevStation`
+          : "Template — DevStation",
+      },
       { name: "description", content: loaderData?.tpl?.description ?? "Contract template" },
     ],
   }),
@@ -28,6 +41,8 @@ function TemplateDetail() {
   const navigate = useNavigate();
   const setPending = useEditorIntake((s) => s.setPending);
   const { address } = useAccount();
+  const { chainId } = useActiveChain();
+  const isQie = isQieChain(chainId);
 
   const userTemplates = useUserTemplates((s) => s.templates);
   const hydrated = useUserTemplates((s) => s.hydrated);
@@ -82,9 +97,9 @@ function TemplateDetail() {
   return (
     <div>
       <PageHeader
-        breadcrumb={["DevStation", "LaunchKit", "Templates", tpl.name]}
-        title={tpl.name}
-        subtitle={tpl.description}
+        breadcrumb={["DevStation", "LaunchKit", "Templates", templateLabel(tpl, chainId)]}
+        title={templateLabel(tpl, chainId)}
+        subtitle={applyTerminology(tpl.description, chainId)}
         action={
           <div className="flex items-center gap-2">
             {canEdit && (
@@ -119,15 +134,22 @@ function TemplateDetail() {
               <span
                 className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${categoryColor(tpl.category)}`}
               >
-                {tpl.category}
+                {categoryLabel(tpl.category, isQie)}
               </span>
               {tpl.verified ? (
-                <span className="font-mono text-[10px] text-success">✓ VERIFIED</span>
+                <span
+                  className="font-mono text-[10px] text-success"
+                  title="Ships with DevStation. Not a third-party audit."
+                >
+                  BUILT-IN
+                </span>
               ) : tpl.submitter ? (
                 <span className="font-mono text-[10px] text-info">COMMUNITY</span>
               ) : null}
             </div>
-            <p className="text-sm text-muted-foreground">{tpl.longDescription}</p>
+            <p className="text-sm text-muted-foreground">
+              {applyTerminology(tpl.longDescription, chainId)}
+            </p>
             <dl className="mt-4 grid grid-cols-2 gap-3 font-mono text-xs">
               <Meta label="Author" value={shortAuthor(tpl.author)} />
               <Meta label="Version" value={tpl.version} />
@@ -135,6 +157,10 @@ function TemplateDetail() {
               <Meta label="Args" value={tpl.args.length.toString()} />
               <Meta label="Est. Gas" value={tpl.estimatedGas.toLocaleString()} />
               <Meta label="License" value="MIT" />
+              {/* The Solidity identifier, shown explicitly because the heading
+                  above may be a QIE-native display name. This is the name that
+                  appears onchain and in verification. */}
+              <Meta label="Contract" value={tpl.name} />
             </dl>
             <div className="mt-4 flex flex-wrap gap-1">
               {tpl.tags.map((t: string) => (

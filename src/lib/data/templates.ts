@@ -1,3 +1,5 @@
+import { applyTerminology } from "@/lib/terminology";
+
 export type TemplateCategory =
   | "Token Standards"
   | "DeFi"
@@ -18,11 +20,28 @@ export interface ConstructorArg {
 
 export interface Template {
   id: string;
+  /** The Solidity contract identifier. This is NOT display copy: it is the
+   *  solc source key (`${name}.sol`), the key the compiled artifact comes back
+   *  under, the verification `contractName`, and the editor filename. Renaming
+   *  it breaks compile + verify, including for already-deployed instances.
+   *  Use `displayName` (via `templateLabel()`) for anything a user reads. */
   name: string;
+  /** What a user sees, when it should differ from the contract identifier —
+   *  e.g. "ERC-20 Token" for the contract `SimpleERC20`. Optional: falls back
+   *  to `name`.
+   *
+   *  ALWAYS stored in neutral EVM wording. The QIE-native form ("QIE-20
+   *  Token") is derived per-chain by `templateLabel()`; hardcoding "QIE-20"
+   *  here would leak QIE naming onto BOT Chain. */
+  displayName?: string;
   category: TemplateCategory;
   description: string;
   longDescription: string;
   tags: string[];
+  /** True for templates that ship WITH DevStation, as opposed to
+   *  community-submitted ones. It is a provenance flag, NOT an audit claim —
+   *  no third-party audit has been performed — so the UI must label it
+   *  "BUILT-IN", never "VERIFIED". */
   verified: boolean;
   deployCount: number;
   solidity: string;
@@ -542,6 +561,7 @@ export const TEMPLATES: Template[] = [
   {
     id: "simple-erc20",
     name: "SimpleERC20",
+    displayName: "ERC-20 Token",
     category: "Token Standards",
     description:
       "A standard ERC-20 fungible token with configurable name, symbol, total supply, owner-only minting, and public burning.",
@@ -592,6 +612,7 @@ export const TEMPLATES: Template[] = [
   {
     id: "simple-erc721",
     name: "SimpleERC721",
+    displayName: "NFT Collection",
     category: "NFT",
     description:
       "A standard ERC-721 collection with base URI, max supply cap, and owner-controlled sequential minting.",
@@ -749,6 +770,7 @@ export const TEMPLATES: Template[] = [
   {
     id: "soulbound-nft",
     name: "SoulboundNFT",
+    displayName: "Soulbound NFT",
     category: "NFT",
     description: "A non-transferable token. Once minted, it permanently belongs to the recipient.",
     longDescription:
@@ -805,6 +827,33 @@ export const TEMPLATES: Template[] = [
 
 export function getTemplate(id: string) {
   return TEMPLATES.find((t) => t.id === id);
+}
+
+/** Name to show a user for a template, in that chain's vocabulary:
+ *  "ERC-20 Token" on BOT Chain, "QIE-20 Token" on QIE.
+ *  Never pass this to the compiler or the verifier — those need `template.name`. */
+export function templateLabel(t: Pick<Template, "name" | "displayName">, chainId: number): string {
+  return applyTerminology(t.displayName ?? t.name, chainId);
+}
+
+/** A template's description in that chain's vocabulary. */
+export function templateDescription(t: Pick<Template, "description">, chainId: number): string {
+  return applyTerminology(t.description, chainId);
+}
+
+// Display labels for the category values. The raw TemplateCategory strings are
+// FUNCTIONAL — they are persisted in localStorage on user-submitted templates
+// and compared for equality when filtering — so they are never renamed; only
+// what we print changes.
+const CATEGORY_LABELS_QIE: Partial<Record<TemplateCategory, string>> = {
+  "Token Standards": "QIE Token Standards",
+  NFT: "QIE NFT",
+};
+
+/** Display label for a category, QIE-native on QIE chains. */
+export function categoryLabel(cat: "All" | TemplateCategory, isQie: boolean): string {
+  if (cat === "All" || !isQie) return cat;
+  return CATEGORY_LABELS_QIE[cat] ?? cat;
 }
 
 export const CATEGORIES: ("All" | TemplateCategory)[] = [

@@ -2,7 +2,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
 import { Search, CheckCircle2, Plus, User } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { TEMPLATES, CATEGORIES, categoryColor, type TemplateCategory } from "@/lib/mock/templates";
+import {
+  TEMPLATES,
+  CATEGORIES,
+  categoryColor,
+  categoryLabel,
+  templateLabel,
+  type TemplateCategory,
+} from "@/lib/data/templates";
+import { isQieChain } from "@/lib/chains";
+import { applyTerminology } from "@/lib/terminology";
+import { useActiveChain } from "@/hooks/useActiveChain";
 import { useUserTemplates } from "@/lib/user-templates";
 import { useTemplateDeploys } from "@/hooks/useTemplateDeploys";
 
@@ -26,6 +36,8 @@ function TemplatesRoute() {
 type CatFilter = "All" | TemplateCategory;
 
 function TemplateGallery() {
+  const { chainId } = useActiveChain();
+  const isQie = isQieChain(chainId);
   const [cat, setCat] = useState<CatFilter>("All");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"deploys" | "newest" | "alpha">("deploys");
@@ -45,16 +57,25 @@ function TemplateGallery() {
     if (cat !== "All") list = list.filter((t) => t.category === cat);
     if (query) {
       const q = query.toLowerCase();
+      // Match the contract name AND the chain-specific display name, so
+      // "SimpleERC20" works everywhere and "QIE-20" works while on QIE
+      // (where that is what the card actually reads).
       list = list.filter(
-        (t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
+        (t) =>
+          t.name.toLowerCase().includes(q) ||
+          templateLabel(t, chainId).toLowerCase().includes(q) ||
+          t.description.toLowerCase().includes(q),
       );
     }
     if (sort === "deploys")
       list.sort((a, b) => (counts[b.id] ?? b.deployCount) - (counts[a.id] ?? a.deployCount));
-    else if (sort === "alpha") list.sort((a, b) => a.name.localeCompare(b.name));
+    else if (sort === "alpha")
+      list.sort((a, b) => templateLabel(a, chainId).localeCompare(templateLabel(b, chainId)));
     else if (sort === "newest") list.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
     return list;
-  }, [cat, query, sort, userTemplates, counts]);
+    // chainId matters: search matches the DISPLAY name and alpha sort orders
+    // by it, and both change when the user switches between QIE and BOT Chain.
+  }, [cat, query, sort, userTemplates, counts, chainId]);
 
   return (
     <div>
@@ -85,7 +106,7 @@ function TemplateGallery() {
                   : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
               }`}
             >
-              {c}
+              {categoryLabel(c, isQie)}
             </button>
           ))}
         </div>
@@ -135,12 +156,12 @@ function TemplateGallery() {
                   <span
                     className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${categoryColor(t.category)}`}
                   >
-                    {t.category}
+                    {categoryLabel(t.category, isQie)}
                   </span>
                   {t.verified ? (
                     <span className="flex items-center gap-1 font-mono text-[10px] text-success">
                       <CheckCircle2 className="h-3 w-3" />
-                      VERIFIED
+                      BUILT-IN
                     </span>
                   ) : t.submitter ? (
                     <span className="flex items-center gap-1 font-mono text-[10px] text-info">
@@ -151,11 +172,15 @@ function TemplateGallery() {
                 </div>
 
                 <div className="flex items-baseline justify-between gap-2">
-                  <h3 className="font-mono text-base font-bold text-foreground">{t.name}</h3>
+                  <h3 className="font-mono text-base font-bold text-foreground">
+                    {templateLabel(t, chainId)}
+                  </h3>
                   <span className="font-mono text-[10px] text-meta">{deploysOf(t)} deploys</span>
                 </div>
 
-                <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">{t.description}</p>
+                <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
+                  {applyTerminology(t.description, chainId)}
+                </p>
 
                 <div className="mt-3 flex items-center justify-between font-mono text-[10px] text-meta">
                   <span>Solidity: ^0.8.20</span>

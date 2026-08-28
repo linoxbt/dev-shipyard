@@ -1,6 +1,6 @@
 import { useReadContract } from "wagmi";
 import { formatUnits } from "viem";
-import { QIE_CONTRACTS, isContractConfigured } from "@/lib/contracts";
+import { qusdcAddress, isContractConfigured } from "@/lib/contracts";
 
 const ERC20_ABI = [
   {
@@ -30,7 +30,9 @@ const ERC20_ABI = [
 // selected network. Returns null unless the QUSDC address is configured and the
 // wallet is connected — honest reference display, nothing forced.
 export function useQusdcBalance(address: `0x${string}` | null | undefined, chainId?: number) {
-  const token = QIE_CONTRACTS.qusdc.address;
+  // Per-network: QUSDC is a QIE-mainnet asset with no canonical testnet
+  // deployment, so this is "" (and the UI hides) everywhere else.
+  const token = qusdcAddress(chainId ?? 0);
   const enabled = !!address && isContractConfigured(token);
 
   const { data: raw } = useReadContract({

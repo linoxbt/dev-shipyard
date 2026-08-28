@@ -23,7 +23,7 @@ import {
   type TokenTransfer,
   type ApprovalRecord,
   type CallType,
-} from "@/lib/mock/transactions";
+} from "@/lib/data/transactions";
 
 // ERC-20 event topic0 hashes.
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";

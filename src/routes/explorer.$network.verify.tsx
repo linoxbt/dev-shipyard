@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Card } from "@/components/explorer/ui";
 import { useExplorerNetwork, chainIdForSlug, familyForSlug } from "@/lib/explorer/network";
 import { useVerifyContract } from "@/hooks/useVerifyContract";
-import { SOLC_VERSIONS, DEFAULT_SOLC_VERSION } from "@/lib/compiler";
+import { SOLC_VERSIONS, DEFAULT_SOLC_VERSION, DEFAULT_EVM_VERSION } from "@/lib/compiler";
 import { contractNameOf } from "@/lib/solidity-name";
 
 const search = z.object({
@@ -17,6 +17,23 @@ export const Route = createFileRoute("/explorer/$network/verify")({
   head: () => ({ meta: [{ title: "Verify Contract — Explorer" }] }),
   component: VerifyPage,
 });
+
+// Targets solc can build for. DevStation's own compiler pins "shanghai"
+// (QIE's EVM has no MCOPY), but this page also verifies contracts built
+// elsewhere — Hardhat and Foundry default to "cancun" — and the explorer must
+// be told the same target the bytecode was actually produced with.
+const EVM_VERSIONS = [
+  "shanghai",
+  "cancun",
+  "paris",
+  "london",
+  "berlin",
+  "istanbul",
+  "petersburg",
+  "constantinople",
+  "byzantium",
+  "default",
+];
 
 const LICENSES = [
   { id: "mit", label: "MIT" },
@@ -39,6 +56,7 @@ function VerifyPage() {
   const [optimization, setOptimization] = useState(false);
   const [optimizationRuns, setOptimizationRuns] = useState(200);
   const [license, setLicense] = useState("mit");
+  const [evmVersion, setEvmVersion] = useState(DEFAULT_EVM_VERSION);
   const [sourceCode, setSourceCode] = useState("");
   const [compileError, setCompileError] = useState("");
 
@@ -66,6 +84,7 @@ function VerifyPage() {
       compilerVersion,
       optimization,
       optimizationRuns,
+      evmVersion,
       licenseType: license,
     });
   };
@@ -128,6 +147,26 @@ function VerifyPage() {
                   </option>
                 ))}
               </select>
+            </Field>
+
+            <Field label="EVM Version" required>
+              <select
+                value={evmVersion}
+                onChange={(e) => setEvmVersion(e.target.value)}
+                disabled={busy}
+                className="w-full rounded border border-border bg-background px-2 py-1.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none disabled:opacity-60"
+              >
+                {EVM_VERSIONS.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                    {v === DEFAULT_EVM_VERSION ? " (DevStation default)" : ""}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[10px] text-meta">
+                Must match what the source was compiled with. Contracts built in DevStation use
+                shanghai; Hardhat and Foundry default to cancun.
+              </span>
             </Field>
 
             <Field label="Contract Name">

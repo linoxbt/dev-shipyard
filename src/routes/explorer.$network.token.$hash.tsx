@@ -14,6 +14,8 @@ import {
   Empty,
 } from "@/components/explorer/ui";
 import { formatUnits, timeAgo, withCommas } from "@/lib/explorer/format";
+import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
+import { tokenStandardWithTechnical } from "@/lib/terminology";
 import type { ExToken, ExHolder, ExTokenTransfer } from "@/lib/explorer/types";
 
 export const Route = createFileRoute("/explorer/$network/token/$hash")({
@@ -23,6 +25,8 @@ export const Route = createFileRoute("/explorer/$network/token/$hash")({
 
 function TokenPage() {
   const { hash } = Route.useParams();
+  // Chain being browsed comes from the route, not the selected network.
+  const chainId = chainIdForSlug(useExplorerNetwork());
   const [tab, setTab] = useState("transfers");
   const { data: token, isLoading } = useExplorer<ExToken>(`/tokens/${hash}`);
   const { data: counters } = useExplorer<{
@@ -54,8 +58,10 @@ function TokenPage() {
           {token.name ?? "Token"}{" "}
           {token.symbol && <span className="text-meta">({token.symbol})</span>}
         </h1>
+        {/* This is the technical detail view, so it carries BOTH names —
+            "QIE-20 (ERC-20)" — keeping the real standard one glance away. */}
         <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-meta">
-          {token.type}
+          {tokenStandardWithTechnical(token.type ?? "", chainId)}
         </span>
         <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
           {token.address} <CopyBtn value={token.address} />

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Template } from "@/lib/mock/templates";
+import type { Template } from "@/lib/data/templates";
 
 // Community-submitted contract templates, persisted in the browser. SSR starts
 // empty and hydrate() loads from localStorage on mount (no hydration mismatch).

@@ -5,6 +5,7 @@ import {
   getVerificationStatus,
   getIsContractIndexed,
 } from "@/lib/api/verify.functions";
+import { DEFAULT_EVM_VERSION } from "@/lib/compiler";
 
 export type VerifyState = "idle" | "submitting" | "pending" | "verified" | "failed";
 
@@ -17,6 +18,10 @@ export interface VerifyParams {
   optimization?: boolean;
   optimizationRuns?: number;
   licenseType?: string;
+  /** Target EVM version the source was compiled for. Defaults to the
+   *  in-browser compiler's pinned "shanghai"; callers verifying a contract
+   *  built elsewhere (Hardhat/Foundry default to cancun) must pass theirs. */
+  evmVersion?: string;
   // When present, verify via the robust standard-input path (handles multi-file
   // contracts, e.g. OpenZeppelin imports). Falls back to flattened-code source
   // when absent (single self-contained file only).
@@ -83,6 +88,7 @@ export function useVerifyContract() {
             compilerVersion: p.compilerVersion,
             optimization: p.optimization ?? false,
             optimizationRuns: p.optimizationRuns ?? 200,
+            evmVersion: p.evmVersion ?? DEFAULT_EVM_VERSION,
             licenseType: p.licenseType ?? "mit",
           },
         });

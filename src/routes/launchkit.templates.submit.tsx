@@ -11,7 +11,7 @@ import {
   type ConstructorArg,
   type Template,
   type TemplateCategory,
-} from "@/lib/mock/templates";
+} from "@/lib/data/templates";
 import { useUserTemplates } from "@/lib/user-templates";
 
 const search = z.object({ edit: z.string().optional() });

@@ -5,8 +5,8 @@ import { Rocket, Search, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { useProjects } from "@/lib/mock/projects";
-import { TEMPLATES } from "@/lib/mock/templates";
+import { useProjects } from "@/lib/data/projects";
+import { TEMPLATES } from "@/lib/data/templates";
 import { DEFAULT_GAS_GWEI, qieTestnet } from "@/lib/chains";
 import { formatGas } from "@/lib/format-gas";
 import { useActiveChain } from "@/hooks/useActiveChain";
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/overview")({
       { title: "DevStation — Overview" },
       {
         name: "description",
-        content: "Your QIE builder console: deployments, network status, and quick tools.",
+        content: "Your QIE workspace: deployments, network status, and quick tools.",
       },
     ],
   }),
@@ -63,7 +63,7 @@ function Overview() {
       <PageHeader
         breadcrumb={["DevStation", "Overview"]}
         title="Overview"
-        subtitle="Your QIE builder console: deployments, network status, and quick tools."
+        subtitle="Your QIE workspace: deployments, network status, and quick tools."
       />
 
       <div className="space-y-6 p-6">

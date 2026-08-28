@@ -23,6 +23,7 @@ import {
   modelsByVendor,
 } from "@/lib/ai-settings";
 import { useAiProxyStatus } from "@/hooks/useAiProxyStatus";
+import { useTerminology } from "@/lib/terminology";
 import { useAiChatStore, type ChatSession } from "@/lib/ai-chat-store";
 import { useAiIntake } from "@/lib/ai-intake";
 import { useEditorIntake } from "@/lib/editor-intake";
@@ -41,6 +42,7 @@ interface Props {
 
 // Shared chat UI for the editor AI panel and the standalone "Code with AI" page.
 export function AiChat({ contextLabel, getContext, onUseCode, className, placeholder }: Props) {
+  const { t } = useTerminology();
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [attachContext, setAttachContext] = useState(true);
@@ -245,7 +247,7 @@ export function AiChat({ contextLabel, getContext, onUseCode, className, placeho
                 <p>Ask me to write, debug, or explain a contract.</p>
                 <ul className="ml-3 list-disc space-y-1">
                   <li>"Is this contract safe? What bugs do you see?"</li>
-                  <li>"Write an ERC-20 with a 2% transfer fee."</li>
+                  <li>{t('"Write an ERC-20 token with a 2% transfer fee."')}</li>
                   <li>"Why does my deploy revert?"</li>
                 </ul>
               </>

@@ -23,17 +23,17 @@ import { DEFAULT_CHAIN } from "@/lib/chains";
 import { formatGas } from "@/lib/format-gas";
 import { withCommas } from "@/lib/explorer/format";
 import { EXPLORER_CHAIN_FAMILIES } from "@/lib/explorer/network";
-import { TEMPLATES } from "@/lib/mock/templates";
+import { TEMPLATES } from "@/lib/data/templates";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "DevStation — The QIE developer console" },
+      { title: "DevStation — The AI Developer OS for QIE and Web3" },
       {
         name: "description",
         content:
-          "The developer console for QIE. Deploy contracts from audited templates, write and compile Solidity in the browser, decode any transaction, and explore the chain — no local toolchain required.",
+          "The AI Developer OS for QIE and Web3. Describe what you want built and DevStation writes, tests, deploys and verifies the contracts — then generates the app.",
       },
     ],
   }),
@@ -145,7 +145,7 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] text-meta">
           <Terminal className="h-3.5 w-3.5 text-primary" />
           <span className="text-primary">devstation</span>
-          <span>~ QIE Builder Console</span>
+          <span>~ AI Developer OS</span>
         </div>
 
         <h1 className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-5xl font-bold leading-tight sm:text-7xl">
@@ -169,9 +169,9 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
             tagline ? "animate-fade-up" : "opacity-0",
           )}
         >
-          The complete developer console for QIE. Write, compile, deploy, and inspect — testnet or
-          mainnet — without installing a single local toolchain. BOT Chain is supported too, with
-          the same tools.
+          The AI Developer OS for QIE and Web3. Describe what you want built — DevStation writes the
+          contracts, tests them, deploys and verifies them onchain, and generates the app. No local
+          toolchain. BOT Chain is supported too, with the same tools.
         </p>
 
         <div
@@ -465,7 +465,7 @@ function Footer() {
             <Github className="h-4 w-4" />
           </a>
           <span className="font-mono text-[10px] text-meta">
-            DevStation — the QIE developer console
+            DevStation — The AI Developer OS for QIE and Web3
           </span>
         </div>
       </div>

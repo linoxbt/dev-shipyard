@@ -5,6 +5,15 @@
 // across serverless instances. That's an acceptable trade for its purpose
 // (blocking a naive tight-loop abuser), not a claim of hard, distributed
 // rate limiting.
+//
+// IMPORTANT for anyone hardening this later: on a serverless host each
+// concurrent function instance keeps its OWN map, so the effective limit is
+// (configured limit x live instances), and it resets whenever an instance is
+// recycled. Treat these numbers as friction, never as a security boundary.
+// For /api/sponsor-topup the real controls are the wallet signature
+// (lib/sponsor/request-auth.ts) and the rolling 24h on-chain budget; for
+// /api/ai it is the upstream provider's own quota. If you need a hard
+// guarantee, move this to a shared store (Redis/Postgres) keyed the same way.
 
 interface Bucket {
   hits: number[]; // request timestamps (ms) within the current window

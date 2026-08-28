@@ -6,6 +6,7 @@ import { TxHashChip } from "@/components/shared/TxHashChip";
 import { storage } from "@/lib/storage";
 import { useNetworkPref } from "@/lib/active-chain";
 import { qieMainnet } from "@/lib/chains";
+import { useTerminology } from "@/lib/terminology";
 
 // Two real QIE Mainnet transactions that show off the inspector without hunting
 // for a hash: one with token movements, one with a fully-decoded method call.
@@ -39,6 +40,7 @@ export const Route = createFileRoute("/routebook/")({
 });
 
 function RoutebookHome() {
+  const { t } = useTerminology();
   const [hash, setHash] = useState("");
   const [recent, setRecent] = useState<string[]>([]);
   const navigate = useNavigate();
@@ -128,7 +130,9 @@ function RoutebookHome() {
                 >
                   <div className="flex items-center gap-2">
                     <d.icon className="h-4 w-4 text-primary" />
-                    <span className="font-mono text-xs font-bold text-foreground">{d.title}</span>
+                    <span className="font-mono text-xs font-bold text-foreground">
+                      {t(d.title)}
+                    </span>
                     <ArrowRight className="ml-auto h-3.5 w-3.5 text-meta transition group-hover:translate-x-0.5 group-hover:text-primary" />
                   </div>
                   <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{d.blurb}</p>

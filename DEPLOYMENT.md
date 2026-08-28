@@ -217,11 +217,20 @@ each like an exchange hot wallet, and use a separate dedicated wallet per
 chain rather than reusing one key across chains.
 
 **Abuse model (read before enabling) — this is a real token faucet, not just
-a gas payer.** There is deliberately **no per-wallet or per-IP gate** — any
-visitor can request a top-up for any wallet address, on any sponsor-eligible
-chain. Because the native token lands directly in that wallet before any
-deploy happens, nothing forces it to actually be spent on a deploy — a
-requester can simply keep it. The only backstop is that chain's daily
+a gas payer.** Requests are authenticated: the caller must sign a message
+(`src/lib/sponsor/request-auth.ts`) proving they control the address the gas
+is sent to, and that signature is bound to the address + chain and expires
+after 5 minutes, so it cannot be replayed. Signing costs no gas, so a wallet
+with a zero balance can still request. On top of that, requests are
+rate-limited per wallet, per IP and globally.
+
+Those controls stop an anonymous script from draining the wallet, but they
+do **not** make sponsorship free of abuse: the native token lands in the
+requester's wallet *before* any deploy happens, so nothing forces it to be
+spent on one — someone with several funded-enough wallets can still farm up
+to the cap. Note also that the rate limiter is in-process (see
+`src/lib/rateLimit.server.ts`), so on serverless it is friction rather than a
+hard guarantee. The durable backstop remains that chain's daily
 budget var (default `5`): a rolling 24h spend ceiling per chain, computed by
 summing that chain's sponsor wallet's own outgoing value _and_ gas fees from
 the chain's explorer tx history (no separate database — consistent with the

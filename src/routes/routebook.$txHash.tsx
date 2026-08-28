@@ -14,8 +14,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { AddressChip } from "@/components/shared/AddressChip";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { type RouteCall, type DecodedArg } from "@/lib/mock/transactions";
-import { findLabel } from "@/lib/mock/labels";
+import { type RouteCall, type DecodedArg } from "@/lib/data/transactions";
+import { useLabelName } from "@/hooks/useContractLabels";
 import { SUPPORTED_CHAINS, nativeSymbol } from "@/lib/chains";
 import { decodeTransaction } from "@/lib/api/decode.functions";
 import { storage } from "@/lib/storage";
@@ -211,7 +211,7 @@ function TxView() {
                   ) : (
                     <div className="divide-y divide-border">
                       {tx.tokenTransfers.map(
-                        (t: import("@/lib/mock/transactions").TokenTransfer, i: number) => (
+                        (t: import("@/lib/data/transactions").TokenTransfer, i: number) => (
                           <div key={i} className="px-4 py-3 font-mono text-xs">
                             <div className="mb-1 flex items-center gap-2">
                               <span className="font-bold text-foreground">
@@ -235,7 +235,7 @@ function TxView() {
                   <Panel title={<span className="text-warning">⚠ Approvals Detected</span>}>
                     <div className="divide-y divide-border">
                       {tx.approvals.map(
-                        (a: import("@/lib/mock/transactions").ApprovalRecord, i: number) => (
+                        (a: import("@/lib/data/transactions").ApprovalRecord, i: number) => (
                           <div key={i} className="px-4 py-3 font-mono text-xs">
                             <div className="text-foreground">
                               {a.tokenSymbol}: {a.unlimited ? "UNLIMITED" : a.amount}
@@ -278,8 +278,10 @@ function RouteNode({ call, depth }: { call: RouteCall; depth: number }) {
   const [open, setOpen] = useState(depth < 2);
   const hasChildren = call.children.length > 0 || call.events.length > 0;
   // Names come from the decoder (onchain ContractLabelRegistry + built-in
-  // DevStation registries + token symbols); fall back to a local mock label.
-  const resolvedName = call.contractName || findLabel(call.contractAddress)?.name;
+  // DevStation registries + token symbols); fall back to the live label
+  // registry for contracts the decoder could not name itself.
+  const registryName = useLabelName(call.contractAddress);
+  const resolvedName = call.contractName || registryName || undefined;
 
   const borderColor =
     call.type === "user"

@@ -13,7 +13,7 @@ function Introduction() {
   return (
     <DocPage
       title="Introduction"
-      intro="DevStation is the developer console for QIE. Deploy from audited templates, write and compile Solidity in the browser, decode any transaction, and explore the chain — without installing a local toolchain."
+      intro="DevStation is the AI Developer OS for QIE and Web3. Describe what you want built and the agent writes, tests, deploys and verifies it — or work by hand with templates, the in-browser Solidity editor, the transaction decoder and the explorer. No local toolchain required."
     >
       <P>
         Everything a QIE developer needs sits in one place: audited templates, a real in-browser

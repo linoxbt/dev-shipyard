@@ -37,7 +37,11 @@ const submitInput = z.object({
   compilerVersion: z.string().min(3), // short, e.g. "0.8.20"
   optimization: z.boolean().default(false),
   optimizationRuns: z.number().int().positive().default(200),
-  evmVersion: z.string().default("default"),
+  // Must match what the compiler actually targeted, or the explorer rebuilds
+  // different bytecode and verification fails. The in-browser compiler pins
+  // "shanghai" (see DEFAULT_EVM_VERSION in src/lib/compiler.ts), so that is
+  // the default here too — "default" would let the explorer pick cancun.
+  evmVersion: z.string().default("shanghai"),
   licenseType: z.string().default("mit"),
 });
 

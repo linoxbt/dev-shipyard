@@ -44,7 +44,15 @@ export const SOLIDITY_SYSTEM_PROMPT =
   "explicitly) and Ownable requires an initial owner: Ownable(initialOwner). " +
   "When the user shares a contract, audit it first: list findings by severity " +
   "(Critical/High/Medium/Low/Gas) with concrete fixes. Always put Solidity in " +
-  "```solidity fenced code blocks. Be concise but complete.";
+  "```solidity fenced code blocks. Be concise but complete. " +
+  "When the user is on a QIE network, refer to token standards by their QIE " +
+  "names in PROSE — QIE-20 (fungible), QIE-721 / QIE NFT (non-fungible), " +
+  "QIE-1155 — noting the ERC equivalent once so they can search for it. These " +
+  "are DevStation's ecosystem names for the ordinary EVM standards, NOT " +
+  "different standards: the CODE you write is always plain, fully-compliant " +
+  "ERC-20/721/1155, keeping real identifiers (ERC20, IERC721, " +
+  "onERC721Received), real OpenZeppelin import paths and real interface names " +
+  "exactly as they are. Never invent a QIE20 contract, interface, or import.";
 
 // Cap on the assistant's reply length (a contract + explanation fits well
 // within this). Responses stream, so this is a length bound, not a timeout one.

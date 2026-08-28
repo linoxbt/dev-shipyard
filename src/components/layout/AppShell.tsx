@@ -2,7 +2,7 @@ import { ReactNode, useEffect } from "react";
 import { PanelLeftOpen } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { WrongNetworkBanner } from "./WrongNetworkBanner";
-import { useProjects } from "@/lib/mock/projects";
+import { useProjects } from "@/lib/data/projects";
 import { useUi } from "@/lib/ui-state";
 import { Logo } from "@/components/shared/Logo";
 import { cn } from "@/lib/utils";

@@ -61,7 +61,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "DevStation — QIE Builder Console" },
+      { title: "DevStation — The AI Developer OS for QIE and Web3" },
       // PWA: installable as an app ("Add to Home Screen").
       { name: "theme-color", content: "#0a0e13" },
       { name: "mobile-web-app-capable", content: "yes" },
@@ -72,21 +72,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "The developer console for QIE. Deploy, debug, and explore — LaunchKit + Routebook.",
+          "The AI Developer OS for QIE and Web3. Describe what you want built and DevStation writes, tests, deploys and verifies the contracts — then generates the app.",
       },
-      { property: "og:title", content: "DevStation — QIE Builder Console" },
+      { property: "og:title", content: "DevStation — The AI Developer OS for QIE and Web3" },
       {
         property: "og:description",
         content:
-          "The developer console for QIE. Deploy, debug, and explore — LaunchKit + Routebook.",
+          "The AI Developer OS for QIE and Web3. Describe what you want built and DevStation writes, tests, deploys and verifies the contracts — then generates the app.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "DevStation — QIE Builder Console" },
+      { name: "twitter:title", content: "DevStation — The AI Developer OS for QIE and Web3" },
       {
         name: "twitter:description",
         content:
-          "The developer console for QIE. Deploy, debug, and explore — LaunchKit + Routebook.",
+          "The AI Developer OS for QIE and Web3. Describe what you want built and DevStation writes, tests, deploys and verifies the contracts — then generates the app.",
       },
       {
         property: "og:image",

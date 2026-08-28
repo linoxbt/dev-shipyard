@@ -70,12 +70,32 @@ export function labelRegistryAddress(chainId: number): `0x${string}` {
 }
 
 // QIE ecosystem contracts (QIE's own — we do NOT deploy these).
-// QUSDC is QIE's USDC-backed stablecoin (docs.stable.qie.digital); its address
-// is not published in the docs, so it is env-configurable and the QUSDC balance
-// UI hides itself until set.
-export const QIE_CONTRACTS = {
-  qusdc: { address: envAddress(import.meta.env.VITE_QUSDC_ADDRESS) },
-} as const;
+//
+// QUSDC is QIE's USDC-backed stablecoin. docs.stable.qie.digital is entirely
+// conceptual and publishes no address, so this was verified directly against
+// mainnet: 0x3F43…5DA5 has 6096 bytes of code, symbol/name "QUSDC", and
+// decimals() == 6 (NOT 18 — anything formatting it must read decimals()).
+//
+// Deliberately per-network, because QUSDC is NOT deployed at a matching
+// address on testnet. A single global address would make QIE Testnet read a
+// contract that isn't there and silently render a 0 balance. QIE testnet has
+// 10+ competing unofficial "QUSDC" contracts with no canonical one (and one
+// of them uses 18 decimals), so testnet stays unset until QIE publishes an
+// official address — the balance UI hides itself when unconfigured.
+const QIE_MAINNET_QUSDC = "0x3F43DA82eC9A4f5285F10FaF1F26EcA7319E5DA5";
+
+const QUSDC: Record<number, `0x${string}`> = {
+  [qieTestnet.id]: envAddress(env.VITE_QUSDC_ADDRESS_TESTNET),
+  [qieMainnet.id]: envAddress(
+    env.VITE_QUSDC_ADDRESS_MAINNET || env.VITE_QUSDC_ADDRESS,
+    QIE_MAINNET_QUSDC,
+  ),
+};
+
+/** QUSDC address for a given chain ("" where QIE's stablecoin isn't deployed). */
+export function qusdcAddress(chainId: number): `0x${string}` {
+  return QUSDC[chainId] ?? ("" as `0x${string}`);
+}
 
 export function isContractConfigured(address: `0x${string}`): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(address);
