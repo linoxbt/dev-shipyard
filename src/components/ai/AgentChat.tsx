@@ -10,6 +10,9 @@ import {
   Hammer,
   Rocket,
   BookMarked,
+  FlaskConical,
+  ShieldAlert,
+  Tag,
   ShieldCheck,
   Fuel,
   Copy,
@@ -386,16 +389,17 @@ function DeployForm({
 }
 
 function StepCard({ step, explorerSlug }: { step: ToolStep; explorerSlug: string }) {
-  const Icon =
-    step.kind === "deploy"
-      ? Rocket
-      : step.kind === "record"
-        ? BookMarked
-        : step.kind === "verify"
-          ? ShieldCheck
-          : step.kind === "topup"
-            ? Fuel
-            : Hammer;
+  const ICONS: Record<ToolStep["kind"], typeof Hammer> = {
+    compile: Hammer,
+    test: FlaskConical,
+    review: ShieldAlert,
+    deploy: Rocket,
+    record: BookMarked,
+    verify: ShieldCheck,
+    label: Tag,
+    topup: Fuel,
+  };
+  const Icon = ICONS[step.kind] ?? Hammer;
   const statusIcon =
     step.status === "running" ? (
       <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />

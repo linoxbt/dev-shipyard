@@ -31,6 +31,7 @@ import {
 } from "@/lib/data/templates";
 import { DEFAULT_GAS_GWEI, nativeSymbol } from "@/lib/chains";
 import { chainById } from "@/lib/active-chain";
+import { labelCategoryForTemplate } from "@/lib/labels/categories";
 import { slugForChainId, devstationExplorerBase } from "@/lib/explorer/network";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
@@ -339,7 +340,7 @@ function DeployWizard() {
           await submitLabel({
             contractAddress: deployedAddr,
             name: projectName || template.name,
-            category: template.category,
+            category: labelCategoryForTemplate(template.category),
             description: template.description,
             autoLabeled: true,
           });

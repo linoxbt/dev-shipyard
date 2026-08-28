@@ -17,6 +17,9 @@
     "contracts:verify": "bun run scripts/verify.ts"
   },
   "dependencies": {
+    "@ethereumjs/common": "^4",
+    "@ethereumjs/evm": "^3",
+    "@ethereumjs/util": "^9",
     "@hookform/resolvers": "^5.2.2",
     "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-accordion": "^1.2.12",

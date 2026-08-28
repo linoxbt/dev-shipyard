@@ -7,25 +7,18 @@ import { AddressChip } from "@/components/shared/AddressChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useContractLabels, useAllLabels, type OnChainLabel } from "@/hooks/useContractLabels";
 import { toast } from "sonner";
+import { LABEL_CATEGORIES } from "@/lib/labels/categories";
 
 export const Route = createFileRoute("/routebook/labels")({
   head: () => ({ meta: [{ title: "Label Registry — DevStation Routebook" }] }),
   component: LabelRegistry,
 });
 
-const FILTERS = [
-  "All",
-  "Verified",
-  "Community",
-  "Auto-labeled",
-  "DeFi",
-  "Token",
-  "NFT",
-  "Infrastructure",
-  "Gaming",
-  "Identity",
-  "Governance",
-];
+// Source filters first, then the category vocabulary itself — imported rather
+// than restated, so the list a user filters by can never drift from the list
+// written onchain.
+const SOURCE_FILTERS = ["All", "Verified", "Community", "Auto-labeled"] as const;
+const FILTERS: string[] = [...SOURCE_FILTERS, ...LABEL_CATEGORIES];
 
 function LabelRegistry() {
   const [q, setQ] = useState("");
