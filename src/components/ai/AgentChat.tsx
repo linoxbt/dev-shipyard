@@ -397,6 +397,7 @@ function StepCard({ step, explorerSlug }: { step: ToolStep; explorerSlug: string
     record: BookMarked,
     verify: ShieldCheck,
     label: Tag,
+    write: FileCode2,
     topup: Fuel,
   };
   const Icon = ICONS[step.kind] ?? Hammer;

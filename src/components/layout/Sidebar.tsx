@@ -17,6 +17,7 @@ import {
   Moon,
   PanelLeftClose,
   X,
+  Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WalletPanel } from "@/components/web3/WalletPanel";
@@ -38,6 +39,7 @@ const NAV = [
       { to: "/launchkit/editor", label: "Contract Editor", icon: Code2 },
       { to: "/launchkit/ai", label: "Code with AI", icon: Sparkles },
       { to: "/launchkit/deploy", label: "Deploy", icon: Rocket },
+      { to: "/launchkit/app-builder", label: "App Builder", icon: Wand2 },
       { to: "/launchkit/projects", label: "Projects", icon: FolderGit2 },
     ],
   },

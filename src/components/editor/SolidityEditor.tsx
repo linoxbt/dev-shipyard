@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import Editor, { useMonaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
+import { languageForPath } from "@/lib/editor-language";
 
 interface CompileDiagnostic {
   severity: "error" | "warning";
@@ -17,7 +18,7 @@ interface Props {
   gotoLine?: { line: number; nonce: number };
 }
 
-export function SolidityEditor({ value, onChange, diagnostics, gotoLine }: Props) {
+export function SolidityEditor({ value, filename, onChange, diagnostics, gotoLine }: Props) {
   const monaco = useMonaco();
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const modelRef = useRef<editor.ITextModel | null>(null);
@@ -250,8 +251,12 @@ export function SolidityEditor({ value, onChange, diagnostics, gotoLine }: Props
           endColumn: end.col + 1,
         };
       });
-    monaco.editor.setModelMarkers(model, "solidity", markers);
-  }, [monaco, diagnostics]);
+    // Scoped to Solidity models: solc diagnostics are meaningless on a
+    // generated .js/.css/.html file and would render as phantom errors there.
+    if (filename.endsWith(".sol")) {
+      monaco.editor.setModelMarkers(model, "solidity", markers);
+    }
+  }, [monaco, diagnostics, filename]);
 
   // Jump to a line when asked (Inspector / error card clicks).
   useEffect(() => {
@@ -265,7 +270,8 @@ export function SolidityEditor({ value, onChange, diagnostics, gotoLine }: Props
   return (
     <Editor
       height="100%"
-      language="sol"
+      language={languageForPath(filename)}
+      path={filename}
       value={value}
       theme="vs-dark"
       onChange={(v) => onChange(v ?? "")}

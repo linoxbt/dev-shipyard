@@ -24,6 +24,7 @@ import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
 import { Route as LaunchkitProjectsRouteImport } from './routes/launchkit.projects'
 import { Route as LaunchkitEditorRouteImport } from './routes/launchkit.editor'
 import { Route as LaunchkitDeployRouteImport } from './routes/launchkit.deploy'
+import { Route as LaunchkitAppBuilderRouteImport } from './routes/launchkit.app-builder'
 import { Route as LaunchkitAiRouteImport } from './routes/launchkit.ai'
 import { Route as ExplorerNetworkRouteImport } from './routes/explorer.$network'
 import { Route as DocsWalletsRouteImport } from './routes/docs.wallets'
@@ -39,6 +40,7 @@ import { Route as DocsExplorerRouteImport } from './routes/docs.explorer'
 import { Route as DocsEditorRouteImport } from './routes/docs.editor'
 import { Route as DocsAiRouteImport } from './routes/docs.ai'
 import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
+import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
 import { Route as ExplorerNetworkIndexRouteImport } from './routes/explorer.$network.index'
@@ -129,6 +131,11 @@ const LaunchkitDeployRoute = LaunchkitDeployRouteImport.update({
   path: '/launchkit/deploy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaunchkitAppBuilderRoute = LaunchkitAppBuilderRouteImport.update({
+  id: '/launchkit/app-builder',
+  path: '/launchkit/app-builder',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LaunchkitAiRoute = LaunchkitAiRouteImport.update({
   id: '/launchkit/ai',
   path: '/launchkit/ai',
@@ -202,6 +209,11 @@ const DocsAiRoute = DocsAiRouteImport.update({
 const ApiSponsorTopupRoute = ApiSponsorTopupRouteImport.update({
   id: '/api/sponsor-topup',
   path: '/api/sponsor-topup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAppsDeployRoute = ApiAppsDeployRouteImport.update({
+  id: '/api/apps-deploy',
+  path: '/api/apps-deploy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAiRoute = ApiAiRouteImport.update({
@@ -288,6 +300,7 @@ export interface FileRoutesByFullPath {
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/docs/ai': typeof DocsAiRoute
   '/docs/editor': typeof DocsEditorRoute
@@ -303,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/docs/wallets': typeof DocsWalletsRoute
   '/explorer/$network': typeof ExplorerNetworkRouteWithChildren
   '/launchkit/ai': typeof LaunchkitAiRoute
+  '/launchkit/app-builder': typeof LaunchkitAppBuilderRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
@@ -332,6 +346,7 @@ export interface FileRoutesByTo {
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/docs/ai': typeof DocsAiRoute
   '/docs/editor': typeof DocsEditorRoute
@@ -346,6 +361,7 @@ export interface FileRoutesByTo {
   '/docs/verification': typeof DocsVerificationRoute
   '/docs/wallets': typeof DocsWalletsRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
+  '/launchkit/app-builder': typeof LaunchkitAppBuilderRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
@@ -378,6 +394,7 @@ export interface FileRoutesById {
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
   '/api/ai': typeof ApiAiRoute
+  '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/docs/ai': typeof DocsAiRoute
   '/docs/editor': typeof DocsEditorRoute
@@ -393,6 +410,7 @@ export interface FileRoutesById {
   '/docs/wallets': typeof DocsWalletsRoute
   '/explorer/$network': typeof ExplorerNetworkRouteWithChildren
   '/launchkit/ai': typeof LaunchkitAiRoute
+  '/launchkit/app-builder': typeof LaunchkitAppBuilderRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
@@ -426,6 +444,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/settings'
     | '/api/ai'
+    | '/api/apps-deploy'
     | '/api/sponsor-topup'
     | '/docs/ai'
     | '/docs/editor'
@@ -441,6 +460,7 @@ export interface FileRouteTypes {
     | '/docs/wallets'
     | '/explorer/$network'
     | '/launchkit/ai'
+    | '/launchkit/app-builder'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/projects'
@@ -470,6 +490,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/settings'
     | '/api/ai'
+    | '/api/apps-deploy'
     | '/api/sponsor-topup'
     | '/docs/ai'
     | '/docs/editor'
@@ -484,6 +505,7 @@ export interface FileRouteTypes {
     | '/docs/verification'
     | '/docs/wallets'
     | '/launchkit/ai'
+    | '/launchkit/app-builder'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/projects'
@@ -515,6 +537,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/settings'
     | '/api/ai'
+    | '/api/apps-deploy'
     | '/api/sponsor-topup'
     | '/docs/ai'
     | '/docs/editor'
@@ -530,6 +553,7 @@ export interface FileRouteTypes {
     | '/docs/wallets'
     | '/explorer/$network'
     | '/launchkit/ai'
+    | '/launchkit/app-builder'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/projects'
@@ -562,8 +586,10 @@ export interface RootRouteChildren {
   OverviewRoute: typeof OverviewRoute
   SettingsRoute: typeof SettingsRoute
   ApiAiRoute: typeof ApiAiRoute
+  ApiAppsDeployRoute: typeof ApiAppsDeployRoute
   ApiSponsorTopupRoute: typeof ApiSponsorTopupRoute
   LaunchkitAiRoute: typeof LaunchkitAiRoute
+  LaunchkitAppBuilderRoute: typeof LaunchkitAppBuilderRoute
   LaunchkitDeployRoute: typeof LaunchkitDeployRoute
   LaunchkitEditorRoute: typeof LaunchkitEditorRoute
   LaunchkitProjectsRoute: typeof LaunchkitProjectsRoute
@@ -682,6 +708,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LaunchkitDeployRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/launchkit/app-builder': {
+      id: '/launchkit/app-builder'
+      path: '/launchkit/app-builder'
+      fullPath: '/launchkit/app-builder'
+      preLoaderRoute: typeof LaunchkitAppBuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/launchkit/ai': {
       id: '/launchkit/ai'
       path: '/launchkit/ai'
@@ -785,6 +818,13 @@ declare module '@tanstack/react-router' {
       path: '/api/sponsor-topup'
       fullPath: '/api/sponsor-topup'
       preLoaderRoute: typeof ApiSponsorTopupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/apps-deploy': {
+      id: '/api/apps-deploy'
+      path: '/api/apps-deploy'
+      fullPath: '/api/apps-deploy'
+      preLoaderRoute: typeof ApiAppsDeployRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/ai': {
@@ -975,8 +1015,10 @@ const rootRouteChildren: RootRouteChildren = {
   OverviewRoute: OverviewRoute,
   SettingsRoute: SettingsRoute,
   ApiAiRoute: ApiAiRoute,
+  ApiAppsDeployRoute: ApiAppsDeployRoute,
   ApiSponsorTopupRoute: ApiSponsorTopupRoute,
   LaunchkitAiRoute: LaunchkitAiRoute,
+  LaunchkitAppBuilderRoute: LaunchkitAppBuilderRoute,
   LaunchkitDeployRoute: LaunchkitDeployRoute,
   LaunchkitEditorRoute: LaunchkitEditorRoute,
   LaunchkitProjectsRoute: LaunchkitProjectsRoute,

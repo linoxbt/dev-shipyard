@@ -309,24 +309,27 @@ function EditorPage() {
           print((SOLC_VERSIONS as readonly string[]).join("  "));
           break;
         case "ls":
-        case "files":
-          if (ws.solFiles.length === 0) print("(no .sol files)");
-          for (const f of ws.solFiles) print(`  ${f.path}`);
+        case "files": {
+          // Every file, not just Solidity — the workspace also holds
+          // generated app files.
+          const paths = Object.keys(ws.files).sort();
+          if (paths.length === 0) print("(no files)");
+          for (const p of paths) print(`  ${p}`);
           break;
+        }
         case "active":
           print(ws.activePath || "(none)");
           break;
         case "cat": {
           if (!arg) return print("usage: cat <path>", "warning");
-          const file = ws.solFiles.find((f) => f.path === arg);
+          const file = ws.files[arg] !== undefined ? { content: ws.files[arg] } : undefined;
           if (!file) return print(`No such file: ${arg}`, "error");
           for (const ln of file.content.split("\n")) print(ln);
           break;
         }
         case "open": {
           if (!arg) return print("usage: open <path>", "warning");
-          if (!ws.solFiles.some((f) => f.path === arg))
-            return print(`No such file: ${arg}`, "error");
+          if (ws.files[arg] === undefined) return print(`No such file: ${arg}`, "error");
           ws.openFile(arg);
           print(`Opened ${arg}`, "success");
           break;
@@ -641,7 +644,7 @@ function EditorPage() {
             </button>
           )}
           <div className="flex-1 overflow-hidden">
-            {ws.activePath.endsWith(".sol") ? (
+            {ws.activePath ? (
               <ClientOnly
                 fallback={
                   <div className="flex h-full items-center justify-center font-mono text-xs text-meta">
@@ -649,8 +652,12 @@ function EditorPage() {
                   </div>
                 }
               >
+                {/* Every file is editable, not just Solidity — the workspace
+                    also holds generated app files (html/js/css). The editor
+                    picks its language from the extension; only compilation is
+                    still Solidity-only. */}
                 <SolidityEditor
-                  value={activeSol}
+                  value={ws.activeContent}
                   filename={ws.activePath}
                   onChange={(v) => ws.setContent(ws.activePath, v)}
                   diagnostics={diagnostics}
@@ -659,7 +666,7 @@ function EditorPage() {
               </ClientOnly>
             ) : (
               <div className="flex h-full items-center justify-center font-mono text-xs text-muted-foreground">
-                {ws.activePath ? `${ws.activePath} (not a .sol file)` : "Select a file to edit"}
+                Select a file to edit
               </div>
             )}
           </div>

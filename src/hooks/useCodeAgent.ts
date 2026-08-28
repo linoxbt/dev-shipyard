@@ -17,6 +17,7 @@ import type { Abi } from "viem";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useContractLabels } from "@/hooks/useContractLabels";
 import { normalizeLabelCategory } from "@/lib/labels/categories";
+import { useWorkspaceStore } from "@/lib/workspace-store";
 import { runStaticAnalysis } from "@/lib/staticAnalysis";
 import { reviewFindings, summarise, canDeploy } from "@/lib/security/gate";
 import { runSuite } from "@/lib/testing/runner";
@@ -47,6 +48,8 @@ import {
   reviewGaveUpMessage,
   labelOkMessage,
   labelErrorMessage,
+  writeFileOkMessage,
+  writeFileErrorMessage,
   suggestedFormValues,
 } from "@/lib/ai-agent";
 import type { ChatMessage } from "@/lib/ai";
@@ -67,7 +70,16 @@ export interface ConstructorInput {
 }
 
 export interface ToolStep {
-  kind: "compile" | "test" | "review" | "deploy" | "record" | "verify" | "label" | "topup";
+  kind:
+    | "compile"
+    | "test"
+    | "review"
+    | "deploy"
+    | "record"
+    | "verify"
+    | "label"
+    | "write"
+    | "topup";
   status: "running" | "ok" | "error";
   title: string;
   detail?: string;
@@ -731,6 +743,52 @@ export function useCodeAgent() {
               content:
                 left <= 0 ? reviewGaveUpMessage() : reviewBlockedMessage(review.blocking, left),
             });
+          }
+          continue;
+        }
+
+        if (action.kind === "writefile") {
+          const path = (action.path ?? "").trim();
+          if (!path || !action.content) {
+            convoRef.current.push({
+              role: "user",
+              content: writeFileErrorMessage(
+                !path
+                  ? "No path given. Use @@WRITEFILE path=app/app.js"
+                  : "No fenced code block found. Include the COMPLETE file contents.",
+              ),
+            });
+            continue;
+          }
+          // The contract binding is generated, never model-written: it holds
+          // the address, chain and ABI, so a bad rewrite silently points the
+          // app at the wrong contract. Enforced here, not just in the prompt.
+          if (/(^|\/)contract\.js$/.test(path)) {
+            convoRef.current.push({
+              role: "user",
+              content: writeFileErrorMessage(
+                "contract.js is generated from the deployed contract and cannot be written. Change app.js or styles.css instead.",
+              ),
+            });
+            continue;
+          }
+          const sIdx = push({
+            type: "tool",
+            step: { kind: "write", status: "running", title: `Writing ${path}…` },
+          });
+          try {
+            useWorkspaceStore.getState().writeFiles([{ path, content: action.content }]);
+            const bytes = action.content.length;
+            updateStep(sIdx, {
+              status: "ok",
+              title: `Wrote ${path}`,
+              detail: `${bytes.toLocaleString()} bytes`,
+            });
+            convoRef.current.push({ role: "user", content: writeFileOkMessage(path, bytes) });
+          } catch (e) {
+            const why = e instanceof Error ? e.message : "Could not write the file.";
+            updateStep(sIdx, { status: "error", title: `Could not write ${path}`, detail: why });
+            convoRef.current.push({ role: "user", content: writeFileErrorMessage(why) });
           }
           continue;
         }

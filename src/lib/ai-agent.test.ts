@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseAction, extractLastSolidity, extractLastJson } from "./ai-agent";
+import { parseAction, extractLastSolidity, extractLastJson, extractLastCode } from "./ai-agent";
 
 describe("parseAction", () => {
   it("parses the original directives", () => {
@@ -52,6 +52,22 @@ describe("parseAction", () => {
     expect(parseAction("@@COMPILE name=A\nmore\n@@REVIEW name=A").kind).toBe("review");
   });
 
+  it("parses @@WRITEFILE with its file contents", () => {
+    const msg = ["```js", "export const x = 1;", "```", "@@WRITEFILE path=app/app.js"].join("\n");
+    const a = parseAction(msg);
+    expect(a.kind).toBe("writefile");
+    if (a.kind === "writefile") {
+      expect(a.path).toBe("app/app.js");
+      expect(a.content).toBe("export const x = 1;");
+    }
+  });
+
+  it("reports a @@WRITEFILE with no code block instead of writing nothing", () => {
+    const a = parseAction("I will change it.\n@@WRITEFILE path=app/app.js");
+    expect(a.kind).toBe("writefile");
+    if (a.kind === "writefile") expect(a.content).toBeNull();
+  });
+
   it("returns none when there is no directive", () => {
     expect(parseAction("just prose").kind).toBe("none");
   });
@@ -68,5 +84,14 @@ describe("extractors", () => {
 
   it("returns null when there is no json block", () => {
     expect(extractLastJson("no code here")).toBeNull();
+  });
+
+  it("extractLastCode takes the last block of ANY language", () => {
+    // @@WRITEFILE files may be js, css or html, so it must not be fence-typed.
+    expect(extractLastCode("```css\nbody{}\n```")).toBe("body{}");
+    expect(extractLastCode("```html\n<p>hi</p>\n```")).toBe("<p>hi</p>");
+    expect(extractLastCode("```\nplain\n```")).toBe("plain");
+    expect(extractLastCode("```js\nfirst\n```\n```js\nlast\n```")).toBe("last");
+    expect(extractLastCode("nothing here")).toBeNull();
   });
 });

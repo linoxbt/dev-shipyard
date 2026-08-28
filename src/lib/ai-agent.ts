@@ -51,6 +51,10 @@ End a message with EXACTLY ONE directive line, on its own line, as the LAST line
   @@LABEL name=<Name> category=<Category>
       Registers a human-readable name for the deployed contract in the onchain ContractLabelRegistry, so explorers show a name instead of raw hex. Category is one of: Token, NFT, DeFi, Governance, Infrastructure, Gaming, Identity, Other. Requires a second wallet signature.
 
+  @@WRITEFILE path=<path>
+      Replaces a file in the workspace with the COMPLETE contents in the last fenced code block of this message (never a diff or a fragment). Use it to refine a generated app: restyle it, rearrange it, add a section. Write the whole file every time.
+      You may NOT write app/contract.js — it is generated from the deployed contract and holds the address, chain and ABI. Rewriting it is the one way to break the app's link to its contract, so the tool refuses.
+
   @@DONE
       Finished. Use after a successful deploy, or when no deploy was requested.
 
@@ -89,6 +93,7 @@ export type AgentAction =
   | { kind: "review"; name?: string }
   | { kind: "deploy"; name?: string; args: unknown[] }
   | { kind: "label"; name?: string; category?: string }
+  | { kind: "writefile"; path?: string; content: string | null }
   | { kind: "done" }
   | { kind: "none" };
 
@@ -96,6 +101,16 @@ export type AgentAction =
 // most-recent contract source the model wants compiled).
 export function extractLastSolidity(text: string): string | null {
   const re = /```(?:solidity|sol)?\s*\n([\s\S]*?)```/g;
+  let m: RegExpExecArray | null;
+  let last: string | null = null;
+  while ((m = re.exec(text)) !== null) last = m[1].replace(/\s+$/, "");
+  return last;
+}
+
+// Pull the last fenced code block of ANY language out of a message. Used by
+// @@WRITEFILE, where the file could be JavaScript, CSS or HTML.
+export function extractLastCode(text: string): string | null {
+  const re = /```[a-zA-Z0-9]*\s*\n([\s\S]*?)```/g;
   let m: RegExpExecArray | null;
   let last: string | null = null;
   while ((m = re.exec(text)) !== null) last = m[1].replace(/\s+$/, "");
@@ -137,6 +152,11 @@ export function parseAction(text: string): AgentAction {
 
   if (/^@@COMPILE\b/i.test(directive)) {
     return { kind: "compile", name, source: extractLastSolidity(text) };
+  }
+
+  if (/^@@WRITEFILE\b/i.test(directive)) {
+    const path = directive.match(/path=("?)([^"\s]+)\1/)?.[2];
+    return { kind: "writefile", path, content: extractLastCode(text) };
   }
 
   if (/^@@REVIEW\b/i.test(directive)) {
@@ -249,6 +269,14 @@ export function reviewBlockedMessage(
 
 export function reviewGaveUpMessage(): string {
   return `[TOOL RESULT] SECURITY REVIEW STILL BLOCKING and the attempt limit is reached. Do not deploy. Explain the remaining issues to the user in plain language and @@DONE.`;
+}
+
+export function writeFileOkMessage(path: string, bytes: number): string {
+  return `[TOOL RESULT] WROTE ${path} (${bytes} bytes). The preview reloads automatically. Make one more change, or @@DONE.`;
+}
+
+export function writeFileErrorMessage(message: string): string {
+  return `[TOOL RESULT] WRITE FAILED: ${message}`;
 }
 
 export function labelOkMessage(name: string, address: string): string {

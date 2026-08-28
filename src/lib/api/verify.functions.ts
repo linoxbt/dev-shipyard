@@ -207,6 +207,58 @@ export const getVerificationStatus = createServerFn({ method: "GET" })
     }
   });
 
+// The verified ABI for a contract, so the App Builder can generate a frontend
+// for ANY verified address, not only something deployed in this browser.
+//
+// Deliberately a sibling of getVerificationStatus rather than an extra field on
+// it: that one is polled in a loop after a deploy, and an ABI is a much larger
+// payload to drag through every poll. Same endpoint, different purpose.
+export const getContractAbi = createServerFn({ method: "GET" })
+  .inputValidator(statusInput)
+  .handler(async ({ data }) => {
+    const url = `${explorerBase(data.chainId)}/api/v2/smart-contracts/${data.address}`;
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+      if (!resp.ok) {
+        return {
+          ok: false as const,
+          message:
+            resp.status === 404
+              ? "No contract found at that address on this network."
+              : `Explorer returned ${resp.status}.`,
+        };
+      }
+      const json = (await resp.json()) as {
+        is_verified?: boolean;
+        name?: string | null;
+        abi?: unknown;
+      };
+      if (!Array.isArray(json.abi) || json.abi.length === 0) {
+        return {
+          ok: false as const,
+          message: json.is_verified
+            ? "That contract is verified but the explorer returned no ABI."
+            : "That contract is not verified, so its ABI is unknown. Paste the ABI instead.",
+        };
+      }
+      // Returned as a JSON string, not an array: a server function's return
+      // type must be provably serializable, and `unknown[]` is not. The
+      // caller parses it — which is also the boundary's real shape.
+      return {
+        ok: true as const,
+        abiJson: JSON.stringify(json.abi),
+        name: json.name ?? null,
+        verified: json.is_verified === true,
+      };
+    } catch (e) {
+      return {
+        ok: false as const,
+        message:
+          e instanceof Error ? `Explorer unreachable: ${e.message}` : "Explorer unreachable.",
+      };
+    }
+  });
+
 // Has the explorer's indexer registered this address as a contract yet? Right
 // after a deploy the creation tx is mined but Blockscout may not have indexed
 // the address — submitting verification too early returns 404 "Address is not a
