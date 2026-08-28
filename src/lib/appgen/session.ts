@@ -29,6 +29,11 @@ export interface TurnInput {
   onDelta?: (chunk: string) => void;
   /** Called between repair rounds, so the UI can say what is happening. */
   onStatus?: (status: string) => void;
+  /** Live prose from the model, so the chat reads as it thinks rather than
+   *  sitting on a spinner. */
+  onProse?: (text: string) => void;
+  /** Fired as each file is written, so progress is visible file by file. */
+  onFile?: (path: string) => void;
 }
 
 export interface TurnResult {
@@ -113,11 +118,30 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
 
   for (let round = 0; round <= MAX_REPAIR_ROUNDS; round++) {
     if (round > 0) input.onStatus?.(`Fixing what would not run (${round}/${MAX_REPAIR_ROUNDS})…`);
+    input.onStatus?.(
+      round === 0
+        ? "Planning the app…"
+        : `Fixing what would not run (${round}/${MAX_REPAIR_ROUNDS})…`,
+    );
+    let streamed = "";
     reply = await chatStream({
       system,
       messages,
       signal: input.signal,
-      onDelta: input.onDelta ?? (() => {}),
+      onDelta: (chunk) => {
+        streamed += chunk;
+        input.onDelta?.(chunk);
+        // Surface the prose as it arrives; the code blocks are reported
+        // separately as files land.
+        input.onProse?.(stripCodeBlocks(streamed));
+        const open = (streamed.match(/```/g) ?? []).length;
+        if (open % 2 === 1) {
+          const name = /```[^\n]*?([A-Za-z0-9_\-./]+\.[A-Za-z0-9]+)/.exec(
+            streamed.slice(streamed.lastIndexOf("```")),
+          )?.[1];
+          if (name) input.onStatus?.(`Writing ${name}…`);
+        }
+      },
     });
     messages.push({ role: "assistant", content: reply });
 
@@ -131,7 +155,9 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     const applied = applyFiles(files, produced);
     files = applied.files;
     changed = [...new Set([...changed, ...applied.changed])];
+    for (const path of applied.changed) input.onFile?.(path);
 
+    input.onStatus?.("Checking it runs…");
     issues = validateApp(files, dir);
     const problem = issuesForModel(issues);
     if (!problem) break;

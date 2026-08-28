@@ -72,6 +72,52 @@ describe("buildPreview", () => {
     ).toThrow(/circular import/);
   });
 
+  it("rewrites the markup variants a MODEL writes, not just the generator's", () => {
+    // This was a real blank-page bug: the rewrite required exactly
+    // href="./styles.css" / src="./app.js". The model rewrites index.html
+    // freely, so no-./ paths and single quotes slipped through, resolved
+    // against the host page, 404'd, and rendered nothing.
+    const variants = [
+      { html: '<link rel="stylesheet" href="styles.css">', label: "href without ./" },
+      { html: "<link rel='stylesheet' href='./styles.css'>", label: "single quotes" },
+      { html: '<link href="./styles.css" rel="stylesheet">', label: "attribute order" },
+    ];
+    for (const v of variants) {
+      const { srcdoc } = buildPreview({
+        "app/index.html": `<html><head>${v.html}</head><body><div id="root"></div><script type="module" src="app.js"></script></body></html>`,
+        "app/app.js": "console.log(1);",
+        "app/styles.css": "body{color:red}",
+      });
+      expect(`${v.label}: inlined`).toBe(
+        `${v.label}: ${srcdoc.includes("color:red") ? "inlined" : "MISSED"}`,
+      );
+      expect(`${v.label}: script`).toBe(
+        `${v.label}: ${/src="data:text\/javascript/.test(srcdoc) ? "script" : "MISSED"}`,
+      );
+    }
+  });
+
+  it("refuses to ship a preview with an unresolvable local reference", () => {
+    // Better a loud failure than a white frame the user has to diagnose.
+    expect(() =>
+      buildPreview({
+        "app/index.html":
+          '<html><head></head><body><div id="root"></div><script type="module" src="./app.js"></script><img src="./logo.png"></body></html>',
+        "app/app.js": "console.log(1);",
+        "app/logo.png": "binary-ish",
+      }),
+    ).toThrow(/Could not rewrite/);
+  });
+
+  it("leaves absolute and CDN URLs alone", () => {
+    const { srcdoc } = buildPreview({
+      "app/index.html":
+        '<html><head><link rel="stylesheet" href="https://cdn.example/x.css"></head><body><div id="root"></div><script type="module" src="./app.js"></script></body></html>',
+      "app/app.js": "console.log(1);",
+    });
+    expect(srcdoc).toContain("https://cdn.example/x.css");
+  });
+
   it("honours a custom directory", () => {
     const files = generateApp({ ...spec, dir: "site" });
     expect(() => buildPreview(files, "site")).not.toThrow();

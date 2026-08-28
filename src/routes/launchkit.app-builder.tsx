@@ -40,6 +40,15 @@ interface Turn {
   text: string;
   changed?: string[];
   failed?: boolean;
+  /** Still streaming — rendered live rather than after the fact. */
+  live?: boolean;
+}
+
+/** Index of the turn currently being streamed into. Written out rather than
+ *  using Array.findLastIndex, which is newer than this project's TS lib. */
+function liveIndex(turns: Turn[]): number {
+  for (let i = turns.length - 1; i >= 0; i--) if (turns[i].live) return i;
+  return -1;
 }
 
 function AppBuilderPage() {
@@ -87,9 +96,15 @@ function AppBuilderPage() {
       return;
     }
     setInput("");
-    setTurns((t) => [...t, { role: "user", text: prompt }]);
+    // A placeholder assistant turn that fills in as the model works, so the
+    // chat reads as progress rather than a spinner and then a wall of text.
+    setTurns((t) => [
+      ...t,
+      { role: "user", text: prompt },
+      { role: "assistant", text: "", changed: [], live: true },
+    ]);
     setBusy(true);
-    setStatus("Thinking…");
+    setStatus("Planning the app…");
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -119,7 +134,22 @@ function AppBuilderPage() {
         previewErrors,
         signal: controller.signal,
         onStatus: setStatus,
-        onDelta: () => setStatus("Writing files…"),
+        onProse: (text) =>
+          setTurns((t) => {
+            const next = [...t];
+            const i = liveIndex(next);
+            if (i >= 0) next[i] = { ...next[i], text };
+            return next;
+          }),
+        onFile: (path) =>
+          setTurns((t) => {
+            const next = [...t];
+            const i = liveIndex(next);
+            if (i >= 0) {
+              next[i] = { ...next[i], changed: [...new Set([...(next[i].changed ?? []), path])] };
+            }
+            return next;
+          }),
         context: attached
           ? {
               contract: {
@@ -139,17 +169,21 @@ function AppBuilderPage() {
       setHistory(result.history);
       setPreviewErrors([]); // the app changed; old errors no longer apply
       writeFiles(Object.entries(result.files).map(([path, content]) => ({ path, content })));
-      setTurns((t) => [
-        ...t,
-        {
+      setTurns((t) => {
+        const next = [...t];
+        const i = liveIndex(next);
+        const finished: Turn = {
           role: "assistant",
           text:
             result.reply ||
             (result.changed.length ? `Updated ${result.changed.length} file(s).` : "Done."),
           changed: result.changed,
-          failed: result.issues.some((i) => i.fatal),
-        },
-      ]);
+          failed: result.issues.some((x) => x.fatal),
+        };
+        if (i >= 0) next[i] = finished;
+        else next.push(finished);
+        return next;
+      });
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
         setTurns((t) => [
@@ -256,9 +290,14 @@ function AppBuilderPage() {
                   {t.changed.map((c) => c.replace(/^app\//, "")).join(" · ")}
                 </p>
               )}
+              {t.live && status && (
+                <p className="mt-1 flex items-center gap-1.5 text-[10px] text-meta">
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" /> {status}
+                </p>
+              )}
             </div>
           ))}
-          {status && (
+          {status && !turns.some((t) => t.live) && (
             <p className="flex items-center gap-1.5 font-mono text-[11px] text-meta">
               <Loader2 className="h-3 w-3 animate-spin" /> {status}
             </p>

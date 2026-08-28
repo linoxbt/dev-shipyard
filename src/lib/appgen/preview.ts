@@ -153,18 +153,49 @@ export function buildPreview(files: Record<string, string>, dir = "app"): Previe
       remaining = next;
     }
 
-    // Inline the CSS: one fewer request, and no chance of the stylesheet
-    // racing the first paint.
+    // Rewrite every src/href that names one of our own files.
+    //
+    // This is attribute-driven rather than markup-matching on purpose. The
+    // earlier version required exactly `href="./styles.css"`, and the model
+    // rewrites index.html freely — `href="styles.css"`, single quotes, a
+    // different attribute order all failed to match. An unrewritten relative
+    // URL then resolves against the PARENT page (a srcdoc iframe inherits the
+    // host's base URL), 404s, and the app renders blank with no clue why.
     let page = html;
-    const css = own["styles.css"];
-    if (css) {
-      page = page.replace(/<link[^>]+href="\.\/styles\.css"[^>]*>/, `<style>\n${css}\n</style>`);
-    }
-    // Point the entry script (and any other module src) at its data: URL.
-    page = page.replace(/src="\.\/([^"]+\.js)"/g, (whole, file: string) => {
-      const target = urlFor.get(file);
-      return target ? `src="${target}"` : whole;
+    const resolveLocal = (raw: string): string | null => {
+      const name = baseName(raw.trim().replace(/^\.\//, "").split(/[?#]/)[0]);
+      return own[name] !== undefined ? name : null;
+    };
+
+    // Stylesheets are inlined: one fewer request, no flash of unstyled content.
+    page = page.replace(/<link\b[^>]*>/gi, (tag) => {
+      const href = /href\s*=\s*(["'])([^"']+)\1/i.exec(tag)?.[2];
+      if (!href) return tag;
+      const name = resolveLocal(href);
+      if (!name || !name.endsWith(".css")) return tag;
+      return `<style>\n${own[name]}\n</style>`;
     });
+
+    // Scripts point at the module's data: URL.
+    page = page.replace(/<script\b[^>]*>/gi, (tag) => {
+      const m = /src\s*=\s*(["'])([^"']+)\1/i.exec(tag);
+      if (!m) return tag;
+      const name = resolveLocal(m[2]);
+      const target = name ? urlFor.get(name) : undefined;
+      return target ? tag.replace(m[0], `src="${target}"`) : tag;
+    });
+
+    // Anything still pointing at a file we hold would 404 against the host
+    // page. Fail loudly here rather than shipping a blank preview.
+    const leftover = [...page.matchAll(/(?:src|href)\s*=\s*(["'])([^"']+)\1/gi)]
+      .map((m) => m[2])
+      .filter((v) => !/^(https?:|data:|blob:|#|\/\/)/i.test(v))
+      .filter((v) => resolveLocal(v) !== null);
+    if (leftover.length > 0) {
+      throw new Error(
+        `Could not rewrite these references for the preview: ${[...new Set(leftover)].join(", ")}.`,
+      );
+    }
 
     // Error reporter first, so it catches failures in the app's own modules.
     page = page.includes("</head>")
