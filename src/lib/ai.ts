@@ -17,10 +17,10 @@ import {
   activeKey,
   AI_PROVIDERS,
   resolveEndpoint,
-} from "@/lib/ai-settings";
+} from "./ai-settings";
 
 export { isAiConfigured };
-export type { AiProvider } from "@/lib/ai-settings";
+export type { AiProvider } from "./ai-settings";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -196,15 +196,23 @@ async function consumeStream(
   onDelta: (chunk: string) => void,
 ): Promise<string> {
   let out = "";
+  let truncated = false;
   for await (const data of sseData(body)) {
     if (format === "openai") {
       if (data === "[DONE]") break;
-      let chunk: { choices?: Array<{ delta?: { content?: string } }> };
+      let chunk: {
+        choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }>;
+      };
       try {
         chunk = JSON.parse(data);
       } catch {
         continue;
       }
+      // A reply cut off at the token ceiling is not a reply: the App Builder
+      // asks for COMPLETE file contents, so a truncated one ends mid-function
+      // and is written to disk as a broken file. Far better to say so than to
+      // save half a file and report a validation error the user cannot act on.
+      if (chunk.choices?.[0]?.finish_reason === "length") truncated = true;
       const delta = chunk.choices?.[0]?.delta?.content;
       if (delta) {
         out += delta;
@@ -233,6 +241,11 @@ async function consumeStream(
     }
   }
   if (!out) throw new Error("AI returned an empty response.");
+  if (truncated) {
+    throw new Error(
+      "The reply hit the response size limit and was cut off mid-file. Ask for a smaller change — one file or one feature at a time — rather than a whole app in a single prompt.",
+    );
+  }
   return out;
 }
 

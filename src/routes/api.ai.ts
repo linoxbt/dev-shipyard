@@ -105,7 +105,17 @@ function configProblem(c: ServerConfig): string | null {
   return null;
 }
 
-const MAX_TOKENS = 4096;
+// The App Builder must return the COMPLETE contents of every file it changes,
+// and a generated app.js alone is ~2800 tokens. At 4096 a reply rewriting two
+// or three files was cut off mid-function, saved as a broken file, and
+// surfaced to the user as "needs another pass" with nothing they could do
+// about it. Sized for a few complete files rather than one.
+// anthropic/claude-sonnet-5 through OpenRouter allows 128k completion tokens
+// against a 1M context (checked live against /api/v1/models). A real app is
+// 15+ complete files — measured: a swap app truncated mid-run at 16000 and
+// surfaced as "needs another pass" — so the ceiling is raised well above what
+// one app costs while staying under the provider maximum.
+const MAX_TOKENS = Number(process.env.AI_MAX_TOKENS ?? 64000);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface ChatBody {
@@ -186,6 +196,18 @@ async function upstreamRequest(
       messages: [{ role: "system", content: system }, ...messages],
       temperature: 0.2,
       stream: true,
+      // Without this the OpenAI-compatible branch sent NO token cap at all
+      // (the Anthropic branch above always has), so a long generation was
+      // bounded only by the provider's own default.
+      max_tokens: MAX_TOKENS,
+      // Reasoning models stream `reasoning` deltas that carry no `content`.
+      // Measured against this App Builder's own system prompt: the model
+      // emitted 208 KB of pure reasoning and had still produced zero content
+      // after 300s, which a serverless host kills long before the first
+      // visible token — the user sees "Planning the app…" and then a network
+      // error. Disabling it produced content in 2.4s instead. Set
+      // AI_REASONING=on to restore provider-default reasoning.
+      ...(process.env.AI_REASONING === "on" ? {} : { reasoning: { enabled: false } }),
     }),
     signal,
   });

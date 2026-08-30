@@ -43,8 +43,11 @@ describe("parseGeneratedFiles", () => {
   });
 
   it("caps how many files and how large a response can be", () => {
-    const many = Array.from({ length: 20 }, (_, i) => "```js f" + i + ".js\nx\n```").join("\n");
-    expect(parseGeneratedFiles(many).length).toBeLessThanOrEqual(12);
+    // Above MAX_FILES (28): a real multi-service app is 15-20 files, so the cap
+    // has to sit above that while still bounding a runaway reply.
+    const many = Array.from({ length: 40 }, (_, i) => "```js f" + i + ".js\nx\n```").join("\n");
+    expect(parseGeneratedFiles(many).length).toBeLessThanOrEqual(28);
+    expect(parseGeneratedFiles(many).length).toBeGreaterThan(12);
     const huge = "```js big.js\n" + "x".repeat(200_000) + "\n```";
     expect(parseGeneratedFiles(huge)).toHaveLength(0);
   });
@@ -113,5 +116,30 @@ describe("appBuilderSystemPrompt", () => {
     expect(p).toContain("holdsQieId(address) [read]");
     // contract.js is generated — the model must not overwrite the binding.
     expect(p).toContain("do not output it");
+  });
+});
+
+describe("appBuilderSystemPrompt, build targets", () => {
+  it("forbids npm and JSX when there is no build step", () => {
+    const p = appBuilderSystemPrompt({});
+    expect(p).toContain("NO npm install");
+    expect(p).toContain("NO JSX");
+    expect(p).toContain("import map");
+  });
+
+  it("allows npm and JSX when the project is really built", () => {
+    // Telling a model "no npm install" in a project that is about to run npm
+    // install produces a much worse app than it needs to be.
+    const p = appBuilderSystemPrompt({ target: "vite" });
+    expect(p).not.toContain("NO npm install");
+    expect(p).not.toContain("import map");
+    expect(p).toContain("JSX both work");
+    expect(p).toContain("src/app.js");
+  });
+
+  it("tells the model its work will be linted and tested", () => {
+    const p = appBuilderSystemPrompt({ target: "vite" });
+    expect(p).toContain("eslint");
+    expect(p).toContain("Playwright");
   });
 });

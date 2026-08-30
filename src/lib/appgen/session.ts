@@ -7,14 +7,75 @@
 //
 // That last part is the difference between "the preview is blank" and a fix:
 // the agent is told the actual exception, so it does not have to guess.
+//
+// When a build runner is configured the same idea goes further: the project is
+// installed, linted, built and driven in a real browser, and whatever fails
+// comes back as another message for the model to repair from. A build error, a
+// lint error and a failing Playwright test are all just tool output, handled
+// the way compile errors already are elsewhere in DevStation.
 
-import { chatStream, type ChatMessage } from "@/lib/ai";
-import { appBuilderSystemPrompt, parseGeneratedFiles, type PromptContext } from "./prompt";
+import { chatStream, type ChatMessage } from "../ai";
+import {
+  appBuilderSystemPrompt,
+  parseGeneratedFiles,
+  reviewSystemPrompt,
+  type PromptContext,
+} from "./prompt";
 import { issuesForModel, validateApp, type ValidationIssue } from "./validate";
 import type { PreviewError } from "./preview";
 
 /** How many auto-repair rounds a single turn may take before handing back. */
 export const MAX_REPAIR_ROUNDS = 2;
+
+/** Enough of a failing log to diagnose from. The useful part of a build, type
+ *  or test failure is almost always at the end, so this keeps the tail. */
+const LOG_TAIL_CHARS = 2500;
+
+export interface BuildPhaseResult {
+  phase: string;
+  ok: boolean;
+  log: string;
+}
+
+export interface BuildOutcome {
+  ok: boolean;
+  phases: BuildPhaseResult[];
+  /** The built site, when the build succeeded. */
+  dist: Record<string, string> | null;
+  /** Set when the build could not be attempted — no runner configured, rate
+   *  limited, unreachable. Not a failure of the app, so it is reported to the
+   *  user rather than fed back to the model as something to fix. */
+  unavailable?: string;
+}
+
+/** Turn a failed job into something the model can act on.
+ *
+ *  Only the first failing phase is reported. Later phases were never run, and
+ *  a lint error printed underneath a build error just buries the thing that
+ *  actually has to be fixed first. */
+export function buildFeedback(outcome: BuildOutcome): string | null {
+  if (outcome.ok || outcome.unavailable) return null;
+  const failed = outcome.phases.find((p) => !p.ok);
+  if (!failed) return null;
+
+  const log = failed.log.trim();
+  const tail = log.length > LOG_TAIL_CHARS ? `…\n${log.slice(log.length - LOG_TAIL_CHARS)}` : log;
+
+  const what: Record<string, string> = {
+    install: "Installing the dependencies failed",
+    lint: "The linter rejected the code",
+    typecheck: "Type checking failed",
+    build: "The build failed",
+    test: "The browser test failed",
+  };
+  return [
+    `${what[failed.phase] ?? `The ${failed.phase} step failed`}. Fix it and return the full contents of every file you change.`,
+    "",
+    "```",
+    tail || "(no output)",
+    "```",
+  ].join("\n");
+}
 
 export interface TurnInput {
   prompt: string;
@@ -34,6 +95,23 @@ export interface TurnInput {
   onProse?: (text: string) => void;
   /** Fired as each file is written, so progress is visible file by file. */
   onFile?: (path: string) => void;
+  /** "review" reads the app over and reports findings without touching it.
+   *  Nothing is written, nothing is built, and no repair rounds run. */
+  mode?: "build" | "review";
+  /** Runs the project's real toolchain. Absent when no build runner is
+   *  configured, in which case static validation is the only feedback there
+   *  is — which is exactly how this worked before, and still works. */
+  runBuild?: (files: Record<string, string>) => Promise<BuildOutcome>;
+  /** How to reach the model. Injected for the same reason runBuild is: the
+   *  identical turn logic has to run in two places. In the browser it posts to
+   *  /api/ai; inside the build runner it calls the provider directly, because
+   *  a turn that lives in the page dies the moment the page is refreshed. */
+  chat?: (opts: {
+    system: string;
+    messages: ChatMessage[];
+    signal?: AbortSignal;
+    onDelta: (chunk: string) => void;
+  }) => Promise<string>;
 }
 
 export interface TurnResult {
@@ -45,21 +123,70 @@ export interface TurnResult {
   /** Prose the model wrote alongside the code. */
   reply: string;
   repaired: number;
+  /** The last build attempt, when one was made. */
+  build?: BuildOutcome;
 }
 
-/** What the model is told about the state it cannot see. */
+/** Per-file ceiling in the briefing. Generated apps sit well under this; a
+ *  runaway file is truncated in the middle, where the least is lost. */
+const MAX_FILE_CHARS = 12_000;
+/** Ceiling across all files, so a large project cannot crowd out the
+ *  conversation itself. */
+const MAX_BRIEFING_CHARS = 45_000;
+
+function clip(content: string): string {
+  if (content.length <= MAX_FILE_CHARS) return content;
+  const half = Math.floor(MAX_FILE_CHARS / 2);
+  return `${content.slice(0, half)}\n\n… ${content.length - MAX_FILE_CHARS} characters omitted …\n\n${content.slice(-half)}`;
+}
+
+/** What the model is told about the state it cannot see.
+ *
+ *  This sends the ACTUAL CONTENTS of the current files, not just their names.
+ *  Names alone were the single worst bug in this loop: the model's only
+ *  knowledge of the code was whatever it had written earlier in the
+ *  conversation, so on a follow-up it reconstructed whole files from memory
+ *  rather than editing what was there. That looks like the agent throwing away
+ *  your app and starting again, because that is exactly what it was doing —
+ *  and it got worse the longer the conversation ran, as its recollection drifted
+ *  further from the files on disk.
+ *
+ *  Sent fresh every turn, so it is always authoritative. Stale code blocks in
+ *  the history are stripped for the same reason (see trimHistory). */
 export function stateBriefing(
   files: Record<string, string>,
   previewErrors: PreviewError[] = [],
   dir = "app",
 ): string {
   const prefix = dir ? `${dir}/` : "";
-  const names = Object.keys(files)
-    .filter((p) => p.startsWith(prefix))
-    .map((p) => p.slice(prefix.length));
+  const own = Object.entries(files)
+    .filter(([p]) => p.startsWith(prefix))
+    .map(([p, c]) => [p.slice(prefix.length), c] as const)
+    .sort(([a], [b]) => a.localeCompare(b));
 
   const parts: string[] = [];
-  if (names.length) parts.push(`Current files: ${names.join(", ")}.`);
+
+  if (own.length) {
+    let budget = MAX_BRIEFING_CHARS;
+    const blocks: string[] = [];
+    for (const [name, content] of own) {
+      const body = clip(content);
+      if (body.length > budget) {
+        blocks.push(`--- ${name} (omitted, too large to include) ---`);
+        continue;
+      }
+      budget -= body.length;
+      const generated = /(^|\/)contract\.js$/.test(name)
+        ? " [GENERATED — read it, never output it]"
+        : "";
+      blocks.push(`--- ${name}${generated} ---\n${body}`);
+    }
+    parts.push(
+      "The app as it stands right now. This is the real code — edit THESE files,\n" +
+        "do not rewrite them from memory and do not start over:\n\n" +
+        blocks.join("\n\n"),
+    );
+  }
 
   if (previewErrors.length) {
     const seen = new Set<string>();
@@ -74,6 +201,28 @@ export function stateBriefing(
     );
   }
   return parts.join("\n\n");
+}
+
+/** Strip code blocks out of earlier assistant turns.
+ *
+ *  Two reasons, and they compound. The current files are sent fresh every turn
+ *  by stateBriefing, so old code in the transcript is at best duplication and
+ *  at worst a contradiction — a model that sees three versions of app.js has to
+ *  guess which is live, and it guesses wrong. And an app's worth of code
+ *  repeated over ten turns crowds out the thing that actually matters: what you
+ *  asked for, and why.
+ *
+ *  The prose survives, so the conversation keeps its intent and its memory.
+ *  Only the code goes, because the code is supplied authoritatively elsewhere. */
+export function trimHistory(history: ChatMessage[]): ChatMessage[] {
+  return history.map((m) => {
+    if (m.role !== "assistant") return m;
+    const prose = stripCodeBlocks(m.content);
+    return {
+      ...m,
+      content: prose || "(wrote the files described above)",
+    };
+  });
 }
 
 /** Merge the model's files over the current set, protecting the binding. */
@@ -101,12 +250,16 @@ function applyFiles(
  * broken app back is the whole point: a blank preview is not a useful reply.
  */
 export async function runTurn(input: TurnInput): Promise<TurnResult> {
+  const chat = input.chat ?? chatStream;
   const dir = input.dir ?? "app";
-  const system = appBuilderSystemPrompt(input.context ?? {});
+  const review = input.mode === "review";
+  const system = review
+    ? reviewSystemPrompt(input.context ?? {})
+    : appBuilderSystemPrompt(input.context ?? {});
 
   const briefing = stateBriefing(input.files, input.previewErrors, dir);
   const messages: ChatMessage[] = [
-    ...input.history,
+    ...trimHistory(input.history),
     { role: "user", content: briefing ? `${briefing}\n\n---\n\n${input.prompt}` : input.prompt },
   ];
 
@@ -115,7 +268,35 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   let changed: string[] = [];
   let issues: ValidationIssue[] = [];
   let repaired = 0;
+  let build: BuildOutcome | undefined;
 
+  // A review is one pass: ask, read the answer, stop. No files, no build, no
+  // repair rounds — there is nothing to repair.
+  if (review) {
+    input.onStatus?.("Reading the code…");
+    let streamed = "";
+    reply = await chat({
+      system,
+      messages,
+      signal: input.signal,
+      onDelta: (chunk) => {
+        streamed += chunk;
+        input.onDelta?.(chunk);
+        input.onProse?.(streamed);
+      },
+    });
+    messages.push({ role: "assistant", content: reply });
+    return {
+      files: input.files,
+      changed: [],
+      history: messages,
+      issues: [],
+      reply,
+      repaired: 0,
+    };
+  }
+
+  let forcedBuild = false;
   for (let round = 0; round <= MAX_REPAIR_ROUNDS; round++) {
     if (round > 0) input.onStatus?.(`Fixing what would not run (${round}/${MAX_REPAIR_ROUNDS})…`);
     input.onStatus?.(
@@ -124,7 +305,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
         : `Fixing what would not run (${round}/${MAX_REPAIR_ROUNDS})…`,
     );
     let streamed = "";
-    reply = await chatStream({
+    reply = await chat({
       system,
       messages,
       signal: input.signal,
@@ -147,8 +328,25 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
 
     const produced = parseGeneratedFiles(reply, dir);
     if (produced.length === 0) {
+      // A build request that comes back as prose is the model deferring —
+      // asking permission, proposing stages, or declining because an API key
+      // is missing. Observed live on a long, highly-detailed spec: the reply
+      // was a plan ending in "Do you want me to build Stage 1 now?", which
+      // parsed to zero files and surfaced as an empty turn with nothing to
+      // preview. Push back once and make it build; only then fall through to
+      // treating the reply as conversation.
+      if (input.mode !== "review" && !forcedBuild) {
+        forcedBuild = true;
+        input.onStatus?.("Getting it to build…");
+        messages.push({
+          role: "user",
+          content:
+            "You did not produce any files. Do not ask questions, propose stages, or explain what you would do. Build it now and return the COMPLETE contents of every file you change in fenced code blocks, each fence labelled with its path. If the request is too large for one reply, build the most valuable slice that RUNS and say in one sentence what comes next.",
+        });
+        continue;
+      }
       // No files: treat it as conversation, not a failed build.
-      issues = validateApp(files, dir);
+      issues = validateApp(files, dir, input.context?.target);
       break;
     }
 
@@ -158,8 +356,22 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     for (const path of applied.changed) input.onFile?.(path);
 
     input.onStatus?.("Checking it runs…");
-    issues = validateApp(files, dir);
+    issues = validateApp(files, dir, input.context?.target);
     const problem = issuesForModel(issues);
+
+    // Static checks first. They are instant and catch the obvious breakages,
+    // so there is no sense spending a minute of build time to be told the
+    // same thing more slowly.
+    if (!problem && input.runBuild) {
+      input.onStatus?.("Installing, building and testing…");
+      build = await input.runBuild(files);
+      const failure = buildFeedback(build);
+      if (!failure) break;
+      if (round === MAX_REPAIR_ROUNDS) break;
+      repaired++;
+      messages.push({ role: "user", content: failure });
+      continue;
+    }
     if (!problem) break;
 
     if (round === MAX_REPAIR_ROUNDS) break; // hand back with issues surfaced
@@ -174,7 +386,41 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     issues,
     reply: stripCodeBlocks(reply),
     repaired,
+    build,
   };
+}
+
+/** Does this prompt read as "look at it", rather than "change it"?
+ *
+ *  Deliberately conservative, because the failure is asymmetric: missing a
+ *  review request costs one wasted click on the button, while mistaking a build
+ *  request for a review means the app you asked for never gets written.
+ *
+ *  It got that exactly wrong once. The match was a bare \breview\b anywhere in
+ *  the prompt, so "build a swap interface with a review modal" — and every
+ *  spec containing a "Review Swap" button — was answered with a code review
+ *  instead of an app. Hence the two guards below: any building verb wins, and
+ *  the review word has to open a SHORT prompt rather than merely appear
+ *  somewhere in a long one.
+ *
+ *  The Review button remains the reliable way in; this only catches the
+ *  obvious conversational case. */
+const BUILD_VERBS =
+  /\b(build|create|make|generate|design|add|implement|write|fix|change|update|remove|rewrite|refactor|turn it into|convert)\b/;
+const REVIEW_OPENERS =
+  /^(please\s+)?(can you\s+|could you\s+|would you\s+)?(review|audit|critique|sanity[- ]check|check (it|this|the code)|look (it|this) over|go over (it|this))\b/;
+const REVIEW_QUESTIONS =
+  /^(any (bugs|issues|problems)|what('s| is) wrong|is (this|it) (ok|okay|sound|correct))\b/;
+/** Longer than this and it is a specification, not a question. */
+const MAX_REVIEW_PROMPT_CHARS = 120;
+
+export function looksLikeReviewRequest(prompt: string): boolean {
+  const p = prompt.toLowerCase().trim();
+  // An instruction to build or change something always wins, wherever it
+  // appears. "review it and fix the bugs" is a build request.
+  if (BUILD_VERBS.test(p)) return false;
+  if (p.length > MAX_REVIEW_PROMPT_CHARS) return false;
+  return REVIEW_OPENERS.test(p) || REVIEW_QUESTIONS.test(p);
 }
 
 /** The prose around the code, for the chat transcript. */
