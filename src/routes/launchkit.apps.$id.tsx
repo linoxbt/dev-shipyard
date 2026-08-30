@@ -77,13 +77,16 @@ function AppDetail() {
   // GitHub
   const [token, setToken] = useState("");
   const [repoName, setRepoName] = useState("");
+  const [repoOwner, setRepoOwner] = useState("");
   const [isPrivate, setIsPrivate] = useState(true);
   const [pushing, setPushing] = useState(false);
   useEffect(() => {
     setToken(readToken(wallet));
   }, [wallet]);
   useEffect(() => {
-    if (project) setRepoName((r) => r || repoNameFrom(project.name));
+    if (!project) return;
+    setRepoName((r) => r || repoNameFrom(project.name));
+    setRepoOwner((o) => o || project.repo?.owner || "");
   }, [project]);
 
   const totalBytes = useMemo(() => {
@@ -119,6 +122,7 @@ function AppDetail() {
     try {
       const target = await pushApp({
         token: token.trim(),
+        owner: repoOwner,
         repoName: repoNameFrom(repoName || project.name),
         isPrivate,
         // Source, deliberately — not `dist`. A repository holds what a person
@@ -365,8 +369,19 @@ function AppDetail() {
           <p className="mt-1 font-mono text-[10px] text-meta">
             Sent from this browser straight to GitHub. It never reaches DevStation&apos;s servers.
           </p>
+          <p className="mt-1 font-mono text-[10px] text-meta">
+            GitHub does not let fine-grained tokens create repositories, so create the repo there
+            first and push to it. A classic token with the <code>repo</code> scope can create one.
+          </p>
 
           <div className="mt-2 flex items-center gap-2">
+            <input
+              value={repoOwner}
+              onChange={(e) => setRepoOwner(e.target.value)}
+              placeholder="github-username"
+              className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
+            />
+            <span className="font-mono text-[11px] text-meta">/</span>
             <input
               value={repoName}
               onChange={(e) => setRepoName(e.target.value)}

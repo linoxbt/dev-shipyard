@@ -80,9 +80,19 @@ async function gh<T>(token: string, path: string, init?: RequestInit): Promise<T
   return (await res.json()) as T;
 }
 
-export async function whoami(token: string): Promise<GithubUser> {
-  const u = await gh<{ login: string; avatar_url: string }>(token, "/user");
-  return { login: u.login, avatarUrl: u.avatar_url };
+/** The signed-in account, or null when the token may not read it.
+ *
+ *  GET /user is NOT available to fine-grained tokens (confirmed against
+ *  GitHub's own OpenAPI spec: enabledForGitHubApps false). Fine-grained is the
+ *  token type this UI recommends, so failing here would break the common case;
+ *  the owner is asked for instead. Classic tokens still resolve it themselves. */
+export async function whoami(token: string): Promise<GithubUser | null> {
+  try {
+    const u = await gh<{ login: string; avatar_url: string }>(token, "/user");
+    return { login: u.login, avatarUrl: u.avatar_url };
+  } catch {
+    return null;
+  }
 }
 
 /** Turn a project name into something GitHub will accept as a repo name. */
@@ -99,17 +109,17 @@ export function repoNameFrom(name: string): string {
 
 async function ensureRepo(
   token: string,
+  owner: string,
   name: string,
   isPrivate: boolean,
 ): Promise<{ owner: string; name: string; url: string; defaultBranch: string; empty: boolean }> {
-  const me = await whoami(token);
-  const existing = await fetch(`${API}/repos/${me.login}/${name}`, {
+  const existing = await fetch(`${API}/repos/${owner}/${name}`, {
     headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json" },
   });
   if (existing.ok) {
     const r = (await existing.json()) as { default_branch: string; html_url: string; size: number };
     return {
-      owner: me.login,
+      owner,
       name,
       url: r.html_url,
       defaultBranch: r.default_branch || "main",
@@ -118,17 +128,34 @@ async function ensureRepo(
       empty: r.size === 0,
     };
   }
-  const created = await gh<{ default_branch: string; html_url: string }>(token, "/user/repos", {
-    method: "POST",
-    body: JSON.stringify({
-      name,
-      private: isPrivate,
-      description: "Built with DevStation",
-      auto_init: false,
-    }),
-  });
+  // Creating a repository is NOT available to fine-grained tokens
+  // (POST /user/repos, enabledForGitHubApps false). Rather than surface
+  // GitHub's opaque "Resource not accessible by personal access token", say
+  // which of the two ways forward applies.
+  let created: { default_branch: string; html_url: string };
+  try {
+    created = await gh<{ default_branch: string; html_url: string }>(token, "/user/repos", {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        private: isPrivate,
+        description: "Built with DevStation",
+        auto_init: false,
+      }),
+    });
+  } catch (e) {
+    const why = e instanceof Error ? e.message : "";
+    if (/not accessible|Not Found|Bad credentials/i.test(why)) {
+      throw new Error(
+        `${owner}/${name} does not exist, and this token cannot create it — GitHub does not let ` +
+          `fine-grained tokens create repositories. Either create ${name} on GitHub first and push ` +
+          `again, or use a classic token with the "repo" scope.`,
+      );
+    }
+    throw e;
+  }
   return {
-    owner: me.login,
+    owner,
     name,
     url: created.html_url,
     defaultBranch: created.default_branch || "main",
@@ -143,6 +170,9 @@ async function ensureRepo(
  *  twenty-file app into twenty commits of noise. */
 export async function pushApp(params: {
   token: string;
+  /** GitHub account or org that owns the repo. Required for fine-grained
+   *  tokens, which cannot look the account up themselves. */
+  owner?: string;
   repoName: string;
   isPrivate: boolean;
   files: Record<string, string>;
@@ -157,7 +187,14 @@ export async function pushApp(params: {
   ]) as Array<[string, string]>;
   if (entries.length === 0) throw new Error("There is nothing to push yet.");
 
-  const repo = await ensureRepo(token, params.repoName, params.isPrivate);
+  const owner = params.owner?.trim() || (await whoami(token))?.login;
+  if (!owner) {
+    throw new Error(
+      "Enter your GitHub username — this token cannot read your account, which is normal for a " +
+        "fine-grained token.",
+    );
+  }
+  const repo = await ensureRepo(token, owner, params.repoName, params.isPrivate);
   const base = `/repos/${repo.owner}/${repo.name}`;
 
   const blobs = await Promise.all(
