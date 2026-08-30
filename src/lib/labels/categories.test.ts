@@ -1,9 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  LABEL_CATEGORIES,
-  labelCategoryForTemplate,
-  normalizeLabelCategory,
-} from "./categories";
+import { LABEL_CATEGORIES, labelCategoryForTemplate, normalizeLabelCategory } from "./categories";
 import { CATEGORIES, type TemplateCategory } from "@/lib/data/templates";
 
 describe("labelCategoryForTemplate", () => {
@@ -27,8 +23,18 @@ describe("labelCategoryForTemplate", () => {
 
 describe("normalizeLabelCategory", () => {
   it("always returns something the registry UI can filter", () => {
-    for (const input of ["Token Standards", "erc20", "QIE-20", "staking", "dao",
-                         "soulbound", "nonsense", "", "   ", "!!!"]) {
+    for (const input of [
+      "Token Standards",
+      "erc20",
+      "QIE-20",
+      "staking",
+      "dao",
+      "soulbound",
+      "nonsense",
+      "",
+      "   ",
+      "!!!",
+    ]) {
       expect(LABEL_CATEGORIES).toContain(normalizeLabelCategory(input));
     }
   });

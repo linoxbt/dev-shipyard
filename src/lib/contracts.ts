@@ -59,6 +59,22 @@ const LABEL_REGISTRY: Record<number, `0x${string}`> = {
   [botMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_BOT_MAINNET),
 };
 
+const TEMPLATE_REGISTRY: Record<number, `0x${string}`> = {
+  [qieTestnet.id]: envAddress(env.VITE_TEMPLATE_REGISTRY_ADDRESS_TESTNET),
+  [qieMainnet.id]: envAddress(env.VITE_TEMPLATE_REGISTRY_ADDRESS_MAINNET),
+  [botTestnet.id]: envAddress(env.VITE_TEMPLATE_REGISTRY_ADDRESS_BOT_TESTNET),
+  [botMainnet.id]: envAddress(env.VITE_TEMPLATE_REGISTRY_ADDRESS_BOT_MAINNET),
+};
+
+/** TemplateRegistry address for a given chain ("" when not deployed there).
+ *
+ *  No hardcoded fallback, unlike the two registries above: this one is not
+ *  deployed anywhere yet, and baking in an address before it exists would
+ *  point the marketplace at nothing and report it as configured. */
+export function templateRegistryAddress(chainId: number): `0x${string}` {
+  return TEMPLATE_REGISTRY[chainId] ?? ("" as `0x${string}`);
+}
+
 /** ProjectRegistry address for a given chain ("" when not deployed there). */
 export function projectRegistryAddress(chainId: number): `0x${string}` {
   return PROJECT_REGISTRY[chainId] ?? ("" as `0x${string}`);

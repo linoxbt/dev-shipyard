@@ -748,6 +748,119 @@ contract TimelockController {
     receive() external payable {}
 }`;
 
+const MEMBERSHIP_PASS_SRC = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract MembershipPass {
+    string public name;
+    string public symbol;
+    address public owner;
+    uint256 public durationSeconds;
+
+    mapping(address => uint256) public expiresAt;
+
+    event PassIssued(address indexed holder, uint256 expiresAt);
+    event PassRevoked(address indexed holder);
+    event OwnerChanged(address indexed newOwner);
+
+    constructor(string memory name_, string memory symbol_, uint256 durationSeconds_, address initialOwner_) {
+        require(initialOwner_ != address(0), "ZERO_OWNER");
+        require(durationSeconds_ > 0, "ZERO_DURATION");
+        name = name_;
+        symbol = symbol_;
+        durationSeconds = durationSeconds_;
+        owner = initialOwner_;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "NOT_OWNER");
+        _;
+    }
+
+    function issue(address holder) external onlyOwner returns (uint256) {
+        require(holder != address(0), "ZERO_HOLDER");
+        uint256 base = expiresAt[holder] > block.timestamp ? expiresAt[holder] : block.timestamp;
+        uint256 newExpiry = base + durationSeconds;
+        expiresAt[holder] = newExpiry;
+        emit PassIssued(holder, newExpiry);
+        return newExpiry;
+    }
+
+    function revoke(address holder) external onlyOwner {
+        expiresAt[holder] = 0;
+        emit PassRevoked(holder);
+    }
+
+    function isValid(address holder) external view returns (bool) {
+        return expiresAt[holder] > block.timestamp;
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "ZERO_OWNER");
+        owner = newOwner;
+        emit OwnerChanged(newOwner);
+    }
+}
+`;
+
+const REPUTATION_REGISTRY_SRC = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract ReputationRegistry {
+    address public owner;
+    mapping(address => uint256) public scoreOf;
+    mapping(address => bool) public isAttester;
+
+    event ScoreChanged(address indexed subject, uint256 newScore, address indexed attester);
+    event AttesterSet(address indexed attester, bool allowed);
+    event OwnerChanged(address indexed newOwner);
+
+    constructor(address initialOwner_) {
+        require(initialOwner_ != address(0), "ZERO_OWNER");
+        owner = initialOwner_;
+        isAttester[initialOwner_] = true;
+        emit AttesterSet(initialOwner_, true);
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "NOT_OWNER");
+        _;
+    }
+
+    modifier onlyAttester() {
+        require(isAttester[msg.sender], "NOT_ATTESTER");
+        _;
+    }
+
+    function setAttester(address attester, bool allowed) external onlyOwner {
+        require(attester != address(0), "ZERO_ATTESTER");
+        isAttester[attester] = allowed;
+        emit AttesterSet(attester, allowed);
+    }
+
+    function award(address subject, uint256 points) external onlyAttester {
+        require(subject != address(0), "ZERO_SUBJECT");
+        require(points > 0, "ZERO_POINTS");
+        uint256 next = scoreOf[subject] + points;
+        scoreOf[subject] = next;
+        emit ScoreChanged(subject, next, msg.sender);
+    }
+
+    function slash(address subject, uint256 points) external onlyAttester {
+        uint256 current = scoreOf[subject];
+        uint256 next = points >= current ? 0 : current - points;
+        scoreOf[subject] = next;
+        emit ScoreChanged(subject, next, msg.sender);
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "ZERO_OWNER");
+        owner = newOwner;
+        emit OwnerChanged(newOwner);
+    }
+}
+`;
+
 const SOULBOUND_SRC = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -870,6 +983,58 @@ export const TEMPLATES: Template[] = [
     author: "DevStation",
     version: "1.0.0",
     estimatedGas: 1950000,
+  },
+  {
+    id: "membership-pass",
+    name: "MembershipPass",
+    displayName: "Membership Pass",
+    category: "Utility",
+    description:
+      "A time-limited membership pass. The owner issues passes that expire, and expiry extends rather than resets when renewed early.",
+    longDescription:
+      "For subscriptions, cohort access and gated features. isValid(holder) is a single call any other contract or frontend can gate on. Renewing before expiry extends from the existing expiry, so a member who renews early is not penalised; renewing after it lapsed starts from now.",
+    tags: ["Membership", "Access", "Identity"],
+    verified: true,
+    deployCount: 0,
+    author: "DevStation",
+    version: "1.0.0",
+    // Measured in a local EVM at the shanghai hardfork, including the
+    // 200-gas-per-byte code deposit an execution-only measurement misses.
+    // Rounded up for headroom.
+    estimatedGas: 780000,
+    solidity: MEMBERSHIP_PASS_SRC,
+    abi: '[{"inputs":[{"internalType":"string","name":"name_","type":"string"},{"internalType":"string","name":"symbol_","type":"string"},{"internalType":"uint256","name":"durationSeconds_","type":"uint256"},{"internalType":"address","name":"initialOwner_","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnerChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"holder","type":"address"},{"indexed":false,"internalType":"uint256","name":"expiresAt","type":"uint256"}],"name":"PassIssued","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"holder","type":"address"}],"name":"PassRevoked","type":"event"},{"inputs":[],"name":"durationSeconds","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"expiresAt","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"holder","type":"address"}],"name":"isValid","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"holder","type":"address"}],"name":"issue","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"holder","type":"address"}],"name":"revoke","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
+    args: [
+      { name: "name_", label: "Name", type: "string", placeholder: "Builder Pass" },
+      { name: "symbol_", label: "Symbol", type: "string", placeholder: "QPASS" },
+      {
+        name: "durationSeconds_",
+        label: "Pass duration (seconds)",
+        type: "uint",
+        placeholder: "2592000",
+      },
+      { name: "initialOwner_", label: "Owner", type: "address", placeholder: "0x..." },
+    ],
+  },
+  {
+    id: "reputation-registry",
+    name: "ReputationRegistry",
+    displayName: "Reputation Registry",
+    category: "Utility",
+    description:
+      "An onchain reputation score with delegated attesters. Points are awarded and slashed by approved addresses, never by the subject.",
+    longDescription:
+      "Scores are non-transferable and live against an address, so reputation cannot be bought or moved. The owner appoints attesters; only they can change a score. Slashing floors at zero rather than underflowing, so a large slash cannot wrap a score to an enormous number.",
+    tags: ["Reputation", "Identity", "Non-transferable"],
+    verified: true,
+    deployCount: 0,
+    author: "DevStation",
+    version: "1.0.0",
+    // Measured the same way as membership-pass, code deposit included.
+    estimatedGas: 800000,
+    solidity: REPUTATION_REGISTRY_SRC,
+    abi: '[{"inputs":[{"internalType":"address","name":"initialOwner_","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"attester","type":"address"},{"indexed":false,"internalType":"bool","name":"allowed","type":"bool"}],"name":"AttesterSet","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnerChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"subject","type":"address"},{"indexed":false,"internalType":"uint256","name":"newScore","type":"uint256"},{"indexed":true,"internalType":"address","name":"attester","type":"address"}],"name":"ScoreChanged","type":"event"},{"inputs":[{"internalType":"address","name":"subject","type":"address"},{"internalType":"uint256","name":"points","type":"uint256"}],"name":"award","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"isAttester","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"scoreOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"attester","type":"address"},{"internalType":"bool","name":"allowed","type":"bool"}],"name":"setAttester","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"subject","type":"address"},{"internalType":"uint256","name":"points","type":"uint256"}],"name":"slash","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
+    args: [{ name: "initialOwner_", label: "Owner", type: "address", placeholder: "0x..." }],
   },
   {
     id: "qie-id-gate",

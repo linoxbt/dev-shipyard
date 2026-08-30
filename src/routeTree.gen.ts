@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as OverviewRouteImport } from './routes/overview'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as ExplorerRouteImport } from './routes/explorer'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
@@ -22,8 +23,10 @@ import { Route as DocsIndexRouteImport } from './routes/docs.index'
 import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
 import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
 import { Route as LaunchkitProjectsRouteImport } from './routes/launchkit.projects'
+import { Route as LaunchkitMarketplaceRouteImport } from './routes/launchkit.marketplace'
 import { Route as LaunchkitEditorRouteImport } from './routes/launchkit.editor'
 import { Route as LaunchkitDeployRouteImport } from './routes/launchkit.deploy'
+import { Route as LaunchkitAppsRouteImport } from './routes/launchkit.apps'
 import { Route as LaunchkitAppBuilderRouteImport } from './routes/launchkit.app-builder'
 import { Route as LaunchkitAiRouteImport } from './routes/launchkit.ai'
 import { Route as ExplorerNetworkRouteImport } from './routes/explorer.$network'
@@ -39,9 +42,14 @@ import { Route as DocsFaqRouteImport } from './routes/docs.faq'
 import { Route as DocsExplorerRouteImport } from './routes/docs.explorer'
 import { Route as DocsEditorRouteImport } from './routes/docs.editor'
 import { Route as DocsAiRouteImport } from './routes/docs.ai'
+import { Route as DevAddressRouteImport } from './routes/dev.$address'
 import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
+import { Route as ApiQieIdentityRouteImport } from './routes/api.qie-identity'
+import { Route as ApiPublishRouteImport } from './routes/api.publish'
+import { Route as ApiBuildRouteImport } from './routes/api.build'
 import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
+import { Route as ApiAgentRouteImport } from './routes/api.agent'
 import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
 import { Route as ExplorerNetworkIndexRouteImport } from './routes/explorer.$network.index'
 import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
@@ -64,6 +72,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const OverviewRoute = OverviewRouteImport.update({
   id: '/overview',
   path: '/overview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExplorerRoute = ExplorerRouteImport.update({
@@ -121,6 +134,11 @@ const LaunchkitProjectsRoute = LaunchkitProjectsRouteImport.update({
   path: '/launchkit/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaunchkitMarketplaceRoute = LaunchkitMarketplaceRouteImport.update({
+  id: '/launchkit/marketplace',
+  path: '/launchkit/marketplace',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LaunchkitEditorRoute = LaunchkitEditorRouteImport.update({
   id: '/launchkit/editor',
   path: '/launchkit/editor',
@@ -129,6 +147,11 @@ const LaunchkitEditorRoute = LaunchkitEditorRouteImport.update({
 const LaunchkitDeployRoute = LaunchkitDeployRouteImport.update({
   id: '/launchkit/deploy',
   path: '/launchkit/deploy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitAppsRoute = LaunchkitAppsRouteImport.update({
+  id: '/launchkit/apps',
+  path: '/launchkit/apps',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LaunchkitAppBuilderRoute = LaunchkitAppBuilderRouteImport.update({
@@ -206,9 +229,29 @@ const DocsAiRoute = DocsAiRouteImport.update({
   path: '/ai',
   getParentRoute: () => DocsRoute,
 } as any)
+const DevAddressRoute = DevAddressRouteImport.update({
+  id: '/dev/$address',
+  path: '/dev/$address',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSponsorTopupRoute = ApiSponsorTopupRouteImport.update({
   id: '/api/sponsor-topup',
   path: '/api/sponsor-topup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiQieIdentityRoute = ApiQieIdentityRouteImport.update({
+  id: '/api/qie-identity',
+  path: '/api/qie-identity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublishRoute = ApiPublishRouteImport.update({
+  id: '/api/publish',
+  path: '/api/publish',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBuildRoute = ApiBuildRouteImport.update({
+  id: '/api/build',
+  path: '/api/build',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAppsDeployRoute = ApiAppsDeployRouteImport.update({
@@ -219,6 +262,11 @@ const ApiAppsDeployRoute = ApiAppsDeployRouteImport.update({
 const ApiAiRoute = ApiAiRouteImport.update({
   id: '/api/ai',
   path: '/api/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAgentRoute = ApiAgentRouteImport.update({
+  id: '/api/agent',
+  path: '/api/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LaunchkitTemplatesIndexRoute = LaunchkitTemplatesIndexRouteImport.update({
@@ -297,11 +345,17 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRouteWithChildren
+  '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
+  '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
+  '/api/build': typeof ApiBuildRoute
+  '/api/publish': typeof ApiPublishRoute
+  '/api/qie-identity': typeof ApiQieIdentityRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
+  '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
   '/docs/editor': typeof DocsEditorRoute
   '/docs/explorer': typeof DocsExplorerRoute
@@ -317,8 +371,10 @@ export interface FileRoutesByFullPath {
   '/explorer/$network': typeof ExplorerNetworkRouteWithChildren
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/app-builder': typeof LaunchkitAppBuilderRoute
+  '/launchkit/apps': typeof LaunchkitAppsRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
+  '/launchkit/marketplace': typeof LaunchkitMarketplaceRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
@@ -343,11 +399,17 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/analytics': typeof AnalyticsRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
+  '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
+  '/api/build': typeof ApiBuildRoute
+  '/api/publish': typeof ApiPublishRoute
+  '/api/qie-identity': typeof ApiQieIdentityRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
+  '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
   '/docs/editor': typeof DocsEditorRoute
   '/docs/explorer': typeof DocsExplorerRoute
@@ -362,8 +424,10 @@ export interface FileRoutesByTo {
   '/docs/wallets': typeof DocsWalletsRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/app-builder': typeof LaunchkitAppBuilderRoute
+  '/launchkit/apps': typeof LaunchkitAppsRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
+  '/launchkit/marketplace': typeof LaunchkitMarketplaceRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
@@ -391,11 +455,17 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRouteWithChildren
+  '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
+  '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
+  '/api/build': typeof ApiBuildRoute
+  '/api/publish': typeof ApiPublishRoute
+  '/api/qie-identity': typeof ApiQieIdentityRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
+  '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
   '/docs/editor': typeof DocsEditorRoute
   '/docs/explorer': typeof DocsExplorerRoute
@@ -411,8 +481,10 @@ export interface FileRoutesById {
   '/explorer/$network': typeof ExplorerNetworkRouteWithChildren
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/app-builder': typeof LaunchkitAppBuilderRoute
+  '/launchkit/apps': typeof LaunchkitAppsRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
+  '/launchkit/marketplace': typeof LaunchkitMarketplaceRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
@@ -441,11 +513,17 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/docs'
     | '/explorer'
+    | '/leaderboard'
     | '/overview'
     | '/settings'
+    | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
+    | '/api/build'
+    | '/api/publish'
+    | '/api/qie-identity'
     | '/api/sponsor-topup'
+    | '/dev/$address'
     | '/docs/ai'
     | '/docs/editor'
     | '/docs/explorer'
@@ -461,8 +539,10 @@ export interface FileRouteTypes {
     | '/explorer/$network'
     | '/launchkit/ai'
     | '/launchkit/app-builder'
+    | '/launchkit/apps'
     | '/launchkit/deploy'
     | '/launchkit/editor'
+    | '/launchkit/marketplace'
     | '/launchkit/projects'
     | '/routebook/$txHash'
     | '/routebook/labels'
@@ -487,11 +567,17 @@ export interface FileRouteTypes {
     | '/'
     | '/activity'
     | '/analytics'
+    | '/leaderboard'
     | '/overview'
     | '/settings'
+    | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
+    | '/api/build'
+    | '/api/publish'
+    | '/api/qie-identity'
     | '/api/sponsor-topup'
+    | '/dev/$address'
     | '/docs/ai'
     | '/docs/editor'
     | '/docs/explorer'
@@ -506,8 +592,10 @@ export interface FileRouteTypes {
     | '/docs/wallets'
     | '/launchkit/ai'
     | '/launchkit/app-builder'
+    | '/launchkit/apps'
     | '/launchkit/deploy'
     | '/launchkit/editor'
+    | '/launchkit/marketplace'
     | '/launchkit/projects'
     | '/routebook/$txHash'
     | '/routebook/labels'
@@ -534,11 +622,17 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/docs'
     | '/explorer'
+    | '/leaderboard'
     | '/overview'
     | '/settings'
+    | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
+    | '/api/build'
+    | '/api/publish'
+    | '/api/qie-identity'
     | '/api/sponsor-topup'
+    | '/dev/$address'
     | '/docs/ai'
     | '/docs/editor'
     | '/docs/explorer'
@@ -554,8 +648,10 @@ export interface FileRouteTypes {
     | '/explorer/$network'
     | '/launchkit/ai'
     | '/launchkit/app-builder'
+    | '/launchkit/apps'
     | '/launchkit/deploy'
     | '/launchkit/editor'
+    | '/launchkit/marketplace'
     | '/launchkit/projects'
     | '/routebook/$txHash'
     | '/routebook/labels'
@@ -583,15 +679,23 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   DocsRoute: typeof DocsRouteWithChildren
   ExplorerRoute: typeof ExplorerRouteWithChildren
+  LeaderboardRoute: typeof LeaderboardRoute
   OverviewRoute: typeof OverviewRoute
   SettingsRoute: typeof SettingsRoute
+  ApiAgentRoute: typeof ApiAgentRoute
   ApiAiRoute: typeof ApiAiRoute
   ApiAppsDeployRoute: typeof ApiAppsDeployRoute
+  ApiBuildRoute: typeof ApiBuildRoute
+  ApiPublishRoute: typeof ApiPublishRoute
+  ApiQieIdentityRoute: typeof ApiQieIdentityRoute
   ApiSponsorTopupRoute: typeof ApiSponsorTopupRoute
+  DevAddressRoute: typeof DevAddressRoute
   LaunchkitAiRoute: typeof LaunchkitAiRoute
   LaunchkitAppBuilderRoute: typeof LaunchkitAppBuilderRoute
+  LaunchkitAppsRoute: typeof LaunchkitAppsRoute
   LaunchkitDeployRoute: typeof LaunchkitDeployRoute
   LaunchkitEditorRoute: typeof LaunchkitEditorRoute
+  LaunchkitMarketplaceRoute: typeof LaunchkitMarketplaceRoute
   LaunchkitProjectsRoute: typeof LaunchkitProjectsRoute
   RoutebookTxHashRoute: typeof RoutebookTxHashRoute
   RoutebookLabelsRoute: typeof RoutebookLabelsRoute
@@ -615,6 +719,13 @@ declare module '@tanstack/react-router' {
       path: '/overview'
       fullPath: '/overview'
       preLoaderRoute: typeof OverviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/explorer': {
@@ -694,6 +805,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LaunchkitProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/launchkit/marketplace': {
+      id: '/launchkit/marketplace'
+      path: '/launchkit/marketplace'
+      fullPath: '/launchkit/marketplace'
+      preLoaderRoute: typeof LaunchkitMarketplaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/launchkit/editor': {
       id: '/launchkit/editor'
       path: '/launchkit/editor'
@@ -706,6 +824,13 @@ declare module '@tanstack/react-router' {
       path: '/launchkit/deploy'
       fullPath: '/launchkit/deploy'
       preLoaderRoute: typeof LaunchkitDeployRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/apps': {
+      id: '/launchkit/apps'
+      path: '/launchkit/apps'
+      fullPath: '/launchkit/apps'
+      preLoaderRoute: typeof LaunchkitAppsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/launchkit/app-builder': {
@@ -813,11 +938,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsAiRouteImport
       parentRoute: typeof DocsRoute
     }
+    '/dev/$address': {
+      id: '/dev/$address'
+      path: '/dev/$address'
+      fullPath: '/dev/$address'
+      preLoaderRoute: typeof DevAddressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/sponsor-topup': {
       id: '/api/sponsor-topup'
       path: '/api/sponsor-topup'
       fullPath: '/api/sponsor-topup'
       preLoaderRoute: typeof ApiSponsorTopupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/qie-identity': {
+      id: '/api/qie-identity'
+      path: '/api/qie-identity'
+      fullPath: '/api/qie-identity'
+      preLoaderRoute: typeof ApiQieIdentityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/publish': {
+      id: '/api/publish'
+      path: '/api/publish'
+      fullPath: '/api/publish'
+      preLoaderRoute: typeof ApiPublishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/build': {
+      id: '/api/build'
+      path: '/api/build'
+      fullPath: '/api/build'
+      preLoaderRoute: typeof ApiBuildRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/apps-deploy': {
@@ -832,6 +985,13 @@ declare module '@tanstack/react-router' {
       path: '/api/ai'
       fullPath: '/api/ai'
       preLoaderRoute: typeof ApiAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/agent': {
+      id: '/api/agent'
+      path: '/api/agent'
+      fullPath: '/api/agent'
+      preLoaderRoute: typeof ApiAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/launchkit/templates/': {
@@ -1012,15 +1172,23 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   DocsRoute: DocsRouteWithChildren,
   ExplorerRoute: ExplorerRouteWithChildren,
+  LeaderboardRoute: LeaderboardRoute,
   OverviewRoute: OverviewRoute,
   SettingsRoute: SettingsRoute,
+  ApiAgentRoute: ApiAgentRoute,
   ApiAiRoute: ApiAiRoute,
   ApiAppsDeployRoute: ApiAppsDeployRoute,
+  ApiBuildRoute: ApiBuildRoute,
+  ApiPublishRoute: ApiPublishRoute,
+  ApiQieIdentityRoute: ApiQieIdentityRoute,
   ApiSponsorTopupRoute: ApiSponsorTopupRoute,
+  DevAddressRoute: DevAddressRoute,
   LaunchkitAiRoute: LaunchkitAiRoute,
   LaunchkitAppBuilderRoute: LaunchkitAppBuilderRoute,
+  LaunchkitAppsRoute: LaunchkitAppsRoute,
   LaunchkitDeployRoute: LaunchkitDeployRoute,
   LaunchkitEditorRoute: LaunchkitEditorRoute,
+  LaunchkitMarketplaceRoute: LaunchkitMarketplaceRoute,
   LaunchkitProjectsRoute: LaunchkitProjectsRoute,
   RoutebookTxHashRoute: RoutebookTxHashRoute,
   RoutebookLabelsRoute: RoutebookLabelsRoute,

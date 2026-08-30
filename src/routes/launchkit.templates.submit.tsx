@@ -72,7 +72,7 @@ function SubmitTemplate() {
   const [errors, setErrors] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  // Prefill when editing an existing community template.
+  // Prefill when editing an existing saved template.
   useEffect(() => {
     if (editing && !loaded) {
       setCategory(editing.category);
@@ -190,7 +190,7 @@ function SubmitTemplate() {
       <PageHeader
         breadcrumb={["DevStation", "LaunchKit", "Templates", editing ? "Edit" : "Submit"]}
         title={editing ? `Edit ${editing.name}` : "Submit a Template"}
-        subtitle="Share a Solidity contract template. We compile it on submit to derive its ABI and constructor inputs — so it's instantly deployable."
+        subtitle="Save a Solidity contract template to your own library. We compile it on submit to derive its ABI and constructor inputs — so it's instantly deployable. Stored in this browser; it is not published to other users."
         action={
           <Link
             to="/launchkit/templates"
@@ -206,7 +206,7 @@ function SubmitTemplate() {
         <div className="space-y-4 lg:col-span-2">
           {!isConnected && (
             <div className="rounded border border-warning/40 bg-warning/10 p-3 font-mono text-[11px] text-warning">
-              Connect a wallet to submit — it becomes the template owner (only it can edit later).
+              Connect a wallet to submit — it is recorded as the author on the template.
             </div>
           )}
           <div>

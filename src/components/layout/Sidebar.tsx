@@ -1,23 +1,24 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  Home,
-  Package,
-  Rocket,
-  FolderGit2,
-  Search,
-  Tags,
-  Settings,
+  BarChart3,
   BookOpen,
   Code2,
-  Sparkles,
   Compass,
-  Activity,
-  BarChart3,
-  Sun,
+  Home,
+  LayoutDashboard,
+  Store,
+  Trophy,
   Moon,
+  Package,
   PanelLeftClose,
-  X,
+  Rocket,
+  Search,
+  Settings,
+  Sparkles,
+  Sun,
+  Tags,
   Wand2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WalletPanel } from "@/components/web3/WalletPanel";
@@ -31,16 +32,20 @@ const NAV = [
   { to: "/overview", label: "Overview", icon: Home, exact: true },
   { to: "/explorer", label: "Explorer", icon: Compass },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/activity", label: "Activity", icon: Activity },
+  { to: "/activity", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/leaderboard", label: "Leaderboard", icon: Trophy },
   {
     section: "LaunchKit",
     items: [
       { to: "/launchkit/templates", label: "Templates", icon: Package },
+      { to: "/launchkit/marketplace", label: "Marketplace", icon: Store },
       { to: "/launchkit/editor", label: "Contract Editor", icon: Code2 },
       { to: "/launchkit/ai", label: "Code with AI", icon: Sparkles },
       { to: "/launchkit/deploy", label: "Deploy", icon: Rocket },
       { to: "/launchkit/app-builder", label: "App Builder", icon: Wand2 },
-      { to: "/launchkit/projects", label: "Projects", icon: FolderGit2 },
+      // My Apps and Projects are reached from the dashboard, not from here.
+      // They are personal views of your own work rather than tools, so they
+      // belong behind the dashboard that summarises them.
     ],
   },
   {

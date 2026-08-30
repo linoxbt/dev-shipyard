@@ -1,9 +1,21 @@
 import { create } from "zustand";
 import type { Template } from "@/lib/data/templates";
 
-// Community-submitted contract templates, persisted in the browser. SSR starts
-// empty and hydrate() loads from localStorage on mount (no hydration mismatch).
-// Only the submitting wallet may edit a template (enforced in the UI).
+// A developer's own contract templates, persisted in this browser.
+//
+// NOT a marketplace, and the UI must not imply otherwise. Nothing here is
+// shared with anyone: a template saved on one machine is invisible on another
+// and to every other user. The wallet recorded against a template is an author
+// label, not an access control — the data lives in the user's own localStorage,
+// where they can edit it freely, so the ownership check in the UI is a
+// convenience and nothing more.
+//
+// Making this genuinely shared needs somewhere shared to put it: an onchain
+// template registry (the pattern ProjectRegistry already uses) or a backend.
+// Both are real work and a deployment decision, not a relabelling.
+//
+// SSR starts empty and hydrate() loads from localStorage on mount, so there is
+// no hydration mismatch.
 
 const STORAGE_KEY = "devstation-user-templates-v1";
 

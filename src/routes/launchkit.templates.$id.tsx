@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Rocket, ChevronDown, ChevronRight, Code2, Pencil } from "lucide-react";
+import { Rocket, ChevronDown, ChevronRight, Code2, Pencil, Store } from "lucide-react";
 import { useAccount } from "wagmi";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CodeBlock } from "@/components/shared/CodeBlock";
 import {
@@ -11,12 +12,14 @@ import {
   templateLabel,
   type Template,
 } from "@/lib/data/templates";
-import { isQieChain } from "@/lib/chains";
+import { isQieChain, nativeSymbol } from "@/lib/chains";
 import { applyTerminology } from "@/lib/terminology";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useUserTemplates } from "@/lib/user-templates";
 import { useTemplateDeploys } from "@/hooks/useTemplateDeploys";
 import { useEditorIntake } from "@/lib/editor-intake";
+import { useTemplateRegistry } from "@/hooks/useTemplateRegistry";
+import { parseEther } from "viem";
 
 export const Route = createFileRoute("/launchkit/templates/$id")({
   // Built-ins resolve here (SSR). Community templates live in localStorage and
@@ -40,6 +43,8 @@ function TemplateDetail() {
   const [abiOpen, setAbiOpen] = useState(false);
   const navigate = useNavigate();
   const setPending = useEditorIntake((s) => s.setPending);
+  const registry = useTemplateRegistry();
+  const [publishing, setPublishing] = useState(false);
   const { address } = useAccount();
   const { chainId } = useActiveChain();
   const isQie = isQieChain(chainId);
@@ -82,6 +87,41 @@ function TemplateDetail() {
 
   const canEdit = !!tpl.submitter && tpl.submitter === address;
 
+  // Publishing pushes a locally-drafted template on-chain, where anyone can
+  // find it. The local copy stays as the working draft — publishing is a
+  // deliberate act, not an autosave, and the source is immutable once listed.
+  const publishOnChain = async () => {
+    const priceInput = window.prompt(
+      `Price to deploy this template, in ${nativeSymbol(chainId)}.\n\n` +
+        "The source is stored on-chain and is free for anyone to read — the price buys " +
+        "attribution: paying is what records a deploy against your template and pays you. " +
+        "Enter 0 to publish it free.",
+      "0",
+    );
+    if (priceInput === null) return;
+    const trimmed = priceInput.trim();
+    if (!/^\d*\.?\d*$/.test(trimmed) || trimmed === "" || trimmed === ".") {
+      toast.error("That is not a valid price.");
+      return;
+    }
+    setPublishing(true);
+    try {
+      await registry.publish({
+        name: tpl.name,
+        description: tpl.description,
+        source: tpl.solidity,
+        abiJson: tpl.abi,
+        priceWei: parseEther(trimmed),
+      });
+      toast.success("Published to the marketplace");
+      void registry.refetchSummaries();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Publish failed.");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const openInEditor = () => {
     setPending(`${tpl.name}.sol`, tpl.solidity);
     navigate({ to: "/launchkit/editor" });
@@ -110,6 +150,16 @@ function TemplateDetail() {
               >
                 <Pencil className="h-3 w-3" /> Edit
               </Link>
+            )}
+            {canEdit && registry.configured && (
+              <button
+                onClick={() => void publishOnChain()}
+                disabled={publishing}
+                title="Publish this template on-chain so others can find and use it"
+                className="flex items-center gap-1.5 rounded border border-border px-2.5 py-1.5 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
+              >
+                <Store className="h-3 w-3" /> {publishing ? "Publishing…" : "Publish"}
+              </button>
             )}
             <button
               onClick={openInEditor}

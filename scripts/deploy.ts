@@ -72,7 +72,31 @@ const CHAINS: Record<string, Partial<Record<NetworkKey, ChainDef>>> = {
   },
 };
 
-const CONTRACTS = ["ProjectRegistry", "ContractLabelRegistry"] as const;
+const CONTRACTS = ["ProjectRegistry", "ContractLabelRegistry", "TemplateRegistry"] as const;
+
+// Which contracts this run should deploy.
+//
+// Deploying everything by default is dangerous now that there are three: the
+// live ProjectRegistry holds every recorded deployment, and redeploying it
+// would orphan all of them behind a fresh, empty address. `--only Name` (repeatable)
+// restricts the run, which is how a NEW contract gets added to a chain that
+// already has the others.
+function selectedContracts(): string[] {
+  const only = process.argv.filter((a) => a.startsWith("--only=")).map((a) => a.slice(7));
+  const flagged: string[] = [];
+  process.argv.forEach((a, i) => {
+    if (a === "--only" && process.argv[i + 1]) flagged.push(process.argv[i + 1]);
+  });
+  const picked = [...only, ...flagged];
+  if (picked.length === 0) return [...CONTRACTS];
+  for (const name of picked) {
+    if (!(CONTRACTS as readonly string[]).includes(name)) {
+      console.error(`ERROR: unknown contract "${name}". Known: ${CONTRACTS.join(", ")}`);
+      process.exit(1);
+    }
+  }
+  return picked;
+}
 
 // Backward compatible with the original 0/1-arg QIE-only form
 // (`deploy.ts` / `deploy.ts mainnet`), and adds a `<family> <network>` form
@@ -154,14 +178,21 @@ async function main() {
     await new Promise((r) => setTimeout(r, 8000));
   }
 
+  const targets = selectedContracts();
+  console.log(`Deploying: ${targets.join(", ")}`);
+
   const deployed: Record<string, string> = {};
-  for (const name of CONTRACTS) {
+  for (const name of targets) {
     const { abi, bytecode } = artifact(name);
     process.stdout.write(`Deploying ${name}... `);
     // ContractLabelRegistry takes the authorized auto-labeler address as its
     // sole constructor arg — defaults to this deployer wallet, which is also
     // the address DevStation's own deploy flow signs auto-labels from.
-    const args = name === "ContractLabelRegistry" ? [account.address] : [];
+    // ContractLabelRegistry takes the authorized auto-labeler; TemplateRegistry
+    // takes the protocol treasury that receives its 5% fee. Both default to the
+    // deployer wallet.
+    const args =
+      name === "ContractLabelRegistry" || name === "TemplateRegistry" ? [account.address] : [];
     const hash = await walletClient.deployContract({ abi: abi as [], bytecode, args });
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     if (!receipt.contractAddress) throw new Error(`${name}: no contract address in receipt`);
@@ -178,9 +209,15 @@ async function main() {
   fs.writeFileSync(path.join(ROOT, "deployment-output.json"), JSON.stringify(result, null, 2));
 
   console.log("\n=== DONE — paste these into .env.local ===\n");
-  console.log(`VITE_PROJECT_REGISTRY_ADDRESS_${chain.envSuffix}=${deployed.ProjectRegistry}`);
-  console.log(`VITE_LABEL_REGISTRY_ADDRESS_${chain.envSuffix}=${deployed.ContractLabelRegistry}`);
-  console.log(`\nExplorer: ${chain.explorer}/address/${deployed.ProjectRegistry}`);
+  const ENV_VAR: Record<string, string> = {
+    ProjectRegistry: `VITE_PROJECT_REGISTRY_ADDRESS_${chain.envSuffix}`,
+    ContractLabelRegistry: `VITE_LABEL_REGISTRY_ADDRESS_${chain.envSuffix}`,
+    TemplateRegistry: `VITE_TEMPLATE_REGISTRY_ADDRESS_${chain.envSuffix}`,
+  };
+  for (const [name, address] of Object.entries(deployed)) {
+    console.log(`${ENV_VAR[name] ?? name}=${address}`);
+  }
+  console.log(`\nExplorer: ${chain.explorer}/address/${Object.values(deployed)[0]}`);
   console.log("(also saved to deployment-output.json)\n");
 }
 
