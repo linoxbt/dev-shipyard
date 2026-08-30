@@ -56,6 +56,12 @@ export interface AppProject {
   /** Where this app is published, so reopening it shows the live URL instead
    *  of making you publish again to find out. */
   liveUrl?: string | null;
+  /** Wallet that built this app. Recorded at creation — the builder is
+   *  wallet-gated, so there is always one — and never overwritten, so the
+   *  credit survives switching accounts in the same browser. */
+  owner?: string | null;
+  /** GitHub repository this app has been pushed to, if any. */
+  repo?: { owner: string; name: string; url: string; pushedAt: number } | null;
   /** Contract the app was wired to, if any. */
   attached?: ProjectAttachment | null;
 }
@@ -94,6 +100,16 @@ const projectSchema = z.object({
   turns: z.array(turnSchema).default([]),
   dist: z.record(z.string(), z.string()).nullable().optional(),
   liveUrl: z.string().max(300).nullable().optional(),
+  owner: z.string().max(100).nullable().optional(),
+  repo: z
+    .object({
+      owner: z.string().max(120),
+      name: z.string().max(120),
+      url: z.string().max(400),
+      pushedAt: z.number(),
+    })
+    .nullable()
+    .optional(),
   attached: attachmentSchema.nullable().optional(),
 });
 
@@ -104,12 +120,18 @@ interface ProjectsState {
   /** Read localStorage. Called from an effect, never during render, so the
    *  server and the first client render agree. */
   hydrate: () => void;
-  create: (name?: string) => string;
+  create: (name?: string, owner?: string | null) => string;
   open: (id: string) => void;
   rename: (id: string, name: string) => void;
   remove: (id: string) => void;
   /** Persist the working state of the active project. */
   save: (patch: Partial<Omit<AppProject, "id" | "createdAt">>) => void;
+  /** Persist a patch to ANY project by id.
+   *
+   *  The app detail page edits a project that is not necessarily the one open
+   *  in the builder. Calling open(id) first would work, but it would silently
+   *  switch the builder's active project as a side effect of viewing a page. */
+  update: (id: string, patch: Partial<Omit<AppProject, "id" | "createdAt">>) => void;
   active: () => AppProject | null;
 }
 
@@ -223,7 +245,7 @@ export const useProjects = create<ProjectsState>((set, get) => ({
     set({ projects, activeId, hydrated: true });
   },
 
-  create: (name) => {
+  create: (name, owner) => {
     const id = newId();
     const now = Date.now();
     const projects = get().projects;
@@ -235,6 +257,10 @@ export const useProjects = create<ProjectsState>((set, get) => ({
       files: {},
       history: [],
       turns: [],
+      // Recorded once, at creation. Never rewritten from the currently
+      // connected wallet: switching accounts in the same browser must not
+      // reassign authorship of work somebody else did.
+      owner: owner ?? null,
     };
     const next = [project, ...projects].slice(0, MAX_PROJECTS);
     set({ projects: next, activeId: id });
@@ -264,12 +290,18 @@ export const useProjects = create<ProjectsState>((set, get) => ({
   },
 
   save: (patch) => {
-    const { activeId, projects } = get();
+    const { activeId } = get();
     if (!activeId) return;
-    const next = projects.map((p) =>
-      p.id === activeId ? { ...p, ...patch, updatedAt: Date.now() } : p,
-    );
+    get().update(activeId, patch);
+  },
+
+  update: (id, patch) => {
+    const { activeId, projects } = get();
+    if (!projects.some((p) => p.id === id)) return;
+    const next = projects.map((p) => (p.id === id ? { ...p, ...patch, updatedAt: Date.now() } : p));
     set({ projects: next });
+    // activeId is passed through untouched: persisting a patch to some other
+    // project must not change which one is open.
     write(next, activeId);
   },
 

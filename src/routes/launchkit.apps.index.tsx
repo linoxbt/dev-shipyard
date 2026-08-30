@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Check, Pencil, Plus, Trash2, Wand2, X } from "lucide-react";
+import { Check, Code2, Pencil, Plus, Trash2, Wand2, X } from "lucide-react";
+import { useAccount } from "wagmi";
 import { fileCount, useProjects, type AppProject } from "@/lib/appgen/projects";
 
 // Every app you have built, and the way back into one.
@@ -9,7 +10,7 @@ import { fileCount, useProjects, type AppProject } from "@/lib/appgen/projects";
 // starting a second app replaced the first, and a refresh lost both. This is
 // the list that makes them real things you can come back to.
 
-export const Route = createFileRoute("/launchkit/apps")({
+export const Route = createFileRoute("/launchkit/apps/")({
   head: () => ({ meta: [{ title: "Apps — DevStation" }] }),
   component: AppsPage,
 });
@@ -27,6 +28,7 @@ function when(ts: number): string {
 
 function AppsPage() {
   const navigate = useNavigate();
+  const { address: wallet } = useAccount();
   const { projects, hydrate, create, open, rename, remove } = useProjects();
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -46,7 +48,7 @@ function AppsPage() {
   };
 
   const startNew = () => {
-    create();
+    create(undefined, wallet ?? null);
     void navigate({ to: "/launchkit/app-builder" });
   };
 
@@ -122,14 +124,22 @@ function AppsPage() {
                 </>
               ) : (
                 <>
-                  <button onClick={() => openProject(p.id)} className="min-w-0 flex-1 text-left">
+                  {/* Clicking an app opens its details — who built it, what is
+                      in it, where it is published. Going straight to the
+                      builder skipped all of that, so the builder is now an
+                      explicit action rather than the only destination. */}
+                  <Link
+                    to="/launchkit/apps/$id"
+                    params={{ id: p.id }}
+                    className="min-w-0 flex-1 text-left"
+                  >
                     <div className="truncate font-mono text-xs font-medium text-foreground">
                       {p.name}
                     </div>
                     <div className="mt-0.5 font-mono text-[10px] text-meta">
                       {fileCount(p)} files · {p.history.length} messages · {when(p.updatedAt)}
                     </div>
-                  </button>
+                  </Link>
 
                   {confirming === p.id ? (
                     <>
@@ -152,6 +162,13 @@ function AppsPage() {
                     </>
                   ) : (
                     <>
+                      <button
+                        onClick={() => openProject(p.id)}
+                        title="Open in builder"
+                        className="text-meta opacity-0 transition group-hover:opacity-100 hover:text-primary"
+                      >
+                        <Code2 className="h-3.5 w-3.5" />
+                      </button>
                       <button
                         onClick={() => {
                           setDraft(p.name);

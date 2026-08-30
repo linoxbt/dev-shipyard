@@ -286,7 +286,7 @@ function AppBuilderPage() {
       // turn meant the build finished with no project to save into, so the
       // preview was silently never persisted.
       if (!useProjects.getState().activeId) {
-        setLoadedProject(useProjects.getState().create(nameFromPrompt(prompt)));
+        setLoadedProject(useProjects.getState().create(nameFromPrompt(prompt), wallet ?? null));
       }
       // The previous build is deliberately LEFT on screen while the next one
       // runs. Blanking it here meant the app you were looking at vanished the

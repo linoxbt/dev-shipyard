@@ -175,3 +175,68 @@ describe("nameFromPrompt", () => {
     expect(nameFromPrompt("   ")).toBe("");
   });
 });
+
+describe("authorship and by-id updates", () => {
+  beforeEach(reset);
+
+  const WALLET = "0x531959f78879913f100D9c84C24E3f34a5F4d16f";
+
+  it("records the wallet that created the app", () => {
+    // Regression: create()'s interface took `owner` while its implementation
+    // did not, so the value was silently discarded. A narrower implementation
+    // signature is assignable in TypeScript, so tsc passed and every app would
+    // have shipped with owner undefined.
+    const id = useProjects.getState().create("Tip Jar", WALLET);
+    const p = useProjects.getState().projects.find((x) => x.id === id)!;
+    expect(p.owner).toBe(WALLET);
+  });
+
+  it("records null rather than undefined when no wallet is given", () => {
+    const id = useProjects.getState().create("Anon");
+    const p = useProjects.getState().projects.find((x) => x.id === id)!;
+    expect(p.owner).toBeNull();
+  });
+
+  it("never reassigns authorship on later saves", () => {
+    const id = useProjects.getState().create("Mine", WALLET);
+    useProjects.getState().save({ files: { "app/index.html": "<h1>hi</h1>" } });
+    const p = useProjects.getState().projects.find((x) => x.id === id)!;
+    expect(p.owner).toBe(WALLET);
+  });
+
+  it("update() patches a project that is not the active one", () => {
+    const first = useProjects.getState().create("First", WALLET);
+    const second = useProjects.getState().create("Second", WALLET);
+    expect(useProjects.getState().activeId).toBe(second);
+
+    useProjects.getState().update(first, { liveUrl: "https://first.devstation.online" });
+
+    const a = useProjects.getState().projects.find((x) => x.id === first)!;
+    const b = useProjects.getState().projects.find((x) => x.id === second)!;
+    expect(a.liveUrl).toBe("https://first.devstation.online");
+    expect(b.liveUrl).toBeUndefined();
+    // Viewing another app must not steal the builder's active project.
+    expect(useProjects.getState().activeId).toBe(second);
+  });
+
+  it("update() ignores an unknown id", () => {
+    useProjects.getState().create("Only", WALLET);
+    const before = useProjects.getState().projects.length;
+    useProjects.getState().update("app-does-not-exist", { name: "Ghost" });
+    expect(useProjects.getState().projects).toHaveLength(before);
+  });
+
+  it("stores the repo a push landed in", () => {
+    const id = useProjects.getState().create("Pushed", WALLET);
+    useProjects.getState().update(id, {
+      repo: {
+        owner: "linoxbt",
+        name: "tip-jar",
+        url: "https://github.com/linoxbt/tip-jar",
+        pushedAt: 1,
+      },
+    });
+    const p = useProjects.getState().projects.find((x) => x.id === id)!;
+    expect(p.repo?.url).toBe("https://github.com/linoxbt/tip-jar");
+  });
+});

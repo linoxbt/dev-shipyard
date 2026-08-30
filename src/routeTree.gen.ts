@@ -26,7 +26,6 @@ import { Route as LaunchkitProjectsRouteImport } from './routes/launchkit.projec
 import { Route as LaunchkitMarketplaceRouteImport } from './routes/launchkit.marketplace'
 import { Route as LaunchkitEditorRouteImport } from './routes/launchkit.editor'
 import { Route as LaunchkitDeployRouteImport } from './routes/launchkit.deploy'
-import { Route as LaunchkitAppsRouteImport } from './routes/launchkit.apps'
 import { Route as LaunchkitAppBuilderRouteImport } from './routes/launchkit.app-builder'
 import { Route as LaunchkitAiRouteImport } from './routes/launchkit.ai'
 import { Route as ExplorerNetworkRouteImport } from './routes/explorer.$network'
@@ -51,9 +50,11 @@ import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as ApiAgentRouteImport } from './routes/api.agent'
 import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
+import { Route as LaunchkitAppsIndexRouteImport } from './routes/launchkit.apps.index'
 import { Route as ExplorerNetworkIndexRouteImport } from './routes/explorer.$network.index'
 import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
 import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
+import { Route as LaunchkitAppsIdRouteImport } from './routes/launchkit.apps.$id'
 import { Route as ExplorerNetworkVerifyRouteImport } from './routes/explorer.$network.verify'
 import { Route as ExplorerNetworkTxnsRouteImport } from './routes/explorer.$network.txns'
 import { Route as ExplorerNetworkTokensRouteImport } from './routes/explorer.$network.tokens'
@@ -147,11 +148,6 @@ const LaunchkitEditorRoute = LaunchkitEditorRouteImport.update({
 const LaunchkitDeployRoute = LaunchkitDeployRouteImport.update({
   id: '/launchkit/deploy',
   path: '/launchkit/deploy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaunchkitAppsRoute = LaunchkitAppsRouteImport.update({
-  id: '/launchkit/apps',
-  path: '/launchkit/apps',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LaunchkitAppBuilderRoute = LaunchkitAppBuilderRouteImport.update({
@@ -274,6 +270,11 @@ const LaunchkitTemplatesIndexRoute = LaunchkitTemplatesIndexRouteImport.update({
   path: '/launchkit/templates/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaunchkitAppsIndexRoute = LaunchkitAppsIndexRouteImport.update({
+  id: '/launchkit/apps/',
+  path: '/launchkit/apps/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExplorerNetworkIndexRoute = ExplorerNetworkIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -288,6 +289,11 @@ const LaunchkitTemplatesSubmitRoute =
 const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
   id: '/launchkit/templates/$id',
   path: '/launchkit/templates/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitAppsIdRoute = LaunchkitAppsIdRouteImport.update({
+  id: '/launchkit/apps/$id',
+  path: '/launchkit/apps/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExplorerNetworkVerifyRoute = ExplorerNetworkVerifyRouteImport.update({
@@ -371,7 +377,6 @@ export interface FileRoutesByFullPath {
   '/explorer/$network': typeof ExplorerNetworkRouteWithChildren
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/app-builder': typeof LaunchkitAppBuilderRoute
-  '/launchkit/apps': typeof LaunchkitAppsRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/marketplace': typeof LaunchkitMarketplaceRoute
@@ -386,9 +391,11 @@ export interface FileRoutesByFullPath {
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
   '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
+  '/launchkit/apps/$id': typeof LaunchkitAppsIdRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
   '/explorer/$network/': typeof ExplorerNetworkIndexRoute
+  '/launchkit/apps/': typeof LaunchkitAppsIndexRoute
   '/launchkit/templates/': typeof LaunchkitTemplatesIndexRoute
   '/explorer/$network/address/$hash': typeof ExplorerNetworkAddressHashRoute
   '/explorer/$network/block/$height': typeof ExplorerNetworkBlockHeightRoute
@@ -424,7 +431,6 @@ export interface FileRoutesByTo {
   '/docs/wallets': typeof DocsWalletsRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/app-builder': typeof LaunchkitAppBuilderRoute
-  '/launchkit/apps': typeof LaunchkitAppsRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/marketplace': typeof LaunchkitMarketplaceRoute
@@ -439,9 +445,11 @@ export interface FileRoutesByTo {
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
   '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
+  '/launchkit/apps/$id': typeof LaunchkitAppsIdRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
   '/explorer/$network': typeof ExplorerNetworkIndexRoute
+  '/launchkit/apps': typeof LaunchkitAppsIndexRoute
   '/launchkit/templates': typeof LaunchkitTemplatesIndexRoute
   '/explorer/$network/address/$hash': typeof ExplorerNetworkAddressHashRoute
   '/explorer/$network/block/$height': typeof ExplorerNetworkBlockHeightRoute
@@ -481,7 +489,6 @@ export interface FileRoutesById {
   '/explorer/$network': typeof ExplorerNetworkRouteWithChildren
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/app-builder': typeof LaunchkitAppBuilderRoute
-  '/launchkit/apps': typeof LaunchkitAppsRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/marketplace': typeof LaunchkitMarketplaceRoute
@@ -496,9 +503,11 @@ export interface FileRoutesById {
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
   '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
+  '/launchkit/apps/$id': typeof LaunchkitAppsIdRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
   '/explorer/$network/': typeof ExplorerNetworkIndexRoute
+  '/launchkit/apps/': typeof LaunchkitAppsIndexRoute
   '/launchkit/templates/': typeof LaunchkitTemplatesIndexRoute
   '/explorer/$network/address/$hash': typeof ExplorerNetworkAddressHashRoute
   '/explorer/$network/block/$height': typeof ExplorerNetworkBlockHeightRoute
@@ -539,7 +548,6 @@ export interface FileRouteTypes {
     | '/explorer/$network'
     | '/launchkit/ai'
     | '/launchkit/app-builder'
-    | '/launchkit/apps'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/marketplace'
@@ -554,9 +562,11 @@ export interface FileRouteTypes {
     | '/explorer/$network/tokens'
     | '/explorer/$network/txns'
     | '/explorer/$network/verify'
+    | '/launchkit/apps/$id'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
     | '/explorer/$network/'
+    | '/launchkit/apps/'
     | '/launchkit/templates/'
     | '/explorer/$network/address/$hash'
     | '/explorer/$network/block/$height'
@@ -592,7 +602,6 @@ export interface FileRouteTypes {
     | '/docs/wallets'
     | '/launchkit/ai'
     | '/launchkit/app-builder'
-    | '/launchkit/apps'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/marketplace'
@@ -607,9 +616,11 @@ export interface FileRouteTypes {
     | '/explorer/$network/tokens'
     | '/explorer/$network/txns'
     | '/explorer/$network/verify'
+    | '/launchkit/apps/$id'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
     | '/explorer/$network'
+    | '/launchkit/apps'
     | '/launchkit/templates'
     | '/explorer/$network/address/$hash'
     | '/explorer/$network/block/$height'
@@ -648,7 +659,6 @@ export interface FileRouteTypes {
     | '/explorer/$network'
     | '/launchkit/ai'
     | '/launchkit/app-builder'
-    | '/launchkit/apps'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/marketplace'
@@ -663,9 +673,11 @@ export interface FileRouteTypes {
     | '/explorer/$network/tokens'
     | '/explorer/$network/txns'
     | '/explorer/$network/verify'
+    | '/launchkit/apps/$id'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
     | '/explorer/$network/'
+    | '/launchkit/apps/'
     | '/launchkit/templates/'
     | '/explorer/$network/address/$hash'
     | '/explorer/$network/block/$height'
@@ -692,7 +704,6 @@ export interface RootRouteChildren {
   DevAddressRoute: typeof DevAddressRoute
   LaunchkitAiRoute: typeof LaunchkitAiRoute
   LaunchkitAppBuilderRoute: typeof LaunchkitAppBuilderRoute
-  LaunchkitAppsRoute: typeof LaunchkitAppsRoute
   LaunchkitDeployRoute: typeof LaunchkitDeployRoute
   LaunchkitEditorRoute: typeof LaunchkitEditorRoute
   LaunchkitMarketplaceRoute: typeof LaunchkitMarketplaceRoute
@@ -700,8 +711,10 @@ export interface RootRouteChildren {
   RoutebookTxHashRoute: typeof RoutebookTxHashRoute
   RoutebookLabelsRoute: typeof RoutebookLabelsRoute
   RoutebookIndexRoute: typeof RoutebookIndexRoute
+  LaunchkitAppsIdRoute: typeof LaunchkitAppsIdRoute
   LaunchkitTemplatesIdRoute: typeof LaunchkitTemplatesIdRoute
   LaunchkitTemplatesSubmitRoute: typeof LaunchkitTemplatesSubmitRoute
+  LaunchkitAppsIndexRoute: typeof LaunchkitAppsIndexRoute
   LaunchkitTemplatesIndexRoute: typeof LaunchkitTemplatesIndexRoute
 }
 
@@ -824,13 +837,6 @@ declare module '@tanstack/react-router' {
       path: '/launchkit/deploy'
       fullPath: '/launchkit/deploy'
       preLoaderRoute: typeof LaunchkitDeployRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/launchkit/apps': {
-      id: '/launchkit/apps'
-      path: '/launchkit/apps'
-      fullPath: '/launchkit/apps'
-      preLoaderRoute: typeof LaunchkitAppsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/launchkit/app-builder': {
@@ -1001,6 +1007,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LaunchkitTemplatesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/launchkit/apps/': {
+      id: '/launchkit/apps/'
+      path: '/launchkit/apps'
+      fullPath: '/launchkit/apps/'
+      preLoaderRoute: typeof LaunchkitAppsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/explorer/$network/': {
       id: '/explorer/$network/'
       path: '/'
@@ -1020,6 +1033,13 @@ declare module '@tanstack/react-router' {
       path: '/launchkit/templates/$id'
       fullPath: '/launchkit/templates/$id'
       preLoaderRoute: typeof LaunchkitTemplatesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/apps/$id': {
+      id: '/launchkit/apps/$id'
+      path: '/launchkit/apps/$id'
+      fullPath: '/launchkit/apps/$id'
+      preLoaderRoute: typeof LaunchkitAppsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/explorer/$network/verify': {
@@ -1185,7 +1205,6 @@ const rootRouteChildren: RootRouteChildren = {
   DevAddressRoute: DevAddressRoute,
   LaunchkitAiRoute: LaunchkitAiRoute,
   LaunchkitAppBuilderRoute: LaunchkitAppBuilderRoute,
-  LaunchkitAppsRoute: LaunchkitAppsRoute,
   LaunchkitDeployRoute: LaunchkitDeployRoute,
   LaunchkitEditorRoute: LaunchkitEditorRoute,
   LaunchkitMarketplaceRoute: LaunchkitMarketplaceRoute,
@@ -1193,8 +1212,10 @@ const rootRouteChildren: RootRouteChildren = {
   RoutebookTxHashRoute: RoutebookTxHashRoute,
   RoutebookLabelsRoute: RoutebookLabelsRoute,
   RoutebookIndexRoute: RoutebookIndexRoute,
+  LaunchkitAppsIdRoute: LaunchkitAppsIdRoute,
   LaunchkitTemplatesIdRoute: LaunchkitTemplatesIdRoute,
   LaunchkitTemplatesSubmitRoute: LaunchkitTemplatesSubmitRoute,
+  LaunchkitAppsIndexRoute: LaunchkitAppsIndexRoute,
   LaunchkitTemplatesIndexRoute: LaunchkitTemplatesIndexRoute,
 }
 export const routeTree = rootRouteImport
