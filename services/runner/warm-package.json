@@ -1,0 +1,20 @@
+{
+  "name": "devstation-warm",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "//": "Mirrors VITE_DEPS in src/lib/appgen/generate.ts, which a test asserts. The runner image pre-installs exactly this set; when they drift, every job pays for a cold install, measured at 175s against a 180s phase deadline.",
+  "dependencies": {
+    "preact": "10.24.3",
+    "htm": "3.1.1",
+    "viem": "2.52.0"
+  },
+  "devDependencies": {
+    "vite": "7.1.5",
+    "@preact/preset-vite": "2.10.6",
+    "@playwright/test": "1.62.1",
+    "eslint": "9.39.5",
+    "@eslint/js": "9.39.5",
+    "globals": "17.11.0"
+  }
+}
