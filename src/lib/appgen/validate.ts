@@ -1,18 +1,28 @@
 // Checks a generated app before it is previewed.
 //
-// This is the closest honest equivalent to "run the tests while building". A
-// generated app runs in the browser with no build step, so there is no npm
-// install, no bundler and no Playwright available to it — those need a machine
-// we do not have. What we CAN do is catch, up front, the failures that
-// actually produce a blank preview:
+// What is worth checking depends entirely on how the app will run, and getting
+// that wrong is worse than not checking at all.
+//
+// For the no-build target this is the closest honest equivalent to "run the
+// tests": the app runs straight in the browser, so there is no bundler to
+// catch anything, and these three failures all end as a silent white frame —
+// the module never evaluates, nothing mounts, and "it's blank" is the only
+// available bug report:
 //
 //   1. Invalid JavaScript (a model writing JSX is the usual cause).
 //   2. An import of something the import map does not define.
 //   3. A relative import of a file that was never written.
 //
-// All three fail silently in an iframe — the module never evaluates, nothing
-// mounts, and the user sees white. Catching them here turns "it's blank" into
-// a specific message the agent can act on.
+// For a real Vite project every one of those is wrong. There is no import map;
+// bare imports are the normal way to use a dependency; JSX compiles. Applying
+// the no-build rules there rejects perfectly good apps and sends the model
+// rewriting working code to satisfy a rule that does not apply — which is
+// exactly what happened the first time an app was generated with a runner
+// attached. So the Vite path checks only what a bundler cannot tell you
+// earlier, and leaves the rest to install, lint, build and test, which say it
+// far better.
+
+import type { BuildTarget } from "./generate";
 
 export interface ValidationIssue {
   path: string;
@@ -24,6 +34,9 @@ export interface ValidationIssue {
 const BARE_IMPORT = /(?:^|\n)\s*import\s[^;]*?from\s*["']([^"'./][^"']*)["']/g;
 const SIDE_EFFECT_IMPORT = /(?:^|\n)\s*import\s*["']([^"']+)["']/g;
 const RELATIVE_IMPORT = /from\s*["'](\.\/[^"']+)["']/g;
+/** Also matches "../", which only the Vite layout can produce — its source
+ *  sits in src/, so a module can legitimately reach above itself. */
+const RELATIVE_IMPORT_ANY = /from\s*["'](\.\.?\/[^"']+)["']/g;
 
 function importMapSpecifiers(html: string): Set<string> {
   const out = new Set<string>();
@@ -57,7 +70,22 @@ function syntaxError(source: string): string | null {
   }
 }
 
-export function validateApp(files: Record<string, string>, dir = "app"): ValidationIssue[] {
+/** Resolve a relative specifier against the file that imports it. */
+function resolveRelative(fromPath: string, spec: string): string {
+  const parts = fromPath.split("/").slice(0, -1);
+  for (const segment of spec.split("/")) {
+    if (segment === "." || segment === "") continue;
+    if (segment === "..") parts.pop();
+    else parts.push(segment);
+  }
+  return parts.join("/");
+}
+
+export function validateApp(
+  files: Record<string, string>,
+  dir = "app",
+  target: BuildTarget = "esm",
+): ValidationIssue[] {
   const prefix = dir ? `${dir}/` : "";
   const issues: ValidationIssue[] = [];
   const own = Object.fromEntries(
@@ -77,6 +105,32 @@ export function validateApp(files: Record<string, string>, dir = "app"): Validat
       message: 'index.html has no <div id="root"> to mount into.',
       fatal: true,
     });
+  }
+
+  if (target === "vite") {
+    // Only what the toolchain cannot report sooner or more clearly. A missing
+    // module does surface in the build, but a hundred lines later and phrased
+    // as a rollup resolution failure.
+    for (const [name, source] of Object.entries(own)) {
+      if (!/\.(js|jsx|mjs)$/.test(name)) continue;
+      RELATIVE_IMPORT_ANY.lastIndex = 0;
+      let rel: RegExpExecArray | null;
+      while ((rel = RELATIVE_IMPORT_ANY.exec(source)) !== null) {
+        const target_ = resolveRelative(name, rel[1]);
+        // Vite resolves an extensionless import against several extensions.
+        const found = [target_, `${target_}.js`, `${target_}.jsx`, `${target_}/index.js`].some(
+          (candidate) => own[candidate] !== undefined,
+        );
+        if (!found) {
+          issues.push({
+            path: prefix + name,
+            message: `Imports "${rel[1]}", which does not exist.`,
+            fatal: true,
+          });
+        }
+      }
+    }
+    return issues;
   }
 
   const known = importMapSpecifiers(html);

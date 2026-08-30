@@ -82,3 +82,68 @@ describe("validateApp", () => {
     expect(msg).toContain("nope");
   });
 });
+
+describe("validateApp, vite target", () => {
+  const vite = generateApp({
+    abi: JSON.parse(getTemplate("qie-id-gate")!.abi),
+    address: "0x31423638af5b8d2a9096b6ab58c62f07844bc461",
+    contractName: "Gate",
+    chainId: 1990,
+    chainName: "QIE Mainnet",
+    rpcUrl: "https://rpc1mainnet.qie.digital/",
+    explorerUrl: "https://mainnet.qie.digital",
+    nativeSymbol: "QIE",
+    target: "vite",
+  });
+
+  it("accepts a generated Vite project", () => {
+    // The no-build rules would reject this outright: no import map, and every
+    // dependency imported bare.
+    expect(validateApp(vite, "app", "vite")).toEqual([]);
+  });
+
+  it("does not demand an import map", () => {
+    const issues = validateApp(vite, "app", "vite");
+    expect(issues.map((i) => i.message).join(" ")).not.toContain("import map");
+  });
+
+  it("accepts bare imports and JSX, which a bundler handles", () => {
+    const withJsx = {
+      ...vite,
+      "app/src/app.js": [
+        'import { render } from "preact";',
+        'import confetti from "canvas-confetti";',
+        'export const A = () => <div className="x">hi</div>;',
+      ].join("\n"),
+    };
+    expect(validateApp(withJsx, "app", "vite")).toEqual([]);
+  });
+
+  it("still catches an import of a file that was never written", () => {
+    // The build does report this, a hundred lines later and phrased as a
+    // rollup resolution failure.
+    const broken = {
+      ...vite,
+      "app/src/app.js": 'import { thing } from "./nope.js";\nexport { thing };\n',
+    };
+    const issues = validateApp(broken, "app", "vite");
+    expect(issues.some((i) => i.message.includes("./nope.js"))).toBe(true);
+  });
+
+  it("resolves relative imports against the importing file, not the app root", () => {
+    // src/app.js importing ./contract.js means src/contract.js. Resolving that
+    // against the app root reports a missing file that is sitting right there.
+    expect(validateApp(vite, "app", "vite")).toEqual([]);
+    const reachesUp = {
+      ...vite,
+      "app/src/app.js": 'import { CHAIN } from "../shared/chain.js";\nexport { CHAIN };\n',
+      "app/shared/chain.js": "export const CHAIN = 1;\n",
+    };
+    expect(validateApp(reachesUp, "app", "vite")).toEqual([]);
+  });
+
+  it("still requires somewhere to mount", () => {
+    const noRoot = { ...vite, "app/index.html": "<!doctype html><html><body></body></html>" };
+    expect(validateApp(noRoot, "app", "vite").some((i) => i.fatal)).toBe(true);
+  });
+});

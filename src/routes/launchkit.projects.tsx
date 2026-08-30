@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useAccount } from "wagmi";
-import { Rocket, ExternalLink, X, Cpu, Link2 } from "lucide-react";
+import { Cpu, ExternalLink, Link2, Rocket, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -10,6 +10,10 @@ import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ContractInteractor } from "@/components/editor/ContractInteractor";
 import { useProjects, type DeployedProject } from "@/lib/data/projects";
+import { deriveReputation, reputationSummary, TIER_LABEL } from "@/lib/reputation";
+import { chainConfig } from "@/lib/chains";
+import { generateSubmission } from "@/lib/submission";
+import { devstationExplorerBase } from "@/lib/explorer/network";
 import { getTemplate } from "@/lib/data/templates";
 import { slugForChainId } from "@/lib/explorer/network";
 import { VerifyButton } from "@/components/deploy/VerifyButton";
@@ -84,6 +88,42 @@ function ProjectsPage() {
     );
   const projects = [...extra, ...myLocal];
 
+  // A pure read over the deployments already fetched — no extra request, and
+  // nothing that is not on chain. chainId is the network dimension; there is
+  // no `network` field on DeployedProject.
+  const reputation = deriveReputation(
+    projects.map((p) => ({
+      contractAddress: p.address,
+      templateId: p.templateId ?? "",
+      projectName: p.name ?? "",
+      network: p.chainId ? chainConfig(p.chainId).name : "",
+      deployedAt: p.deployedAt ?? 0,
+      txHash: p.txHash ?? "",
+    })),
+  );
+
+  // Reachable any time, not only on the screen you saw right after deploying.
+  const copySubmission = () => {
+    const text = generateSubmission({
+      projectName: projects[0]?.name ?? "",
+      developer: address ?? "",
+      entries: projects.map((p) => ({
+        contractAddress: p.address,
+        templateId: p.templateId ?? "",
+        projectName: p.name ?? "",
+        network: p.chainId ? chainConfig(p.chainId).name : "",
+        deployedAt: p.deployedAt ?? 0,
+        txHash: p.txHash ?? "",
+        verified: p.status === "VERIFIED",
+        explorerUrl: p.chainId
+          ? `${devstationExplorerBase(slugForChainId(p.chainId))}/address/${p.address}`
+          : undefined,
+      })),
+    });
+    void navigator.clipboard.writeText(text);
+    toast.success("Submission copied — fill in the repo, demo and description");
+  };
+
   return (
     <div>
       <PageHeader
@@ -107,6 +147,29 @@ function ProjectsPage() {
             the onchain ProjectRegistry
           </div>
         )}
+        {isConnected && projects.length > 0 && (
+          <div className="mb-4 rounded border border-border bg-surface p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded border border-primary/50 bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-medium text-primary">
+                {TIER_LABEL[reputation.tier]}
+              </span>
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {reputationSummary(reputation)}
+              </span>
+            </div>
+            <p className="mt-1.5 font-mono text-[10px] text-meta">
+              Derived from the onchain ProjectRegistry — every deployment here cost gas, so nothing
+              in this summary can be self-awarded.
+            </p>
+            <button
+              onClick={copySubmission}
+              className="mt-2.5 inline-flex items-center gap-1.5 rounded border border-primary px-2 py-1 font-mono text-[10px] text-primary hover:bg-primary/10"
+            >
+              <Trophy className="h-3 w-3" /> Copy hackathon submission
+            </button>
+          </div>
+        )}
+
         {!isConnected ? (
           <div className="rounded border border-border bg-surface p-10 text-center">
             <p className="font-mono text-xs text-meta">

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { generateApp, regenerateContractFile, CDN_VERSIONS, type GenerateSpec } from "./generate";
+import {
+  generateApp,
+  regenerateContractFile,
+  CDN_VERSIONS,
+  VITE_DEPS,
+  type GenerateSpec,
+} from "./generate";
 import { getTemplate } from "@/lib/data/templates";
 import fs from "node:fs";
 import os from "node:os";
@@ -128,5 +134,76 @@ describe("generateApp", () => {
 
   it("is deterministic", () => {
     expect(JSON.stringify(generateApp(spec))).toBe(JSON.stringify(generateApp(spec)));
+  });
+});
+
+describe("generateApp, vite target", () => {
+  const files = generateApp({ ...spec, target: "vite" });
+
+  it("emits a real project, with the source under src/", () => {
+    for (const f of [
+      "app/index.html",
+      "app/package.json",
+      "app/vite.config.js",
+      "app/README.md",
+      "app/src/app.js",
+      "app/src/abi-ui.js",
+      "app/src/wallet.js",
+      "app/src/contract.js",
+      "app/src/styles.css",
+    ]) {
+      expect(files[f]).toBeTruthy();
+    }
+  });
+
+  it("ships the same application as the no-build target", () => {
+    // The whole design rests on this: only the packaging differs, so an app
+    // cannot behave one way in the preview and another once it is built.
+    const esm = generateApp(spec);
+    for (const name of ["app.js", "abi-ui.js", "wallet.js", "contract.js", "styles.css"]) {
+      expect(files[`app/src/${name}`]).toBe(esm[`app/${name}`]);
+    }
+  });
+
+  it("has no import map, and loads the app as a module", () => {
+    const html = files["app/index.html"];
+    expect(html).not.toContain("importmap");
+    expect(html).not.toContain("esm.sh");
+    expect(html).toContain('src="/src/app.js"');
+    expect(html).toContain('href="/src/styles.css"');
+  });
+
+  it("pins the same dependency versions the import map uses", () => {
+    const pkg = JSON.parse(files["app/package.json"]) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+      scripts: Record<string, string>;
+    };
+    expect(pkg.dependencies.preact).toBe(CDN_VERSIONS.preact);
+    expect(pkg.dependencies.htm).toBe(CDN_VERSIONS.htm);
+    expect(pkg.dependencies.viem).toBe(CDN_VERSIONS.viem);
+    expect(pkg.devDependencies).toEqual({ ...VITE_DEPS.devDependencies });
+    expect(pkg.scripts.build).toBe("vite build");
+  });
+
+  it("keeps the runner's warm image in step with the pinned versions", () => {
+    // The image pre-installs exactly this set. If they drift, every job pays
+    // for a cold install, which took 175s against a 180s phase deadline.
+    const warm = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "services/runner/warm-package.json"), "utf8"),
+    ) as { dependencies: Record<string, string>; devDependencies: Record<string, string> };
+    expect(warm.dependencies).toEqual({ ...VITE_DEPS.dependencies });
+    expect(warm.devDependencies).toEqual({ ...VITE_DEPS.devDependencies });
+  });
+
+  it("builds with relative asset paths, for the sandboxed preview", () => {
+    // The preview iframe has an opaque origin, so an absolute /assets/… path
+    // resolves against nothing and the page renders blank.
+    expect(files["app/vite.config.js"]).toContain('base: "./"');
+  });
+
+  it("points the regenerated binding at src/", () => {
+    const one = regenerateContractFile({ ...spec, target: "vite" });
+    expect(one.path).toBe("app/src/contract.js");
   });
 });

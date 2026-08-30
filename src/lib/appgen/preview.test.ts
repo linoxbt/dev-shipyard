@@ -123,3 +123,37 @@ describe("buildPreview", () => {
     expect(() => buildPreview(files, "site")).not.toThrow();
   });
 });
+
+describe("buildPreview, built output", () => {
+  // What Vite writes to dist/: hashed assets in a subdirectory, referenced
+  // relatively because the generated vite.config.js sets base: "./".
+  const dist = {
+    "index.html":
+      '<!doctype html><html><head><meta charset="utf-8"><title>Built</title>' +
+      '<script type="module" crossorigin src="./assets/index-abc123.js"></script>' +
+      '<link rel="stylesheet" crossorigin href="./assets/index-def456.css">' +
+      '</head><body><div id="root"></div></body></html>',
+    "assets/index-abc123.js": 'document.getElementById("root").textContent = "built";',
+    "assets/index-def456.css": "body{background:#111}",
+  };
+
+  it("previews a built project with no changes to the linker", () => {
+    // The rewriter matches on the attribute rather than the markup, so hashed
+    // filenames in a subdirectory need no special handling. Worth a test
+    // anyway: this is the path every built app takes to the screen.
+    const { srcdoc } = buildPreview(dist, "");
+    expect(srcdoc).toContain("<style>");
+    expect(srcdoc).toContain("background:#111");
+    expect(srcdoc).toMatch(/src="data:text\/javascript/);
+  });
+
+  it("leaves nothing pointing at a path the iframe cannot resolve", () => {
+    // A srcdoc iframe inherits the host's base URL, so any surviving relative
+    // reference 404s against DevStation itself and the app renders blank.
+    const { srcdoc } = buildPreview(dist, "");
+    const refs = [...srcdoc.matchAll(/(?:src|href)\s*=\s*(["'])([^"']+)\1/gi)]
+      .map((m) => m[2])
+      .filter((v) => !/^(https?:|data:|#)/i.test(v));
+    expect(refs).toEqual([]);
+  });
+});

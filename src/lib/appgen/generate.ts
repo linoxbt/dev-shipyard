@@ -7,8 +7,21 @@
 // contract.js, so a bad model response can restyle the app but cannot point it
 // at the wrong contract or mis-encode a call.
 //
-// The output has NO build step: ES modules plus an import map, so one artifact
-// serves the in-app preview, the downloaded zip and a live deployment.
+// Two shapes come out of here, and the difference is only ever packaging:
+//
+//   "esm"  — no build step at all. ES modules plus an import map, so one
+//            folder serves the preview, the downloaded zip and a live
+//            deployment. Works with no infrastructure whatsoever.
+//   "vite" — the same modules as a real project: dependencies from npm, a
+//            bundler, and a toolchain the agent can actually run. Needs the
+//            build runner (services/runner), so it is only offered when one is
+//            configured.
+//
+// The application files are byte-for-byte identical between the two. They
+// import bare specifiers ("preact/hooks", "viem") and relative paths, which an
+// import map resolves in the browser and Vite resolves from node_modules, so
+// nothing about the app has to know which target it was generated for. Only
+// the shell around it differs: an import map, or a package.json.
 
 import { ABI_UI_JS, APP_JS, STYLES_CSS, WALLET_JS } from "./runtime";
 
@@ -19,6 +32,35 @@ export const CDN_VERSIONS = {
   htm: "3.1.1",
   viem: "2.52.0",
 } as const;
+
+/** npm dependencies for the "vite" target, pinned to the same versions the
+ *  import map uses so an app behaves identically whichever way it was built.
+ *
+ *  Mirrored in services/runner/warm-package.json, which pre-installs exactly
+ *  this set into the runner image. Change these and that file together, or
+ *  every job pays for a cold install — which took 175s against a 180s phase
+ *  deadline when it was measured. */
+export const VITE_DEPS = {
+  dependencies: {
+    preact: CDN_VERSIONS.preact,
+    htm: CDN_VERSIONS.htm,
+    viem: CDN_VERSIONS.viem,
+  },
+  devDependencies: {
+    vite: "7.1.5",
+    // Gives the model the option of writing JSX. The generated files use htm
+    // instead, which needs no transform; both produce preact elements, so the
+    // two mix freely in one project.
+    "@preact/preset-vite": "2.10.6",
+    "@playwright/test": "1.62.1",
+    eslint: "9.39.5",
+    "@eslint/js": "9.39.5",
+    globals: "17.11.0",
+  },
+} as const;
+
+/** How the app is packaged. See the note at the top of this file. */
+export type BuildTarget = "esm" | "vite";
 
 export interface GenerateSpec {
   /** Contract ABI, already validated (see abi-source.ts). */
@@ -34,6 +76,9 @@ export interface GenerateSpec {
   nativeSymbol: string;
   /** Directory the files are written under, inside the workspace. */
   dir?: string;
+  /** Defaults to "esm", which needs nothing to run. The App Builder asks for
+   *  "vite" when the deployment has a build runner. */
+  target?: BuildTarget;
 }
 
 export type GeneratedFiles = Record<string, string>;
@@ -42,6 +87,15 @@ export type GeneratedFiles = Record<string, string>;
 export const AI_EDITABLE = ["app.js", "styles.css", "index.html"] as const;
 /** Regenerated from the contract; never hand-written or model-written. */
 export const GENERATED_ONLY = ["contract.js"] as const;
+
+/** Where the application files sit within the project.
+ *
+ *  A Vite project keeps its source under src/ and its configuration at the
+ *  root, which is the convention every tool and every model already expects.
+ *  The no-build layout is flat, because it is served as-is. */
+function sourceDir(target: BuildTarget): string {
+  return target === "vite" ? "src/" : "";
+}
 
 function safeName(raw: string | null | undefined): string {
   const cleaned = (raw ?? "").replace(/[^A-Za-z0-9 _-]/g, "").trim();
@@ -85,6 +139,126 @@ export const CONTRACT = {
   address: ${JSON.stringify(spec.address)},
   abi: ${inlineJson(spec.abi)},
 };
+`;
+}
+
+function viteIndexHtml(title: string): string {
+  const name = title;
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${name}</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <!--
+      No import map: Vite resolves "preact", "htm/preact" and "viem" from
+      node_modules and bundles them, so the same app.js works here and in the
+      no-build build.
+    -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/app.js"></script>
+  </body>
+</html>
+`;
+}
+
+function viteEslintConfig(): string {
+  return `import js from "@eslint/js";
+import globals from "globals";
+
+export default [
+  { ignores: ["dist"] },
+  {
+    files: ["**/*.js", "**/*.jsx"],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: "module",
+      globals: globals.browser,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      // The wallet bridge and the ABI helpers both catch and ignore failures
+      // deliberately, where there is nothing useful to do with the error.
+      "no-empty": ["error", { allowEmptyCatch: true }],
+    },
+  },
+  {
+    files: ["tests/**/*.js", "*.config.js"],
+    languageOptions: { globals: globals.node },
+  },
+];
+`;
+}
+
+function vitePlaywrightConfig(): string {
+  return `import { defineConfig } from "@playwright/test";
+
+const HOST = "127.0.0.1";
+const PORT = 4173;
+
+export default defineConfig({
+  testDir: "./tests",
+  timeout: 30_000,
+  use: { baseURL: \`http://\${HOST}:\${PORT}\` },
+  webServer: {
+    // Tests run against the built output, which is what actually ships.
+    //
+    // --host is not optional. Left to itself vite binds "localhost", which
+    // resolves to ::1 first in a container, while Playwright polls 127.0.0.1
+    // and waits out its full timeout against a server that is running
+    // perfectly well on the other loopback address.
+    command: \`npm run preview -- --host \${HOST} --port \${PORT} --strictPort\`,
+    url: \`http://127.0.0.1:\${PORT}\`,
+    reuseExistingServer: false,
+    timeout: 60_000,
+  },
+});
+`;
+}
+
+function viteSmokeTest(title: string): string {
+  const name = title;
+  return `import { test, expect } from "@playwright/test";
+
+// Does the app actually come up? That is the question the preview could never
+// answer on its own: a page that throws while mounting looks exactly like a
+// page that is still loading.
+//
+// Add your own tests below. This one is the floor, not the ceiling.
+
+test("${name.replace(/"/g, "")} renders", async ({ page }) => {
+  const problems = [];
+  page.on("pageerror", (e) => problems.push(String(e)));
+  page.on("console", (m) => {
+    if (m.type() !== "error") return;
+    // The test sandbox has no network, on purpose — nothing after the install
+    // step can reach out. So the app's RPC calls fail here, and that says
+    // nothing about whether the app works. Everything else counts.
+    if (/fetch|network|ERR_|ECONN|Failed to load resource/i.test(m.text())) return;
+    problems.push(m.text());
+  });
+
+  await page.goto("/");
+  await expect(page.locator("#root")).not.toBeEmpty();
+  expect(problems).toEqual([]);
+});
+`;
+}
+
+function viteConfig(): string {
+  return `import { defineConfig } from "vite";
+import preact from "@preact/preset-vite";
+
+export default defineConfig({
+  plugins: [preact()],
+  // Relative asset paths, so the built output works from a subdirectory and
+  // inside DevStation's sandboxed preview, which has no origin to be
+  // absolute against.
+  base: "./",
+});
 `;
 }
 
@@ -169,6 +343,31 @@ transaction that looks fine and does the wrong thing. Call them from code.
 `;
 }
 
+function vitePackageJson(title: string, description: string): string {
+  return (
+    JSON.stringify(
+      {
+        name: slug(title) + "-dapp",
+        private: true,
+        version: "1.0.0",
+        type: "module",
+        description,
+        scripts: {
+          dev: "vite",
+          build: "vite build",
+          preview: "vite preview",
+          lint: "eslint .",
+          test: "playwright test",
+        },
+        dependencies: { ...VITE_DEPS.dependencies },
+        devDependencies: { ...VITE_DEPS.devDependencies },
+      },
+      null,
+      2,
+    ) + "\n"
+  );
+}
+
 function packageJson(spec: GenerateSpec): string {
   return (
     JSON.stringify(
@@ -188,6 +387,80 @@ function packageJson(spec: GenerateSpec): string {
   );
 }
 
+function viteReadme(spec: GenerateSpec): string {
+  const name = safeName(spec.contractName);
+  return `# ${name}
+
+A web app for [\`${spec.address}\`](${spec.explorerUrl.replace(/\/$/, "")}/address/${spec.address})
+on ${spec.chainName}, generated by [DevStation](https://devstation.online).
+
+An ordinary Vite project — clone it, add packages, and deploy it anywhere.
+
+## Run it
+
+\`\`\`bash
+npm install
+npm run dev
+\`\`\`
+
+\`npm run build\` writes static files to \`dist/\`, which any static host will
+serve: Netlify, Vercel, GitHub Pages, Cloudflare Pages. No server and no
+environment variables.
+
+## The files
+
+| File | What it is |
+|---|---|
+| \`index.html\` | Page shell |
+| \`vite.config.js\` | Build configuration |
+| \`src/app.js\` | The UI. **Yours to change.** |
+| \`src/styles.css\` | Styling. **Yours to change.** |
+| \`src/abi-ui.js\` | Maps ABI types to form controls and parses what you type |
+| \`src/wallet.js\` | Wallet access (\`window.ethereum\`, or DevStation's preview bridge) |
+| \`src/contract.js\` | **Generated.** Address, chain and ABI. Do not edit by hand. |
+
+The UI is written with [htm](https://github.com/developit/htm), which is JSX's
+syntax as a tagged template and needs no build step of its own. JSX works too —
+\`@preact/preset-vite\` is configured — so \`.jsx\` files can sit alongside these.
+
+## Notes
+
+Reads go straight to the RPC, so they work before you connect a wallet.
+Sending a transaction needs a wallet on ${spec.chainName} (chain id
+${spec.chainId}).
+
+Functions taking tuples or nested arrays are shown but disabled: encoding
+those from a text field is guesswork, and a wrong encoding produces a
+transaction that looks fine and does the wrong thing. Call them from code.
+`;
+}
+
+/**
+ * The project around the app: build config, lint config, browser test setup.
+ *
+ * Shared by a generated app and an empty one so the two cannot drift — an
+ * empty project that lints differently from a generated one is a trap, since
+ * the agent's whole feedback loop runs through these files.
+ */
+export function viteShell(
+  title: string,
+  options: { dir?: string; description?: string } = {},
+): GeneratedFiles {
+  const dir = (options.dir ?? "app").replace(/^\/+|\/+$/g, "");
+  const at = (name: string) => (dir ? `${dir}/${name}` : name);
+  return {
+    [at("index.html")]: viteIndexHtml(title),
+    [at("vite.config.js")]: viteConfig(),
+    [at("eslint.config.js")]: viteEslintConfig(),
+    [at("playwright.config.js")]: vitePlaywrightConfig(),
+    [at("tests/app.spec.js")]: viteSmokeTest(title),
+    [at("package.json")]: vitePackageJson(
+      title,
+      options.description ?? `${title}, generated by DevStation`,
+    ),
+  };
+}
+
 /**
  * Generate a complete, runnable app for a contract.
  * Returns a path → content map, ready to write into the workspace.
@@ -195,13 +468,32 @@ function packageJson(spec: GenerateSpec): string {
 export function generateApp(spec: GenerateSpec): GeneratedFiles {
   const dir = (spec.dir ?? "app").replace(/^\/+|\/+$/g, "");
   const at = (name: string) => (dir ? `${dir}/${name}` : name);
+  const src = sourceDir(spec.target ?? "esm");
+
+  // Identical in both targets, and deliberately so: whichever way the app is
+  // packaged, it is the same application.
+  const app: GeneratedFiles = {
+    [at(`${src}app.js`)]: APP_JS,
+    [at(`${src}abi-ui.js`)]: ABI_UI_JS,
+    [at(`${src}wallet.js`)]: WALLET_JS,
+    [at(`${src}contract.js`)]: contractJs(spec),
+    [at(`${src}styles.css`)]: STYLES_CSS,
+  };
+
+  if ((spec.target ?? "esm") === "vite") {
+    return {
+      ...app,
+      ...viteShell(safeName(spec.contractName), {
+        dir,
+        description: `Generated by DevStation for ${spec.address} on ${spec.chainName}`,
+      }),
+      [at("README.md")]: viteReadme(spec),
+    };
+  }
+
   return {
+    ...app,
     [at("index.html")]: indexHtml(spec),
-    [at("app.js")]: APP_JS,
-    [at("abi-ui.js")]: ABI_UI_JS,
-    [at("wallet.js")]: WALLET_JS,
-    [at("contract.js")]: contractJs(spec),
-    [at("styles.css")]: STYLES_CSS,
     [at("README.md")]: readme(spec),
     [at("package.json")]: packageJson(spec),
   };
@@ -211,5 +503,6 @@ export function generateApp(spec: GenerateSpec): GeneratedFiles {
  *  discarding UI edits. */
 export function regenerateContractFile(spec: GenerateSpec): { path: string; content: string } {
   const dir = (spec.dir ?? "app").replace(/^\/+|\/+$/g, "");
-  return { path: dir ? `${dir}/contract.js` : "contract.js", content: contractJs(spec) };
+  const name = `${sourceDir(spec.target ?? "esm")}contract.js`;
+  return { path: dir ? `${dir}/${name}` : name, content: contractJs(spec) };
 }
