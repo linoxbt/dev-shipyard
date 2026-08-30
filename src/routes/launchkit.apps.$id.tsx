@@ -397,6 +397,23 @@ function AppDetail() {
               Private
             </label>
           </div>
+          {/* GitHub will not let a fine-grained token create the repo, so link
+              straight to the form with the name and visibility already filled
+              in. Telling someone to "create it first" without saying where is
+              most of the work. */}
+          {!project.repo && (
+            <a
+              href={`https://github.com/new?name=${encodeURIComponent(
+                repoNameFrom(repoName || project.name),
+              )}&visibility=${isPrivate ? "private" : "public"}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-dashed border-border px-2 py-1.5 font-mono text-[11px] text-meta hover:border-primary hover:text-primary"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Create {repoNameFrom(repoName || project.name)} on GitHub
+            </a>
+          )}
           <button
             onClick={() => void doPush()}
             disabled={pushing}
