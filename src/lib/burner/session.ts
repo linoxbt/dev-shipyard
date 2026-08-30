@@ -1,79 +1,230 @@
 // Session persistence for the in-app generated ("burner") wallet.
 //
-// The decrypted mnemonic is kept in sessionStorage while unlocked so the wallet
-// survives page refreshes WITHOUT re-entering the password — but is dropped when
-// the tab/browser closes (sessionStorage semantics) or the cache is cleared.
-// This matches "stay connected across refresh, disconnect on browser close".
-// The encrypted vault in localStorage remains the durable, at-rest store.
+// The wallet must survive a browser close, not just a refresh, so the unlocked
+// mnemonic has to reach disk. It is NOT written in plaintext: it is encrypted
+// with AES-GCM under a key that lives in IndexedDB and is created
+// `extractable: false`, so script can ask the key to decrypt but can never read
+// the key itself out of the browser.
 //
-// Idle auto-lock: sessionStorage has no built-in expiry, so once unlocked the
-// plaintext mnemonic would otherwise sit there for as long as the tab stays
-// open — readable by any XSS with no further password prompt. An activity
-// timestamp caps that exposure window: the session is treated as expired
-// (and cleared) once IDLE_LOCK_MS elapses with no tracked user activity,
-// same idea as a wallet extension's auto-lock timer. See
-// src/components/web3/Web3Provider.tsx for the watcher that calls
-// touchBurnerSession() on activity and lock()s the store when idle.
+// What that does and does not buy:
+//   - No plaintext seed phrase at rest. Copying localStorage off the machine
+//     yields ciphertext and nothing else.
+//   - The key cannot be exfiltrated, so it cannot be replayed elsewhere.
+//   - It does NOT stop script running on this origin from asking the key to
+//     decrypt while the session is live. XSS on the page can still reach the
+//     mnemonic. The unlock window is the mitigation, which is why it is capped
+//     and why the shortest usable value is the right default.
+//
+// The encrypted vault in localStorage remains the durable, at-rest store; this
+// is only the "already unlocked" shortcut.
 
-const SESSION_KEY = "devstation-burner-session-v1";
-const ACTIVITY_KEY = "devstation-burner-activity-v1";
-export const IDLE_LOCK_MS = 20 * 60 * 1000; // 20 minutes
+const BLOB_KEY = "devstation-burner-session-v2";
+const DB_NAME = "devstation-wallet";
+const STORE = "keys";
+const KEY_ID = "session-key";
 
-export function saveBurnerSession(mnemonic: string): void {
+/** How long the wallet stays unlocked with no activity. Offered in settings. */
+export const UNLOCK_OPTIONS = [
+  { label: "5 minutes", ms: 5 * 60 * 1000 },
+  { label: "30 minutes", ms: 30 * 60 * 1000 },
+  { label: "1 hour", ms: 60 * 60 * 1000 },
+  { label: "5 hours", ms: 5 * 60 * 60 * 1000 },
+  { label: "1 day", ms: 24 * 60 * 60 * 1000 },
+] as const;
+
+const UNLOCK_PREF_KEY = "devstation-burner-unlock-ms";
+/** Deliberately the shortest option: this is how long a stolen tab stays
+ *  useful, so a longer window is a choice the user makes, not a default. */
+export const DEFAULT_UNLOCK_MS = UNLOCK_OPTIONS[0].ms;
+
+export function getUnlockMs(): number {
   try {
-    if (typeof sessionStorage === "undefined") return;
-    sessionStorage.setItem(SESSION_KEY, mnemonic);
-    sessionStorage.setItem(ACTIVITY_KEY, String(Date.now()));
+    if (typeof localStorage === "undefined") return DEFAULT_UNLOCK_MS;
+    const raw = Number(localStorage.getItem(UNLOCK_PREF_KEY));
+    return UNLOCK_OPTIONS.some((o) => o.ms === raw) ? raw : DEFAULT_UNLOCK_MS;
   } catch {
-    /* private mode / quota — non-fatal */
+    return DEFAULT_UNLOCK_MS;
   }
 }
 
-/** Bumps the idle clock. Cheap no-op if there's no active session to keep alive. */
-export function touchBurnerSession(): void {
+export function setUnlockMs(ms: number): void {
   try {
-    if (typeof sessionStorage === "undefined") return;
-    if (!sessionStorage.getItem(SESSION_KEY)) return;
-    sessionStorage.setItem(ACTIVITY_KEY, String(Date.now()));
+    if (!UNLOCK_OPTIONS.some((o) => o.ms === ms)) return;
+    localStorage.setItem(UNLOCK_PREF_KEY, String(ms));
   } catch {
     /* ignore */
   }
 }
 
-/** True once the session has gone longer than IDLE_LOCK_MS without a touch. Doesn't clear anything. */
-export function isBurnerSessionIdle(): boolean {
+// --- the non-extractable device key ---------------------------------------
+
+function idb(): Promise<IDBDatabase | null> {
+  return new Promise((resolve) => {
+    try {
+      if (typeof indexedDB === "undefined") return resolve(null);
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+function idbGet(db: IDBDatabase, key: string): Promise<CryptoKey | null> {
+  return new Promise((resolve) => {
+    try {
+      const req = db.transaction(STORE, "readonly").objectStore(STORE).get(key);
+      req.onsuccess = () => resolve((req.result as CryptoKey) ?? null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+function idbPut(db: IDBDatabase, key: string, value: CryptoKey): Promise<void> {
+  return new Promise((resolve) => {
+    try {
+      const req = db.transaction(STORE, "readwrite").objectStore(STORE).put(value, key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => resolve();
+    } catch {
+      resolve();
+    }
+  });
+}
+
+/** The device key, created on first use. `extractable: false` is the whole
+ *  point: the browser will use it but will not hand it back. */
+async function deviceKey(create: boolean): Promise<CryptoKey | null> {
+  const db = await idb();
+  if (!db) return null;
+  const existing = await idbGet(db, KEY_ID);
+  if (existing) return existing;
+  if (!create) return null;
   try {
-    if (typeof sessionStorage === "undefined") return false;
-    if (!sessionStorage.getItem(SESSION_KEY)) return false;
-    const touchedAt = Number(sessionStorage.getItem(ACTIVITY_KEY) ?? 0);
-    return !touchedAt || Date.now() - touchedAt > IDLE_LOCK_MS;
+    const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+      "encrypt",
+      "decrypt",
+    ]);
+    await idbPut(db, KEY_ID, key);
+    return key;
   } catch {
-    return false;
+    return null;
   }
 }
 
-// Returns the stored mnemonic, or null (and clears the session) if it's
-// missing or has been idle longer than IDLE_LOCK_MS.
-export function loadBurnerSession(): string | null {
+interface SessionBlob {
+  ct: string;
+  iv: string;
+  /** Absolute ms. Pushed forward by touchBurnerSession on activity. */
+  expiresAt: number;
+}
+
+const b64 = (b: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(b)));
+const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+function readBlob(): SessionBlob | null {
   try {
-    if (typeof sessionStorage === "undefined") return null;
-    const mnemonic = sessionStorage.getItem(SESSION_KEY);
-    if (!mnemonic) return null;
-    if (isBurnerSessionIdle()) {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(BLOB_KEY);
+    if (!raw) return null;
+    const b = JSON.parse(raw) as SessionBlob;
+    return typeof b?.ct === "string" && typeof b?.iv === "string" ? b : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveBurnerSession(mnemonic: string): Promise<void> {
+  try {
+    const key = await deviceKey(true);
+    if (!key) return; // no IndexedDB: refuse rather than fall back to plaintext
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      new TextEncoder().encode(mnemonic),
+    );
+    const blob: SessionBlob = {
+      ct: b64(ct),
+      iv: b64(iv.buffer),
+      expiresAt: Date.now() + getUnlockMs(),
+    };
+    localStorage.setItem(BLOB_KEY, JSON.stringify(blob));
+  } catch {
+    /* a failure here means the user re-enters their password, which is safe */
+  }
+}
+
+/** Bumps the unlock window. Cheap no-op when nothing is unlocked. */
+export function touchBurnerSession(): void {
+  const blob = readBlob();
+  if (!blob) return;
+  if (blob.expiresAt <= Date.now()) return;
+  try {
+    localStorage.setItem(
+      BLOB_KEY,
+      JSON.stringify({ ...blob, expiresAt: Date.now() + getUnlockMs() }),
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isBurnerSessionIdle(): boolean {
+  const blob = readBlob();
+  return !!blob && blob.expiresAt <= Date.now();
+}
+
+/** True when something is stored, without decrypting it. Lets callers skip the
+ *  async work when there is plainly nothing to restore. */
+export function hasBurnerSession(): boolean {
+  const blob = readBlob();
+  return !!blob && blob.expiresAt > Date.now();
+}
+
+export async function loadBurnerSession(): Promise<string | null> {
+  const blob = readBlob();
+  if (!blob) return null;
+  if (blob.expiresAt <= Date.now()) {
+    clearBurnerSession();
+    return null;
+  }
+  try {
+    const key = await deviceKey(false);
+    if (!key) {
+      // The key is gone (cleared site data, different profile). The ciphertext
+      // is now undecryptable, so it is dead weight.
       clearBurnerSession();
       return null;
     }
-    return mnemonic;
+    const plain = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: unb64(blob.iv) },
+      key,
+      unb64(blob.ct),
+    );
+    return new TextDecoder().decode(plain);
   } catch {
+    clearBurnerSession();
     return null;
   }
 }
 
 export function clearBurnerSession(): void {
   try {
-    if (typeof sessionStorage === "undefined") return;
-    sessionStorage.removeItem(SESSION_KEY);
-    sessionStorage.removeItem(ACTIVITY_KEY);
+    if (typeof localStorage === "undefined") return;
+    localStorage.removeItem(BLOB_KEY);
+    // v1 kept the plaintext mnemonic in sessionStorage. Anyone upgrading may
+    // still have one sitting there; remove it rather than leave it behind.
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem("devstation-burner-session-v1");
+      sessionStorage.removeItem("devstation-burner-activity-v1");
+    }
   } catch {
     /* ignore */
   }

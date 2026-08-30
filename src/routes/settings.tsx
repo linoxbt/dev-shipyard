@@ -1,8 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { WalletProfile } from "@/components/web3/WalletProfile";
+import { useBurner } from "@/lib/burner/store";
+import {
+  DEFAULT_UNLOCK_MS,
+  UNLOCK_OPTIONS,
+  getUnlockMs,
+  setUnlockMs,
+  touchBurnerSession,
+} from "@/lib/burner/session";
 
 import { NetworkSelector } from "@/components/web3/NetworkSelector";
 
@@ -49,6 +57,7 @@ function SettingsPage() {
         <div className="lg:col-span-2">
           <Section title="Wallet & Profile">
             <FamilyWalletProfile />
+            <UnlockWindow />
           </Section>
         </div>
 
@@ -134,6 +143,50 @@ function SettingsPage() {
 }
 
 // Shows the wallet profile for the active chain family so the connected
+/** How long the in-app wallet stays unlocked without activity.
+ *
+ *  This is the window in which an unattended tab can still spend, so the
+ *  trade-off is stated rather than buried: longer is more convenient and
+ *  strictly less safe. Injected wallets (QIE Wallet, MetaMask) keep their own
+ *  lock and are unaffected. */
+function UnlockWindow() {
+  const [ms, setMs] = useState<number>(DEFAULT_UNLOCK_MS);
+  const exists = useBurner((s) => s.exists);
+  useEffect(() => setMs(getUnlockMs()), []);
+  if (!exists) return null;
+  return (
+    <div className="mt-4 border-t border-border pt-4">
+      <Row label="Keep wallet unlocked for">
+        <select
+          value={ms}
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            setUnlockMs(next);
+            setMs(next);
+            // Move the live session onto the new window straight away, so the
+            // choice applies without locking and unlocking again.
+            touchBurnerSession();
+            toast.success("Unlock window updated");
+          }}
+          className="max-w-xs rounded border border-border bg-background px-2 py-1 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
+        >
+          {UNLOCK_OPTIONS.map((o) => (
+            <option key={o.ms} value={o.ms}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </Row>
+      <p className="mt-1 font-mono text-[10px] text-meta">
+        The DevStation wallet stays unlocked for this long after your last action, surviving
+        refreshes and browser restarts. The seed phrase is encrypted with a key the browser will not
+        hand back to any script — but a longer window is still longer for an unattended tab to be
+        used. Only applies to the in-app wallet.
+      </p>
+    </div>
+  );
+}
+
 function FamilyWalletProfile() {
   return <WalletProfile />;
 }

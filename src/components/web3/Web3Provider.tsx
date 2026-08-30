@@ -3,9 +3,10 @@ import { WagmiProvider, useAccount, useConnect } from "wagmi";
 import { wagmiConfig } from "@/lib/wagmi";
 import { useBurner } from "@/lib/burner/store";
 import { useNetworkPref } from "@/lib/active-chain";
-import { loadBurnerSession, touchBurnerSession, isBurnerSessionIdle } from "@/lib/burner/session";
+import { hasBurnerSession, touchBurnerSession, isBurnerSessionIdle } from "@/lib/burner/session";
 
-// Auto-locks the burner wallet after IDLE_LOCK_MS of no tracked activity —
+// Auto-locks the burner wallet after the configured unlock window of no
+// tracked activity (see UNLOCK_OPTIONS in burner/session.ts) —
 // see session.ts's header comment for why this exists (the decrypted
 // mnemonic otherwise sits in sessionStorage indefinitely for as long as the
 // tab is open). Runs only while the burner is actually unlocked.
@@ -51,12 +52,21 @@ function WalletAutoReconnect() {
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
-    if (!loadBurnerSession()) return;
-    restoreSession();
-    if (!isConnected) {
+    // hasBurnerSession is the cheap synchronous check; restoring actually
+    // decrypts, so the connect MUST wait for it. Connecting first would reach a
+    // connector with no account and throw "No burner wallet unlocked" — which
+    // is what made a refresh ask for the password again.
+    // Promote the vault's real presence/address now that localStorage is
+    // readable. Kept before the session restore so the UI never shows "no
+    // wallet" for a frame when one exists.
+    useBurner.getState().refresh();
+    if (!hasBurnerSession()) return;
+    void (async () => {
+      await restoreSession();
+      if (isConnected) return;
       const burner = connectors.find((c) => c.id === "devstation-burner");
       if (burner) connect({ connector: burner });
-    }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
