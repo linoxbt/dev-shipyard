@@ -95,6 +95,63 @@ export async function whoami(token: string): Promise<GithubUser | null> {
   }
 }
 
+export interface RepoSummary {
+  owner: string;
+  name: string;
+  fullName: string;
+  isPrivate: boolean;
+  url: string;
+  /** Empty repos have no ref to commit onto, so the first commit is parentless. */
+  empty: boolean;
+}
+
+/** Every repository this token can actually reach.
+ *
+ *  Fine-grained tokens are scoped to SELECTED repositories, and GitHub returns
+ *  404 — not 403 — for one outside that selection. That is indistinguishable
+ *  from "does not exist", which is exactly the confusion this list removes: if
+ *  a repo is missing here, the token was not granted it, however real it is.
+ *
+ *  Two endpoints because the token types disagree (checked against GitHub's
+ *  OpenAPI description): /installation/repositories is the fine-grained one and
+ *  /user/repos is refused, while a classic token is the other way round. */
+export async function listRepos(token: string): Promise<RepoSummary[]> {
+  const shape = (r: {
+    name: string;
+    full_name: string;
+    private: boolean;
+    html_url: string;
+    size: number;
+    owner?: { login: string };
+  }): RepoSummary => ({
+    owner: r.owner?.login ?? r.full_name.split("/")[0],
+    name: r.name,
+    fullName: r.full_name,
+    isPrivate: r.private,
+    url: r.html_url,
+    empty: r.size === 0,
+  });
+
+  try {
+    const res = await gh<{ repositories: Parameters<typeof shape>[0][] }>(
+      token,
+      "/installation/repositories?per_page=100",
+    );
+    if (Array.isArray(res.repositories)) return res.repositories.map(shape);
+  } catch {
+    /* not a fine-grained token — fall through to the classic endpoint */
+  }
+  try {
+    const res = await gh<Parameters<typeof shape>[0][]>(
+      token,
+      "/user/repos?per_page=100&sort=updated",
+    );
+    return Array.isArray(res) ? res.map(shape) : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Turn a project name into something GitHub will accept as a repo name. */
 export function repoNameFrom(name: string): string {
   const slug = name
@@ -147,9 +204,11 @@ async function ensureRepo(
     const why = e instanceof Error ? e.message : "";
     if (/not accessible|Not Found|Bad credentials/i.test(why)) {
       throw new Error(
-        `${owner}/${name} does not exist, and this token cannot create it — GitHub does not let ` +
-          `fine-grained tokens create repositories. Either create ${name} on GitHub first and push ` +
-          `again, or use a classic token with the "repo" scope.`,
+        `This token cannot see ${owner}/${name}, and cannot create it either. GitHub returns the ` +
+          `same 404 whether a repository does not exist OR the token was not granted access to ` +
+          `it — so if you just created it, the likely cause is that your fine-grained token's ` +
+          `repository list does not include it. Pick from the list above, add ${name} to the ` +
+          `token at github.com/settings/tokens, or use a classic token with the "repo" scope.`,
       );
     }
     throw e;

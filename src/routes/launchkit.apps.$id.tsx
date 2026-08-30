@@ -17,7 +17,14 @@ import {
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useProjects, fileCount } from "@/lib/appgen/projects";
 import { usePublishApp } from "@/hooks/usePublishApp";
-import { pushApp, readToken, repoNameFrom, writeToken } from "@/lib/github";
+import {
+  listRepos,
+  pushApp,
+  readToken,
+  repoNameFrom,
+  writeToken,
+  type RepoSummary,
+} from "@/lib/github";
 import { chainConfig } from "@/lib/chains";
 import { slugForChainId } from "@/lib/explorer/network";
 import { shortAddr, timeAgo } from "@/lib/explorer/format";
@@ -80,6 +87,8 @@ function AppDetail() {
   const [repoOwner, setRepoOwner] = useState("");
   const [isPrivate, setIsPrivate] = useState(true);
   const [pushing, setPushing] = useState(false);
+  const [repos, setRepos] = useState<RepoSummary[] | null>(null);
+  const [loadingRepos, setLoadingRepos] = useState(false);
   useEffect(() => {
     setToken(readToken(wallet));
   }, [wallet]);
@@ -112,6 +121,29 @@ function AppDetail() {
       </div>
     );
   }
+
+  // Load what the token can actually reach. This is also the diagnosis: a
+  // fine-grained token only sees repositories it was explicitly granted, and a
+  // repo missing from this list is the reason a push 404s even though the repo
+  // plainly exists on GitHub.
+  const loadRepos = async () => {
+    if (!token.trim()) {
+      toast.error("Paste a GitHub token first.");
+      return;
+    }
+    setLoadingRepos(true);
+    try {
+      const list = await listRepos(token.trim());
+      setRepos(list);
+      if (list.length === 0) {
+        toast.error("That token cannot reach any repositories.");
+      } else if (wallet) {
+        writeToken(wallet, token.trim());
+      }
+    } finally {
+      setLoadingRepos(false);
+    }
+  };
 
   const doPush = async () => {
     if (!token.trim()) {
@@ -373,6 +405,52 @@ function AppDetail() {
             GitHub does not let fine-grained tokens create repositories, so create the repo there
             first and push to it. A classic token with the <code>repo</code> scope can create one.
           </p>
+
+          <button
+            onClick={() => void loadRepos()}
+            disabled={loadingRepos || !token.trim()}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
+          >
+            {loadingRepos ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+            {repos ? "Refresh repositories" : "Load my repositories"}
+          </button>
+
+          {repos !== null && (
+            <div className="mt-2">
+              {repos.length === 0 ? (
+                <p className="font-mono text-[10px] text-danger">
+                  This token cannot reach any repository. Grant it access at
+                  github.com/settings/tokens, or use a classic token.
+                </p>
+              ) : (
+                <>
+                  <label className="block font-mono text-[10px] text-meta">
+                    {repos.length} repositor{repos.length === 1 ? "y" : "ies"} this token can reach
+                    — anything not listed here it cannot push to
+                  </label>
+                  <select
+                    value={repoOwner && repoName ? `${repoOwner}/${repoName}` : ""}
+                    onChange={(e) => {
+                      const [o, n] = e.target.value.split("/");
+                      if (o && n) {
+                        setRepoOwner(o);
+                        setRepoName(n);
+                      }
+                    }}
+                    className="mt-1 w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
+                  >
+                    <option value="">Choose a repository…</option>
+                    {repos.map((r) => (
+                      <option key={r.fullName} value={r.fullName}>
+                        {r.fullName} {r.isPrivate ? "(private)" : "(public)"}
+                        {r.empty ? " — empty" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="mt-2 flex items-center gap-2">
             <input
