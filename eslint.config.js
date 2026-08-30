@@ -6,7 +6,11 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".output", ".vinxi"] },
+  // Build output. Kept in step with .gitignore: these are generated, and
+  // linting them is meaningless as well as slow — `.vercel` alone holds 12MB
+  // of bundled code, which took `bun run lint` from about ninety seconds to
+  // longer than anyone waits.
+  { ignores: ["dist", "dist-ssr", ".output", ".vercel", ".netlify", ".vinxi", ".tanstack"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

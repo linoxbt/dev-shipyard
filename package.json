@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "bun test",
+    "test": "bun test ./src",
+    "test:runner": "bun test ./services/runner/src",
     "contracts:compile": "bun run scripts/compile.ts",
     "contracts:deploy": "bun run scripts/deploy.ts",
     "contracts:verify": "bun run scripts/verify.ts"

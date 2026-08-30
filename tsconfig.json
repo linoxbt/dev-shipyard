@@ -1,5 +1,14 @@
 {
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "eslint.config.js"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "vite.config.ts",
+    "eslint.config.js",
+    // The runner is real, deployed code. Leaving it out of typechecking let a
+    // missing import ship: tsc passed, and the service crashed on every job
+    // POST with "RATE_LIMIT_GLOBAL is not defined".
+    "services/**/*.ts"
+  ],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",
