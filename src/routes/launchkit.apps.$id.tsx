@@ -17,14 +17,7 @@ import {
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useProjects, fileCount } from "@/lib/appgen/projects";
 import { usePublishApp } from "@/hooks/usePublishApp";
-import {
-  listRepos,
-  pushApp,
-  readToken,
-  repoNameFrom,
-  writeToken,
-  type RepoSummary,
-} from "@/lib/github";
+import { repoNameFrom } from "@/lib/github";
 import { chainConfig } from "@/lib/chains";
 import { slugForChainId } from "@/lib/explorer/network";
 import { shortAddr, timeAgo } from "@/lib/explorer/format";
@@ -65,7 +58,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function AppDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const { address: wallet, isConnected } = useAccount();
+  const { isConnected } = useAccount();
 
   const projects = useProjects((s) => s.projects);
   const hydrate = useProjects((s) => s.hydrate);
@@ -82,20 +75,28 @@ function AppDetail() {
   const [confirming, setConfirming] = useState(false);
 
   // GitHub
-  const [token, setToken] = useState("");
   const [repoName, setRepoName] = useState("");
-  const [repoOwner, setRepoOwner] = useState("");
   const [isPrivate, setIsPrivate] = useState(true);
   const [pushing, setPushing] = useState(false);
-  const [repos, setRepos] = useState<RepoSummary[] | null>(null);
-  const [loadingRepos, setLoadingRepos] = useState(false);
+  const [gh, setGh] = useState<{
+    configured: boolean;
+    user: { login: string; avatarUrl: string; name: string | null } | null;
+  } | null>(null);
+  // Who, if anyone, is signed in. The token itself lives in an httpOnly cookie
+  // and is deliberately unreadable here.
   useEffect(() => {
-    setToken(readToken(wallet));
-  }, [wallet]);
+    let alive = true;
+    fetch("/api/github")
+      .then((r) => r.json())
+      .then((d) => alive && setGh(d))
+      .catch(() => alive && setGh({ configured: false, user: null }));
+    return () => {
+      alive = false;
+    };
+  }, []);
   useEffect(() => {
     if (!project) return;
     setRepoName((r) => r || repoNameFrom(project.name));
-    setRepoOwner((o) => o || project.repo?.owner || "");
   }, [project]);
 
   const totalBytes = useMemo(() => {
@@ -122,52 +123,32 @@ function AppDetail() {
     );
   }
 
-  // Load what the token can actually reach. This is also the diagnosis: a
-  // fine-grained token only sees repositories it was explicitly granted, and a
-  // repo missing from this list is the reason a push 404s even though the repo
-  // plainly exists on GitHub.
-  const loadRepos = async () => {
-    if (!token.trim()) {
-      toast.error("Paste a GitHub token first.");
-      return;
-    }
-    setLoadingRepos(true);
-    try {
-      const list = await listRepos(token.trim());
-      setRepos(list);
-      if (list.length === 0) {
-        toast.error("That token cannot reach any repositories.");
-      } else if (wallet) {
-        writeToken(wallet, token.trim());
-      }
-    } finally {
-      setLoadingRepos(false);
-    }
-  };
-
   const doPush = async () => {
-    if (!token.trim()) {
-      toast.error("Paste a GitHub token first.");
-      return;
-    }
     setPushing(true);
     try {
-      const target = await pushApp({
-        token: token.trim(),
-        owner: repoOwner,
-        repoName: repoNameFrom(repoName || project.name),
-        isPrivate,
-        // Source, deliberately — not `dist`. A repository holds what a person
-        // edits; the built output belongs to the publish flow, which is why
-        // usePublishApp prefers dist and this does not.
-        files: project.files,
-        message: `Update ${project.name} from DevStation`,
+      const res = await fetch("/api/github/push", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          repoName: repoNameFrom(repoName || project.name),
+          isPrivate,
+          // Source, deliberately — not `dist`. A repository holds what a person
+          // edits; the built output belongs to the publish flow.
+          files: project.files,
+          message: `Update ${project.name} from DevStation`,
+        }),
       });
-      // Only persisted after a successful push, so a failed attempt never
-      // leaves the app claiming a repo it does not have.
-      if (wallet) writeToken(wallet, token.trim());
-      useProjects.getState().update(project.id, { repo: target });
-      toast.success(`Pushed to ${target.owner}/${target.name}`);
+      const body = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        repo?: { owner: string; name: string; url: string; pushedAt: number };
+        message?: string;
+      } | null;
+      if (!body?.ok || !body.repo) {
+        toast.error(body?.message ?? "Push failed.");
+        return;
+      }
+      useProjects.getState().update(project.id, { repo: body.repo });
+      toast.success(`Pushed to ${body.repo.owner}/${body.repo.name}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Push failed.");
     } finally {
@@ -371,139 +352,99 @@ function AppDetail() {
         </Section>
 
         <Section title="GitHub">
-          {project.repo ? (
+          {gh === null ? (
+            <p className="py-1 font-mono text-[11px] text-meta">Checking GitHub…</p>
+          ) : !gh.configured ? (
+            <p className="py-1 font-mono text-[11px] text-meta">
+              GitHub sign-in is not configured on this deployment. Set GITHUB_CLIENT_ID and
+              GITHUB_CLIENT_SECRET to enable it.
+            </p>
+          ) : !gh.user ? (
             <>
-              <Row label="Repository">
-                <a
-                  href={project.repo.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  {project.repo.owner}/{project.repo.name}{" "}
-                  <ExternalLink className="inline h-2.5 w-2.5" />
-                </a>
-              </Row>
-              <Row label="Last push">{timeAgo(new Date(project.repo.pushedAt).toISOString())}</Row>
+              <p className="py-1 font-mono text-[11px] text-meta">
+                Connect your GitHub account once, then push this app to a repository.
+              </p>
+              <a
+                href="/api/github?start=1"
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
+              >
+                <Github className="h-3 w-3" /> Connect GitHub
+              </a>
             </>
-          ) : null}
-
-          <label className="mt-2 block font-mono text-[10px] text-meta">
-            Fine-grained personal access token (Contents: read and write)
-          </label>
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="github_pat_…"
-            className="mt-1 w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
-          />
-          <p className="mt-1 font-mono text-[10px] text-meta">
-            Sent from this browser straight to GitHub. It never reaches DevStation&apos;s servers.
-          </p>
-          <p className="mt-1 font-mono text-[10px] text-meta">
-            GitHub does not let fine-grained tokens create repositories, so create the repo there
-            first and push to it. A classic token with the <code>repo</code> scope can create one.
-          </p>
-
-          <button
-            onClick={() => void loadRepos()}
-            disabled={loadingRepos || !token.trim()}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
-          >
-            {loadingRepos ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-            {repos ? "Refresh repositories" : "Load my repositories"}
-          </button>
-
-          {repos !== null && (
-            <div className="mt-2">
-              {repos.length === 0 ? (
-                <p className="font-mono text-[10px] text-danger">
-                  This token cannot reach any repository. Grant it access at
-                  github.com/settings/tokens, or use a classic token.
-                </p>
-              ) : (
-                <>
-                  <label className="block font-mono text-[10px] text-meta">
-                    {repos.length} repositor{repos.length === 1 ? "y" : "ies"} this token can reach
-                    — anything not listed here it cannot push to
-                  </label>
-                  <select
-                    value={repoOwner && repoName ? `${repoOwner}/${repoName}` : ""}
-                    onChange={(e) => {
-                      const [o, n] = e.target.value.split("/");
-                      if (o && n) {
-                        setRepoOwner(o);
-                        setRepoName(n);
-                      }
-                    }}
-                    className="mt-1 w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
+          ) : (
+            <>
+              <Row label="Signed in as">
+                <span className="flex items-center justify-end gap-1.5">
+                  <img src={gh.user.avatarUrl} alt="" className="h-4 w-4 rounded-full" />
+                  {gh.user.login}
+                </span>
+              </Row>
+              {project.repo && (
+                <Row label="Repository">
+                  <a
+                    href={project.repo.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline"
                   >
-                    <option value="">Choose a repository…</option>
-                    {repos.map((r) => (
-                      <option key={r.fullName} value={r.fullName}>
-                        {r.fullName} {r.isPrivate ? "(private)" : "(public)"}
-                        {r.empty ? " — empty" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </>
+                    {project.repo.owner}/{project.repo.name}{" "}
+                    <ExternalLink className="inline h-2.5 w-2.5" />
+                  </a>
+                </Row>
               )}
-            </div>
-          )}
+              {project.repo && (
+                <Row label="Last push">
+                  {timeAgo(new Date(project.repo.pushedAt).toISOString())}
+                </Row>
+              )}
 
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              value={repoOwner}
-              onChange={(e) => setRepoOwner(e.target.value)}
-              placeholder="github-username"
-              className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
-            />
-            <span className="font-mono text-[11px] text-meta">/</span>
-            <input
-              value={repoName}
-              onChange={(e) => setRepoName(e.target.value)}
-              placeholder="repo-name"
-              className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
-            />
-            <label className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={isPrivate}
-                onChange={(e) => setIsPrivate(e.target.checked)}
-              />
-              Private
-            </label>
-          </div>
-          {/* GitHub will not let a fine-grained token create the repo, so link
-              straight to the form with the name and visibility already filled
-              in. Telling someone to "create it first" without saying where is
-              most of the work. */}
-          {!project.repo && (
-            <a
-              href={`https://github.com/new?name=${encodeURIComponent(
-                repoNameFrom(repoName || project.name),
-              )}&visibility=${isPrivate ? "private" : "public"}`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-dashed border-border px-2 py-1.5 font-mono text-[11px] text-meta hover:border-primary hover:text-primary"
-            >
-              <ExternalLink className="h-3 w-3" />
-              Create {repoNameFrom(repoName || project.name)} on GitHub
-            </a>
+              {/* Only shown before the first push: once a repo exists the name
+                  and visibility are settled, and re-asking invites pushing an
+                  app into the wrong place. */}
+              {!project.repo && (
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    value={repoName}
+                    onChange={(e) => setRepoName(e.target.value)}
+                    placeholder="repo-name"
+                    className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
+                  />
+                  <label className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={isPrivate}
+                      onChange={(e) => setIsPrivate(e.target.checked)}
+                    />
+                    Private
+                  </label>
+                </div>
+              )}
+
+              <button
+                onClick={() => void doPush()}
+                disabled={pushing}
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
+              >
+                {pushing ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Github className="h-3 w-3" />
+                )}
+                {project.repo ? "Push update" : "Create repo and push"}
+              </button>
+
+              <button
+                onClick={() => {
+                  void fetch("/api/github", { method: "POST" }).then(() =>
+                    setGh({ configured: true, user: null }),
+                  );
+                }}
+                className="mt-1 w-full font-mono text-[10px] text-meta hover:text-foreground"
+              >
+                Disconnect
+              </button>
+            </>
           )}
-          <button
-            onClick={() => void doPush()}
-            disabled={pushing}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
-          >
-            {pushing ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Github className="h-3 w-3" />
-            )}
-            {project.repo ? "Push update" : "Create repo and push"}
-          </button>
         </Section>
 
         <Section title="Danger">

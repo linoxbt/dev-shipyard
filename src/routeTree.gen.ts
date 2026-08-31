@@ -45,6 +45,7 @@ import { Route as DevAddressRouteImport } from './routes/dev.$address'
 import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
 import { Route as ApiQieIdentityRouteImport } from './routes/api.qie-identity'
 import { Route as ApiPublishRouteImport } from './routes/api.publish'
+import { Route as ApiGithubRouteImport } from './routes/api.github'
 import { Route as ApiBuildRouteImport } from './routes/api.build'
 import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
@@ -60,6 +61,8 @@ import { Route as ExplorerNetworkTxnsRouteImport } from './routes/explorer.$netw
 import { Route as ExplorerNetworkTokensRouteImport } from './routes/explorer.$network.tokens'
 import { Route as ExplorerNetworkStatsRouteImport } from './routes/explorer.$network.stats'
 import { Route as ExplorerNetworkBlocksRouteImport } from './routes/explorer.$network.blocks'
+import { Route as ApiGithubPushRouteImport } from './routes/api.github.push'
+import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
 import { Route as ExplorerNetworkTxHashRouteImport } from './routes/explorer.$network.tx.$hash'
 import { Route as ExplorerNetworkTokenHashRouteImport } from './routes/explorer.$network.token.$hash'
 import { Route as ExplorerNetworkBlockHeightRouteImport } from './routes/explorer.$network.block.$height'
@@ -245,6 +248,11 @@ const ApiPublishRoute = ApiPublishRouteImport.update({
   path: '/api/publish',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGithubRoute = ApiGithubRouteImport.update({
+  id: '/api/github',
+  path: '/api/github',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBuildRoute = ApiBuildRouteImport.update({
   id: '/api/build',
   path: '/api/build',
@@ -321,6 +329,16 @@ const ExplorerNetworkBlocksRoute = ExplorerNetworkBlocksRouteImport.update({
   path: '/blocks',
   getParentRoute: () => ExplorerNetworkRoute,
 } as any)
+const ApiGithubPushRoute = ApiGithubPushRouteImport.update({
+  id: '/push',
+  path: '/push',
+  getParentRoute: () => ApiGithubRoute,
+} as any)
+const ApiGithubCallbackRoute = ApiGithubCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => ApiGithubRoute,
+} as any)
 const ExplorerNetworkTxHashRoute = ExplorerNetworkTxHashRouteImport.update({
   id: '/tx/$hash',
   path: '/tx/$hash',
@@ -358,6 +376,7 @@ export interface FileRoutesByFullPath {
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
+  '/api/github': typeof ApiGithubRouteWithChildren
   '/api/publish': typeof ApiPublishRoute
   '/api/qie-identity': typeof ApiQieIdentityRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
@@ -386,6 +405,8 @@ export interface FileRoutesByFullPath {
   '/docs/': typeof DocsIndexRoute
   '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
+  '/api/github/callback': typeof ApiGithubCallbackRoute
+  '/api/github/push': typeof ApiGithubPushRoute
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
   '/explorer/$network/stats': typeof ExplorerNetworkStatsRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
@@ -413,6 +434,7 @@ export interface FileRoutesByTo {
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
+  '/api/github': typeof ApiGithubRouteWithChildren
   '/api/publish': typeof ApiPublishRoute
   '/api/qie-identity': typeof ApiQieIdentityRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
@@ -440,6 +462,8 @@ export interface FileRoutesByTo {
   '/docs': typeof DocsIndexRoute
   '/explorer': typeof ExplorerIndexRoute
   '/routebook': typeof RoutebookIndexRoute
+  '/api/github/callback': typeof ApiGithubCallbackRoute
+  '/api/github/push': typeof ApiGithubPushRoute
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
   '/explorer/$network/stats': typeof ExplorerNetworkStatsRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
@@ -470,6 +494,7 @@ export interface FileRoutesById {
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
+  '/api/github': typeof ApiGithubRouteWithChildren
   '/api/publish': typeof ApiPublishRoute
   '/api/qie-identity': typeof ApiQieIdentityRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
@@ -498,6 +523,8 @@ export interface FileRoutesById {
   '/docs/': typeof DocsIndexRoute
   '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
+  '/api/github/callback': typeof ApiGithubCallbackRoute
+  '/api/github/push': typeof ApiGithubPushRoute
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
   '/explorer/$network/stats': typeof ExplorerNetworkStatsRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
@@ -529,6 +556,7 @@ export interface FileRouteTypes {
     | '/api/ai'
     | '/api/apps-deploy'
     | '/api/build'
+    | '/api/github'
     | '/api/publish'
     | '/api/qie-identity'
     | '/api/sponsor-topup'
@@ -557,6 +585,8 @@ export interface FileRouteTypes {
     | '/docs/'
     | '/explorer/'
     | '/routebook/'
+    | '/api/github/callback'
+    | '/api/github/push'
     | '/explorer/$network/blocks'
     | '/explorer/$network/stats'
     | '/explorer/$network/tokens'
@@ -584,6 +614,7 @@ export interface FileRouteTypes {
     | '/api/ai'
     | '/api/apps-deploy'
     | '/api/build'
+    | '/api/github'
     | '/api/publish'
     | '/api/qie-identity'
     | '/api/sponsor-topup'
@@ -611,6 +642,8 @@ export interface FileRouteTypes {
     | '/docs'
     | '/explorer'
     | '/routebook'
+    | '/api/github/callback'
+    | '/api/github/push'
     | '/explorer/$network/blocks'
     | '/explorer/$network/stats'
     | '/explorer/$network/tokens'
@@ -640,6 +673,7 @@ export interface FileRouteTypes {
     | '/api/ai'
     | '/api/apps-deploy'
     | '/api/build'
+    | '/api/github'
     | '/api/publish'
     | '/api/qie-identity'
     | '/api/sponsor-topup'
@@ -668,6 +702,8 @@ export interface FileRouteTypes {
     | '/docs/'
     | '/explorer/'
     | '/routebook/'
+    | '/api/github/callback'
+    | '/api/github/push'
     | '/explorer/$network/blocks'
     | '/explorer/$network/stats'
     | '/explorer/$network/tokens'
@@ -698,6 +734,7 @@ export interface RootRouteChildren {
   ApiAiRoute: typeof ApiAiRoute
   ApiAppsDeployRoute: typeof ApiAppsDeployRoute
   ApiBuildRoute: typeof ApiBuildRoute
+  ApiGithubRoute: typeof ApiGithubRouteWithChildren
   ApiPublishRoute: typeof ApiPublishRoute
   ApiQieIdentityRoute: typeof ApiQieIdentityRoute
   ApiSponsorTopupRoute: typeof ApiSponsorTopupRoute
@@ -972,6 +1009,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublishRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/github': {
+      id: '/api/github'
+      path: '/api/github'
+      fullPath: '/api/github'
+      preLoaderRoute: typeof ApiGithubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/build': {
       id: '/api/build'
       path: '/api/build'
@@ -1076,6 +1120,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/explorer/$network/blocks'
       preLoaderRoute: typeof ExplorerNetworkBlocksRouteImport
       parentRoute: typeof ExplorerNetworkRoute
+    }
+    '/api/github/push': {
+      id: '/api/github/push'
+      path: '/push'
+      fullPath: '/api/github/push'
+      preLoaderRoute: typeof ApiGithubPushRouteImport
+      parentRoute: typeof ApiGithubRoute
+    }
+    '/api/github/callback': {
+      id: '/api/github/callback'
+      path: '/callback'
+      fullPath: '/api/github/callback'
+      preLoaderRoute: typeof ApiGithubCallbackRouteImport
+      parentRoute: typeof ApiGithubRoute
     }
     '/explorer/$network/tx/$hash': {
       id: '/explorer/$network/tx/$hash'
@@ -1186,6 +1244,20 @@ const ExplorerRouteWithChildren = ExplorerRoute._addFileChildren(
   ExplorerRouteChildren,
 )
 
+interface ApiGithubRouteChildren {
+  ApiGithubCallbackRoute: typeof ApiGithubCallbackRoute
+  ApiGithubPushRoute: typeof ApiGithubPushRoute
+}
+
+const ApiGithubRouteChildren: ApiGithubRouteChildren = {
+  ApiGithubCallbackRoute: ApiGithubCallbackRoute,
+  ApiGithubPushRoute: ApiGithubPushRoute,
+}
+
+const ApiGithubRouteWithChildren = ApiGithubRoute._addFileChildren(
+  ApiGithubRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
@@ -1199,6 +1271,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAiRoute: ApiAiRoute,
   ApiAppsDeployRoute: ApiAppsDeployRoute,
   ApiBuildRoute: ApiBuildRoute,
+  ApiGithubRoute: ApiGithubRouteWithChildren,
   ApiPublishRoute: ApiPublishRoute,
   ApiQieIdentityRoute: ApiQieIdentityRoute,
   ApiSponsorTopupRoute: ApiSponsorTopupRoute,
