@@ -15,6 +15,7 @@ import {
   type DeploymentLike,
   type TemplateCredit,
 } from "@/lib/reputation";
+import { fetchExplorer } from "@/lib/api/explorer-fetch";
 
 // Developer profiles and the leaderboard, derived from on-chain facts only.
 //
@@ -104,7 +105,7 @@ interface RawDeployment {
 async function verifiedOnExplorer(chainId: number, address: string): Promise<boolean | null> {
   try {
     const base = chainConfig(chainId).explorerUrl;
-    const resp = await fetch(`${base}/api/v2/smart-contracts/${address}`);
+    const resp = await fetchExplorer(`${base}/api/v2/smart-contracts/${address}`);
     if (resp.status === 404) return false;
     if (!resp.ok) return null;
     const json = (await resp.json()) as { is_verified?: boolean };
@@ -193,7 +194,7 @@ export const getLeaderboard = createServerFn({ method: "GET" })
     try {
       const api = chainConfig(data.chainId).explorerApiUrl;
       const url = `${api}?module=account&action=txlist&address=${registry}&sort=asc`;
-      const resp = await fetch(url);
+      const resp = await fetchExplorer(url);
       const json = (await resp.json()) as {
         result?: Array<{ to?: string; from: string; input?: string; isError?: string }>;
       };

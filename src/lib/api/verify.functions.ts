@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { chainConfig } from "@/lib/chains";
+import { fetchExplorer } from "@/lib/api/explorer-fetch";
 
 // Contract source verification against the QIE explorer (Blockscout). DevStation
 // templates are self-contained single files, so we use Blockscout's v2
@@ -193,7 +194,7 @@ export const getVerificationStatus = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const url = `${explorerBase(data.chainId)}/api/v2/smart-contracts/${data.address}`;
     try {
-      const resp = await fetch(url);
+      const resp = await fetchExplorer(url);
       if (resp.status === 404) return { verified: false as const, found: false as const };
       if (!resp.ok) return { verified: false as const, found: false as const };
       const json = (await resp.json()) as { is_verified?: boolean; name?: string };
@@ -218,7 +219,7 @@ export const getContractAbi = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const url = `${explorerBase(data.chainId)}/api/v2/smart-contracts/${data.address}`;
     try {
-      const resp = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+      const resp = await fetchExplorer(url, { signal: AbortSignal.timeout(15_000) });
       if (!resp.ok) {
         return {
           ok: false as const,
@@ -268,7 +269,7 @@ export const getIsContractIndexed = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const url = `${explorerBase(data.chainId)}/api/v2/addresses/${data.address}`;
     try {
-      const resp = await fetch(url);
+      const resp = await fetchExplorer(url);
       if (!resp.ok) return { indexed: false as const };
       const json = (await resp.json()) as { is_contract?: boolean };
       return { indexed: json.is_contract === true };

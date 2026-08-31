@@ -5,7 +5,7 @@ import { qieIdAddress, isContractConfigured } from "@/lib/contracts";
 import { qieIdAbi } from "@/lib/qie/identity";
 import { loadIdentity, type ExplorerTransfer, type IdentitySources } from "@/lib/qie/client";
 import type { QieIdentity } from "@/lib/qie/identity";
-import { chainConfig } from "@/lib/chains";
+import { getExplorerData } from "@/lib/api/explorer.functions";
 
 // Wiring the identity layer to the real chain and the real explorer.
 //
@@ -25,13 +25,16 @@ const ownerOfAbi = [
 
 function makeSources(address: string, chainId: number): IdentitySources {
   const contract = qieIdAddress(chainId);
-  // Blockscout serves its API under the same host as the explorer UI.
-  const api = chainConfig(chainId).explorerUrl.replace(/\/+$/, "") + "/api";
 
-  const json = async (url: string) => {
-    const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+  // Routed through the server rather than fetched from the page. The browser
+  // enforces its own certificate check, so while QIE's explorer certificate is
+  // invalid a client-side call fails outright and no server-side handling can
+  // reach it. getExplorerData validates the path, fixes the host from chainId,
+  // and shares the same scoped certificate handling as every other call.
+  const json = async (path: string) => {
+    const res = await getExplorerData({ data: { chainId, path } });
     if (!res.ok) throw new Error(`explorer ${res.status}`);
-    return res.json() as Promise<Record<string, unknown>>;
+    return (res.data ?? {}) as Record<string, unknown>;
   };
 
   return {
@@ -55,7 +58,7 @@ function makeSources(address: string, chainId: number): IdentitySources {
       if (!isContractConfigured(contract)) return [];
       // Mints of this token into the wallet — each one is a registration.
       const d = (await json(
-        `${api}/v2/addresses/${address}/token-transfers?type=ERC-721&token=${contract}`,
+        `/addresses/${address}/token-transfers?type=ERC-721&token=${contract}`,
       )) as { items?: Array<Record<string, unknown>> };
       const out: ExplorerTransfer[] = [];
       for (const item of d.items ?? []) {
@@ -70,7 +73,7 @@ function makeSources(address: string, chainId: number): IdentitySources {
     },
 
     txInput: async (txHash) => {
-      const d = (await json(`${api}/v2/transactions/${txHash}`)) as { raw_input?: string };
+      const d = (await json(`/transactions/${txHash}`)) as { raw_input?: string };
       return d.raw_input ?? null;
     },
 
@@ -101,8 +104,8 @@ function makeSources(address: string, chainId: number): IdentitySources {
       };
 
       const [txs, transfers] = await Promise.all([
-        json(`${api}/v2/addresses/${address}/transactions`).catch(() => ({})),
-        json(`${api}/v2/addresses/${address}/token-transfers`).catch(() => ({})),
+        json(`/addresses/${address}/transactions`).catch(() => ({})),
+        json(`/addresses/${address}/token-transfers`).catch(() => ({})),
       ]);
       collect((txs as { items?: Array<{ timestamp?: string }> }).items);
       collect((transfers as { items?: Array<{ timestamp?: string }> }).items);

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { chainConfig } from "@/lib/chains";
+import { fetchExplorer } from "@/lib/api/explorer-fetch";
 
 // Server-side proxy to the QIE explorer's Blockscout v2 API. Fetching from the
 // server avoids browser CORS limits and keeps the explorer working in SSR. The
@@ -38,7 +39,7 @@ export const getExplorerData = createServerFn({ method: "GET" })
     const base = chainConfig(chainId).explorerUrl.replace(/\/$/, "");
     const url = `${base}/api/v2${path}`;
     try {
-      const resp = await fetch(url, { headers: { accept: "application/json" } });
+      const resp = await fetchExplorer(url, { headers: { accept: "application/json" } });
       if (!resp.ok) {
         return {
           ok: false as const,

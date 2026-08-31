@@ -12,6 +12,7 @@ import {
 import { projectRegistryAbi } from "@/lib/abis/projectRegistry";
 import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
 import { projectRegistryAddress, isContractConfigured } from "@/lib/contracts";
+import { fetchExplorer } from "@/lib/api/explorer-fetch";
 
 function clientFor(chainId: number) {
   const chain = SUPPORTED_CHAINS.find((c) => c.id === chainId) ?? qieTestnet;
@@ -168,7 +169,7 @@ export const getEcosystemStats = createServerFn({ method: "GET" })
     try {
       const api = chainConfig(chainId).explorerApiUrl;
       const url = `${api}?module=account&action=txlist&address=${registry}&sort=asc`;
-      const resp = await fetch(url);
+      const resp = await fetchExplorer(url);
       const json = (await resp.json()) as {
         result?: Array<{ to?: string; from: string; input?: string; isError?: string }>;
       };
@@ -231,7 +232,7 @@ export const getCombinedEcosystemStats = createServerFn({ method: "GET" })
         try {
           const api = chainConfig(chainId).explorerApiUrl;
           const url = `${api}?module=account&action=txlist&address=${registry}&sort=asc`;
-          const resp = await fetch(url);
+          const resp = await fetchExplorer(url);
           const json = (await resp.json()) as {
             result?: Array<{ to?: string; from: string; input?: string; isError?: string }>;
           };
@@ -276,7 +277,7 @@ export const getTemplateDeployCounts = createServerFn({ method: "GET" })
     try {
       const api = chainConfig(chainId).explorerApiUrl;
       const url = `${api}?module=account&action=txlist&address=${registry}&sort=asc`;
-      const resp = await fetch(url);
+      const resp = await fetchExplorer(url);
       const json = (await resp.json()) as {
         result?: Array<{ to?: string; input?: string; isError?: string }>;
       };
@@ -324,7 +325,7 @@ export const getAllDeployments = createServerFn({ method: "GET" })
     try {
       const api = chainConfig(chainId).explorerApiUrl;
       const url = `${api}?module=account&action=txlist&address=${registry}&sort=desc`;
-      const resp = await fetch(url);
+      const resp = await fetchExplorer(url);
       const json = (await resp.json()) as {
         result?: Array<{
           to?: string;
@@ -376,7 +377,7 @@ export const getAllDeploymentsCombined = createServerFn({ method: "GET" })
         try {
           const api = chainConfig(chainId).explorerApiUrl;
           const url = `${api}?module=account&action=txlist&address=${registry}&sort=desc`;
-          const resp = await fetch(url);
+          const resp = await fetchExplorer(url);
           const json = (await resp.json()) as {
             result?: Array<{
               to?: string;
@@ -454,7 +455,7 @@ async function verifiedAutoDeployPairs(chainId: number): Promise<Set<string> | n
   try {
     const api = chainConfig(chainId).explorerApiUrl;
     const url = `${api}?module=account&action=txlist&address=${registry}&sort=asc`;
-    const resp = await fetch(url);
+    const resp = await fetchExplorer(url);
     const json = (await resp.json()) as {
       result?: Array<{ to?: string; from: string; input?: string; isError?: string }>;
     };
@@ -489,7 +490,7 @@ export const getAllLabels = createServerFn({ method: "GET" })
     try {
       const api = chainConfig(chainId).explorerApiUrl;
       const url = `${api}?module=account&action=txlist&address=${registry}&sort=asc`;
-      const resp = await fetch(url);
+      const resp = await fetchExplorer(url);
       const json = (await resp.json()) as {
         result?: Array<{
           to?: string;

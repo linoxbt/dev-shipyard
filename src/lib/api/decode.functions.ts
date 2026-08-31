@@ -24,6 +24,7 @@ import {
   type ApprovalRecord,
   type CallType,
 } from "@/lib/data/transactions";
+import { fetchExplorer } from "@/lib/api/explorer-fetch";
 
 // ERC-20 event topic0 hashes.
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
@@ -255,7 +256,7 @@ export const decodeTransaction = createServerFn({ method: "POST" })
           // calldata instead.
           try {
             const api = chainConfig(chainId).explorerApiUrl;
-            const resp = await fetch(
+            const resp = await fetchExplorer(
               `${api}?module=account&action=txlist&address=${labelReg}&sort=asc`,
             );
             const json = (await resp.json()) as {
