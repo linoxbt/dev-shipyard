@@ -346,7 +346,10 @@ const server = createServer(async (req, res) => {
         history: Array.isArray(body.history) ? body.history : [],
         context: body.context,
         dir: body.dir,
-        mode: body.mode === "review" ? "review" : "build",
+        // Passed through, NOT defaulted to "build". runTurn only classifies
+        // when the mode is unset, so forcing one here bypassed the intent
+        // layer entirely — "hello" reached the build pipeline and wrote files.
+        mode: body.mode === "review" || body.mode === "build" ? body.mode : undefined,
       });
       return json(res, 200, { ok: true, id: job.id, phase: job.phase, status: job.status });
     }

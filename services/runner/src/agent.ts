@@ -137,6 +137,8 @@ export interface StartAgentInput {
   history: ChatMessage[];
   context?: PromptContext;
   dir?: string;
+  /** Left undefined so the turn decides for itself. Defaulting this to
+   *  "build" is what made a greeting build an app. */
   mode?: "build" | "review";
   /** Passed straight through to the build step. */
   target?: string;
@@ -294,10 +296,20 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
           // found nothing and every build down this path died on
           // "ENOENT /work/package.json". The in-page path had always called
           // this; the server-side path was added without it.
-          const out = await runBuildViaSelf(
-            projectFiles(files, input.dir ?? "app"),
-            controller.signal,
-          );
+          const project = projectFiles(files, input.dir ?? "app");
+          // An ESM-target app is index.html plus a module: there is no
+          // package.json and nothing to install. npm fails on it with
+          // "ENOENT /work/package.json" every time, which is what filled the
+          // dashboard with failed builds. runBuildJob has always checked this;
+          // this path calls the runner directly and skipped it.
+          if (!project["package.json"]) {
+            touch(job, { buildNote: "No package.json, so there is nothing to build." });
+            return {
+              ok: true,
+              unavailable: "This app has no package.json, so there is nothing to build.",
+            } as never;
+          }
+          const out = await runBuildViaSelf(project, controller.signal);
           return out as never;
         },
       });
