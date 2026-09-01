@@ -173,7 +173,10 @@ function AppBuilderPage() {
         return;
       }
       if (job.phase !== "done") return;
-      if (job.files) {
+      // Object.keys, not truthiness: {} is truthy, so a conversational turn was
+      // setting files to an empty app, which then failed validation with
+      // "There is no index.html" for something never built.
+      if (job.files && Object.keys(job.files).length > 0) {
         setFiles(job.files);
         writeFiles(Object.entries(job.files).map(([path, content]) => ({ path, content })));
       }
@@ -242,7 +245,13 @@ function AppBuilderPage() {
     return () => onProjectsWriteError(null);
   }, []);
 
-  const issues = useMemo(() => (files ? validateApp(files, "app", target) : []), [files, target]);
+  // An empty workspace is not a broken app — it is one that has not been built
+  // yet, and telling someone their nonexistent app is missing index.html is
+  // noise they cannot act on.
+  const issues = useMemo(
+    () => (files && Object.keys(files).length > 0 ? validateApp(files, "app", target) : []),
+    [files, target],
+  );
   const fatal = issues.filter((i) => i.fatal);
 
   // What the preview shows. A built project is previewed from its build

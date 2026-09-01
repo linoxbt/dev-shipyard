@@ -88,6 +88,12 @@ export function validateApp(
 ): ValidationIssue[] {
   const prefix = dir ? `${dir}/` : "";
   const issues: ValidationIssue[] = [];
+
+  // Nothing to validate. An empty workspace is an app that has not been built
+  // yet, not a broken one — and after a purely conversational turn, reporting
+  // "There is no index.html." offered a fix for something nobody had asked to
+  // exist.
+  if (Object.keys(files).length === 0) return issues;
   const own = Object.fromEntries(
     Object.entries(files)
       .filter(([p]) => p.startsWith(prefix))

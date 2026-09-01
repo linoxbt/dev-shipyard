@@ -147,3 +147,17 @@ describe("validateApp, vite target", () => {
     expect(validateApp(noRoot, "app", "vite").some((i) => i.fatal)).toBe(true);
   });
 });
+
+describe("an empty workspace is not a broken app", () => {
+  it("reports nothing for a project with no files", () => {
+    // A conversational turn leaves the workspace untouched. Validating it
+    // produced "There is no index.html." for an app that was never built —
+    // shown as a fixable error, which the user could do nothing about.
+    expect(validateApp({}, "app")).toEqual([]);
+  });
+
+  it("still reports a missing index.html once there ARE files", () => {
+    const issues = validateApp({ "app/app.js": "" }, "app");
+    expect(issues.some((i) => i.message.includes("no index.html"))).toBe(true);
+  });
+});
