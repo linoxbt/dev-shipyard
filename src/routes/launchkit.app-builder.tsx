@@ -26,7 +26,7 @@ import { chainConfig, nativeSymbol } from "@/lib/chains";
 import { generateApp } from "@/lib/appgen/generate";
 import { buildConfigured, runBuildJob } from "@/lib/appgen/build";
 import { blankScaffold } from "@/lib/appgen/prompt";
-import { looksLikeReviewRequest, runTurn } from "@/lib/appgen/session";
+import { runTurn } from "@/lib/appgen/session";
 import { nameFromPrompt, onProjectsWriteError, useProjects } from "@/lib/appgen/projects";
 import { validateApp } from "@/lib/appgen/validate";
 import type { PreviewError } from "@/lib/appgen/preview";
@@ -263,8 +263,10 @@ function AppBuilderPage() {
       // Asking to "check this over" and getting an unrequested rewrite is the
       // behaviour that makes an agent feel careless, so a question is read as a
       // question. The button is the explicit way in.
-      const mode: "build" | "review" =
-        forced ?? (looksLikeReviewRequest(prompt) ? "review" : "build");
+      // Left undefined on purpose: the turn reads the message and decides.
+      // Routing here on a regular expression is what made "hello" say
+      // "Planning the app…" before the model had been asked anything.
+      const mode = forced;
       if (!isAiConfigured()) {
         toast.error("Add an API key in AI settings first.");
         return;
@@ -278,7 +280,6 @@ function AppBuilderPage() {
         { role: "assistant", text: "", changed: [], live: true },
       ]);
       setBusy(true);
-      setStatus(mode === "review" ? "Reading the code…" : "Planning the app…");
 
       // Create the project HERE — on the first prompt, before anything can try
       // to save into it. Creating it on mount left an empty "Untitled app"
@@ -293,8 +294,7 @@ function AppBuilderPage() {
       // moment you asked for a change and stayed gone for the minutes a build
       // takes — the worst possible moment to lose sight of what you have. It is
       // marked stale instead, and replaced the moment a new build lands.
-      if (mode === "build") {
-        setStale(true);
+      if (mode !== "review") {
         setBuildNote(null);
       }
       // Prefer a runner-hosted turn. It survives this page: refresh, close the
@@ -327,7 +327,6 @@ function AppBuilderPage() {
           if (started) return;
           // Falling through on failure is deliberate: a runner that cannot be
           // reached should degrade to building in the page, not to nothing.
-          setStatus(mode === "review" ? "Reading the code…" : "Planning the app…");
         }
       }
 
@@ -361,6 +360,10 @@ function AppBuilderPage() {
           history,
           previewErrors,
           signal: controller.signal,
+          // The status line is whatever the agent says it is doing. Both
+          // surfaces carry the same text, so the label can never contradict
+          // the event.
+          onProgress: (e) => setStatus(e.message),
           onStatus: setStatus,
           onProse: (text) =>
             setTurns((t) => {
@@ -369,7 +372,11 @@ function AppBuilderPage() {
               if (i >= 0) next[i] = { ...next[i], text };
               return next;
             }),
-          onFile: (path) =>
+          onFile: (path) => {
+            // Stale from the moment a file actually changes, not from the
+            // moment a message was sent — a greeting must not grey out a
+            // working preview.
+            setStale(true);
             setTurns((t) => {
               const next = [...t];
               const i = liveIndex(next);
@@ -377,13 +384,14 @@ function AppBuilderPage() {
                 next[i] = { ...next[i], changed: [...new Set([...(next[i].changed ?? []), path])] };
               }
               return next;
-            }),
+            });
+          },
           // When there is a runner, every turn ends with the project installed,
           // linted, built and driven in a real browser. Anything that fails
           // comes back to the model as another message, the same way a
           // validation error already does.
           runBuild:
-            canBuild && mode === "build"
+            canBuild && mode !== "review"
               ? async (current) => {
                   const outcome = await runBuildJob(current, { signal: controller.signal });
                   setBuildNote(outcome.unavailable ?? null);

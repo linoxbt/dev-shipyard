@@ -22,6 +22,14 @@ import {
   type PromptContext,
 } from "./prompt";
 import { issuesForModel, validateApp, type ValidationIssue } from "./validate";
+import {
+  classifyIntent,
+  parseStatusMarkers,
+  stripStatusMarkers,
+  type AgentProgress,
+  type AgentState,
+  type TurnMode,
+} from "./intent";
 import type { PreviewError } from "./preview";
 
 /** How many auto-repair rounds a single turn may take before handing back. */
@@ -90,6 +98,9 @@ export interface TurnInput {
   onDelta?: (chunk: string) => void;
   /** Called between repair rounds, so the UI can say what is happening. */
   onStatus?: (status: string) => void;
+  /** Every state change, with a message describing the ACTUAL action. The UI
+   *  renders these instead of a fixed Planning → Coding → Testing sequence. */
+  onProgress?: (event: AgentProgress) => void;
   /** Live prose from the model, so the chat reads as it thinks rather than
    *  sitting on a spinner. */
   onProse?: (text: string) => void;
@@ -97,7 +108,9 @@ export interface TurnInput {
   onFile?: (path: string) => void;
   /** "review" reads the app over and reports findings without touching it.
    *  Nothing is written, nothing is built, and no repair rounds run. */
-  mode?: "build" | "review";
+  /** Force a mode. Left unset, the turn decides for itself from the message and
+   *  the conversation — a greeting must never reach the build pipeline. */
+  mode?: TurnMode;
   /** Runs the project's real toolchain. Absent when no build runner is
    *  configured, in which case static validation is the only feedback there
    *  is — which is exactly how this worked before, and still works. */
@@ -252,7 +265,55 @@ function applyFiles(
 export async function runTurn(input: TurnInput): Promise<TurnResult> {
   const chat = input.chat ?? chatStream;
   const dir = input.dir ?? "app";
-  const review = input.mode === "review";
+
+  const report = (state: AgentState, message: string) => {
+    input.onProgress?.({ state, message, timestamp: Date.now() });
+    // onStatus is the older, single-string surface. It carries the same
+    // message so nothing shows a label that contradicts the event.
+    input.onStatus?.(message);
+  };
+
+  // Decide what this message actually is before doing anything. Skipped only
+  // when the caller has already decided — the Review button, for instance.
+  let mode: TurnMode = input.mode ?? "build";
+  if (!input.mode) {
+    const intent = await classifyIntent({
+      prompt: input.prompt,
+      history: input.history,
+      files: input.files,
+      chat,
+      signal: input.signal,
+    });
+    mode = intent.mode;
+
+    // A conversation ends here. No files are written, no build runs, and no
+    // build-shaped status is ever shown — which is the entire point.
+    if (mode === "converse" && intent.reply) {
+      report(
+        intent.needsClarification ? "asking_clarification" : "conversational",
+        intent.needsClarification ? "Asking about one detail…" : "Answering…",
+      );
+      input.onProse?.(intent.reply);
+      const history: ChatMessage[] = [
+        ...input.history,
+        { role: "user", content: input.prompt },
+        { role: "assistant", content: intent.reply },
+      ];
+      return {
+        files: input.files,
+        changed: [],
+        history,
+        issues: [],
+        reply: intent.reply,
+        repaired: 0,
+      };
+    }
+    if (intent.understanding) {
+      report(mode === "review" ? "reviewing" : "planning", intent.understanding);
+    }
+  }
+
+  const review = mode === "review";
   const system = review
     ? reviewSystemPrompt(input.context ?? {})
     : appBuilderSystemPrompt(input.context ?? {});
@@ -273,8 +334,8 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   // A review is one pass: ask, read the answer, stop. No files, no build, no
   // repair rounds — there is nothing to repair.
   if (review) {
-    input.onStatus?.("Reading the code…");
     let streamed = "";
+    let reviewStatuses = 0;
     reply = await chat({
       system,
       messages,
@@ -282,7 +343,15 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
       onDelta: (chunk) => {
         streamed += chunk;
         input.onDelta?.(chunk);
-        input.onProse?.(streamed);
+        // A review narrates itself the same way a build does, so nothing here
+        // announces a status the model has not actually claimed.
+        const markers = parseStatusMarkers(streamed);
+        for (const m of markers.slice(reviewStatuses)) {
+          input.onProgress?.(m);
+          input.onStatus?.(m.message);
+        }
+        reviewStatuses = markers.length;
+        input.onProse?.(stripStatusMarkers(streamed));
       },
     });
     messages.push({ role: "assistant", content: reply });
@@ -298,13 +367,12 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
 
   let forcedBuild = false;
   for (let round = 0; round <= MAX_REPAIR_ROUNDS; round++) {
-    if (round > 0) input.onStatus?.(`Fixing what would not run (${round}/${MAX_REPAIR_ROUNDS})…`);
-    input.onStatus?.(
-      round === 0
-        ? "Planning the app…"
-        : `Fixing what would not run (${round}/${MAX_REPAIR_ROUNDS})…`,
-    );
+    // No status is announced here. The model emits its own as it works (see
+    // STATUS_PROTOCOL); announcing one now would be a guess about what it is
+    // about to do, which is the habit this replaced.
     let streamed = "";
+    let reportedStatuses = 0;
+    let lastFileReported = "";
     reply = await chat({
       system,
       messages,
@@ -312,15 +380,27 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
       onDelta: (chunk) => {
         streamed += chunk;
         input.onDelta?.(chunk);
+        // Show each completed marker once, in the order the model wrote it.
+        const markers = parseStatusMarkers(streamed);
+        for (const m of markers.slice(reportedStatuses)) {
+          input.onProgress?.(m);
+          input.onStatus?.(m.message);
+        }
+        reportedStatuses = markers.length;
         // Surface the prose as it arrives; the code blocks are reported
-        // separately as files land.
-        input.onProse?.(stripCodeBlocks(streamed));
+        // separately as files land, and the markers are not prose.
+        input.onProse?.(stripStatusMarkers(stripCodeBlocks(streamed)));
         const open = (streamed.match(/```/g) ?? []).length;
         if (open % 2 === 1) {
           const name = /```[^\n]*?([A-Za-z0-9_\-./]+\.[A-Za-z0-9]+)/.exec(
             streamed.slice(streamed.lastIndexOf("```")),
           )?.[1];
-          if (name) input.onStatus?.(`Writing ${name}…`);
+          // Once per file, not once per chunk: this fired on every delta, so
+          // "Writing app.js…" appeared nine times in a row.
+          if (name && name !== lastFileReported) {
+            lastFileReported = name;
+            report("implementing", `Writing ${name}…`);
+          }
         }
       },
     });
@@ -337,7 +417,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
       // treating the reply as conversation.
       if (input.mode !== "review" && !forcedBuild) {
         forcedBuild = true;
-        input.onStatus?.("Getting it to build…");
+        report("implementing", "That came back without any code — asking again…");
         messages.push({
           role: "user",
           content:
@@ -355,7 +435,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     changed = [...new Set([...changed, ...applied.changed])];
     for (const path of applied.changed) input.onFile?.(path);
 
-    input.onStatus?.("Checking it runs…");
+    report("validating", "Checking it runs…");
     issues = validateApp(files, dir, input.context?.target);
     const problem = issuesForModel(issues);
 
@@ -363,7 +443,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     // so there is no sense spending a minute of build time to be told the
     // same thing more slowly.
     if (!problem && input.runBuild) {
-      input.onStatus?.("Installing, building and testing…");
+      report("validating", "Installing dependencies, building and running the tests…");
       build = await input.runBuild(files);
       const failure = buildFeedback(build);
       if (!failure) break;
@@ -384,44 +464,17 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     changed,
     history: messages,
     issues,
-    reply: stripCodeBlocks(reply),
+    reply: stripStatusMarkers(stripCodeBlocks(reply)),
     repaired,
     build,
   };
 }
 
-/** Does this prompt read as "look at it", rather than "change it"?
- *
- *  Deliberately conservative, because the failure is asymmetric: missing a
- *  review request costs one wasted click on the button, while mistaking a build
- *  request for a review means the app you asked for never gets written.
- *
- *  It got that exactly wrong once. The match was a bare \breview\b anywhere in
- *  the prompt, so "build a swap interface with a review modal" — and every
- *  spec containing a "Review Swap" button — was answered with a code review
- *  instead of an app. Hence the two guards below: any building verb wins, and
- *  the review word has to open a SHORT prompt rather than merely appear
- *  somewhere in a long one.
- *
- *  The Review button remains the reliable way in; this only catches the
- *  obvious conversational case. */
-const BUILD_VERBS =
-  /\b(build|create|make|generate|design|add|implement|write|fix|change|update|remove|rewrite|refactor|turn it into|convert)\b/;
-const REVIEW_OPENERS =
-  /^(please\s+)?(can you\s+|could you\s+|would you\s+)?(review|audit|critique|sanity[- ]check|check (it|this|the code)|look (it|this) over|go over (it|this))\b/;
-const REVIEW_QUESTIONS =
-  /^(any (bugs|issues|problems)|what('s| is) wrong|is (this|it) (ok|okay|sound|correct))\b/;
-/** Longer than this and it is a specification, not a question. */
-const MAX_REVIEW_PROMPT_CHARS = 120;
-
-export function looksLikeReviewRequest(prompt: string): boolean {
-  const p = prompt.toLowerCase().trim();
-  // An instruction to build or change something always wins, wherever it
-  // appears. "review it and fix the bugs" is a build request.
-  if (BUILD_VERBS.test(p)) return false;
-  if (p.length > MAX_REVIEW_PROMPT_CHARS) return false;
-  return REVIEW_OPENERS.test(p) || REVIEW_QUESTIONS.test(p);
-}
+// The keyword classifier that used to live here is gone. It routed on a
+// regular expression — any message without a "building verb" that opened
+// with "review" was a review, everything else was a build — so "hello" set
+// the status to "Planning the app…" and went looking for files to write.
+// Intent is now read from meaning by classifyIntent() in ./intent.ts.
 
 /** The prose around the code, for the chat transcript. */
 export function stripCodeBlocks(text: string): string {

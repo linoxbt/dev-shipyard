@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import {
   buildFeedback,
   stateBriefing,
-  looksLikeReviewRequest,
   stripCodeBlocks,
   trimHistory,
   type BuildOutcome,
@@ -157,61 +156,5 @@ describe("trimHistory", () => {
   it("never leaves an assistant turn empty", () => {
     const trimmed = trimHistory([{ role: "assistant", content: "```js app.js\nx\n```" }]);
     expect(trimmed[0].content.length).toBeGreaterThan(0);
-  });
-});
-
-describe("looksLikeReviewRequest", () => {
-  it("recognises a short, direct request to look rather than touch", () => {
-    for (const p of [
-      "review the code",
-      "audit this app",
-      "can you check it over?",
-      "any bugs?",
-      "what's wrong with this",
-      "sanity check please",
-      "look this over",
-    ]) {
-      expect(looksLikeReviewRequest(p)).toBe(true);
-    }
-  });
-
-  it("never intercepts a request to build or change something", () => {
-    // The failure is asymmetric: missing a review costs one click on the
-    // button; mistaking a build for a review means the app never gets written.
-    for (const p of [
-      "fix the layout",
-      "add a dark mode",
-      "review it and fix the bugs",
-      "build a swap interface",
-      "make it responsive",
-      "create a portfolio page",
-    ]) {
-      expect(looksLikeReviewRequest(p)).toBe(false);
-    }
-  });
-
-  it("does not fire because a spec happens to CONTAIN the word review", () => {
-    // The bug this guards: "review modal" and "Review Swap" appear all over a
-    // swap specification, and every one of them used to turn a build request
-    // into a code review.
-    expect(
-      looksLikeReviewRequest(
-        "build a crypto swap interface with a review modal summarising everything before confirming",
-      ),
-    ).toBe(false);
-    expect(
-      looksLikeReviewRequest("add a Review Swap button that opens a confirmation dialog"),
-    ).toBe(false);
-  });
-
-  it("treats anything long as a specification, not a question", () => {
-    const long = "review ".repeat(40);
-    expect(long.length).toBeGreaterThan(120);
-    expect(looksLikeReviewRequest(long)).toBe(false);
-  });
-
-  it("requires the review word to open the prompt", () => {
-    expect(looksLikeReviewRequest("the modal needs a review step")).toBe(false);
-    expect(looksLikeReviewRequest("review this")).toBe(true);
   });
 });

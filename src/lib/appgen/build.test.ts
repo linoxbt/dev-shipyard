@@ -105,3 +105,34 @@ describe("buildConfigured", () => {
     expect(await buildConfigured()).toBe(false);
   });
 });
+
+describe("projectFiles — the workspace prefix", () => {
+  it("moves the project to the root, because npm installs in /work", () => {
+    // 38 of 54 recorded builds failed on "ENOENT /work/package.json" because a
+    // caller sent app/-prefixed paths straight to the runner. The container
+    // installs at /work, so package.json has to be at the top.
+    const out = projectFiles({
+      "app/package.json": "{}",
+      "app/src/main.js": "x",
+      "app/index.html": "<h1/>",
+    });
+    expect(Object.keys(out).sort()).toEqual(["index.html", "package.json", "src/main.js"]);
+  });
+
+  it("drops anything outside the workspace directory", () => {
+    const out = projectFiles({ "app/package.json": "{}", "notes.md": "x" });
+    expect(out["notes.md"]).toBeUndefined();
+    expect(out["package.json"]).toBe("{}");
+  });
+
+  it("returns nothing when NOTHING carries the prefix — the failure mode", () => {
+    // An empty result is what the runner saw: a container with no package.json.
+    // Callers must not hand these files to the runner expecting a build.
+    expect(projectFiles({ "package.json": "{}", "index.html": "<h1/>" })).toEqual({});
+  });
+
+  it("honours a non-default workspace directory", () => {
+    const out = projectFiles({ "site/package.json": "{}" }, "site");
+    expect(out["package.json"]).toBe("{}");
+  });
+});

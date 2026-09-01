@@ -18,6 +18,7 @@ import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { runTurn } from "../../../src/lib/appgen/session";
+import { projectFiles } from "../../../src/lib/appgen/build";
 import type { ChatMessage } from "../../../src/lib/ai";
 import type { PromptContext } from "../../../src/lib/appgen/prompt";
 
@@ -287,7 +288,16 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
         onFile: (path) => touch(job, { changed: [...new Set([...job.changed, path])] }),
         runBuild: async (files) => {
           touch(job, { status: "Building…" });
-          const out = await runBuildViaSelf(files, controller.signal);
+          // Strip the workspace prefix. The workspace stores
+          // "app/package.json"; the container installs in /work, so npm needs
+          // "package.json" at the root. Sending the prefixed paths meant npm
+          // found nothing and every build down this path died on
+          // "ENOENT /work/package.json". The in-page path had always called
+          // this; the server-side path was added without it.
+          const out = await runBuildViaSelf(
+            projectFiles(files, input.dir ?? "app"),
+            controller.signal,
+          );
           return out as never;
         },
       });

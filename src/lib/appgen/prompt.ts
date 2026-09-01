@@ -8,6 +8,7 @@
 // not invent the project's shape.
 
 import { CDN_VERSIONS, viteShell, type BuildTarget } from "./generate";
+import { STATUS_PROTOCOL } from "./intent";
 
 /** Files the model is allowed to write. Anything else is ignored, so a
  *  confused response cannot scatter files across the workspace. */
@@ -185,7 +186,9 @@ Go through the current code and report what you actually find, worst first:
     c
       ? `\n\nThe app talks to ${c.address} on ${c.chainName} (chain ${c.chainId}), native token ${c.nativeSymbol}.`
       : ""
-  }`;
+  }
+
+${STATUS_PROTOCOL}`;
 }
 
 /** System prompt for free-form app building. */
@@ -255,7 +258,9 @@ Rules:
 - Never say you "cannot" build something because credentials, network access or an API key are missing. Build the real integration behind an env var and render a clear "not configured" state when it is absent. That is what the user asked for.
 - Ask a question ONLY when you have also shipped working code in the same reply, and only when a genuine either/or would send the next pass in the wrong direction.
 
-${environment}`;
+${environment}
+
+${STATUS_PROTOCOL}`;
 
   if (!ctx.contract) {
     return `${base}
