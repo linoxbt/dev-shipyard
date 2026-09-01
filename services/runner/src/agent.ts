@@ -259,7 +259,10 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     phase: "running",
-    status: input.mode === "review" ? "Reading the code…" : "Planning the app…",
+    // Seeded empty on purpose: the first status a user sees must come from
+    // the classifier or the model, never from job creation. A greeting is
+    // not a plan.
+    status: "",
     prose: "",
     changed: [],
     files: null,

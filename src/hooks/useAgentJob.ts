@@ -189,7 +189,10 @@ export function useAgentJob(
       id: body.id,
       projectId: input.projectId,
       phase: "running",
-      status: input.mode === "review" ? "Reading the code…" : "Planning the app…",
+      // No status until the agent reports one. Seeding a label here claimed
+      // the turn was planning an app before it had even been classified,
+      // which is what made "hi" say "Planning the app…".
+      status: "",
       prose: "",
       changed: [],
       files: null,
