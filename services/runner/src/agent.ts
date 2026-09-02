@@ -19,6 +19,8 @@ import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { runTurn } from "../../../src/lib/appgen/session";
 import { projectFiles } from "../../../src/lib/appgen/build";
+import { preflight } from "../../../src/lib/agent/tools";
+import type { GateCall, GateDecision } from "../../../src/lib/appgen/session";
 import type { ChatMessage } from "../../../src/lib/ai";
 import type { PromptContext } from "../../../src/lib/appgen/prompt";
 
@@ -51,6 +53,10 @@ export interface AgentJob {
   history: ChatMessage[];
   issues: string[];
   buildNote: string | null;
+  /** Actions the policy engine refused, with the reason. Recorded on the job so
+   *  a refusal is visible after the fact rather than only in the model's
+   *  transcript — the audit trail proper arrives in a later phase. */
+  refused: string[];
   error?: string;
 }
 
@@ -85,7 +91,11 @@ function persist(job: AgentJob): void {
 
 function readJob(id: string): AgentJob | null {
   try {
-    return JSON.parse(readFileSync(fileFor(id), "utf8")) as AgentJob;
+    const job = JSON.parse(readFileSync(fileFor(id), "utf8")) as AgentJob;
+    // Jobs written before `refused` existed are still on disk and still
+    // readable for a day. Filled in here so the field is never the undefined
+    // its type says it cannot be.
+    return { ...job, refused: job.refused ?? [] };
   } catch {
     return null;
   }
@@ -142,6 +152,11 @@ export interface StartAgentInput {
   mode?: "build" | "review";
   /** Passed straight through to the build step. */
   target?: string;
+  /** The wallet this turn is being run for, as verified by DevStation's server
+   *  before it reached the runner. Recorded on every gated action so an
+   *  authorization grant can be bound to a person in a later phase. Empty when
+   *  the caller did not supply one — left empty rather than invented. */
+  owner?: string;
 }
 
 /** Streams one reply from the provider. The runner talks to the model directly
@@ -270,7 +285,12 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
     history: [],
     issues: [],
     buildNote: null,
+    refused: [],
   };
+  // Distinguishes one proposed action from the next within a task, so a grant
+  // issued for one can never be spent on another.
+  let actions = 0;
+
   live.set(id, { job, controller });
   persist(job);
   sweep();
@@ -291,6 +311,38 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
         onStatus: (status) => touch(job, { status }),
         onProse: (prose) => touch(job, { prose }),
         onFile: (path) => touch(job, { changed: [...new Set([...job.changed, path])] }),
+        // The chokepoint. Every effect this turn has — each file written, and
+        // the build — is proposed here first and runs only if the policy
+        // engine allows it. Writing files and running a dev build are both
+        // classified safe, so turns behave exactly as they did before this
+        // existed — that is the intended result, not a gap. parseGeneratedFiles
+        // already drops traversal, absolute paths and oversized bodies, so the
+        // schema here is a second, independent check rather than the first one.
+        //
+        // What it buys now is the path itself: one place every effect passes
+        // through, exercised on the live route so it cannot rot before the
+        // tool loop starts proposing calls the parser never sees.
+        //
+        // It lives here rather than in the shared turn logic because the
+        // browser copy of that logic is not an authority over anything. This
+        // process is.
+        gate: (call: GateCall): GateDecision => {
+          const result = preflight(
+            { id: `${id}-${++actions}`, name: call.name, args: call.args },
+            {
+              taskId: id,
+              userId: input.owner ?? "",
+              projectId: input.projectId,
+              // App Builder turns build a preview, never a live deployment.
+              // Publishing is a separate action and gets its own gate later.
+              environment: "development",
+            },
+          );
+          if (result.ok) return { ok: true };
+          const note = `${call.name}: ${result.rejection.message}`;
+          touch(job, { refused: [...job.refused, note] });
+          return { ok: false, message: result.rejection.message };
+        },
         runBuild: async (files) => {
           touch(job, { status: "Building…" });
           // Strip the workspace prefix. The workspace stores

@@ -350,6 +350,14 @@ const server = createServer(async (req, res) => {
         // when the mode is unset, so forcing one here bypassed the intent
         // layer entirely — "hello" reached the build pipeline and wrote files.
         mode: body.mode === "review" || body.mode === "build" ? body.mode : undefined,
+        // Same header the publish route trusts: DevStation's server has already
+        // verified the wallet. Only accepted in the address shape it must have,
+        // and left empty otherwise rather than carrying through whatever the
+        // caller wrote.
+        owner: (() => {
+          const owner = String(req.headers["x-devstation-owner"] ?? "").slice(0, 100);
+          return /^0x[a-fA-F0-9]{40}$/.test(owner) ? owner : "";
+        })(),
       });
       return json(res, 200, { ok: true, id: job.id, phase: job.phase, status: job.status });
     }

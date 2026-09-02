@@ -85,6 +85,17 @@ export function buildFeedback(outcome: BuildOutcome): string | null {
   ].join("\n");
 }
 
+/** An action the turn wants to take, named for the tool that would carry it
+ *  out. Only the two the pipeline actually performs today: it writes files, and
+ *  it runs the build. Phase 4 widens this to the full registry. */
+export interface GateCall {
+  name: "write_file" | "run_build";
+  args: Record<string, unknown>;
+}
+
+/** A refusal carries its reason, because the reason goes back to the model. */
+export type GateDecision = { ok: true } | { ok: false; message: string };
+
 export interface TurnInput {
   prompt: string;
   /** Files as they stand now; the model edits these. */
@@ -111,6 +122,15 @@ export interface TurnInput {
   /** Force a mode. Left unset, the turn decides for itself from the message and
    *  the conversation — a greeting must never reach the build pipeline. */
   mode?: TurnMode;
+  /** Consulted before the turn does anything with an effect: every file it
+   *  wants to write, and the build itself. A refusal does not throw — the
+   *  reason is fed back to the model as feedback, so a blocked call becomes a
+   *  repair round rather than a dead turn.
+   *
+   *  Left unset in the browser, where a gate could only ever be advisory. The
+   *  runner supplies one backed by the policy engine, which is where
+   *  enforcement has to live to mean anything. */
+  gate?: (call: GateCall) => Promise<GateDecision> | GateDecision;
   /** Runs the project's real toolchain. Absent when no build runner is
    *  configured, in which case static validation is the only feedback there
    *  is — which is exactly how this worked before, and still works. */
@@ -430,19 +450,48 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
       break;
     }
 
-    const applied = applyFiles(files, produced);
+    // Nothing is written until the gate has seen it, one file at a time. A
+    // refusal is collected rather than thrown: the model is told which writes
+    // did not happen and why, and gets a repair round to work without them.
+    const allowed: typeof produced = [];
+    const refusals: string[] = [];
+    for (const f of produced) {
+      const decision: GateDecision = input.gate
+        ? await input.gate({ name: "write_file", args: { path: f.path, content: f.content } })
+        : { ok: true };
+      if (decision.ok) allowed.push(f);
+      else refusals.push(`${f.path}: ${decision.message}`);
+    }
+
+    const applied = applyFiles(files, allowed);
     files = applied.files;
     changed = [...new Set([...changed, ...applied.changed])];
     for (const path of applied.changed) input.onFile?.(path);
 
     report("validating", "Checking it runs…");
     issues = validateApp(files, dir, input.context?.target);
-    const problem = issuesForModel(issues);
+    const refusalNote = refusals.length
+      ? [
+          "These writes were refused, so they did not happen:",
+          ...refusals.map((r) => `- ${r}`),
+          "Work within what is allowed, or say what you need and why.",
+        ].join("\n")
+      : null;
+    const problem = [issuesForModel(issues), refusalNote].filter(Boolean).join("\n\n") || null;
 
     // Static checks first. They are instant and catch the obvious breakages,
     // so there is no sense spending a minute of build time to be told the
     // same thing more slowly.
     if (!problem && input.runBuild) {
+      const decision: GateDecision = input.gate
+        ? await input.gate({ name: "run_build", args: {} })
+        : { ok: true };
+      if (!decision.ok) {
+        // Refused builds stop the round rather than repairing: there is no
+        // feedback to repair against, and retrying would refuse identically.
+        report("validating", decision.message);
+        break;
+      }
       report("validating", "Installing dependencies, building and running the tests…");
       build = await input.runBuild(files);
       const failure = buildFeedback(build);
