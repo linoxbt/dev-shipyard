@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import type { PersistentStore } from "./store";
 
 // The authorization boundary for privileged agent actions.
 //
@@ -111,9 +112,46 @@ export type AuthorizationCheck =
   | { ok: true; grant: AuthorizationGrant }
   | { ok: false; reason: DenialReason };
 
-/** In-memory store. The runner is a single long-lived process, so this is the
+/** The working set. The runner is a single long-lived process, so this is the
  *  authoritative record; it is deliberately NOT reachable from the browser. */
 const grants = new Map<string, AuthorizationGrant>();
+
+// Durability. Without it a restart lost every grant while the jobs that were
+// waiting on them survived on disk — a task that could never be answered.
+//
+// Nothing here starts a timer. Expiry is decided by comparing expiresAt to the
+// clock at the moment a grant is READ, which is what makes a rehydrated grant
+// safe: a grant that lapsed while the process was down comes back as expired
+// the first time anything looks at it, rather than resuming its old life.
+let store: PersistentStore | null = null;
+let loaded = false;
+
+/** Point the grant store at durable storage. Called once by the runner at
+ *  startup, and by tests with a temporary file. Passing null returns to
+ *  memory-only, which is how the browser bundle would behave if it ever
+ *  reached this code. */
+export function setGrantStore(next: PersistentStore | null): void {
+  store = next;
+  loaded = false;
+  grants.clear();
+}
+
+function ensureLoaded(): void {
+  if (loaded) return;
+  loaded = true;
+  if (!store) return;
+  const raw = store.load();
+  if (!raw) return;
+  try {
+    for (const g of JSON.parse(raw) as AuthorizationGrant[]) grants.set(g.id, g);
+  } catch {
+    // An unparseable store denies everything, which is the safe direction.
+  }
+}
+
+function flush(): void {
+  store?.save(JSON.stringify([...grants.values()]));
+}
 
 export function issueGrant(params: {
   taskId: string;
@@ -142,7 +180,9 @@ export function issueGrant(params: {
     issuedFromDecisionRequestId: params.issuedFromDecisionRequestId,
     fingerprint: actionFingerprint(params.action),
   };
+  ensureLoaded();
   grants.set(grant.id, grant);
+  flush();
   return grant;
 }
 
@@ -157,6 +197,7 @@ export function checkAuthorization(
   now = Date.now(),
 ): AuthorizationCheck {
   if (!grantId) return { ok: false, reason: "no_grant" };
+  ensureLoaded();
   const g = grants.get(grantId);
   if (!g) return { ok: false, reason: "no_grant" };
 
@@ -165,6 +206,7 @@ export function checkAuthorization(
   // Server time, always. A client cannot extend its own approval.
   if (g.expiresAt <= now) {
     g.status = "expired";
+    flush();
     return { ok: false, reason: "expired" };
   }
   if (g.status === "expired") return { ok: false, reason: "expired" };
@@ -200,11 +242,13 @@ export function consumeAuthorization(
   if (!result.ok) return result;
   result.grant.status = "consumed";
   result.grant.consumedAt = now;
+  flush();
   return result;
 }
 
 /** Cancelling a task must not leave live approvals behind. */
 export function revokeTaskGrants(taskId: string): number {
+  ensureLoaded();
   let n = 0;
   for (const g of grants.values()) {
     if (g.taskId === taskId && g.status === "active") {
@@ -212,14 +256,18 @@ export function revokeTaskGrants(taskId: string): number {
       n++;
     }
   }
+  if (n) flush();
   return n;
 }
 
 export function getGrant(id: string): AuthorizationGrant | undefined {
+  ensureLoaded();
   return grants.get(id);
 }
 
 /** Test seam only. */
 export function __resetGrants(): void {
   grants.clear();
+  store = null;
+  loaded = false;
 }

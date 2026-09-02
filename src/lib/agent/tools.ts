@@ -132,7 +132,20 @@ export interface ToolCall {
 export type ToolRejection =
   | { reason: "unknown_tool"; message: string }
   | { reason: "invalid_arguments"; message: string }
-  | { reason: "needs_authorization"; message: string; verdict: Verdict };
+  // The action travels with the rejection. Without it the caller would have to
+  // rebuild the action to issue a grant, and a grant whose fingerprint was
+  // computed from a second, separately-built action is a grant for something
+  // nobody checked.
+  | {
+      reason: "needs_authorization";
+      message: string;
+      // Only ever the confirm branch: a rejection is what an "allow" is not.
+      // Typed as such so the caller can read riskLevel without re-narrowing a
+      // union that cannot actually be the other case here.
+      verdict: Extract<Verdict, { decision: "confirm" }>;
+      action: ProtectedAction;
+      tool: ToolDefinition;
+    };
 
 export type ToolPreflight =
   | { ok: true; tool: ToolDefinition; args: Record<string, unknown>; action: ProtectedAction }
@@ -195,6 +208,8 @@ export function preflight(call: ToolCall, ctx: PreflightContext): ToolPreflight 
         reason: "needs_authorization",
         message: verdict.why,
         verdict,
+        action,
+        tool,
       },
     };
   }

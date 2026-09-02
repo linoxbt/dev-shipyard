@@ -30,7 +30,14 @@ import {
   sessionCookie,
   validSession,
 } from "./session";
-import { cancelAgentJob, getAgentJob, startAgentJob, type StartAgentInput } from "./agent";
+import {
+  answerAgentDecision,
+  cancelAgentJob,
+  getAgentJob,
+  initAgentStores,
+  startAgentJob,
+  type StartAgentInput,
+} from "./agent";
 import { canServe, publishSite, serveFile, sitesFor, unpublishSite } from "./publish";
 import {
   createContainer,
@@ -362,6 +369,52 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { ok: true, id: job.id, phase: job.phase, status: job.status });
     }
 
+    // Answering the question a paused task is waiting on. Everything it needs
+    // is on disk, so this works even in a process that never saw the question
+    // asked — which is the whole point of the phase.
+    if (rest.endsWith("/decision") && req.method === "POST") {
+      const jobId = rest.replace(/\/decision$/, "");
+      let raw = "";
+      let tooBig = false;
+      req.on("data", (chunk) => {
+        raw += chunk;
+        if (raw.length > 64_000) {
+          tooBig = true;
+          req.destroy();
+        }
+      });
+      await new Promise((r) => req.on("end", r).on("close", r));
+      if (tooBig) return json(res, 413, { ok: false, message: "Request too large" });
+      let body: {
+        requestId?: unknown;
+        clientRequestId?: unknown;
+        selectedOptionIds?: unknown;
+        text?: unknown;
+      };
+      try {
+        body = JSON.parse(raw) as typeof body;
+      } catch {
+        return json(res, 400, { ok: false, message: "Malformed JSON" });
+      }
+      if (typeof body.requestId !== "string" || !body.requestId) {
+        return json(res, 400, { ok: false, message: "A requestId is required." });
+      }
+      // Without this the same click landing twice would run the action twice.
+      if (typeof body.clientRequestId !== "string" || !body.clientRequestId) {
+        return json(res, 400, { ok: false, message: "A clientRequestId is required." });
+      }
+      const result = answerAgentDecision({
+        jobId,
+        requestId: body.requestId,
+        clientRequestId: body.clientRequestId,
+        selectedOptionIds: Array.isArray(body.selectedOptionIds)
+          ? body.selectedOptionIds.filter((v): v is string => typeof v === "string")
+          : undefined,
+        text: typeof body.text === "string" ? body.text : undefined,
+      });
+      return json(res, result.ok ? 200 : 400, result);
+    }
+
     if (rest.endsWith("/cancel") && req.method === "POST") {
       const cancelled = cancelAgentJob(rest.replace(/\/cancel$/, ""));
       return json(res, cancelled ? 200 : 404, { ok: cancelled });
@@ -518,6 +571,10 @@ const server = createServer(async (req, res) => {
 // arbitrary code, guarded by one shared bearer token. That is not a default
 // anyone should have to opt out of. Set RUNNER_HOST=0.0.0.0 only behind a
 // reverse proxy that terminates TLS and does its own authentication.
+// Before the first request, so a grant or a question written by the process
+// that just died is read back rather than silently starting empty.
+initAgentStores();
+
 server.listen(PORT, HOST, () => {
   console.log(
     `[runner] listening on ${HOST}:${PORT} image=${IMAGE} auth=${TOKEN ? "on" : "MISSING"}`,

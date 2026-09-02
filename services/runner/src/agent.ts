@@ -20,6 +20,25 @@ import { randomBytes } from "node:crypto";
 import { runTurn } from "../../../src/lib/appgen/session";
 import { projectFiles } from "../../../src/lib/appgen/build";
 import { preflight } from "../../../src/lib/agent/tools";
+import {
+  consumeAuthorization,
+  issueGrant,
+  revokeTaskGrants,
+  setGrantStore,
+  type ProtectedAction,
+  type RiskLevel,
+} from "../../../src/lib/agent/authorization";
+import {
+  cancelDecisions,
+  createDecisionRequest,
+  expireDecisions,
+  selectedOptions,
+  setDecisionStore,
+  submitDecision,
+  type DecisionRequest,
+} from "../../../src/lib/agent/decisions";
+import { canTransition, type TaskStatus } from "../../../src/lib/agent/events";
+import { fileStore } from "../../../src/lib/agent/store";
 import type { GateCall, GateDecision } from "../../../src/lib/appgen/session";
 import type { ChatMessage } from "../../../src/lib/ai";
 import type { PromptContext } from "../../../src/lib/appgen/prompt";
@@ -33,7 +52,18 @@ export const MAX_AGENT_JOBS = 100;
 const STATE_DIR = process.env.RUNNER_STATE_DIR ?? "/var/lib/devstation-runner";
 const AGENT_DIR = join(STATE_DIR, "agent");
 
-export type AgentPhase = "running" | "done" | "error" | "cancelled";
+export type AgentPhase = "running" | "awaiting_decision" | "done" | "error" | "cancelled";
+
+/** AgentPhase is the vocabulary the browser reads; TaskStatus is the one the
+ *  state machine is written in. Mapped rather than duplicated, so there is a
+ *  single set of legal transitions instead of two that can drift apart. */
+const AS_STATUS: Record<AgentPhase, TaskStatus> = {
+  running: "running",
+  awaiting_decision: "waiting_for_user",
+  done: "completed",
+  error: "failed",
+  cancelled: "cancelled",
+};
 
 export interface AgentJob {
   id: string;
@@ -57,6 +87,22 @@ export interface AgentJob {
    *  a refusal is visible after the fact rather than only in the model's
    *  transcript — the audit trail proper arrives in a later phase. */
   refused: string[];
+  /** The question this job is waiting on, when its phase is awaiting_decision. */
+  pendingDecisionId: string | null;
+  /** What that question is about, kept so the grant issued on approval is
+   *  fingerprinted from the action that was actually checked rather than one
+   *  rebuilt afterwards from the answer. */
+  pendingAction: { action: ProtectedAction; riskLevel: Exclude<RiskLevel, "low"> } | null;
+  /** Grants issued to this task. Tried against each proposed action on the way
+   *  back through the gate. */
+  grantIds: string[];
+  /** Everything needed to run this turn again.
+   *
+   *  A paused turn cannot be suspended and revived: it is a JavaScript async
+   *  function, and a process restart takes its stack with it. So resuming means
+   *  running the turn again with the grant in place. Keeping the input on the
+   *  job is what makes that possible in a process that never saw the job start. */
+  resume: StartAgentInput | null;
   error?: string;
 }
 
@@ -74,6 +120,17 @@ function ensureDir(): void {
 
 function fileFor(id: string): string {
   return join(AGENT_DIR, `${id}.json`);
+}
+
+/** Point the durable security stores at this runner's state directory.
+ *
+ *  Called once at startup, before any request is served. Until it runs, grants
+ *  and decisions are memory-only — which is what they were before this phase,
+ *  and is why it must not be forgotten. */
+export function initAgentStores(): void {
+  ensureDir();
+  setGrantStore(fileStore(join(AGENT_DIR, "grants.json")));
+  setDecisionStore(fileStore(join(AGENT_DIR, "decisions.json")));
 }
 
 /** Write beside the target and rename: a rename is atomic, so a crash mid-write
@@ -95,7 +152,14 @@ function readJob(id: string): AgentJob | null {
     // Jobs written before `refused` existed are still on disk and still
     // readable for a day. Filled in here so the field is never the undefined
     // its type says it cannot be.
-    return { ...job, refused: job.refused ?? [] };
+    return {
+      ...job,
+      refused: job.refused ?? [],
+      pendingDecisionId: job.pendingDecisionId ?? null,
+      pendingAction: job.pendingAction ?? null,
+      grantIds: job.grantIds ?? [],
+      resume: job.resume ?? null,
+    };
   } catch {
     return null;
   }
@@ -138,6 +202,22 @@ export function sweep(now = Date.now()): number {
 function touch(job: AgentJob, patch: Partial<AgentJob>): void {
   Object.assign(job, patch, { updatedAt: Date.now() });
   persist(job);
+}
+
+/** Move a job, refusing an illegal move rather than obeying it.
+ *
+ *  Returns false without writing anything when the transition is not allowed —
+ *  a finished job cannot be dragged back into running, and a cancelled one
+ *  cannot be made to execute. Those are exactly the moves a race between the
+ *  turn's own completion and an incoming answer would attempt. */
+export function canMovePhase(from: AgentPhase, to: AgentPhase): boolean {
+  return from === to || canTransition(AS_STATUS[from], AS_STATUS[to]);
+}
+
+function setPhase(job: AgentJob, phase: AgentPhase, patch: Partial<AgentJob> = {}): boolean {
+  if (!canMovePhase(job.phase, phase)) return false;
+  touch(job, { ...patch, phase });
+  return true;
 }
 
 export interface StartAgentInput {
@@ -267,7 +347,6 @@ async function runBuildViaSelf(
 
 export function startAgentJob(input: StartAgentInput): AgentJob {
   const id = `agent-${Date.now()}-${randomBytes(4).toString("hex")}`;
-  const controller = new AbortController();
   const job: AgentJob = {
     id,
     projectId: input.projectId,
@@ -286,14 +365,37 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
     issues: [],
     buildNote: null,
     refused: [],
+    pendingDecisionId: null,
+    pendingAction: null,
+    grantIds: [],
+    resume: input,
   };
-  // Distinguishes one proposed action from the next within a task, so a grant
-  // issued for one can never be spent on another.
-  let actions = 0;
-
-  live.set(id, { job, controller });
   persist(job);
   sweep();
+  executeTurn(job, input);
+  return job;
+}
+
+/**
+ * Run one turn for a job, from the start or again after a decision.
+ *
+ * Separated from startAgentJob because resuming is re-running: an answered
+ * decision restarts the turn with the grant in place, and that has to work in a
+ * process that never saw the job begin.
+ */
+function executeTurn(job: AgentJob, input: StartAgentInput): void {
+  const id = job.id;
+  const controller = new AbortController();
+  // Distinguishes one proposed action from the next within a task. It does not
+  // enter the fingerprint, so an action proposed again on the resumed turn
+  // still matches the grant approved for it.
+  let actions = 0;
+  // Set when the gate stops the turn to ask a question. The abort that follows
+  // must not be read as a cancellation, and the job must keep the phase the
+  // gate gave it.
+  let paused = false;
+
+  live.set(id, { job, controller });
 
   // Deliberately not awaited: the caller gets the id straight back and the work
   // continues here regardless of what the browser does next.
@@ -339,8 +441,33 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
             },
           );
           if (result.ok) return { ok: true };
-          const note = `${call.name}: ${result.rejection.message}`;
-          touch(job, { refused: [...job.refused, note] });
+
+          if (result.rejection.reason !== "needs_authorization") {
+            const note = `${call.name}: ${result.rejection.message}`;
+            touch(job, { refused: [...job.refused, note] });
+            return { ok: false, message: result.rejection.message };
+          }
+
+          // Approved already? Spend the grant rather than asking twice. This is
+          // the path a resumed turn takes: the same action is proposed again,
+          // fingerprints the same, and the grant issued for it is consumed here.
+          const action = result.rejection.action;
+          for (const grantId of job.grantIds) {
+            if (consumeAuthorization(grantId, action).ok) return { ok: true };
+          }
+
+          // Otherwise stop and ask. The turn ends here; answering starts a new
+          // one. A JavaScript async function cannot be suspended across a
+          // restart, so pausing is durable state plus a re-run, never a
+          // held-open promise pretending to be one.
+          paused = true;
+          const request = decisionFor(job, call.name, result.rejection.message, action);
+          setPhase(job, "awaiting_decision", {
+            status: request.question,
+            pendingDecisionId: request.id,
+            pendingAction: { action, riskLevel: result.rejection.verdict.riskLevel },
+          });
+          controller.abort();
           return { ok: false, message: result.rejection.message };
         },
         runBuild: async (files) => {
@@ -368,8 +495,8 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
           return out as never;
         },
       });
-      touch(job, {
-        phase: "done",
+      if (paused) return;
+      setPhase(job, "done", {
         status: "",
         files: result.files,
         changed: result.changed,
@@ -377,9 +504,11 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
         issues: result.issues.map((i) => (typeof i === "string" ? i : JSON.stringify(i))),
       });
     } catch (e) {
+      // An abort the gate caused is a pause, not a cancellation, and the phase
+      // it set already says so.
+      if (paused) return;
       const message = e instanceof Error ? e.message : "The turn failed.";
-      touch(job, {
-        phase: controller.signal.aborted ? "cancelled" : "error",
+      setPhase(job, controller.signal.aborted ? "cancelled" : "error", {
         status: "",
         error: message,
       });
@@ -387,19 +516,164 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
       live.delete(id);
     }
   })();
+}
 
-  return job;
+/** How long a question stays open. Matched to the grant it would produce, so a
+ *  decision can never be answered into a grant that is already stale. */
+const DECISION_TTL_MS = 10 * 60 * 1000;
+
+export const APPROVE_OPTION = "approve";
+export const DECLINE_OPTION = "decline";
+
+/** Build the question the user actually sees.
+ *
+ *  The consequence comes from the policy engine's own reason rather than a
+ *  generic "are you sure?", because the only useful confirmation is one that
+ *  says what will happen. */
+function decisionFor(
+  job: AgentJob,
+  toolName: string,
+  why: string,
+  action: ProtectedAction,
+): DecisionRequest {
+  return createDecisionRequest({
+    taskId: job.id,
+    question: `Allow ${action.operation} on ${action.resources.join(", ") || "this project"}?`,
+    description: why,
+    type: "confirmation",
+    required: true,
+    riskLevel: "medium",
+    expiresAt: Date.now() + DECISION_TTL_MS,
+    affectedAction: toolName,
+    consequences: why,
+    options: [
+      { id: APPROVE_OPTION, label: "Allow", value: "approve" },
+      { id: DECLINE_OPTION, label: "Do not allow", value: "decline" },
+    ],
+  });
+}
+
+export interface AnswerDecisionInput {
+  jobId: string;
+  requestId: string;
+  clientRequestId: string;
+  selectedOptionIds?: string[];
+  text?: string;
+}
+
+export type AnswerDecisionResult =
+  | { ok: true; job: AgentJob; approved: boolean }
+  | { ok: false; message: string };
+
+/**
+ * Apply an answer and, if it was an approval, run the turn again.
+ *
+ * Everything this touches — the job, the request, the grant — is on disk, so
+ * this works in a process that never saw the question asked.
+ */
+export function answerAgentDecision(input: AnswerDecisionInput): AnswerDecisionResult {
+  const job = live.get(input.jobId)?.job ?? readJob(input.jobId);
+  if (!job) return { ok: false, message: "There is no job with that id." };
+  if (job.phase !== "awaiting_decision") {
+    return { ok: false, message: "That task is not waiting on a decision." };
+  }
+  if (job.pendingDecisionId !== input.requestId) {
+    return { ok: false, message: "That is not the question this task is waiting on." };
+  }
+
+  const result = submitDecision({
+    requestId: input.requestId,
+    taskId: job.id,
+    clientRequestId: input.clientRequestId,
+    selectedOptionIds: input.selectedOptionIds,
+    text: input.text,
+  });
+  if (!result.ok) return { ok: false, message: `That answer was not accepted (${result.reason}).` };
+
+  const approved = selectedOptions(result.request, result.response).some(
+    (o) => o.value === "approve",
+  );
+
+  // A replayed answer must not run the turn a second time. The decision store
+  // makes the ANSWER idempotent; this makes the consequence idempotent too,
+  // which is the half that actually costs something.
+  if (result.replayed) return { ok: true, job, approved };
+
+  if (!approved) {
+    // Declining is a real outcome, not a failure. The task stops because
+    // permission was refused, and says so.
+    const pending = job.pendingAction;
+    setPhase(job, "cancelled", {
+      status: "",
+      pendingDecisionId: null,
+      pendingAction: null,
+      buildNote: `You did not allow ${pending?.action.operation ?? "that action"}, so the task stopped.`,
+    });
+    revokeTaskGrants(job.id);
+    return { ok: true, job, approved: false };
+  }
+
+  const pending = job.pendingAction;
+  if (!pending || !job.resume) {
+    return { ok: false, message: "That task can no longer be resumed." };
+  }
+  const grant = issueGrant({
+    taskId: job.id,
+    userId: pending.action.userId,
+    action: pending.action,
+    riskLevel: pending.riskLevel,
+    issuedFromDecisionRequestId: result.request.id,
+  });
+  if (
+    !setPhase(job, "running", {
+      status: "",
+      pendingDecisionId: null,
+      pendingAction: null,
+      grantIds: [...job.grantIds, grant.id],
+    })
+  ) {
+    return { ok: false, message: "That task can no longer be resumed." };
+  }
+  executeTurn(job, job.resume);
+  return { ok: true, job, approved: true };
 }
 
 /** A job by id, live or recovered from disk after a restart. */
 export function getAgentJob(id: string): AgentJob | null {
-  return live.get(id)?.job ?? readJob(id);
+  const job = live.get(id)?.job ?? readJob(id);
+  if (!job) return null;
+  // Expiry is decided on read here as everywhere else. Without this a question
+  // nobody answered in time would leave the task waiting for an answer that can
+  // no longer be given — the decision would refuse it, and the job would sit in
+  // awaiting_decision until the 24h sweep removed it.
+  if (job.phase === "awaiting_decision" && job.pendingDecisionId) {
+    const expired = expireDecisions(job.id);
+    if (expired.some((r) => r.id === job.pendingDecisionId)) {
+      setPhase(job, "cancelled", {
+        status: "",
+        pendingDecisionId: null,
+        pendingAction: null,
+        buildNote: "The request timed out without an answer, so the task stopped.",
+      });
+    }
+  }
+  return job;
 }
 
 export function cancelAgentJob(id: string): boolean {
   const entry = live.get(id);
-  if (!entry) return false;
-  entry.controller.abort();
+  const job = entry?.job ?? readJob(id);
+  if (!job) return false;
+  entry?.controller.abort();
+  // Cancelling must not leave live approvals or open questions behind. Both are
+  // durable now, so without this they would outlive the task that raised them.
+  revokeTaskGrants(id);
+  cancelDecisions(id);
+  if (!entry) {
+    // A paused job has no running turn to abort — it is waiting on an answer
+    // that is not coming — so it is moved here instead.
+    setPhase(job, "cancelled", { status: "", pendingDecisionId: null, pendingAction: null });
+  }
   return true;
 }
 
