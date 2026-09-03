@@ -61,6 +61,9 @@ export interface AgentJob {
   prose: string;
   changed: string[];
   removed?: string[];
+  /** Outward actions you approved that this browser must carry out, because the
+   *  credential for them is in this session and never reaches the runner. */
+  handoffs?: Array<{ name: string; args: Record<string, unknown> }>;
   files: Record<string, string> | null;
   dist: Record<string, string> | null;
   history: ChatMessage[];

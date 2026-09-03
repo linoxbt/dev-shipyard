@@ -111,6 +111,78 @@ function DecisionCard({
   );
 }
 
+/** An outward action the agent asked for and you allowed.
+ *
+ *  Carried out HERE, in the browser, and never by the runner. The GitHub token
+ *  is in an httpOnly cookie this session owns, the publish route is keyed to
+ *  the connected wallet, and neither ever reaches the machine the agent runs
+ *  on. Approving does not hand the agent a credential; it hands the action back
+ *  to the person who has one. */
+async function performHandoff(
+  handoff: { name: string; args: Record<string, unknown> },
+  files: Record<string, string>,
+  wallet: string | undefined,
+): Promise<{ ok: boolean; message: string; repoUrl?: string; liveUrl?: string }> {
+  // Paths are stored with the workspace prefix and published without it.
+  const payload: Record<string, string> = {};
+  for (const [path, content] of Object.entries(files)) {
+    payload[path.replace(/^app\//, "")] = content;
+  }
+  if (Object.keys(payload).length === 0) {
+    return { ok: false, message: "There was nothing to send." };
+  }
+
+  if (handoff.name === "push_to_github") {
+    const res = await fetch("/api/github/push", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        repoName: String(handoff.args.repoName ?? ""),
+        isPrivate: handoff.args.isPrivate !== false,
+        files: payload,
+        message: typeof handoff.args.message === "string" ? handoff.args.message : undefined,
+      }),
+    }).catch(() => null);
+    const body = (await res?.json().catch(() => null)) as {
+      ok?: boolean;
+      message?: string;
+      repo?: { url?: string; owner?: string; name?: string };
+    } | null;
+    if (body?.ok && body.repo?.url) {
+      return {
+        ok: true,
+        message: `Pushed to ${body.repo.owner}/${body.repo.name}.`,
+        repoUrl: body.repo.url,
+      };
+    }
+    // GitHub's own wording is the useful one; the route passes it through.
+    return { ok: false, message: body?.message ?? "The push failed." };
+  }
+
+  if (handoff.name === "publish_app") {
+    if (!wallet) return { ok: false, message: "Connect a wallet to publish." };
+    const res = await fetch("/api/publish", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        slug: String(handoff.args.slug ?? ""),
+        files: payload,
+        owner: wallet,
+      }),
+    }).catch(() => null);
+    const body = (await res?.json().catch(() => null)) as {
+      ok?: boolean;
+      url?: string;
+      message?: string;
+    } | null;
+    if (body?.ok && body.url)
+      return { ok: true, message: `Published to ${body.url}`, liveUrl: body.url };
+    return { ok: false, message: body?.message ?? "Publishing failed." };
+  }
+
+  return { ok: false, message: `Nothing here knows how to do "${handoff.name}".` };
+}
+
 interface Turn {
   role: "user" | "assistant";
   text: string;
@@ -290,8 +362,42 @@ function AppBuilderPage() {
         return next;
       });
       setTimeout(() => useProjects.getState().save({ turns: turnsRef.current }), 0);
+
+      // Anything the agent asked for and you allowed is carried out HERE, now
+      // that the turn has finished. The runner recorded the approval and could
+      // not act on it: it has no GitHub cookie, no publish wallet and no
+      // reason to be given either.
+      const handoffs = job.handoffs ?? [];
+      if (handoffs.length > 0) {
+        const source = job.files ?? {};
+        void (async () => {
+          for (const handoff of handoffs) {
+            const result = await performHandoff(handoff, source, wallet);
+            // Reported in the transcript rather than only as a toast: this is
+            // the outcome of something you approved, and it should still be
+            // there when you come back to the conversation.
+            setTurns((t) => [
+              ...t,
+              { role: "assistant", text: result.message, failed: !result.ok },
+            ]);
+            if (result.repoUrl) {
+              const [owner, name] = new URL(result.repoUrl).pathname.slice(1).split("/");
+              useProjects.getState().save({
+                repo: { owner, name, url: result.repoUrl, pushedAt: Date.now() },
+              });
+            }
+            if (result.liveUrl) {
+              setLiveUrl(result.liveUrl);
+              useProjects.getState().save({ liveUrl: result.liveUrl });
+            }
+            if (result.ok) toast.success(result.message);
+            else toast.error(result.message);
+          }
+          setTimeout(() => useProjects.getState().save({ turns: turnsRef.current }), 0);
+        })();
+      }
     },
-    [writeFiles],
+    [writeFiles, wallet],
   );
 
   const agent = useAgentJob(activeProjectId, applyAgentResult);

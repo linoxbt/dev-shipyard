@@ -97,6 +97,10 @@ export interface AgentJob {
   refused: string[];
   /** Files this turn removed, kept apart from `changed`. */
   removed: string[];
+  /** Outward actions the user approved that only their own session can carry
+   *  out. The runner records them and never performs them: it has no GitHub
+   *  cookie, no Netlify token and no wallet, and it is not meant to. */
+  handoffs: Array<{ name: string; args: Record<string, unknown> }>;
   /** How many times this job has stopped to ask. Capped, so a model that keeps
    *  proposing a different privileged action cannot ask forever. */
   pauses: number;
@@ -169,6 +173,7 @@ function readJob(id: string): AgentJob | null {
       ...job,
       refused: job.refused ?? [],
       removed: job.removed ?? [],
+      handoffs: job.handoffs ?? [],
       pauses: job.pauses ?? 0,
       pendingDecisionId: job.pendingDecisionId ?? null,
       pendingAction: job.pendingAction ?? null,
@@ -384,6 +389,7 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
     buildNote: null,
     refused: [],
     removed: [],
+    handoffs: [],
     pauses: 0,
     pendingDecisionId: null,
     pendingAction: null,
@@ -548,6 +554,7 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
         files: result.files,
         changed: result.changed,
         removed: result.removed,
+        handoffs: result.handoffs,
         history: result.history,
         issues: result.issues.map((i) => (typeof i === "string" ? i : JSON.stringify(i))),
       });

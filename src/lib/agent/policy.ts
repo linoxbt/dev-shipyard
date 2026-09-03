@@ -101,6 +101,16 @@ const GATED: Array<{ prefix: string; risk: Exclude<RiskLevel, "low">; why: strin
     risk: "high",
     why: "This publishes the build to a live URL where people will reach it.",
   },
+  {
+    prefix: "vcs.repo.create",
+    risk: "medium",
+    why: "This creates a repository in your GitHub account.",
+  },
+  {
+    prefix: "vcs.push",
+    risk: "high",
+    why: "This puts the code in a repository under your account, where it can be seen and cloned by anyone who can reach it.",
+  },
   { prefix: "shell.exec", risk: "critical", why: "This runs an arbitrary command on the host." },
 ];
 

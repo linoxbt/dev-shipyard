@@ -189,5 +189,73 @@ describe("looking before writing", () => {
   });
 });
 
+describe("an outward action the agent may only ask for", () => {
+  it("records it for the browser instead of trying to do it", async () => {
+    const seen: string[][] = [];
+    const result = await runTurn({
+      prompt: "push this to github as my-app",
+      files: PROJECT,
+      history: [],
+      mode: "build",
+      chat: scriptedChat(
+        ['<tool name="push_to_github">{"repoName":"my-app"}</tool>', filesReply()],
+        seen,
+      ),
+      // Stands in for a grant that has already been approved and consumed.
+      gate: () => ({ ok: true }),
+    });
+
+    expect(result.handoffs).toHaveLength(1);
+    expect(result.handoffs[0].name).toBe("push_to_github");
+    expect(result.handoffs[0].args).toEqual({ repoName: "my-app" });
+  });
+
+  it("tells the model it is done so it does not ask again", async () => {
+    const seen: string[][] = [];
+    await runTurn({
+      prompt: "push this to github as my-app",
+      files: PROJECT,
+      history: [],
+      mode: "build",
+      chat: scriptedChat(
+        ['<tool name="push_to_github">{"repoName":"my-app"}</tool>', filesReply()],
+        seen,
+      ),
+      gate: () => ({ ok: true }),
+    });
+    const observation = seen[1].at(-1)!;
+    expect(observation).toContain("user's own session");
+    expect(observation).toContain("Do not ask for it again");
+  });
+
+  it("records nothing when the gate refuses it", async () => {
+    const result = await runTurn({
+      prompt: "push this to github as my-app",
+      files: PROJECT,
+      history: [],
+      mode: "build",
+      chat: scriptedChat(
+        ['<tool name="push_to_github">{"repoName":"my-app"}</tool>', filesReply()],
+        [],
+      ),
+      gate: (call) =>
+        call.name === "push_to_github" ? { ok: false, message: "Not allowed." } : { ok: true },
+    });
+    // A refused push must not be handed to the browser to do anyway.
+    expect(result.handoffs).toEqual([]);
+  });
+
+  it("hands over nothing on an ordinary turn", async () => {
+    const result = await runTurn({
+      prompt: "build it",
+      files: PROJECT,
+      history: [],
+      mode: "build",
+      chat: scriptedChat([filesReply()], []),
+    });
+    expect(result.handoffs).toEqual([]);
+  });
+});
+
 /** Repair rounds the turn may still take after the lookup budget is spent. */
 const MAX_ROUNDS_SLACK = 4;

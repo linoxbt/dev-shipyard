@@ -34,7 +34,7 @@ import {
   type BudgetState,
 } from "../agent/loop";
 import { runInspection } from "./tool-exec";
-import { TOOLS, presentResult } from "../agent/tools";
+import { TOOLS, presentResult, requiresPerson } from "../agent/tools";
 import {
   classifyIntent,
   parseStatusMarkers,
@@ -171,6 +171,11 @@ export interface TurnResult {
   /** Files this turn removed. Kept apart from `changed` because "3 files
    *  updated" and "3 files deleted" are not the same sentence. */
   removed: string[];
+  /** Outward actions the user approved and that their OWN session must carry
+   *  out — pushing to GitHub, publishing a site. The agent never holds the
+   *  credential for these, so approval hands the action over rather than
+   *  unlocking it here. */
+  handoffs: Array<{ name: string; args: Record<string, unknown> }>;
   history: ChatMessage[];
   issues: ValidationIssue[];
   /** Prose the model wrote alongside the code. */
@@ -343,6 +348,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
         files: input.files,
         changed: [],
         removed: [],
+        handoffs: [],
         history,
         issues: [],
         reply: intent.reply,
@@ -369,6 +375,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   let reply = "";
   let changed: string[] = [];
   let removed: string[] = [];
+  const handoffs: TurnResult["handoffs"] = [];
   let issues: ValidationIssue[] = [];
   let repaired = 0;
   let build: BuildOutcome | undefined;
@@ -401,6 +408,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
       files: input.files,
       changed: [],
       removed: [],
+      handoffs: [],
       history: messages,
       issues: [],
       reply,
@@ -480,6 +488,20 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
         if (call.malformed) {
           observations.push(
             formatObservation(call.name, "The arguments were not a JSON object, so nothing ran."),
+          );
+          continue;
+        }
+
+        // Approved, but not ours to perform. The credential belongs to the
+        // signed-in user, so this is recorded and handed to their session; the
+        // observation says so plainly, otherwise the model asks again.
+        if (requiresPerson(call.name)) {
+          handoffs.push({ name: call.name, args: call.args });
+          observations.push(
+            formatObservation(
+              call.name,
+              "Approved. It will be carried out by the user's own session once this turn finishes. Do not ask for it again.",
+            ),
           );
           continue;
         }
@@ -643,6 +665,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     files,
     changed,
     removed,
+    handoffs,
     history: messages,
     issues,
     reply: stripToolCalls(stripDeleteMarkers(stripStatusMarkers(stripCodeBlocks(reply)))),

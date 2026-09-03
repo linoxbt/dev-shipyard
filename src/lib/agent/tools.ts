@@ -34,6 +34,18 @@ export interface ToolDefinition<S extends z.ZodTypeAny = z.ZodTypeAny> {
   resourcesFrom: (args: z.infer<S>) => string[];
   /** Output that must be treated as untrusted when returned to the model. */
   returnsUntrustedContent: boolean;
+  /** Who actually carries this out.
+   *
+   *  "person" means the agent can only ever propose it: the credential for it
+   *  belongs to the signed-in user and deliberately never reaches the runner,
+   *  so approval hands the action to their own session rather than unlocking it
+   *  for the agent. Defaults to "agent". */
+  performedBy?: "agent" | "person";
+}
+
+/** True when the agent may only ask for this, never do it. */
+export function requiresPerson(name: string): boolean {
+  return TOOLS[name]?.performedBy === "person";
 }
 
 const filePath = z
@@ -110,6 +122,45 @@ export const TOOLS: Record<string, ToolDefinition> = {
     schema: z.object({}),
     resourcesFrom: () => ["project"],
     returnsUntrustedContent: true,
+  },
+  // Outward-facing tools. The agent never performs these itself and never holds
+  // the credential for one: the GitHub token lives in an httpOnly cookie the
+  // runner cannot read, the Netlify token is the app's own server env, and only
+  // the browser has the wallet. The agent PROPOSES; the person approves; their
+  // own session carries it out. That is why the risk is on the proposal.
+  push_to_github: {
+    name: "push_to_github",
+    description: "Push the project to a GitHub repository under the signed-in account.",
+    operation: "vcs.push",
+    schema: z.object({
+      repoName: z
+        .string()
+        .min(1)
+        .max(100)
+        .regex(/^[A-Za-z0-9._-]+$/, "not a repository name"),
+      isPrivate: z.boolean().optional(),
+      message: z.string().max(200).optional(),
+    }),
+    // Scoped to the repository, so approving a push to one never authorises a
+    // push to another.
+    resourcesFrom: (a) => [`github:${(a as { repoName: string }).repoName}`],
+    returnsUntrustedContent: false,
+    performedBy: "person",
+  },
+  publish_app: {
+    name: "publish_app",
+    description: "Publish the built app to <name>.devstation.online.",
+    operation: "deploy.publish",
+    schema: z.object({
+      slug: z
+        .string()
+        .min(1)
+        .max(60)
+        .regex(/^[a-z0-9-]+$/, "not a subdomain"),
+    }),
+    resourcesFrom: (a) => [`site:${(a as { slug: string }).slug}`],
+    returnsUntrustedContent: false,
+    performedBy: "person",
   },
   run_tests: {
     name: "run_tests",
