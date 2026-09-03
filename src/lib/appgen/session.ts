@@ -25,6 +25,17 @@ import {
 } from "./prompt";
 import { issuesForModel, validateApp, type ValidationIssue } from "./validate";
 import {
+  DEFAULT_BUDGET,
+  budgetSpent,
+  formatObservation,
+  observationsMessage,
+  parseToolCalls,
+  stripToolCalls,
+  type BudgetState,
+} from "../agent/loop";
+import { runInspection } from "./tool-exec";
+import { TOOLS, presentResult } from "../agent/tools";
+import {
   classifyIntent,
   parseStatusMarkers,
   stripStatusMarkers,
@@ -91,7 +102,11 @@ export function buildFeedback(outcome: BuildOutcome): string | null {
  *  out. Only the two the pipeline actually performs today: it writes files, and
  *  it runs the build. Phase 4 widens this to the full registry. */
 export interface GateCall {
-  name: "write_file" | "delete_file" | "run_build";
+  /** A tool name. Not narrowed to the ones this pipeline performs itself: the
+   *  model can propose anything, and an unrecognised name has to reach the
+   *  policy engine to be refused as one rather than being quietly dropped
+   *  before it gets there. */
+  name: string;
   args: Record<string, unknown>;
 }
 
@@ -394,6 +409,11 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   }
 
   let forcedBuild = false;
+  // Looking things up is budgeted separately from repairing. They are different
+  // failures — one is a model that will not stop reading, the other is a model
+  // that cannot fix what it wrote — and spending the repair allowance on
+  // inspection would leave nothing to fix the build with.
+  const budget: BudgetState = { steps: 0, startedAt: Date.now() };
   for (let round = 0; round <= MAX_REPAIR_ROUNDS; round++) {
     // No status is announced here. The model emits its own as it works (see
     // STATUS_PROTOCOL); announcing one now would be a guess about what it is
@@ -422,7 +442,9 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
         // reply left the raw <delete .../> tag on screen for the whole turn —
         // caught by a live run, not by any test, because the tests assert on
         // the returned reply rather than on what was streamed.
-        input.onProse?.(stripDeleteMarkers(stripStatusMarkers(stripCodeBlocks(streamed))));
+        input.onProse?.(
+          stripToolCalls(stripDeleteMarkers(stripStatusMarkers(stripCodeBlocks(streamed)))),
+        );
         const open = (streamed.match(/```/g) ?? []).length;
         if (open % 2 === 1) {
           const name = /```[^\n]*?([A-Za-z0-9_\-./]+\.[A-Za-z0-9]+)/.exec(
@@ -438,6 +460,79 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
       },
     });
     messages.push({ role: "assistant", content: reply });
+
+    // Look-then-write. A reply that asks to inspect the project is answered
+    // with observations and another round rather than being read as an answer.
+    const toolCalls = parseToolCalls(reply);
+    if (toolCalls.length > 0) {
+      const observations: string[] = [];
+
+      for (const call of toolCalls) {
+        // Same gate as every other effect. An unknown tool name reaches the
+        // policy engine and is refused there, not filtered out beforehand.
+        const decision: GateDecision = input.gate
+          ? await input.gate({ name: call.name, args: call.args })
+          : { ok: true };
+        if (!decision.ok) {
+          observations.push(formatObservation(call.name, decision.message));
+          continue;
+        }
+        if (call.malformed) {
+          observations.push(
+            formatObservation(call.name, "The arguments were not a JSON object, so nothing ran."),
+          );
+          continue;
+        }
+
+        report("inspecting", `Looking at ${call.name.replace(/_/g, " ")}…`);
+        let output: string;
+        const inspected = runInspection(call.name, call.args, { files, dir });
+        if (inspected !== null) {
+          output = inspected;
+        } else if (call.name === "run_build" || call.name === "run_tests") {
+          if (!input.runBuild) {
+            output = "No build runner is configured, so this could not be run.";
+          } else {
+            build = await input.runBuild(files);
+            output = buildFeedback(build) ?? "It installs, builds and the tests pass.";
+          }
+        } else {
+          output = `There is no tool called "${call.name}".`;
+        }
+
+        const definition = TOOLS[call.name];
+        observations.push(
+          formatObservation(
+            call.name,
+            definition ? presentResult(definition, output) : output.slice(0, 8_000),
+          ),
+        );
+      }
+
+      // Files in the same reply are NOT applied. Saying so is the point: the
+      // alternative is dropping them silently and leaving the model believing
+      // it wrote something.
+      const mixed =
+        parseGeneratedFiles(reply, dir).length > 0
+          ? "You mixed tool calls with file blocks. The files were NOT applied — send tool calls or files, not both."
+          : undefined;
+
+      budget.steps++;
+      const spent = budgetSpent(budget, DEFAULT_BUDGET);
+      messages.push({
+        role: "user",
+        content: observationsMessage(
+          observations,
+          spent.spent ? `${spent.why} Answer now with the complete files.` : mixed,
+        ),
+      });
+      if (!spent.spent) {
+        // A lookup is not a repair round.
+        round--;
+        continue;
+      }
+      continue;
+    }
 
     const produced = parseGeneratedFiles(reply, dir);
     const requestedDeletions = parseDeletions(reply, dir).filter((path) => path in files);
@@ -550,7 +645,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     removed,
     history: messages,
     issues,
-    reply: stripDeleteMarkers(stripStatusMarkers(stripCodeBlocks(reply))),
+    reply: stripToolCalls(stripDeleteMarkers(stripStatusMarkers(stripCodeBlocks(reply)))),
     repaired,
     build,
   };

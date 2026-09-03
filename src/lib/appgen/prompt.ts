@@ -9,6 +9,7 @@
 
 import { CDN_VERSIONS, viteShell, type BuildTarget } from "./generate";
 import { STATUS_PROTOCOL } from "./intent";
+import { TOOL_PROTOCOL } from "../agent/loop";
 
 /** Files the model is allowed to write. Anything else is ignored, so a
  *  confused response cannot scatter files across the workspace. */
@@ -243,7 +244,9 @@ Go through the current code and report what you actually find, worst first:
       : ""
   }
 
-${STATUS_PROTOCOL}`;
+${STATUS_PROTOCOL}
+
+${TOOL_PROTOCOL}`;
 }
 
 /** System prompt for free-form app building. */
@@ -316,7 +319,9 @@ Rules:
 
 ${environment}
 
-${STATUS_PROTOCOL}`;
+${STATUS_PROTOCOL}
+
+${TOOL_PROTOCOL}`;
 
   if (!ctx.contract) {
     return `${base}
