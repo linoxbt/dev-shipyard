@@ -378,7 +378,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
           input.onStatus?.(m.message);
         }
         reviewStatuses = markers.length;
-        input.onProse?.(stripStatusMarkers(streamed));
+        input.onProse?.(stripDeleteMarkers(stripStatusMarkers(streamed)));
       },
     });
     messages.push({ role: "assistant", content: reply });
@@ -417,7 +417,12 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
         reportedStatuses = markers.length;
         // Surface the prose as it arrives; the code blocks are reported
         // separately as files land, and the markers are not prose.
-        input.onProse?.(stripStatusMarkers(stripCodeBlocks(streamed)));
+        // Streamed prose is what the chat renders live, so markers have to be
+        // stripped HERE as well as from the final reply. Stripping only the
+        // reply left the raw <delete .../> tag on screen for the whole turn —
+        // caught by a live run, not by any test, because the tests assert on
+        // the returned reply rather than on what was streamed.
+        input.onProse?.(stripDeleteMarkers(stripStatusMarkers(stripCodeBlocks(streamed))));
         const open = (streamed.match(/```/g) ?? []).length;
         if (open % 2 === 1) {
           const name = /```[^\n]*?([A-Za-z0-9_\-./]+\.[A-Za-z0-9]+)/.exec(

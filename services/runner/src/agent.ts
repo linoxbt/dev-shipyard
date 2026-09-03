@@ -419,8 +419,17 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
         mode: input.mode,
         signal: controller.signal,
         chat: providerChat,
-        onStatus: (status) => touch(job, { status }),
-        onProse: (prose) => touch(job, { prose }),
+        // Once the turn has stopped to ask, nothing it does on its way out may
+        // overwrite what the user is looking at. The abort only takes effect at
+        // the next await, so the turn runs on for a few statements — long
+        // enough to replace the question with "Checking it runs…", which is
+        // exactly what a live run showed.
+        onStatus: (status) => {
+          if (!paused) touch(job, { status });
+        },
+        onProse: (prose) => {
+          if (!paused) touch(job, { prose });
+        },
         onFile: (path) => touch(job, { changed: [...new Set([...job.changed, path])] }),
         // The chokepoint. Every effect this turn has — each file written, and
         // the build — is proposed here first and runs only if the policy
@@ -463,6 +472,14 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
           const action = result.rejection.action;
           for (const grantId of job.grantIds) {
             if (consumeAuthorization(grantId, action).ok) return { ok: true };
+          }
+
+          // One question per turn. The abort does not stop the loop
+          // immediately, so a reply asking to delete two files would otherwise
+          // raise a second question and overwrite the first — leaving a job
+          // pointing at a question the user never saw.
+          if (paused) {
+            return { ok: false, message: "Already waiting on a decision." };
           }
 
           if (job.pauses >= MAX_PAUSES) {

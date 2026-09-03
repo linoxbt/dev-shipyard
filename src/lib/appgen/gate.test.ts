@@ -325,3 +325,54 @@ describe("the policy engine's verdict on a delete", () => {
     }
   });
 });
+
+describe("what the chat is shown while a file is being deleted", () => {
+  /** Streams the reply a character at a time, as the provider does. */
+  function streamingChat(text: string) {
+    return async (opts: {
+      system: string;
+      messages: Array<{ role: string; content: string }>;
+      signal?: AbortSignal;
+      onDelta: (c: string) => void;
+    }): Promise<string> => {
+      void opts.messages;
+      for (const ch of text) opts.onDelta(ch);
+      return text;
+    };
+  }
+
+  it("never streams the raw marker into the transcript", async () => {
+    // A live run put `<delete path="old-helper.js" />` on screen for the whole
+    // turn: markers were stripped from the returned reply but not from the
+    // prose streamed while it arrived, and the streamed prose is what the chat
+    // renders. Every test until this one asserted on the reply.
+    const seen: string[] = [];
+    await runTurn({
+      prompt: "remove the old file",
+      files: { ...SCAFFOLD, "app/old.js": "// superseded" },
+      history: [],
+      mode: "build",
+      chat: streamingChat('Removing it.\n<delete path="app/old.js" />'),
+      gate: () => ({ ok: true }),
+      onProse: (text) => seen.push(text),
+    });
+    expect(seen.length).toBeGreaterThan(0);
+    for (const text of seen) expect(text).not.toContain("<delete");
+    // Including the half-arrived tag partway through the stream.
+    for (const text of seen) expect(text).not.toContain("<delete path=");
+  });
+
+  it("still streams the prose the model wrote", async () => {
+    const seen: string[] = [];
+    await runTurn({
+      prompt: "remove the old file",
+      files: { ...SCAFFOLD, "app/old.js": "// superseded" },
+      history: [],
+      mode: "build",
+      chat: streamingChat('Removing it.\n<delete path="app/old.js" />'),
+      gate: () => ({ ok: true }),
+      onProse: (text) => seen.push(text),
+    });
+    expect(seen.at(-1)).toContain("Removing it.");
+  });
+});
