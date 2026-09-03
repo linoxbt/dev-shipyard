@@ -87,6 +87,11 @@ export interface AgentJob {
    *  a refusal is visible after the fact rather than only in the model's
    *  transcript — the audit trail proper arrives in a later phase. */
   refused: string[];
+  /** Files this turn removed, kept apart from `changed`. */
+  removed: string[];
+  /** How many times this job has stopped to ask. Capped, so a model that keeps
+   *  proposing a different privileged action cannot ask forever. */
+  pauses: number;
   /** The question this job is waiting on, when its phase is awaiting_decision. */
   pendingDecisionId: string | null;
   /** What that question is about, kept so the grant issued on approval is
@@ -155,6 +160,8 @@ function readJob(id: string): AgentJob | null {
     return {
       ...job,
       refused: job.refused ?? [],
+      removed: job.removed ?? [],
+      pauses: job.pauses ?? 0,
       pendingDecisionId: job.pendingDecisionId ?? null,
       pendingAction: job.pendingAction ?? null,
       grantIds: job.grantIds ?? [],
@@ -365,6 +372,8 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
     issues: [],
     buildNote: null,
     refused: [],
+    removed: [],
+    pauses: 0,
     pendingDecisionId: null,
     pendingAction: null,
     grantIds: [],
@@ -456,6 +465,15 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
             if (consumeAuthorization(grantId, action).ok) return { ok: true };
           }
 
+          if (job.pauses >= MAX_PAUSES) {
+            const note = `${call.name}: asked ${MAX_PAUSES} times already, so this was refused.`;
+            touch(job, { refused: [...job.refused, note] });
+            return {
+              ok: false,
+              message: "You have already been asked about this several times, so it was not done.",
+            };
+          }
+
           // Otherwise stop and ask. The turn ends here; answering starts a new
           // one. A JavaScript async function cannot be suspended across a
           // restart, so pausing is durable state plus a re-run, never a
@@ -466,6 +484,7 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
             status: request.question,
             pendingDecisionId: request.id,
             pendingAction: { action, riskLevel: result.rejection.verdict.riskLevel },
+            pauses: job.pauses + 1,
           });
           controller.abort();
           return { ok: false, message: result.rejection.message };
@@ -500,6 +519,7 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
         status: "",
         files: result.files,
         changed: result.changed,
+        removed: result.removed,
         history: result.history,
         issues: result.issues.map((i) => (typeof i === "string" ? i : JSON.stringify(i))),
       });
@@ -517,6 +537,12 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
     }
   })();
 }
+
+/** How many times one job may stop to ask. A turn that keeps proposing a
+ *  different privileged action would otherwise ask indefinitely, and each ask
+ *  costs the user an interruption. Past this, privileged actions are refused
+ *  and the turn is told why, which it can work around. */
+const MAX_PAUSES = 3;
 
 /** How long a question stays open. Matched to the grant it would produce, so a
  *  decision can never be answered into a grant that is already stale. */
@@ -634,7 +660,15 @@ export function answerAgentDecision(input: AnswerDecisionInput): AnswerDecisionR
   ) {
     return { ok: false, message: "That task can no longer be resumed." };
   }
-  executeTurn(job, job.resume);
+  // Resuming is re-running, so the model has to propose the same action again
+  // for the grant's fingerprint to match. Naming what was allowed is what makes
+  // that the normal outcome rather than a coin toss; MAX_PAUSES catches the
+  // case where it changes its mind anyway.
+  const resources = pending.action.resources.join(", ");
+  executeTurn(job, {
+    ...job.resume,
+    prompt: `${job.resume.prompt}\n\n(Permission was granted for ${pending.action.operation} on ${resources}. Do exactly that, and nothing else that needs permission.)`,
+  });
   return { ok: true, job, approved: true };
 }
 

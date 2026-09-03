@@ -197,3 +197,131 @@ describe("the calls the runner actually proposes", () => {
     if (!r.ok) expect(r.rejection.reason).toBe("unknown_tool");
   });
 });
+
+// Deletion is the reason the gate exists. A write that turns out wrong can be
+// written again; a delete cannot, which is why file.delete is classified high
+// and an ordinary turn stops to ask.
+function deletingChat(path: string) {
+  return async (opts: {
+    system: string;
+    messages: Array<{ role: string; content: string }>;
+    signal?: AbortSignal;
+    onDelta: (c: string) => void;
+  }): Promise<string> => {
+    void opts;
+    return `Removed it.\n<delete path="${path}" />`;
+  };
+}
+
+describe("deleting a file", () => {
+  const withExtra = { ...SCAFFOLD, "app/old.js": "// superseded" };
+
+  it("removes the file when the gate allows it", async () => {
+    const result = await runTurn({
+      prompt: "remove the old file",
+      files: withExtra,
+      history: [],
+      mode: "build",
+      chat: deletingChat("app/old.js"),
+      gate: () => ({ ok: true }),
+    });
+    expect(result.files["app/old.js"]).toBeUndefined();
+    expect(result.removed).toContain("app/old.js");
+    // Kept apart from `changed`: "updated" and "deleted" are not the same
+    // sentence.
+    expect(result.changed).not.toContain("app/old.js");
+  });
+
+  it("proposes it as delete_file, not as a write", async () => {
+    const seen: string[] = [];
+    await runTurn({
+      prompt: "remove the old file",
+      files: withExtra,
+      history: [],
+      mode: "build",
+      chat: deletingChat("app/old.js"),
+      gate: (call) => {
+        seen.push(`${call.name}:${String(call.args.path ?? "")}`);
+        return { ok: true };
+      },
+    });
+    expect(seen).toContain("delete_file:app/old.js");
+  });
+
+  it("keeps the file when the gate refuses", async () => {
+    const result = await runTurn({
+      prompt: "remove the old file",
+      files: withExtra,
+      history: [],
+      mode: "build",
+      chat: deletingChat("app/old.js"),
+      gate: (call) =>
+        call.name === "delete_file" ? { ok: false, message: "Not allowed." } : { ok: true },
+    });
+    expect(result.files["app/old.js"]).toBe("// superseded");
+    expect(result.removed).toEqual([]);
+  });
+
+  it("reaches the gate even when the reply contains no files at all", async () => {
+    // The reply is a marker and one sentence. Before this, a delete-only reply
+    // fell into the "you produced no files" branch and the deletion silently
+    // never happened.
+    let asked = false;
+    await runTurn({
+      prompt: "remove the old file",
+      files: withExtra,
+      history: [],
+      mode: "build",
+      chat: deletingChat("app/old.js"),
+      gate: (call) => {
+        if (call.name === "delete_file") asked = true;
+        return { ok: true };
+      },
+    });
+    expect(asked).toBe(true);
+  });
+
+  it("ignores a marker for a file that is not there", async () => {
+    const result = await runTurn({
+      prompt: "remove a file that does not exist",
+      files: withExtra,
+      history: [],
+      mode: "build",
+      chat: deletingChat("app/never-existed.js"),
+      gate: () => ({ ok: true }),
+    });
+    expect(result.removed).toEqual([]);
+  });
+
+  it("strips the marker out of the transcript", async () => {
+    const result = await runTurn({
+      prompt: "remove the old file",
+      files: withExtra,
+      history: [],
+      mode: "build",
+      chat: deletingChat("app/old.js"),
+      gate: () => ({ ok: true }),
+    });
+    expect(result.reply).not.toContain("<delete");
+    expect(result.reply).toContain("Removed it.");
+  });
+});
+
+describe("the policy engine's verdict on a delete", () => {
+  it("will not delete a file without asking", () => {
+    const r = preflight(
+      { id: "d1", name: "delete_file", args: { path: "app/old.js" } },
+      { taskId: "t1", userId: "0xabc", projectId: "p1" },
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.rejection.reason).toBe("needs_authorization");
+      if (r.rejection.reason === "needs_authorization") {
+        expect(r.rejection.verdict.riskLevel).toBe("high");
+        // The action travels with the rejection so the grant is fingerprinted
+        // from what was actually checked.
+        expect(r.rejection.action.resources).toEqual(["app/old.js"]);
+      }
+    }
+  });
+});

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { parseGeneratedFiles, blankScaffold, appBuilderSystemPrompt } from "./prompt";
+import {
+  parseGeneratedFiles,
+  parseDeletions,
+  stripDeleteMarkers,
+  blankScaffold,
+  appBuilderSystemPrompt,
+} from "./prompt";
 
 describe("parseGeneratedFiles", () => {
   it("reads the shapes models actually produce", () => {
@@ -141,5 +147,62 @@ describe("appBuilderSystemPrompt, build targets", () => {
     const p = appBuilderSystemPrompt({ target: "vite" });
     expect(p).toContain("eslint");
     expect(p).toContain("Playwright");
+  });
+});
+
+// Removing a file is the one action in this pipeline that cannot be undone by
+// running again, so the parser is stricter than the one for writes and the
+// result goes through the policy gate before anything is deleted.
+describe("parseDeletions", () => {
+  it("reads a marker", () => {
+    expect(parseDeletions('<delete path="app/old.js" />')).toEqual(["app/old.js"]);
+  });
+
+  it("adds the workspace prefix when the model leaves it off", () => {
+    expect(parseDeletions('<delete path="old.js" />')).toEqual(["app/old.js"]);
+  });
+
+  it("accepts single quotes and a non-self-closing tag", () => {
+    expect(parseDeletions("<delete path='old.js'>")).toEqual(["app/old.js"]);
+  });
+
+  it("refuses to escape the workspace", () => {
+    expect(parseDeletions('<delete path="../../etc/passwd.js" />')).toEqual([]);
+    expect(parseDeletions('<delete path="../app.js" />')).toEqual([]);
+  });
+
+  it("refuses an absolute path", () => {
+    expect(parseDeletions('<delete path="/etc/hosts.js" />')).toEqual([]);
+  });
+
+  it("refuses a file type this builder does not own", () => {
+    expect(parseDeletions('<delete path="deploy.sh" />')).toEqual([]);
+  });
+
+  it("never removes the generated contract binding", () => {
+    // applyFiles already refuses to overwrite it; deleting it would repoint the
+    // app just as effectively.
+    expect(parseDeletions('<delete path="app/contract.js" />')).toEqual([]);
+  });
+
+  it("de-duplicates a repeated marker", () => {
+    expect(parseDeletions('<delete path="old.js" /><delete path="old.js" />')).toEqual([
+      "app/old.js",
+    ]);
+  });
+
+  it("finds nothing in ordinary prose", () => {
+    expect(parseDeletions("I deleted the old file and rewrote app.js.")).toEqual([]);
+  });
+});
+
+describe("stripDeleteMarkers", () => {
+  it("keeps the prose and drops the marker", () => {
+    expect(stripDeleteMarkers('Removed it.\n<delete path="app/old.js" />')).toBe("Removed it.\n");
+  });
+
+  it("drops a marker the stream cut off mid-tag", () => {
+    // A half-arrived marker must never render as text in the transcript.
+    expect(stripDeleteMarkers('Removed it. <delete path="app/old')).toBe("Removed it.");
   });
 });

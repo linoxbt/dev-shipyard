@@ -69,6 +69,61 @@ export function parseGeneratedFiles(text: string, dir = "app"): ParsedFile[] {
   return out;
 }
 
+/** A file the model asked to remove.
+ *
+ *  Deletion is a marker rather than a fence because a fence carries content and
+ *  a deletion has none — an empty ```delete block would be indistinguishable
+ *  from a file the model truncated. The shape matches the <status> protocol the
+ *  model already emits, so this is one convention rather than a second one.
+ *
+ *  Every rule parseGeneratedFiles enforces on a path applies here too, and for
+ *  a stronger reason: a write outside the workspace creates a file, whereas a
+ *  delete outside it destroys one. */
+const DELETE_MARKER = /<delete\s+path=("|')([^"']+)\1\s*\/?>/gi;
+
+export function parseDeletions(text: string, dir = "app"): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const re = new RegExp(DELETE_MARKER.source, "gi");
+  let m: RegExpExecArray | null;
+
+  while ((m = re.exec(text)) !== null) {
+    let name = (m[2] ?? "").trim().replace(/^\.\//, "");
+    if (!name) continue;
+    // Refuse traversal outright rather than trying to normalise it.
+    if (name.includes("..")) continue;
+    // And refuse an absolute path rather than stripping the slash, which is
+    // what the write parser does. Rewriting "/etc/hosts.js" into
+    // "app/etc/hosts.js" is harmless when it CREATES that file and is not
+    // harmless when it deletes it: a malformed path must not resolve to some
+    // other real file.
+    if (name.startsWith("/")) continue;
+    if (!ALLOWED_EXT.test(name)) continue;
+    // contract.js is generated from the deployed contract. applyFiles already
+    // refuses to overwrite it; removing it would repoint the app just as
+    // effectively.
+    if (/(^|\/)contract\.js$/.test(name)) continue;
+
+    const prefix = dir ? `${dir}/` : "";
+    if (name.startsWith(prefix)) name = name.slice(prefix.length);
+    const path = prefix + name;
+    if (seen.has(path)) continue;
+    seen.add(path);
+    out.push(path);
+    if (out.length >= MAX_FILES) break;
+  }
+  return out;
+}
+
+/** Remove the markers from prose, including one the stream cut off mid-tag.
+ *  A half-arrived marker must never render as text in the transcript. */
+export function stripDeleteMarkers(text: string): string {
+  return text
+    .replace(new RegExp(DELETE_MARKER.source, "gi"), "")
+    .replace(/<delete\b[^>]*$/i, "")
+    .replace(/[ \t]+$/gm, "");
+}
+
 /** A runnable, empty starting point. The model edits these rather than
  *  inventing a project layout, so the import map and mount point are always
  *  right even if the response is partial. */
@@ -252,6 +307,7 @@ Rules:
 - When fixing an error, fix THAT error. Do not restructure, rename, restyle or "improve" code that has nothing to do with it.
 - Only these files: ${vite ? "index.html, src/app.js, src/styles.css, package.json (plus extra modules under src/ if you genuinely need them)" : "index.html, app.js, styles.css (plus extra .js modules if you genuinely need them)"}.
 - Prefer few files, but use as many as the app genuinely needs (services/, hooks/ and components/ modules are fine).
+- To REMOVE a file, emit \`<delete path="app.js" />\` on its own line. That is the only way a file is ever removed; leaving a file out of your reply keeps it exactly as it is. Removing a file needs the user's permission, so expect it to pause and ask.
 - Say what you built in one or two sentences BEFORE the code blocks. No commentary after them.
 - ALWAYS BUILD. Never reply with only a question, a plan, or a refusal. A long, detailed request is over-specified, not ambiguous — build it.
 - If the request is too large for one reply, build the most valuable COMPLETE slice now (it must run), then name what you will do next in one sentence. Never ask permission before starting.

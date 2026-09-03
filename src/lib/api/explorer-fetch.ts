@@ -98,24 +98,34 @@ function insecureGet(url: string, headers: Record<string, string>): Promise<Resp
   });
 }
 
+/** Whether a relaxed retry is permissible for this request at all.
+ *
+ *  Split out from fetchExplorer and exported so the guardrails can be tested
+ *  directly. They used to be tested by calling the live QIE explorer and
+ *  asserting it threw — which only held while QIE's certificate was expired.
+ *  It was renewed on 2026-09-03 and both tests started failing, having never
+ *  really tested this decision at all. A rule about what we permit should not
+ *  depend on someone else's certificate being broken. */
+export function mayRelax(url: string, method?: string): boolean {
+  if (!fallbackEnabled()) return false;
+  // Only GET is ever retried. A write with verification disabled is a
+  // different risk entirely, and nothing here needs one.
+  if (method && method.toUpperCase() !== "GET") return false;
+  try {
+    return allowedHosts().has(new URL(url).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 /** fetch() for explorer URLs, with the scoped certificate fallback above. */
 export async function fetchExplorer(url: string, init?: RequestInit): Promise<Response> {
   try {
     return await fetch(url, init);
   } catch (e) {
     if (!isCertError(e)) throw e;
-    if (!fallbackEnabled()) throw e;
-
-    let host = "";
-    try {
-      host = new URL(url).hostname.toLowerCase();
-    } catch {
-      throw e;
-    }
-    if (!allowedHosts().has(host)) throw e;
-    // Only GET is ever retried. A write with verification disabled is a
-    // different risk entirely, and nothing here needs one.
-    if (init?.method && init.method.toUpperCase() !== "GET") throw e;
+    if (!mayRelax(url, init?.method)) throw e;
+    const host = new URL(url).hostname.toLowerCase();
 
     if (!warned.has(host)) {
       warned.add(host);

@@ -30,6 +30,7 @@ import {
   sessionCookie,
   validSession,
 } from "./session";
+import { pendingDecisions } from "../../../src/lib/agent/decisions";
 import {
   answerAgentDecision,
   cancelAgentJob,
@@ -423,7 +424,15 @@ const server = createServer(async (req, res) => {
     if (rest && req.method === "GET") {
       const job = getAgentJob(rest);
       if (!job) return json(res, 404, { ok: false, message: "No such job." });
-      return json(res, 200, { ok: true, job });
+      // The question travels with the job, so one poll carries everything the
+      // browser needs. It also cannot hand back a question that has already
+      // lapsed: pendingDecisions decides expiry on read, and getAgentJob has
+      // just moved the job on if it had.
+      const decision =
+        job.phase === "awaiting_decision" && job.pendingDecisionId
+          ? (pendingDecisions(job.id).find((d) => d.id === job.pendingDecisionId) ?? null)
+          : null;
+      return json(res, 200, { ok: true, job, decision });
     }
 
     return json(res, 404, { ok: false, message: "Not found" });

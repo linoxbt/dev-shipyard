@@ -17,8 +17,10 @@
 import { chatStream, type ChatMessage } from "../ai";
 import {
   appBuilderSystemPrompt,
+  parseDeletions,
   parseGeneratedFiles,
   reviewSystemPrompt,
+  stripDeleteMarkers,
   type PromptContext,
 } from "./prompt";
 import { issuesForModel, validateApp, type ValidationIssue } from "./validate";
@@ -89,7 +91,7 @@ export function buildFeedback(outcome: BuildOutcome): string | null {
  *  out. Only the two the pipeline actually performs today: it writes files, and
  *  it runs the build. Phase 4 widens this to the full registry. */
 export interface GateCall {
-  name: "write_file" | "run_build";
+  name: "write_file" | "delete_file" | "run_build";
   args: Record<string, unknown>;
 }
 
@@ -151,6 +153,9 @@ export interface TurnResult {
   files: Record<string, string>;
   /** Files this turn actually changed. */
   changed: string[];
+  /** Files this turn removed. Kept apart from `changed` because "3 files
+   *  updated" and "3 files deleted" are not the same sentence. */
+  removed: string[];
   history: ChatMessage[];
   issues: ValidationIssue[];
   /** Prose the model wrote alongside the code. */
@@ -322,6 +327,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
       return {
         files: input.files,
         changed: [],
+        removed: [],
         history,
         issues: [],
         reply: intent.reply,
@@ -347,6 +353,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   let files = input.files;
   let reply = "";
   let changed: string[] = [];
+  let removed: string[] = [];
   let issues: ValidationIssue[] = [];
   let repaired = 0;
   let build: BuildOutcome | undefined;
@@ -378,6 +385,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     return {
       files: input.files,
       changed: [],
+      removed: [],
       history: messages,
       issues: [],
       reply,
@@ -427,7 +435,12 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     messages.push({ role: "assistant", content: reply });
 
     const produced = parseGeneratedFiles(reply, dir);
-    if (produced.length === 0) {
+    const requestedDeletions = parseDeletions(reply, dir).filter((path) => path in files);
+    // "Remove the old file" is a complete answer with no files in it. Without
+    // this it fell into the branch below, which pushes back with "you did not
+    // produce any files" and then treats the reply as conversation — so the
+    // deletion the user asked for silently never happened.
+    if (produced.length === 0 && requestedDeletions.length === 0) {
       // A build request that comes back as prose is the model deferring —
       // asking permission, proposing stages, or declining because an API key
       // is missing. Observed live on a long, highly-detailed spec: the reply
@@ -468,11 +481,29 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     changed = [...new Set([...changed, ...applied.changed])];
     for (const path of applied.changed) input.onFile?.(path);
 
+    // Removals go through the same gate, and are the reason it exists: a write
+    // that turns out wrong can be written again, and a delete cannot. The
+    // policy engine classifies file.delete as high, so this is where an
+    // ordinary turn stops and asks.
+    for (const path of requestedDeletions) {
+      if (!(path in files)) continue; // removed earlier in this same round
+      const decision: GateDecision = input.gate
+        ? await input.gate({ name: "delete_file", args: { path } })
+        : { ok: true };
+      if (!decision.ok) {
+        refusals.push(`${path}: ${decision.message}`);
+        continue;
+      }
+      delete files[path];
+      removed = [...new Set([...removed, path])];
+      input.onFile?.(path);
+    }
+
     report("validating", "Checking it runs…");
     issues = validateApp(files, dir, input.context?.target);
     const refusalNote = refusals.length
       ? [
-          "These writes were refused, so they did not happen:",
+          "These actions were refused, so they did not happen:",
           ...refusals.map((r) => `- ${r}`),
           "Work within what is allowed, or say what you need and why.",
         ].join("\n")
@@ -511,9 +542,10 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   return {
     files,
     changed,
+    removed,
     history: messages,
     issues,
-    reply: stripStatusMarkers(stripCodeBlocks(reply)),
+    reply: stripDeleteMarkers(stripStatusMarkers(stripCodeBlocks(reply))),
     repaired,
     build,
   };

@@ -11,6 +11,7 @@ import {
   Rocket,
   RotateCcw,
   ShieldCheck,
+  ShieldQuestion,
   Square,
   TriangleAlert,
 } from "lucide-react";
@@ -33,13 +34,82 @@ import type { PreviewError } from "@/lib/appgen/preview";
 import type { ResolvedAbi } from "@/lib/appgen/abi-source";
 import { downloadZip } from "@/lib/appgen/zip";
 import { isAiConfigured } from "@/lib/ai-settings";
-import { useAgentJob, type AgentJob } from "@/hooks/useAgentJob";
+import { useAgentJob, type AgentJob, type PendingDecision } from "@/hooks/useAgentJob";
 import type { ChatMessage } from "@/lib/ai";
 
 export const Route = createFileRoute("/launchkit/app-builder")({
   head: () => ({ meta: [{ title: "App Builder — DevStation" }] }),
   component: AppBuilderPage,
 });
+
+/**
+ * The question a paused turn is waiting on.
+ *
+ * Rendered in the transcript rather than as a modal on purpose: a modal steals
+ * focus and has to be answered now, and the whole point of a durable pause is
+ * that it can be left and come back to. Refresh the page and this is still
+ * here.
+ */
+function DecisionCard({
+  decision,
+  answering,
+  onAnswer,
+}: {
+  decision: PendingDecision;
+  answering: boolean;
+  onAnswer: (optionId: string) => void;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!decision.expiresAt) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [decision.expiresAt]);
+
+  const left = decision.expiresAt ? Math.max(0, decision.expiresAt - now) : null;
+  const lapsed = left !== null && left === 0;
+
+  return (
+    <div className="mr-2 rounded border border-warning/50 bg-warning/5 p-2 font-mono text-[11px]">
+      <span className="mb-1 flex items-center gap-1 text-warning">
+        <ShieldQuestion className="h-3 w-3" /> needs your permission
+      </span>
+      <p className="whitespace-pre-wrap break-words text-foreground">{decision.question}</p>
+      {decision.consequences && (
+        <p className="mt-1 text-[10px] text-muted-foreground">{decision.consequences}</p>
+      )}
+      {decision.affectedAction && (
+        <p className="mt-1 text-[10px] text-meta">{decision.affectedAction}</p>
+      )}
+      {left !== null && (
+        <p className="mt-1 text-[10px] text-meta">
+          {lapsed
+            ? "This request has expired."
+            : `Expires in ${Math.floor(left / 60000)}:${String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}`}
+        </p>
+      )}
+      <div className="mt-2 flex gap-2">
+        {(decision.options ?? []).map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            // The stable id, never the label. A reworded button must not change
+            // what the answer means.
+            onClick={() => onAnswer(o.id)}
+            disabled={answering || lapsed}
+            className={
+              o.value === "approve"
+                ? "rounded border border-border bg-surface-2 px-2 py-1 text-[10px] text-foreground disabled:opacity-50"
+                : "rounded border border-border px-2 py-1 text-[10px] text-muted-foreground disabled:opacity-50"
+            }
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface Turn {
   role: "user" | "assistant";
@@ -172,6 +242,19 @@ function AppBuilderPage() {
         });
         return;
       }
+      if (job.phase === "cancelled" && job.buildNote) {
+        // Declined permission, or a question nobody answered in time. Both are
+        // real outcomes and the user should see which.
+        setTurns((t) => {
+          const next = [...t];
+          const i = liveIndex(next);
+          const stopped: Turn = { role: "assistant", text: job.buildNote as string };
+          if (i >= 0) next[i] = stopped;
+          else next.push(stopped);
+          return next;
+        });
+        return;
+      }
       if (job.phase !== "done") return;
       // Object.keys, not truthiness: {} is truthy, so a conversational turn was
       // setting files to an empty app, which then failed validation with
@@ -197,7 +280,9 @@ function AppBuilderPage() {
         const finished: Turn = {
           role: "assistant",
           text:
-            job.prose || (job.changed.length ? `Updated ${job.changed.length} file(s).` : "Done."),
+            job.prose ||
+            (job.changed.length ? `Updated ${job.changed.length} file(s).` : "Done.") +
+              (job.removed?.length ? ` Removed ${job.removed.length} file(s).` : ""),
           changed: job.changed,
         };
         if (i >= 0) next[i] = finished;
@@ -216,6 +301,13 @@ function AppBuilderPage() {
   // come from the job, not from a stream this tab is holding.
   useEffect(() => {
     const job = agent.job;
+    if (job?.phase === "awaiting_decision") {
+      // Waiting on a person is not the agent working. Leaving `busy` true here
+      // would spin a loader under a question nobody is answering yet.
+      setBusy(false);
+      setStatus(null);
+      return;
+    }
     if (!job || job.phase !== "running") return;
     setBusy(true);
     setStatus(job.status || "Working…");
@@ -318,6 +410,9 @@ function AppBuilderPage() {
             files: files ?? {},
             history,
             mode,
+            // Binds any grant a decision produces to this wallet. Absent when
+            // no wallet is connected, and left absent rather than faked.
+            owner: wallet,
             context: attached
               ? {
                   target,
@@ -651,6 +746,13 @@ function AppBuilderPage() {
             )}
           </div>
         ))}
+        {agent.decision && (
+          <DecisionCard
+            decision={agent.decision}
+            answering={agent.answering}
+            onAnswer={(optionId) => void agent.answer(agent.decision!.id, optionId)}
+          />
+        )}
         {status && !turns.some((t) => t.live) && (
           <p className="flex items-center gap-1.5 font-mono text-[11px] text-meta">
             <Loader2 className="h-3 w-3 animate-spin" /> {status}
