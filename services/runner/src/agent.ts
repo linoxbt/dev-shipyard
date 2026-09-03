@@ -51,6 +51,14 @@ export const MAX_AGENT_JOBS = 100;
 
 const STATE_DIR = process.env.RUNNER_STATE_DIR ?? "/var/lib/devstation-runner";
 const AGENT_DIR = join(STATE_DIR, "agent");
+/** Grants and decisions live in their OWN directory, not beside the jobs.
+ *
+ *  They were in AGENT_DIR, and sweep() treats every .json in there as a job:
+ *  grants.json parses as an array, so `updatedAt` read as undefined, defaulted
+ *  to 0, and came out older than the 24h TTL — so the first job started after
+ *  any approval deleted every stored grant. The unit tests passed throughout
+ *  because they point the stores at their own temp files and never sweep. */
+const SECURITY_DIR = join(STATE_DIR, "security");
 
 export type AgentPhase = "running" | "awaiting_decision" | "done" | "error" | "cancelled";
 
@@ -134,8 +142,8 @@ function fileFor(id: string): string {
  *  and is why it must not be forgotten. */
 export function initAgentStores(): void {
   ensureDir();
-  setGrantStore(fileStore(join(AGENT_DIR, "grants.json")));
-  setDecisionStore(fileStore(join(AGENT_DIR, "decisions.json")));
+  setGrantStore(fileStore(join(SECURITY_DIR, "grants.json")));
+  setDecisionStore(fileStore(join(SECURITY_DIR, "decisions.json")));
 }
 
 /** Write beside the target and rename: a rename is atomic, so a crash mid-write
@@ -179,7 +187,10 @@ export function sweep(now = Date.now()): number {
   let entries: { id: string; updatedAt: number }[] = [];
   try {
     entries = readdirSync(AGENT_DIR)
-      .filter((f) => f.endsWith(".json"))
+      // Only files that are actually jobs. Anything else in this directory is
+      // not the sweeper's to delete, and treating it as a job with no
+      // updatedAt made it look expired on sight.
+      .filter((f) => f.startsWith("agent-") && f.endsWith(".json"))
       .map((f) => {
         const id = f.replace(/\.json$/, "");
         return { id, updatedAt: readJob(id)?.updatedAt ?? 0 };

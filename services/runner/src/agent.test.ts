@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -16,19 +16,58 @@ process.env.AI_API_KEY = "";
 const agent = await import("./agent");
 const { createDecisionRequest, setDecisionStore } =
   await import("../../../src/lib/agent/decisions");
-const { getGrant, setGrantStore } = await import("../../../src/lib/agent/authorization");
+const { getGrant, issueGrant, setGrantStore } =
+  await import("../../../src/lib/agent/authorization");
 const { fileStore } = await import("../../../src/lib/agent/store");
 
 const AGENT_DIR = join(STATE_DIR, "agent");
 
 beforeAll(() => {
   mkdirSync(AGENT_DIR, { recursive: true });
-  setGrantStore(fileStore(join(AGENT_DIR, "grants.json")));
-  setDecisionStore(fileStore(join(AGENT_DIR, "decisions.json")));
+  // The production wiring, not a hand-rolled equivalent. Pointing the stores
+  // at temp files by hand is exactly what hid the sweeper bug: it tested the
+  // module and not the path the runner actually takes.
+  agent.initAgentStores();
+  void setGrantStore;
+  void setDecisionStore;
+  void fileStore;
 });
 
 afterAll(() => {
   rmSync(STATE_DIR, { recursive: true, force: true });
+});
+
+describe("the sweeper and the security stores", () => {
+  it("does not delete the grant store when a job starts", () => {
+    // It used to. Grants and decisions sat in the same directory as the jobs,
+    // and sweep() treats every .json there as a job: an array has no
+    // updatedAt, so it defaulted to 0 and read as older than the 24h TTL. The
+    // first job started after any approval wiped every stored grant, and no
+    // unit test saw it because they all use their own temp files.
+    const grant = issueGrant({
+      taskId: "sweep-check",
+      userId: "0xowner",
+      action: {
+        actionId: "a1",
+        taskId: "sweep-check",
+        userId: "0xowner",
+        operation: "file.delete",
+        resources: ["app/old.js"],
+        environment: "development",
+        projectId: "p1",
+      },
+      riskLevel: "high",
+    });
+    agent.sweep();
+    expect(getGrant(grant.id)).toBeDefined();
+    expect(existsSync(join(STATE_DIR, "security", "grants.json"))).toBe(true);
+  });
+
+  it("keeps the stores outside the directory it sweeps", () => {
+    const swept = readdirSync(AGENT_DIR);
+    expect(swept).not.toContain("grants.json");
+    expect(swept).not.toContain("decisions.json");
+  });
 });
 
 describe("canMovePhase", () => {
