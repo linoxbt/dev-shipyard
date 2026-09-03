@@ -23,6 +23,7 @@ import { preflight } from "../../../src/lib/agent/tools";
 import {
   consumeAuthorization,
   issueGrant,
+  actionFingerprint,
   revokeTaskGrants,
   setGrantStore,
   type ProtectedAction,
@@ -37,7 +38,13 @@ import {
   submitDecision,
   type DecisionRequest,
 } from "../../../src/lib/agent/decisions";
-import { canTransition, type TaskStatus } from "../../../src/lib/agent/events";
+import {
+  TaskLog,
+  canTransition,
+  type AgentEventType,
+  type TaskLogSnapshot,
+  type TaskStatus,
+} from "../../../src/lib/agent/events";
 import { fileStore } from "../../../src/lib/agent/store";
 import type { GateCall, GateDecision } from "../../../src/lib/appgen/session";
 import type { ChatMessage } from "../../../src/lib/ai";
@@ -101,6 +108,17 @@ export interface AgentJob {
    *  out. The runner records them and never performs them: it has no GitHub
    *  cookie, no Netlify token and no wallet, and it is not meant to. */
   handoffs: Array<{ name: string; args: Record<string, unknown> }>;
+  /** What happened, in order.
+   *
+   *  The flat fields above say what is true NOW; they cannot say what was
+   *  proposed, what was refused, or what you approved half an hour ago. Every
+   *  entry carries a sequence number that increases by exactly one, so a gap is
+   *  detectable rather than invisible.
+   *
+   *  Prose and status deltas are deliberately NOT recorded. They change on
+   *  every streamed chunk and would bury the decisions under thousands of
+   *  entries that answer nothing anyone would ask of an audit trail. */
+  log: TaskLogSnapshot;
   /** How many times this job has stopped to ask. Capped, so a model that keeps
    *  proposing a different privileged action cannot ask forever. */
   pauses: number;
@@ -174,6 +192,7 @@ function readJob(id: string): AgentJob | null {
       refused: job.refused ?? [],
       removed: job.removed ?? [],
       handoffs: job.handoffs ?? [],
+      log: job.log ?? { events: [], status: "running" },
       pauses: job.pauses ?? 0,
       pendingDecisionId: job.pendingDecisionId ?? null,
       pendingAction: job.pendingAction ?? null,
@@ -233,13 +252,30 @@ function touch(job: AgentJob, patch: Partial<AgentJob>): void {
  *  a finished job cannot be dragged back into running, and a cancelled one
  *  cannot be made to execute. Those are exactly the moves a race between the
  *  turn's own completion and an incoming answer would attempt. */
+/** Append one entry to the job's log.
+ *
+ *  Rebuilt from the job on each call rather than held in memory, because the
+ *  job outlives the process: an answer can arrive in one runner and the turn it
+ *  resumes can finish in another, and both have to append to the same sequence.
+ *  Payloads are redacted inside emit, so a credential cannot reach the trail by
+ *  a caller forgetting to strip it. */
+function record(job: AgentJob, type: AgentEventType, payload: Record<string, unknown> = {}): void {
+  const log = new TaskLog(job.id, job.projectId, job.log);
+  log.emit(type, payload);
+  touch(job, { log: log.snapshot() });
+}
+
 export function canMovePhase(from: AgentPhase, to: AgentPhase): boolean {
   return from === to || canTransition(AS_STATUS[from], AS_STATUS[to]);
 }
 
 function setPhase(job: AgentJob, phase: AgentPhase, patch: Partial<AgentJob> = {}): boolean {
   if (!canMovePhase(job.phase, phase)) return false;
-  touch(job, { ...patch, phase });
+  const log = new TaskLog(job.id, job.projectId, job.log);
+  // Only a real move is recorded. Re-writing the same phase is how a patch gets
+  // saved, not something that happened.
+  if (AS_STATUS[job.phase] !== AS_STATUS[phase]) log.transition(AS_STATUS[phase]);
+  touch(job, { ...patch, phase, log: log.snapshot() });
   return true;
 }
 
@@ -390,6 +426,7 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
     refused: [],
     removed: [],
     handoffs: [],
+    log: { events: [], status: "running" },
     pauses: 0,
     pendingDecisionId: null,
     pendingAction: null,
@@ -397,6 +434,7 @@ export function startAgentJob(input: StartAgentInput): AgentJob {
     resume: input,
   };
   persist(job);
+  record(job, "agent.started", { projectId: input.projectId, owner: input.owner ?? "" });
   sweep();
   executeTurn(job, input);
   return job;
@@ -475,11 +513,26 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
               environment: "development",
             },
           );
-          if (result.ok) return { ok: true };
+          if (result.ok) {
+            // Resources, never arguments: a write_file's content is the whole
+            // file, and an audit entry is not the place to keep a second copy
+            // of the project.
+            record(job, "agent.action.proposed", {
+              tool: call.name,
+              operation: result.action.operation,
+              resources: result.action.resources,
+            });
+            return { ok: true };
+          }
 
           if (result.rejection.reason !== "needs_authorization") {
             const note = `${call.name}: ${result.rejection.message}`;
             touch(job, { refused: [...job.refused, note] });
+            record(job, "agent.action.failed", {
+              tool: call.name,
+              reason: result.rejection.reason,
+              message: result.rejection.message,
+            });
             return { ok: false, message: result.rejection.message };
           }
 
@@ -488,7 +541,16 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
           // fingerprints the same, and the grant issued for it is consumed here.
           const action = result.rejection.action;
           for (const grantId of job.grantIds) {
-            if (consumeAuthorization(grantId, action).ok) return { ok: true };
+            if (consumeAuthorization(grantId, action).ok) {
+              record(job, "agent.authorization.granted", {
+                tool: call.name,
+                operation: action.operation,
+                resources: action.resources,
+                grantId,
+                fingerprint: actionFingerprint(action),
+              });
+              return { ok: true };
+            }
           }
 
           // One question per turn. The abort does not stop the loop
@@ -502,6 +564,11 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
           if (job.pauses >= MAX_PAUSES) {
             const note = `${call.name}: asked ${MAX_PAUSES} times already, so this was refused.`;
             touch(job, { refused: [...job.refused, note] });
+            record(job, "agent.authorization.denied", {
+              tool: call.name,
+              reason: "asked_too_many_times",
+              pauses: job.pauses,
+            });
             return {
               ok: false,
               message: "You have already been asked about this several times, so it was not done.",
@@ -519,6 +586,15 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
             pendingDecisionId: request.id,
             pendingAction: { action, riskLevel: result.rejection.verdict.riskLevel },
             pauses: job.pauses + 1,
+          });
+          record(job, "agent.decision.requested", {
+            decisionId: request.id,
+            tool: call.name,
+            operation: action.operation,
+            resources: action.resources,
+            riskLevel: result.rejection.verdict.riskLevel,
+            // Recorded now, so the answer can be tied to exactly what was shown.
+            fingerprint: actionFingerprint(action),
           });
           controller.abort();
           return { ok: false, message: result.rejection.message };
@@ -654,6 +730,12 @@ export function answerAgentDecision(input: AnswerDecisionInput): AnswerDecisionR
   const approved = selectedOptions(result.request, result.response).some(
     (o) => o.value === "approve",
   );
+  record(job, "agent.decision.received", {
+    decisionId: input.requestId,
+    approved,
+    replayed: result.replayed,
+    fingerprint: job.pendingAction ? actionFingerprint(job.pendingAction.action) : null,
+  });
 
   // A replayed answer must not run the turn a second time. The decision store
   // makes the ANSWER idempotent; this makes the consequence idempotent too,
@@ -670,6 +752,11 @@ export function answerAgentDecision(input: AnswerDecisionInput): AnswerDecisionR
       pendingAction: null,
       buildNote: `You did not allow ${pending?.action.operation ?? "that action"}, so the task stopped.`,
     });
+    record(job, "agent.authorization.denied", {
+      operation: pending?.action.operation ?? null,
+      resources: pending?.action.resources ?? [],
+      reason: "declined_by_user",
+    });
     revokeTaskGrants(job.id);
     return { ok: true, job, approved: false };
   }
@@ -684,6 +771,14 @@ export function answerAgentDecision(input: AnswerDecisionInput): AnswerDecisionR
     action: pending.action,
     riskLevel: pending.riskLevel,
     issuedFromDecisionRequestId: result.request.id,
+  });
+  record(job, "agent.authorization.requested", {
+    grantId: grant.id,
+    operation: pending.action.operation,
+    resources: pending.action.resources,
+    riskLevel: pending.riskLevel,
+    expiresAt: grant.expiresAt,
+    fingerprint: grant.fingerprint,
   });
   if (
     !setPhase(job, "running", {

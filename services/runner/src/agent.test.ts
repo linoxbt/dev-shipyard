@@ -16,6 +16,7 @@ process.env.AI_API_KEY = "";
 const agent = await import("./agent");
 const { createDecisionRequest, setDecisionStore } =
   await import("../../../src/lib/agent/decisions");
+const { inspectSequence } = await import("../../../src/lib/agent/events");
 const { getGrant, issueGrant, setGrantStore } =
   await import("../../../src/lib/agent/authorization");
 const { fileStore } = await import("../../../src/lib/agent/store");
@@ -35,6 +36,79 @@ beforeAll(() => {
 
 afterAll(() => {
   rmSync(STATE_DIR, { recursive: true, force: true });
+});
+
+describe("the audit trail", () => {
+  it("records the question, the answer and the grant, in order", () => {
+    const request = writePausedJob("agent-audit-1");
+    agent.answerAgentDecision({
+      jobId: "agent-audit-1",
+      requestId: request.id,
+      clientRequestId: "audit-click",
+      selectedOptionIds: [agent.APPROVE_OPTION],
+    });
+    const events = agent.getAgentJob("agent-audit-1")!.log.events;
+    const types = events.map((e) => e.type);
+    expect(types).toContain("agent.decision.received");
+    expect(types).toContain("agent.authorization.requested");
+
+    // The trail has to say WHAT was approved, not merely that something was.
+    const granted = events.find((e) => e.type === "agent.authorization.requested")!;
+    expect(granted.payload.operation).toBe("file.delete");
+    expect(granted.payload.resources).toEqual(["app/old.js"]);
+    expect(String(granted.payload.fingerprint)).toHaveLength(32);
+  });
+
+  it("records a refusal as its own outcome", () => {
+    const request = writePausedJob("agent-audit-2");
+    agent.answerAgentDecision({
+      jobId: "agent-audit-2",
+      requestId: request.id,
+      clientRequestId: "audit-no",
+      selectedOptionIds: [agent.DECLINE_OPTION],
+    });
+    const events = agent.getAgentJob("agent-audit-2")!.log.events;
+    const denied = events.find((e) => e.type === "agent.authorization.denied");
+    expect(denied).toBeDefined();
+    expect(denied!.payload.reason).toBe("declined_by_user");
+    // And nothing claims a grant was issued.
+    expect(events.some((e) => e.type === "agent.authorization.requested")).toBe(false);
+  });
+
+  it("continues the sequence across a restart instead of starting again", () => {
+    // The job outlives the process: an answer can arrive in one runner and the
+    // turn it resumes finish in another. Two events numbered 12 would make the
+    // trail unreadable exactly when it matters.
+    const request = writePausedJob("agent-audit-3");
+    agent.answerAgentDecision({
+      jobId: "agent-audit-3",
+      requestId: request.id,
+      clientRequestId: "audit-seq",
+      selectedOptionIds: [agent.DECLINE_OPTION],
+    });
+    const events = agent.getAgentJob("agent-audit-3")!.log.events;
+    const sequences = events.map((e) => e.sequence);
+    expect(sequences.length).toBeGreaterThan(1);
+    expect(inspectSequence(sequences).ok).toBe(true);
+    // Strictly increasing by one, which is what makes a gap detectable.
+    expect(sequences).toEqual(sequences.map((_, i) => sequences[0] + i));
+  });
+
+  it("keeps no prose or file contents in the trail", () => {
+    const request = writePausedJob("agent-audit-4");
+    agent.answerAgentDecision({
+      jobId: "agent-audit-4",
+      requestId: request.id,
+      clientRequestId: "audit-quiet",
+      selectedOptionIds: [agent.DECLINE_OPTION],
+    });
+    const serialised = JSON.stringify(agent.getAgentJob("agent-audit-4")!.log.events);
+    // Prose and status change on every streamed chunk. Recording them would
+    // bury the decisions under thousands of entries that answer nothing anyone
+    // would ask of an audit trail.
+    expect(serialised).not.toContain("agent.message");
+    expect(serialised.length).toBeLessThan(4000);
+  });
 });
 
 describe("the sweeper and the security stores", () => {

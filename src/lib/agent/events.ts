@@ -72,15 +72,50 @@ export function canTransition(from: TaskStatus, to: TaskStatus): boolean {
   return TRANSITIONS[from].includes(to);
 }
 
+/** Enough of a log to rebuild it in a process that never saw it written. */
+export interface TaskLogSnapshot {
+  events: AgentEvent[];
+  status: TaskStatus;
+}
+
+/** Events retained per task.
+ *
+ *  An audit trail that grows without limit is one that eventually stops being
+ *  written at all, because the record it lives in gets too large to save. The
+ *  OLDEST are dropped rather than the newest: the recent end is what explains
+ *  what a task is doing now, and the trimmed count is kept so a gap is visible
+ *  as a gap rather than looking like a task that did less than it did. */
+export const MAX_EVENTS = 400;
+
 export class TaskLog {
   private events: AgentEvent[] = [];
   private seq = 0;
   private state: TaskStatus = "running";
+  private dropped = 0;
 
   constructor(
     readonly taskId: string,
     readonly conversationId: string,
-  ) {}
+    /** Restores a log persisted by an earlier process. The sequence continues
+     *  from where it left off rather than restarting at 1 — a restart must not
+     *  produce two different events numbered 12. */
+    restore?: TaskLogSnapshot,
+  ) {
+    if (!restore) return;
+    this.events = [...restore.events];
+    this.state = restore.status;
+    this.seq = restore.events.reduce((n, e) => Math.max(n, e.sequence), 0);
+  }
+
+  /** Everything needed to restore this log later. */
+  snapshot(): TaskLogSnapshot {
+    return { events: this.all(), status: this.state };
+  }
+
+  /** How many events were dropped to stay within MAX_EVENTS. */
+  get droppedCount(): number {
+    return this.dropped;
+  }
 
   get status(): TaskStatus {
     return this.state;
@@ -105,6 +140,10 @@ export class TaskLog {
       payload: safe,
     };
     this.events.push(event);
+    if (this.events.length > MAX_EVENTS) {
+      this.dropped += this.events.length - MAX_EVENTS;
+      this.events = this.events.slice(-MAX_EVENTS);
+    }
     return event;
   }
 
