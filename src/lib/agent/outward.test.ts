@@ -75,6 +75,40 @@ describe("pushing to GitHub", () => {
   });
 });
 
+describe("what an approval is bound to", () => {
+  function fingerprintFor(args: Record<string, unknown>): string {
+    const r = preflight({ id: "p", name: "push_to_github", args }, ctx);
+    if (r.ok || r.rejection.reason !== "needs_authorization") throw new Error("expected a gate");
+    return actionFingerprint(r.rejection.action);
+  }
+
+  it("survives a commit message the model did not mention the first time", () => {
+    // A live run: the push was approved, the resumed turn re-proposed it with
+    // "Initial commit" attached, the fingerprint no longer matched, and it
+    // asked a second time. A commit message does not change what was agreed to.
+    expect(fingerprintFor({ repoName: "my-app" })).toBe(
+      fingerprintFor({ repoName: "my-app", message: "Initial commit" }),
+    );
+  });
+
+  it("treats an unstated private push and a stated one as the same action", () => {
+    expect(fingerprintFor({ repoName: "my-app" })).toBe(
+      fingerprintFor({ repoName: "my-app", isPrivate: true }),
+    );
+  });
+
+  it("does NOT let approval of a private push authorise a public one", () => {
+    // Visibility is the argument that matters, and it stays in the fingerprint.
+    expect(fingerprintFor({ repoName: "my-app", isPrivate: true })).not.toBe(
+      fingerprintFor({ repoName: "my-app", isPrivate: false }),
+    );
+  });
+
+  it("still distinguishes repositories", () => {
+    expect(fingerprintFor({ repoName: "my-app" })).not.toBe(fingerprintFor({ repoName: "other" }));
+  });
+});
+
 describe("publishing a site", () => {
   it("always asks first", () => {
     const r = preflight({ id: "s1", name: "publish_app", args: { slug: "my-app" } }, ctx);

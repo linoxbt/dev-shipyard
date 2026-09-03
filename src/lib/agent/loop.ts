@@ -1,3 +1,5 @@
+import { toolUsageLines } from "./tools";
+
 // The bounded tool loop.
 //
 // Before this, a turn could only do one thing: write the files it had already
@@ -16,20 +18,39 @@
 // whose individual calls are slow — four fast reads and four full builds are
 // the same number of steps and nothing like the same wait.
 
-/** What the model is told about calling tools. */
-export const TOOL_PROTOCOL = `# Looking before you write
-
-You may inspect the project before answering. Emit a call on its own line:
-
-<tool name="read_file">{"path": "app/app.js"}</tool>
-
-Available: list_files {}, read_file {"path"}, search_files {"query"},
-run_tests {}, run_build {}.
-
-The result comes back as an observation and you may then call another or
-answer. Use this when you genuinely do not know something — not to confirm what
-the project state above already tells you. Do NOT mix tool calls and file blocks
-in the same reply: do one or the other.`;
+/** What the model is told about calling tools.
+ *
+ *  Generated from the registry, never written out by hand. push_to_github was
+ *  registered, classified and covered by tests while this text still listed
+ *  five tools, so the model answered that it had no way to push — which was
+ *  true from where it was standing. A tool the prompt does not mention does not
+ *  exist, however well the rest of the system knows about it. */
+export function toolProtocol(): string {
+  const { agent, person } = toolUsageLines();
+  return [
+    "# Looking before you write",
+    "",
+    "You may inspect the project before answering. Emit a call on its own line:",
+    "",
+    '<tool name="read_file">{"path": "app/app.js"}</tool>',
+    "",
+    `Available: ${agent.join(", ")}.`,
+    "",
+    "The result comes back as an observation and you may then call another or",
+    "answer. Use this when you genuinely do not know something — not to confirm",
+    "what the project state above already tells you. Do NOT mix tool calls and",
+    "file blocks in the same reply: do one or the other.",
+    "",
+    "# Asking for something outside the project",
+    "",
+    `You may also ask for: ${person.join(", ")}.`,
+    "",
+    "These are requests, not actions you perform. The user is shown exactly what",
+    "you asked for and decides; if they allow it, their own browser carries it",
+    "out and you are told. So when you are asked to push or publish, ASK — do not",
+    "reply that you are unable to.",
+  ].join("\n");
+}
 
 export interface ToolCallRequest {
   id: string;

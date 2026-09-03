@@ -32,8 +32,30 @@ export interface ToolDefinition<S extends z.ZodTypeAny = z.ZodTypeAny> {
   /** Which argument names identify what is being touched, so the policy engine
    *  and any authorization grant can be scoped to real resources. */
   resourcesFrom: (args: z.infer<S>) => string[];
+  /** The arguments that define WHAT is being authorised, when that is narrower
+   *  than every argument.
+   *
+   *  The fingerprint covers parameters so an approval cannot be spent on a
+   *  materially different action. Covering all of them made approval brittle in
+   *  a way a live run showed: the model asked to push, was approved, re-proposed
+   *  the same push on the resumed turn with a commit message it had not
+   *  mentioned before, and the fingerprint no longer matched — so it asked
+   *  again. A commit message does not change what you agreed to; the repository
+   *  and whether it is private do.
+   *
+   *  Listing these is deliberate per tool and never a blanket "ignore extras":
+   *  anything left out is something an approval will not distinguish. */
+  materialArgs?: string[];
   /** Output that must be treated as untrusted when returned to the model. */
   returnsUntrustedContent: boolean;
+  /** How the call is written, e.g. `read_file {"path"}`.
+   *
+   *  Required, and that is the point: the model can only call what the prompt
+   *  tells it exists. push_to_github was registered, classified and tested
+   *  while the prompt still listed five tools, so the model replied that it had
+   *  no way to push — correct, from where it was standing. Generating the
+   *  protocol from this field makes that failure a type error instead. */
+  usage: string;
   /** Who actually carries this out.
    *
    *  "person" means the agent can only ever propose it: the credential for it
@@ -59,6 +81,7 @@ const filePath = z
 export const TOOLS: Record<string, ToolDefinition> = {
   list_files: {
     name: "list_files",
+    usage: "list_files {}",
     description: "List the files in the project.",
     operation: "project.inspect",
     schema: z.object({ path: filePath.optional() }),
@@ -67,6 +90,7 @@ export const TOOLS: Record<string, ToolDefinition> = {
   },
   read_file: {
     name: "read_file",
+    usage: 'read_file {"path"}',
     description: "Read one file's contents.",
     operation: "file.read",
     schema: z.object({ path: filePath }),
@@ -75,6 +99,7 @@ export const TOOLS: Record<string, ToolDefinition> = {
   },
   search_files: {
     name: "search_files",
+    usage: 'search_files {"query"}',
     description: "Search the project for a string.",
     operation: "project.inspect",
     schema: z.object({ query: z.string().min(1).max(200), path: filePath.optional() }),
@@ -83,6 +108,7 @@ export const TOOLS: Record<string, ToolDefinition> = {
   },
   write_file: {
     name: "write_file",
+    usage: 'write_file {"path", "content"}',
     description: "Create or replace a file with the given contents.",
     operation: "file.write",
     schema: z.object({ path: filePath, content: z.string().max(400_000) }),
@@ -91,6 +117,7 @@ export const TOOLS: Record<string, ToolDefinition> = {
   },
   delete_file: {
     name: "delete_file",
+    usage: 'delete_file {"path"}',
     description: "Delete a file from the project.",
     operation: "file.delete",
     schema: z.object({ path: filePath }),
@@ -99,6 +126,7 @@ export const TOOLS: Record<string, ToolDefinition> = {
   },
   install_dependency: {
     name: "install_dependency",
+    usage: 'install_dependency {"name", "version?", "dev?"}',
     description: "Add a package to the project and install it.",
     operation: "dependency.install",
     schema: z.object({
@@ -117,6 +145,7 @@ export const TOOLS: Record<string, ToolDefinition> = {
   },
   run_build: {
     name: "run_build",
+    usage: "run_build {}",
     description: "Install, lint, build and test the project, returning the logs.",
     operation: "build.dev",
     schema: z.object({}),
@@ -130,6 +159,7 @@ export const TOOLS: Record<string, ToolDefinition> = {
   // own session carries it out. That is why the risk is on the proposal.
   push_to_github: {
     name: "push_to_github",
+    usage: 'push_to_github {"repoName", "isPrivate?", "message?"}',
     description: "Push the project to a GitHub repository under the signed-in account.",
     operation: "vcs.push",
     schema: z.object({
@@ -138,17 +168,23 @@ export const TOOLS: Record<string, ToolDefinition> = {
         .min(1)
         .max(100)
         .regex(/^[A-Za-z0-9._-]+$/, "not a repository name"),
-      isPrivate: z.boolean().optional(),
+      // Defaulted rather than optional, so "push it" and "push it privately"
+      // produce the same action and therefore the same fingerprint.
+      isPrivate: z.boolean().default(true),
       message: z.string().max(200).optional(),
     }),
     // Scoped to the repository, so approving a push to one never authorises a
     // push to another.
     resourcesFrom: (a) => [`github:${(a as { repoName: string }).repoName}`],
+    // Visibility is material — approving a private push must not authorise a
+    // public one. The commit message is not.
+    materialArgs: ["repoName", "isPrivate"],
     returnsUntrustedContent: false,
     performedBy: "person",
   },
   publish_app: {
     name: "publish_app",
+    usage: 'publish_app {"slug"}',
     description: "Publish the built app to <name>.devstation.online.",
     operation: "deploy.publish",
     schema: z.object({
@@ -159,11 +195,13 @@ export const TOOLS: Record<string, ToolDefinition> = {
         .regex(/^[a-z0-9-]+$/, "not a subdomain"),
     }),
     resourcesFrom: (a) => [`site:${(a as { slug: string }).slug}`],
+    materialArgs: ["slug"],
     returnsUntrustedContent: false,
     performedBy: "person",
   },
   run_tests: {
     name: "run_tests",
+    usage: "run_tests {}",
     description: "Run the project's test suite.",
     operation: "test.run",
     schema: z.object({}),
@@ -248,7 +286,7 @@ export function preflight(call: ToolCall, ctx: PreflightContext): ToolPreflight 
     resources: tool.resourcesFrom(args),
     environment: ctx.environment,
     projectId: ctx.projectId,
-    parameters: args,
+    parameters: materialParameters(tool, args),
   };
 
   const verdict = evaluate(action, { autonomy: ctx.autonomy });
@@ -267,6 +305,19 @@ export function preflight(call: ToolCall, ctx: PreflightContext): ToolPreflight 
   return { ok: true, tool, args, action };
 }
 
+/** The arguments an approval is bound to. Defaults to all of them: a tool that
+ *  has not said which of its arguments are material is treated as though every
+ *  one of them is, which is the strict direction. */
+function materialParameters(
+  tool: ToolDefinition,
+  args: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!tool.materialArgs) return args;
+  const out: Record<string, unknown> = {};
+  for (const key of tool.materialArgs) if (key in args) out[key] = args[key];
+  return out;
+}
+
 /** Prepare a tool's output for the model.
  *
  *  Truncated so one enormous log cannot consume the context budget, redacted so
@@ -283,4 +334,18 @@ export function presentResult(tool: ToolDefinition, output: string, maxChars = 8
 /** The tool list as the model should see it. */
 export function toolCatalogue(): Array<{ name: string; description: string }> {
   return Object.values(TOOLS).map((t) => ({ name: t.name, description: t.description }));
+}
+
+/** The callable tools, written out for the prompt.
+ *
+ *  Built from the registry rather than kept in step with it by hand. The two
+ *  outward tools are listed separately because they are a different kind of
+ *  thing: the agent asks, and somebody decides. */
+export function toolUsageLines(): { agent: string[]; person: string[] } {
+  const agent: string[] = [];
+  const person: string[] = [];
+  for (const tool of Object.values(TOOLS)) {
+    (tool.performedBy === "person" ? person : agent).push(tool.usage);
+  }
+  return { agent, person };
 }

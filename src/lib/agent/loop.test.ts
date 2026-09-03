@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import { TOOLS } from "./tools";
 import {
   DEFAULT_BUDGET,
+  toolProtocol,
   budgetSpent,
   formatObservation,
   parseToolCalls,
@@ -90,5 +92,34 @@ describe("formatObservation", () => {
   it("names the tool the result came from", () => {
     expect(formatObservation("read_file", "contents")).toContain("read_file");
     expect(formatObservation("read_file", "contents")).toContain("contents");
+  });
+});
+
+describe("toolProtocol", () => {
+  it("mentions every tool in the registry", () => {
+    // The bug this exists to prevent: push_to_github was registered,
+    // classified and covered by tests while the prompt still listed five
+    // tools, so the model answered a request to push with "I don't have the
+    // ability to perform GitHub account actions". It was right — nothing had
+    // told it otherwise. A tool the prompt does not name does not exist.
+    const text = toolProtocol();
+    for (const name of Object.keys(TOOLS)) {
+      expect(text).toContain(name);
+    }
+  });
+
+  it("separates what the agent does from what it may only ask for", () => {
+    const text = toolProtocol();
+    const asking = text.indexOf("Asking for something outside the project");
+    expect(asking).toBeGreaterThan(-1);
+    // The outward tools belong on the asking side, not the doing side.
+    expect(text.indexOf("push_to_github")).toBeGreaterThan(asking);
+    expect(text.indexOf("publish_app")).toBeGreaterThan(asking);
+    expect(text.indexOf("read_file")).toBeLessThan(asking);
+  });
+
+  it("tells the model to ask rather than refuse", () => {
+    expect(toolProtocol()).toContain("do not");
+    expect(toolProtocol()).toContain("unable to");
   });
 });
