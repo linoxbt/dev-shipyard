@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ComingSoon } from "@/components/shared/ComingSoon";
+import { isComingSoon } from "@/lib/coming-soon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUp,
@@ -39,7 +41,16 @@ import type { ChatMessage } from "@/lib/ai";
 
 export const Route = createFileRoute("/launchkit/app-builder")({
   head: () => ({ meta: [{ title: "App Builder — DevStation" }] }),
-  component: AppBuilderPage,
+  // Gated on the shared map, never on a flag local to this file: the
+  // sidebar badge reads the same entry, so the two cannot disagree.
+  // AppBuilderPage stays referenced, so removing the map entry is all it takes
+  // to bring the page back.
+  component: () =>
+    isComingSoon("/launchkit/app-builder") ? (
+      <ComingSoon path="/launchkit/app-builder" />
+    ) : (
+      <AppBuilderPage />
+    ),
 });
 
 /**

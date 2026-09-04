@@ -27,6 +27,7 @@ import { NetworkSelector } from "@/components/web3/NetworkSelector";
 import { Logo } from "@/components/shared/Logo";
 import { useUi } from "@/lib/ui-state";
 import { useTheme } from "@/lib/theme";
+import { isComingSoon } from "@/lib/coming-soon";
 
 const NAV = [
   { to: "/overview", label: "Overview", icon: Home, exact: true },
@@ -191,7 +192,14 @@ function SidebarLink({
       )}
     >
       <Icon className="h-3.5 w-3.5" />
-      {label}
+      <span className="truncate">{label}</span>
+      {/* Read from the same map the route gate reads, so the badge cannot
+          promise something different from what the page does. */}
+      {isComingSoon(to) && (
+        <span className="ml-auto shrink-0 rounded border border-border px-1 py-px font-mono text-[9px] uppercase tracking-wide text-meta">
+          Soon
+        </span>
+      )}
     </Link>
   );
 }

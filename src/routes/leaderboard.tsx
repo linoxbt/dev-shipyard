@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ComingSoon } from "@/components/shared/ComingSoon";
+import { isComingSoon } from "@/lib/coming-soon";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { Trophy, Users } from "lucide-react";
@@ -16,7 +18,12 @@ import { TIER_LABEL } from "@/lib/reputation";
 // reverted ones are excluded so failed transactions cannot inflate anyone.
 
 export const Route = createFileRoute("/leaderboard")({
-  component: LeaderboardPage,
+  // Gated on the shared map, never on a flag local to this file: the
+  // sidebar badge reads the same entry, so the two cannot disagree.
+  // LeaderboardPage stays referenced, so removing the map entry is all it takes
+  // to bring the page back.
+  component: () =>
+    isComingSoon("/leaderboard") ? <ComingSoon path="/leaderboard" /> : <LeaderboardPage />,
 });
 
 function LeaderboardPage() {

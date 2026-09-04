@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { ComingSoon } from "@/components/shared/ComingSoon";
+import { isComingSoon } from "@/lib/coming-soon";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAccount } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
@@ -42,7 +44,12 @@ import { describePass, formatWalletAge } from "@/lib/qie/identity";
 
 export const Route = createFileRoute("/activity")({
   head: () => ({ meta: [{ title: "Dashboard — DevStation" }] }),
-  component: DashboardPage,
+  // Gated on the shared map, never on a flag local to this file: the
+  // sidebar badge reads the same entry, so the two cannot disagree.
+  // DashboardPage stays referenced, so removing the map entry is all it takes
+  // to bring the page back.
+  component: () =>
+    isComingSoon("/activity") ? <ComingSoon path="/activity" /> : <DashboardPage />,
 });
 
 function DashboardPage() {

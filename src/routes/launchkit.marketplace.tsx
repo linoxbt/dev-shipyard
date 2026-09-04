@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { ComingSoon } from "@/components/shared/ComingSoon";
+import { isComingSoon } from "@/lib/coming-soon";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAccount } from "wagmi";
 import { formatEther } from "viem";
@@ -19,7 +21,16 @@ import { shortAddr } from "@/lib/explorer/format";
 // UI says so plainly rather than implying the payment unlocks something.
 
 export const Route = createFileRoute("/launchkit/marketplace")({
-  component: Marketplace,
+  // Gated on the shared map, never on a flag local to this file: the
+  // sidebar badge reads the same entry, so the two cannot disagree.
+  // Marketplace stays referenced, so removing the map entry is all it takes
+  // to bring the page back.
+  component: () =>
+    isComingSoon("/launchkit/marketplace") ? (
+      <ComingSoon path="/launchkit/marketplace" />
+    ) : (
+      <Marketplace />
+    ),
 });
 
 function Marketplace() {
