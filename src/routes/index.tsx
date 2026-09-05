@@ -27,7 +27,7 @@ import { TEMPLATES } from "@/lib/data/templates";
 import { cn } from "@/lib/utils";
 import { HeroStage } from "@/components/landing/HeroStage";
 import { ChainsBand } from "@/components/landing/ChainsBand";
-import { HeroWatermark } from "@/components/landing/HeroWatermark";
+import { HeroVisual } from "@/components/landing/HeroVisual";
 import { ImageReveal } from "@/components/landing/ImageReveal";
 import { Reveal } from "@/components/landing/Reveal";
 import { REVEAL_IMAGES } from "@/lib/landing-images";
@@ -62,6 +62,7 @@ function Landing() {
     <div className="min-h-screen bg-background text-foreground">
       <LandingNav />
       <Hero shown={shown} tagline={tagline} />
+      <PipelineBand />
       <StatsBand />
       <ChainsBand />
       <ImageReveal
@@ -167,9 +168,6 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
           backgroundSize: "44px 44px",
         }}
       />
-      {/* Real imagery turning behind the type: the two chain marks among it,
-          the same size as each other. */}
-      <HeroWatermark />
       <div
         aria-hidden
         className="pointer-events-none absolute -right-40 -top-40 h-[28rem] w-[28rem] rounded-full opacity-20 blur-3xl"
@@ -231,12 +229,25 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
           </div>
         </div>
 
-        {/* The pipeline, running. It cycles QIE and BOT Chain in turn, so the
-            dual-chain claim in the copy is something the page shows rather
-            than only states. */}
-        <div className={cn(tagline ? "animate-fade-up" : "opacity-0")}>
-          <HeroStage />
-        </div>
+        {/* The work itself, turning. Both chain marks ride the same rotation
+            at the same size, so the dual-chain claim in the copy is something
+            the page shows rather than only states. */}
+        <HeroVisual className={cn(tagline ? "animate-fade-up" : "opacity-0")} />
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────── Pipeline ─────────────── */
+
+/** The four steps, running, alternating the chain on every pass. It used to sit
+ *  in the hero; the photograph took that slot, and this reads better with room
+ *  around it anyway. */
+function PipelineBand() {
+  return (
+    <section className="border-b border-border bg-surface">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <HeroStage />
       </div>
     </section>
   );
