@@ -202,10 +202,9 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
               tagline ? "animate-fade-up" : "opacity-0",
             )}
           >
-            The AI Developer OS for QIE and Web3. Describe what you want built. DevStation writes
-            the contracts, tests them, deploys and verifies them onchain, and generates the app. No
-            local toolchain. It runs on QIE and BOT Chain alike: same editor, same registries, same
-            explorer, whichever you ship to.
+            The AI Developer OS for QIE and Web3. Describe what you want built. DevStation writes,
+            tests, deploys and verifies the contracts, then generates the app. Nothing to install,
+            on QIE and BOT Chain alike.
           </p>
 
           <div
