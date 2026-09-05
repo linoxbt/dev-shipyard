@@ -7,7 +7,7 @@
 /*
  * DevStation Design System
  * Terminal black + amber accents + QIE teal.
- * All tokens are semantic — use bg-background, text-accent, etc.
+ * All tokens are semantic: use bg-background, text-accent, etc.
  */
 
 @theme inline {
@@ -134,7 +134,7 @@
 }
 
 /*
- * Light theme — a soft, low-glare white (in the spirit of Etherscan's light
+ * Light theme: a soft, low-glare white (in the spirit of Etherscan's light
  * mode): off-white page, white cards, slate text, light borders. Applied by
  * toggling `light` on <html> (see src/lib/theme.ts).
  */
@@ -269,4 +269,63 @@ html.light {
 
 @utility animate-fade-up {
   animation: fade-up 0.6s ease-out both;
+}
+
+/* The hero stage's timer bar. Its duration is set inline from the same
+   constant that advances the scene, so the bar cannot drift from the wait it
+   is describing. */
+@keyframes stage-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+/* Sections and photographs arriving as you reach them. Settles from blur and
+   a little lower, which reads as focus pulling rather than a box sliding. */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@utility animate-reveal {
+  animation: reveal 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* The hero watermark's mark turns once every couple of minutes: slow enough
+   to be atmosphere rather than something the eye tracks. */
+@keyframes slow-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@utility animate-slow-spin {
+  animation: slow-spin 110s linear infinite;
+}
+
+/* Motion is decoration here: the stage still cycles content, it just stops
+   sliding and wiping for anyone who asked the OS not to. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-reveal,
+  .animate-slow-spin {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
 }

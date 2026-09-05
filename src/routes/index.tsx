@@ -25,15 +25,21 @@ import { withCommas } from "@/lib/explorer/format";
 import { EXPLORER_CHAIN_FAMILIES } from "@/lib/explorer/network";
 import { TEMPLATES } from "@/lib/data/templates";
 import { cn } from "@/lib/utils";
+import { HeroStage } from "@/components/landing/HeroStage";
+import { ChainsBand } from "@/components/landing/ChainsBand";
+import { HeroWatermark } from "@/components/landing/HeroWatermark";
+import { ImageReveal } from "@/components/landing/ImageReveal";
+import { Reveal } from "@/components/landing/Reveal";
+import { REVEAL_IMAGES } from "@/lib/landing-images";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "DevStation — The AI Developer OS for QIE and Web3" },
+      { title: "DevStation: The AI Developer OS for QIE and Web3" },
       {
         name: "description",
         content:
-          "The AI Developer OS for QIE and Web3. Describe what you want built and DevStation writes, tests, deploys and verifies the contracts — then generates the app.",
+          "The AI Developer OS for QIE and Web3. Describe what you want built and DevStation writes, tests, deploys and verifies the contracts, then generates the app.",
       },
     ],
   }),
@@ -57,8 +63,33 @@ function Landing() {
       <LandingNav />
       <Hero shown={shown} tagline={tagline} />
       <StatsBand />
+      <ChainsBand />
+      <ImageReveal
+        eyebrow="Write"
+        title="Describe it. Get real Solidity back."
+        body="Plain language in, audited contracts out: compiled in the browser against the chain you are targeting, with the errors surfaced before anything is signed."
+        src={REVEAL_IMAGES.write}
+        side="right"
+        footnote="solc 0.8.24 · evmVersion shanghai"
+      />
       <Features />
+      <ImageReveal
+        eyebrow="Deploy"
+        title="Onto QIE. Onto BOT Chain."
+        body="The same contract, the same flow, whichever you ship to. Gas is paid in that chain's own token and the deployment is written to that chain's own registry."
+        src={REVEAL_IMAGES.deploy}
+        side="left"
+        footnote="QIE 1990 · 1983  ·  BOT Chain 677 · 968"
+      />
       <TemplatesShowcase />
+      <ImageReveal
+        eyebrow="Inspect"
+        title="Read it back like English."
+        body="Every transaction decoded into a call tree (internal calls, arguments, transfers, events, revert reasons), with contracts carrying the names you gave them onchain."
+        src={REVEAL_IMAGES.inspect}
+        side="right"
+        footnote="Routebook · Explorer · Label Registry"
+      />
       <Steps />
       <CtaBand />
       <Footer />
@@ -136,62 +167,75 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
           backgroundSize: "44px 44px",
         }}
       />
+      {/* Real imagery turning behind the type: the two chain marks among it,
+          the same size as each other. */}
+      <HeroWatermark />
       <div
         aria-hidden
         className="pointer-events-none absolute -right-40 -top-40 h-[28rem] w-[28rem] rounded-full opacity-20 blur-3xl"
         style={{ background: "var(--color-primary)" }}
       />
-      <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] text-meta">
-          <Terminal className="h-3.5 w-3.5 text-primary" />
-          <span className="text-primary">devstation</span>
-          <span>~ AI Developer OS</span>
+      <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-12">
+        <div>
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] text-meta">
+            <Terminal className="h-3.5 w-3.5 text-primary" />
+            <span className="text-primary">devstation</span>
+            <span>~ AI Developer OS</span>
+          </div>
+
+          <h1 className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-5xl font-bold leading-tight sm:text-7xl">
+            {WORDS.map((w, i) => (
+              <span key={w} className={i < shown ? "animate-fade-up" : "opacity-0"}>
+                {w === "Deploy." ? (
+                  <span className="text-primary">{w}</span>
+                ) : w === "Inspect." ? (
+                  <span className="text-info">{w}</span>
+                ) : (
+                  w
+                )}
+              </span>
+            ))}
+            {!tagline && <span className="terminal-cursor ml-1" />}
+          </h1>
+
+          <p
+            className={cn(
+              "mt-6 max-w-2xl font-mono text-base text-muted-foreground sm:text-lg",
+              tagline ? "animate-fade-up" : "opacity-0",
+            )}
+          >
+            The AI Developer OS for QIE and Web3. Describe what you want built. DevStation writes
+            the contracts, tests them, deploys and verifies them onchain, and generates the app. No
+            local toolchain. It runs on QIE and BOT Chain alike: same editor, same registries, same
+            explorer, whichever you ship to.
+          </p>
+
+          <div
+            className={cn(
+              "mt-8 flex flex-wrap items-center gap-3",
+              tagline ? "animate-fade-up" : "opacity-0",
+            )}
+          >
+            <Link
+              to="/overview"
+              className="flex items-center gap-2 rounded bg-primary px-5 py-2.5 font-mono text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
+            >
+              <Rocket className="h-4 w-4" /> Launch Console
+            </Link>
+            <Link
+              to="/docs"
+              className="flex items-center gap-2 rounded border border-border px-5 py-2.5 font-mono text-sm text-muted-foreground hover:border-primary hover:text-primary"
+            >
+              <BookOpen className="h-4 w-4" /> Read the docs
+            </Link>
+          </div>
         </div>
 
-        <h1 className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-5xl font-bold leading-tight sm:text-7xl">
-          {WORDS.map((w, i) => (
-            <span key={w} className={i < shown ? "animate-fade-up" : "opacity-0"}>
-              {w === "Deploy." ? (
-                <span className="text-primary">{w}</span>
-              ) : w === "Inspect." ? (
-                <span className="text-info">{w}</span>
-              ) : (
-                w
-              )}
-            </span>
-          ))}
-          {!tagline && <span className="terminal-cursor ml-1" />}
-        </h1>
-
-        <p
-          className={cn(
-            "mt-6 max-w-2xl font-mono text-base text-muted-foreground sm:text-lg",
-            tagline ? "animate-fade-up" : "opacity-0",
-          )}
-        >
-          The AI Developer OS for QIE and Web3. Describe what you want built — DevStation writes the
-          contracts, tests them, deploys and verifies them onchain, and generates the app. No local
-          toolchain. BOT Chain is supported too, with the same tools.
-        </p>
-
-        <div
-          className={cn(
-            "mt-8 flex flex-wrap items-center gap-3",
-            tagline ? "animate-fade-up" : "opacity-0",
-          )}
-        >
-          <Link
-            to="/overview"
-            className="flex items-center gap-2 rounded bg-primary px-5 py-2.5 font-mono text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
-          >
-            <Rocket className="h-4 w-4" /> Launch Console
-          </Link>
-          <Link
-            to="/docs"
-            className="flex items-center gap-2 rounded border border-border px-5 py-2.5 font-mono text-sm text-muted-foreground hover:border-primary hover:text-primary"
-          >
-            <BookOpen className="h-4 w-4" /> Read the docs
-          </Link>
+        {/* The pipeline, running. It cycles QIE and BOT Chain in turn, so the
+            dual-chain claim in the copy is something the page shows rather
+            than only states. */}
+        <div className={cn(tagline ? "animate-fade-up" : "opacity-0")}>
+          <HeroStage />
         </div>
       </div>
     </section>
@@ -201,7 +245,7 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
 /* ─────────────── Live stats ─────────────── */
 
 function StatsBand() {
-  // The app's default chain (QIE mainnet) — read from DEFAULT_CHAIN rather
+  // The app's default chain (QIE mainnet): read from DEFAULT_CHAIN rather
   // than hardcoded, so this stat can't drift from what users actually land on.
   const { data: net } = useNetworkStatus(DEFAULT_CHAIN.id);
   // Universal across Testnet + Mainnet.
@@ -214,14 +258,14 @@ function StatsBand() {
     { label: "Templates", value: TEMPLATES.length.toString() },
     {
       label: "Contracts Deployed",
-      value: stats.totalDeployments != null ? withCommas(stats.totalDeployments) : "—",
+      value: stats.totalDeployments != null ? withCommas(stats.totalDeployments) : "-",
     },
-    { label: "Users", value: stats.onChain ? withCommas(stats.uniqueDeployers) : "—" },
+    { label: "Users", value: stats.onChain ? withCommas(stats.uniqueDeployers) : "-" },
     // Distinct chain families, not a raw count of testnet+mainnet entries
     // (which would double-count and read misleadingly high). This is a live
     // count, so the landing copy stays correct as networks are added.
     { label: "Networks", value: EXPLORER_CHAIN_FAMILIES.length.toString() },
-    { label: "Gas", value: net?.status === "online" ? gas.text : "—" },
+    { label: "Gas", value: net?.status === "online" ? gas.text : "-" },
   ];
   return (
     <section className="border-b border-border bg-surface">
@@ -250,12 +294,12 @@ const FEATURES = [
   {
     icon: Search,
     title: "Routebook",
-    body: "Decode any QIE transaction into a readable call tree: internal calls, decoded arguments, token transfers, events, and revert reasons.",
+    body: "Decode any transaction on QIE or BOT Chain into a readable call tree: internal calls, decoded arguments, token transfers, events, and revert reasons.",
   },
   {
     icon: Compass,
     title: "Explorer",
-    body: "A native, Etherscan-style block explorer for QIE blocks, transactions, addresses, tokens, and holders — on both testnet and mainnet.",
+    body: "A native, Etherscan-style block explorer for blocks, transactions, addresses, tokens and holders, across QIE and BOT Chain, testnet and mainnet.",
   },
   {
     icon: Sparkles,
@@ -265,7 +309,7 @@ const FEATURES = [
   {
     icon: ShieldCheck,
     title: "Onchain registries",
-    body: "Every deployment is recorded in an onchain ProjectRegistry on QIE, and contracts get human-readable names in the onchain Label Registry.",
+    body: "Every deployment is recorded in an onchain ProjectRegistry (one on QIE, one on BOT Chain), and contracts get human-readable names in the onchain Label Registry.",
   },
   {
     icon: Tags,
@@ -280,13 +324,14 @@ function Features() {
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
         <SectionHeading
           kicker="Everything in one console"
-          title="The complete QIE developer workflow"
-          subtitle="Write, deploy, inspect, and explore — all against live QIE networks, with the records that matter kept onchain."
+          title="The complete onchain developer workflow"
+          subtitle="Write, deploy, inspect and explore: against live QIE and BOT Chain networks, with the records that matter kept onchain."
         />
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div
+          {FEATURES.map((f, i) => (
+            <Reveal
               key={f.title}
+              delay={i * 70}
               className="rounded-lg border border-border bg-surface p-5 transition hover:border-primary/50"
             >
               <div className="mb-3 flex h-9 w-9 items-center justify-center rounded bg-primary/10 text-primary">
@@ -294,7 +339,7 @@ function Features() {
               </div>
               <h3 className="font-mono text-sm font-bold text-foreground">{f.title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -311,7 +356,7 @@ function TemplatesShowcase() {
         <SectionHeading
           kicker="LaunchKit templates"
           title="Ship in 60 seconds"
-          subtitle="Self-contained, audited contracts. Configure the constructor, deploy to QIE, and get a verified onchain record."
+          subtitle="Self-contained, audited contracts. Configure the constructor, deploy to QIE or BOT Chain, and get a verified onchain record."
         />
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {TEMPLATES.map((t) => (
@@ -353,12 +398,12 @@ const STEPS = [
   {
     n: 1,
     title: "Connect",
-    body: "Connect an existing wallet or generate one in-app — with a recovery phrase you keep — then pick QIE testnet or mainnet.",
+    body: "Connect an existing wallet or generate one in-app, with a recovery phrase you keep, then pick a network: QIE or BOT Chain, testnet or mainnet.",
   },
   {
     n: 2,
     title: "Build",
-    body: "Pick a template or write your contract in the editor. Compilation happens for you — no toolchain to install.",
+    body: "Pick a template or write your contract in the editor. Compilation happens for you: no toolchain to install.",
   },
   {
     n: 3,
@@ -378,14 +423,18 @@ function Steps() {
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
         <SectionHeading kicker="How it works" title="From idea to onchain in four steps" />
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map((s) => (
-            <div key={s.n} className="rounded-lg border border-border bg-surface p-5">
+          {STEPS.map((s, i) => (
+            <Reveal
+              key={s.n}
+              delay={i * 90}
+              className="rounded-lg border border-border bg-surface p-5"
+            >
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 font-mono text-sm font-bold text-primary">
                 {s.n}
               </div>
               <h3 className="mt-3 font-mono text-sm font-bold text-foreground">{s.title}</h3>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -400,7 +449,7 @@ function CtaBand() {
     <section className="border-b border-border bg-surface">
       <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
         <h2 className="font-mono text-2xl font-bold text-foreground sm:text-3xl">
-          Start building on QIE
+          Start building on QIE and BOT Chain
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
           Free to use. You only pay network gas for what you deploy. No installs, no signup.
@@ -465,7 +514,7 @@ function Footer() {
             <Github className="h-4 w-4" />
           </a>
           <span className="font-mono text-[10px] text-meta">
-            DevStation — The AI Developer OS for QIE and Web3
+            DevStation: The AI Developer OS for QIE and Web3
           </span>
         </div>
       </div>
