@@ -35,7 +35,7 @@ export function ImageReveal({
       <div
         ref={ref}
         className={cn(
-          "mx-auto grid max-w-6xl items-center gap-10 py-16 lg:gap-16 lg:py-24 px-5 sm:px-8 lg:px-11",
+          "mx-auto grid w-full max-w-[2000px] items-center gap-10 py-16 lg:gap-16 lg:py-24 px-4 sm:px-6 lg:px-8",
           side === "right" ? "lg:grid-cols-[0.9fr_1.1fr]" : "lg:grid-cols-[1.1fr_0.9fr]",
         )}
       >
