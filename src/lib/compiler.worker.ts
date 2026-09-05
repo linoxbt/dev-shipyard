@@ -35,7 +35,7 @@ let cachedVersion = "";
 let solc: unknown = null;
 
 // solc builds on binaries.soliditylang.org are named with a commit hash, e.g.
-// `soljson-v0.8.20+commit.a1b79de6.js` — there is NO `soljson-v0.8.20.js` or
+// `soljson-v0.8.20+commit.a1b79de6.js`: there is NO `soljson-v0.8.20.js` or
 // `+commit.latest.js`. The canonical bin/list.json maps each version to its
 // exact filename, so we resolve through it (cached) before importScripts.
 let releaseMap: Record<string, string> | null = null;
@@ -60,7 +60,7 @@ async function resolveSolcUrl(version: string): Promise<string> {
 // The browser worker has no filesystem/node_modules, so external imports
 // (notably @openzeppelin/contracts) are fetched from a CDN. Resolved files are
 // cached in-memory across compiles, and ALL imports are pre-resolved
-// recursively into solc's `sources` map before compiling — so solc never needs
+// recursively into solc's `sources` map before compiling, so solc never needs
 // a (synchronous) import callback.
 const OZ_VERSION = "5.0.2";
 const importCache = new Map<string, string>();
@@ -186,7 +186,7 @@ async function loadVersion(version: string): Promise<unknown> {
       })
     | undefined;
   if (!mod || !mod.cwrap) {
-    // Emscripten may have compiled synchronously — wait one tick
+    // Emscripten may have compiled synchronously: wait one tick
     await new Promise((r) => setTimeout(r, 50));
   }
   const m =
@@ -224,7 +224,7 @@ async function doCompile(req: WorkerRequest) {
     settings: {
       optimizer: { enabled: req.optimize, runs: req.optimizerRuns },
       // Pinned (see DEFAULT_EVM_VERSION in compiler.ts): solc's own default is
-      // "cancun" on >= 0.8.25, which emits MCOPY — an opcode QIE's EVM does
+      // "cancun" on >= 0.8.25, which emits MCOPY: an opcode QIE's EVM does
       // not implement. This value is part of standardJsonInput, so the
       // explorer reproduces byte-identical bytecode on verification.
       evmVersion: req.evmVersion ?? "shanghai",

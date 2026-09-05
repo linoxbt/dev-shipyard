@@ -4,7 +4,7 @@
 // can only do three things: deploy the contract under test, call a function on
 // it, and assert on the result. That keeps an autonomous agent from being able
 // to execute arbitrary JavaScript in the user's browser just by writing it
-// into a chat reply — which is exactly what a "let the model write test code"
+// into a chat reply, which is exactly what a "let the model write test code"
 // design would allow.
 
 import { z } from "zod";
@@ -63,8 +63,8 @@ export const testCase = z.object({
 /** A helper contract deployed BEFORE the contract under test, so a contract
  *  with an external dependency can actually be exercised.
  *
- *  Without this, anything that calls out to another contract — a vault that
- *  pulls tokens with transferFrom, an invoice contract, a staking pool — could
+ *  Without this, anything that calls out to another contract: a vault that
+ *  pulls tokens with transferFrom, an invoice contract, a staking pool: could
  *  only be tested up to its first external call, because nothing existed at
  *  the dependency's address. Helper sources are kept SEPARATE from the
  *  contract under test on purpose: they are compiled only for the test run and
@@ -91,15 +91,15 @@ export const helperContract = z.object({
    *  deployArgs, test args and expected values. */
   as: z
     .string()
-    .regex(/^\$[A-Z][A-Z0-9_]*$/, 'Must look like "$TOKEN" — $ then UPPER_SNAKE')
+    .regex(/^\$[A-Z][A-Z0-9_]*$/, 'Must look like "$TOKEN": $ then UPPER_SNAKE')
     .refine((v) => !RESERVED_PLACEHOLDERS.includes(v), {
-      message: `Cannot reuse a built-in placeholder (${RESERVED_PLACEHOLDERS.join(", ")}) — pick another name such as $TOKEN`,
+      message: `Cannot reuse a built-in placeholder (${RESERVED_PLACEHOLDERS.join(", ")}): pick another name such as $TOKEN`,
     }),
   /** Full Solidity source for the helper. Compiled for the test run only. */
   solidity: z
     .string()
     .min(1)
-    .max(MAX_HELPER_SOURCE_BYTES, "Helper source is too large — keep mocks minimal"),
+    .max(MAX_HELPER_SOURCE_BYTES, "Helper source is too large: keep mocks minimal"),
   /** Which contract in that source to deploy. Defaults to the only one. */
   contract: z.string().optional(),
   args: z.array(argValue).default([]),
@@ -112,7 +112,7 @@ export const testSuite = z.object({
     .array(helperContract)
     .max(MAX_HELPERS, `At most ${MAX_HELPERS} helper contracts per suite`)
     .refine((list) => new Set(list.map((h) => h.as)).size === list.length, {
-      message: "Two helpers claim the same placeholder — each needs a distinct name",
+      message: "Two helpers claim the same placeholder, each needs a distinct name",
     })
     .default([]),
   /** Constructor arguments for the contract under test. */

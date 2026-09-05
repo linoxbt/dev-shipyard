@@ -13,7 +13,7 @@ pragma solidity ^0.8.20;
 ///      What the price buys is therefore ATTRIBUTION, not secrecy: paying is
 ///      what records the deploy against the template, which is what pays the
 ///      creator and grows their deployCount. Anyone can copy the source and
-///      deploy it unattributed for free — that is an accepted property of
+///      deploy it unattributed for free: that is an accepted property of
 ///      putting the source on-chain, not an oversight.
 ///
 ///      Payments use a pull pattern (`withdraw`), never a push. Sending value
@@ -23,7 +23,7 @@ pragma solidity ^0.8.20;
 contract TemplateRegistry {
     struct Template {
         address creator;
-        /// @dev Wei. uint96 holds ~7.9e28 — far above any real price — and
+        /// @dev Wei. uint96 holds ~7.9e28, far above any real price, and
         ///      packs into the same slot as `creator`.
         uint96 price;
         uint64 createdAt;

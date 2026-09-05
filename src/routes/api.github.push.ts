@@ -54,8 +54,8 @@ export const Route = createFileRoute("/api/github/push")({
           });
           return Response.json({ ok: true, repo: target });
         } catch (e) {
-          // GitHub's own message is the useful one — "name already exists on
-          // this account", "Repository creation failed" — so it is passed
+          // GitHub's own message is the useful one: "name already exists on
+          // this account", "Repository creation failed", so it is passed
           // through rather than replaced with something generic.
           return fail("github", e instanceof Error ? e.message : "Push failed.", 400);
         }

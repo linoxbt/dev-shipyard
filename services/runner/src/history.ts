@@ -2,7 +2,7 @@
 //
 // Jobs were entirely ephemeral before this: a container was created, phases
 // ran, a response went out, and nothing survived. That is fine for a build
-// service and useless for watching one — "did last night's failure look like
+// service and useless for watching one: "did last night's failure look like
 // this morning's?" had no answer.
 //
 // Kept on disk rather than in memory because the service restarts on every
@@ -60,7 +60,7 @@ function tail(text: string, max: number): string {
   return `…\n${t.slice(t.length - max)}`;
 }
 
-/** Read history from disk once. A missing or corrupt file is not an error —
+/** Read history from disk once. A missing or corrupt file is not an error -
  *  monitoring must never be the reason the service will not start. */
 export function loadHistory(): void {
   if (loaded) return;

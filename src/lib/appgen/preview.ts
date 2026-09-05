@@ -6,11 +6,11 @@
 // rewritten to point at it, deepest dependency first.
 //
 // data: URLs rather than blob: URLs, and srcdoc rather than src, because the
-// preview iframe runs sandboxed WITHOUT allow-same-origin — it gets an opaque
+// preview iframe runs sandboxed WITHOUT allow-same-origin: it gets an opaque
 // origin, and Chrome refuses to load a blob: URL there ("Not allowed to load
 // local resource"). Granting allow-same-origin would fix that by making the
-// frame same-origin with DevStation, which would let generated code — some of
-// it written by the AI — read DevStation's localStorage, including AI provider
+// frame same-origin with DevStation, which would let generated code: some of
+// it written by the AI: read DevStation's localStorage, including AI provider
 // API keys. Not worth it. data: URLs and srcdoc work under a full sandbox,
 // verified in Chrome.
 //
@@ -74,7 +74,7 @@ const ERROR_REPORTER = `<script>
     setTimeout(function () {
       var root = document.getElementById("root");
       if (root && root.childElementCount === 0 && document.body.innerText.trim() === "") {
-        send({ kind: "module", message: "The app loaded but rendered nothing — the entry module probably threw before mounting." });
+        send({ kind: "module", message: "The app loaded but rendered nothing: the entry module probably threw before mounting." });
       }
     }, 2500);
   });
@@ -128,7 +128,7 @@ export function buildPreview(files: Record<string, string>, dir = "app"): Previe
     while (remaining.length > 0) {
       if (guard-- <= 0) {
         throw new Error(
-          `Could not resolve the module graph in "${dir}" — check for a circular import between ${remaining.join(", ")}.`,
+          `Could not resolve the module graph in "${dir}": check for a circular import between ${remaining.join(", ")}.`,
         );
       }
       const next: string[] = [];
@@ -157,7 +157,7 @@ export function buildPreview(files: Record<string, string>, dir = "app"): Previe
     //
     // This is attribute-driven rather than markup-matching on purpose. The
     // earlier version required exactly `href="./styles.css"`, and the model
-    // rewrites index.html freely — `href="styles.css"`, single quotes, a
+    // rewrites index.html freely: `href="styles.css"`, single quotes, a
     // different attribute order all failed to match. An unrewritten relative
     // URL then resolves against the PARENT page (a srcdoc iframe inherits the
     // host's base URL), 404s, and the app renders blank with no clue why.

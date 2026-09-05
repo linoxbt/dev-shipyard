@@ -9,13 +9,13 @@ DevStation uses two on-chain contracts:
 
 Both are dependency-free Solidity 0.8.x and already compiled to `contracts/out/`.
 
-> **QIEPassVerifier is intentionally NOT included** — QIE Pass was removed from the app.
+> **QIEPassVerifier is intentionally NOT included**: QIE Pass was removed from the app.
 
 ---
 
 ## Security first
 
-- Your private key goes in **`.env.local` only** — that file is gitignored. **Never** commit it or paste it anywhere.
+- Your private key goes in **`.env.local` only**: that file is gitignored. **Never** commit it or paste it anywhere.
 - `deployment-output.json` (written after deploy) is also gitignored.
 - Deploy to **testnet first**, verify the app works, then mainnet.
 
@@ -29,7 +29,7 @@ Create / edit `.env.local` in the repo root:
 PRIVATE_KEY=0xYOUR_TEST_FUNDED_PRIVATE_KEY
 ```
 
-(The deployer needs a small amount of test QIE for gas — get it from the QIE faucet.)
+(The deployer needs a small amount of test QIE for gas: get it from the QIE faucet.)
 
 ## 2. (Optional) recompile
 
@@ -50,7 +50,7 @@ bun run contracts:deploy
 It prints each address and the env lines to copy. Example output:
 
 ```
-=== DONE — paste these into .env.local ===
+=== DONE: paste these into .env.local ===
 
 VITE_PROJECT_REGISTRY_ADDRESS=0x....
 VITE_LABEL_REGISTRY_ADDRESS=0x....
@@ -82,7 +82,7 @@ There's an 8-second abort window before it broadcasts. Then put the mainnet addr
 - **Before** (addresses unset): Projects + Labels fall back to localStorage / mock data; everything still works for demos.
 - **After** (addresses set): reads come from chain, writes send wallet transactions, with a localStorage mirror for instant UI.
 
-No code change needed — it's all driven by the `VITE_*` env values.
+No code change needed: it's all driven by the `VITE_*` env values.
 
 ---
 

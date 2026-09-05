@@ -1,10 +1,10 @@
 // Assembling a wallet's QIE identity from the sources that actually carry it.
 //
 // Three different places, because no single one has the answer:
-//   • the NFT contract  — how many names the wallet holds, and which token ids
-//   • the explorer      — the registrations that carry the labels, and the
+//   • the NFT contract : how many names the wallet holds, and which token ids
+//   • the explorer     : the registrations that carry the labels, and the
 //                         wallet's first transaction for its age
-//   • QIE's partner API — verification status, and only after consent
+//   • QIE's partner API: verification status, and only after consent
 //
 // Everything degrades: a failed explorer call costs the labels but not the
 // count, and a wallet with no names is a real answer rather than an error.
@@ -28,7 +28,7 @@ export interface ExplorerTransfer {
 }
 
 export interface IdentitySources {
-  /** balanceOf — the authoritative count. */
+  /** balanceOf: the authoritative count. */
   nameCount: () => Promise<number>;
   /** Mint transfers of `.qie` tokens into this wallet, newest first. */
   transfers: (limit: number) => Promise<ExplorerTransfer[]>;
@@ -45,7 +45,7 @@ export interface IdentitySources {
  *
  * The label comes from the registration transaction; the claim is only made
  * once the wallet is confirmed to still own that exact token. Selling a name
- * therefore removes it from the profile, which is the point — otherwise a
+ * therefore removes it from the profile, which is the point: otherwise a
  * profile would keep asserting an identity its owner had given away.
  */
 export async function resolveNames(
@@ -64,7 +64,7 @@ export async function resolveNames(
 
   // Two waves of parallel requests rather than a chain of serial ones. Done
   // one at a time, a wallet with a dozen names needed roughly two dozen
-  // sequential round-trips — five to ten seconds before a name appeared.
+  // sequential round-trips: five to ten seconds before a name appeared.
   const inputs = await Promise.all(
     [...byTx.keys()].map((txHash) =>
       sources

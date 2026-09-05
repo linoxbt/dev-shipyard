@@ -2,7 +2,7 @@
 //
 // The App Builder used to run a whole turn inside the browser tab: the model
 // stream, the repair rounds and the build were all driven from the page. That
-// made a refresh fatal — the AbortController died with the tab and the work was
+// made a refresh fatal: the AbortController died with the tab and the work was
 // gone, with nothing on the server that even knew a build had been running.
 //
 // A turn now runs HERE, in the runner, which is a long-lived process. The page
@@ -10,7 +10,7 @@
 // another device: the job carries on and the id reattaches to it.
 //
 // It lives in the runner rather than the app's own server on purpose. The app
-// deploys to Netlify, where a function is killed after ten seconds — orders of
+// deploys to Netlify, where a function is killed after ten seconds: orders of
 // magnitude less than a real build. The runner is the only part of DevStation
 // that can hold a job open for minutes.
 
@@ -62,7 +62,7 @@ const AGENT_DIR = join(STATE_DIR, "agent");
  *
  *  They were in AGENT_DIR, and sweep() treats every .json in there as a job:
  *  grants.json parses as an array, so `updatedAt` read as undefined, defaulted
- *  to 0, and came out older than the 24h TTL — so the first job started after
+ *  to 0, and came out older than the 24h TTL, so the first job started after
  *  any approval deleted every stored grant. The unit tests passed throughout
  *  because they point the stores at their own temp files and never sweep. */
 const SECURITY_DIR = join(STATE_DIR, "security");
@@ -100,7 +100,7 @@ export interface AgentJob {
   buildNote: string | null;
   /** Actions the policy engine refused, with the reason. Recorded on the job so
    *  a refusal is visible after the fact rather than only in the model's
-   *  transcript — the audit trail proper arrives in a later phase. */
+   *  transcript: the audit trail proper arrives in a later phase. */
   refused: string[];
   /** Files this turn removed, kept apart from `changed`. */
   removed: string[];
@@ -141,7 +141,7 @@ export interface AgentJob {
   error?: string;
 }
 
-/** Live jobs, including their abort handles — which cannot be serialised, so
+/** Live jobs, including their abort handles, which cannot be serialised, so
  *  they are kept beside the store rather than in it. */
 const live = new Map<string, { job: AgentJob; controller: AbortController }>();
 
@@ -160,7 +160,7 @@ function fileFor(id: string): string {
 /** Point the durable security stores at this runner's state directory.
  *
  *  Called once at startup, before any request is served. Until it runs, grants
- *  and decisions are memory-only — which is what they were before this phase,
+ *  and decisions are memory-only, which is what they were before this phase,
  *  and is why it must not be forgotten. */
 export function initAgentStores(): void {
   ensureDir();
@@ -248,7 +248,7 @@ function touch(job: AgentJob, patch: Partial<AgentJob>): void {
 
 /** Move a job, refusing an illegal move rather than obeying it.
  *
- *  Returns false without writing anything when the transition is not allowed —
+ *  Returns false without writing anything when the transition is not allowed -
  *  a finished job cannot be dragged back into running, and a cancelled one
  *  cannot be made to execute. Those are exactly the moves a race between the
  *  turn's own completion and an incoming answer would attempt. */
@@ -294,7 +294,7 @@ export interface StartAgentInput {
   /** The wallet this turn is being run for, as verified by DevStation's server
    *  before it reached the runner. Recorded on every gated action so an
    *  authorization grant can be bound to a person in a later phase. Empty when
-   *  the caller did not supply one — left empty rather than invented. */
+   *  the caller did not supply one: left empty rather than invented. */
   owner?: string;
 }
 
@@ -370,8 +370,8 @@ async function providerChat(opts: {
 
 /** Runs the project's real toolchain by posting to this same runner's build
  *  endpoint over loopback. Reusing the HTTP route rather than reaching into the
- *  container pipeline keeps one code path for builds — same queue, same limits,
- *  same history — and an agent job holds no build slot while it thinks. */
+ *  container pipeline keeps one code path for builds: same queue, same limits,
+ *  same history, and an agent job holds no build slot while it thinks. */
 async function runBuildViaSelf(
   files: Record<string, string>,
   signal: AbortSignal,
@@ -476,7 +476,7 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
         chat: providerChat,
         // Once the turn has stopped to ask, nothing it does on its way out may
         // overwrite what the user is looking at. The abort only takes effect at
-        // the next await, so the turn runs on for a few statements — long
+        // the next await, so the turn runs on for a few statements: long
         // enough to replace the question with "Checking it runs…", which is
         // exactly what a live run showed.
         onStatus: (status) => {
@@ -486,11 +486,11 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
           if (!paused) touch(job, { prose });
         },
         onFile: (path) => touch(job, { changed: [...new Set([...job.changed, path])] }),
-        // The chokepoint. Every effect this turn has — each file written, and
-        // the build — is proposed here first and runs only if the policy
+        // The chokepoint. Every effect this turn has, each file written, and
+        // the build: is proposed here first and runs only if the policy
         // engine allows it. Writing files and running a dev build are both
         // classified safe, so turns behave exactly as they did before this
-        // existed — that is the intended result, not a gap. parseGeneratedFiles
+        // existed: that is the intended result, not a gap. parseGeneratedFiles
         // already drops traversal, absolute paths and oversized bodies, so the
         // schema here is a second, independent check rather than the first one.
         //
@@ -555,7 +555,7 @@ function executeTurn(job: AgentJob, input: StartAgentInput): void {
 
           // One question per turn. The abort does not stop the loop
           // immediately, so a reply asking to delete two files would otherwise
-          // raise a second question and overwrite the first — leaving a job
+          // raise a second question and overwrite the first: leaving a job
           // pointing at a question the user never saw.
           if (paused) {
             return { ok: false, message: "Already waiting on a decision." };
@@ -705,7 +705,7 @@ export type AnswerDecisionResult =
 /**
  * Apply an answer and, if it was an approval, run the turn again.
  *
- * Everything this touches — the job, the request, the grant — is on disk, so
+ * Everything this touches, the job, the request, the grant, is on disk, so
  * this works in a process that never saw the question asked.
  */
 export function answerAgentDecision(input: AnswerDecisionInput): AnswerDecisionResult {
@@ -808,7 +808,7 @@ export function getAgentJob(id: string): AgentJob | null {
   if (!job) return null;
   // Expiry is decided on read here as everywhere else. Without this a question
   // nobody answered in time would leave the task waiting for an answer that can
-  // no longer be given — the decision would refuse it, and the job would sit in
+  // no longer be given: the decision would refuse it, and the job would sit in
   // awaiting_decision until the 24h sweep removed it.
   if (job.phase === "awaiting_decision" && job.pendingDecisionId) {
     const expired = expireDecisions(job.id);
@@ -834,8 +834,8 @@ export function cancelAgentJob(id: string): boolean {
   revokeTaskGrants(id);
   cancelDecisions(id);
   if (!entry) {
-    // A paused job has no running turn to abort — it is waiting on an answer
-    // that is not coming — so it is moved here instead.
+    // A paused job has no running turn to abort: it is waiting on an answer
+    // that is not coming, so it is moved here instead.
     setPhase(job, "cancelled", { status: "", pendingDecisionId: null, pendingAction: null });
   }
   return true;

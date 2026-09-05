@@ -10,7 +10,7 @@ import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 //
 // Apps are hosted on the runner host rather than on Netlify because a subdomain
 // there costs a site from a limited plan, while here it is a directory. See
-// services/runner/src/publish.ts for the ownership and path-safety rules — a
+// services/runner/src/publish.ts for the ownership and path-safety rules: a
 // published app is arbitrary user content on a DevStation hostname, so the
 // wallet that first claims a name is the only one that can overwrite it.
 

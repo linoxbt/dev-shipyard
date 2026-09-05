@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 //
 // lottie-react ships CJS-only (no "exports" map in its package.json), and
 // under some SSR module loaders (observed with Bun's dev SSR) the dynamic
-// import double-wraps the default export — `mod.default` is the whole module
-// object again, with the real component at `mod.default.default` — instead of
+// import double-wraps the default export: `mod.default` is the whole module
+// object again, with the real component at `mod.default.default`: instead of
 // the component itself. Unwrap defensively so `lazy()` always gets a function.
 const Lottie = lazy(() =>
   import("lottie-react").then((mod) => {
@@ -30,11 +30,11 @@ let splashDone = false;
 const FADE_MS = 400;
 const MIN_VISIBLE_MS = 400;
 // Hard cap: never block on slow cross-origin subresources (Google Fonts,
-// PWA icons) — window's "load" event waits for ALL of those and can stall
+// PWA icons): window's "load" event waits for ALL of those and can stall
 // for seconds on a slow connection even though the app itself is ready.
 const MAX_WAIT_MS = 1200;
 
-// Full-screen branded loading state shown while the app boots — especially as a
+// Full-screen branded loading state shown while the app boots: especially as a
 // PWA launch/splash. Fades out once the DOM is parsed (not full window load)
 // and a minimum duration has passed so it never just flickers, with a hard
 // cap so a slow subresource can never hold it open indefinitely.

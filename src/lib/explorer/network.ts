@@ -5,11 +5,11 @@ import { qieTestnet, qieMainnet, botTestnet, botMainnet, DEFAULT_CHAIN } from "@
 // /explorer/bot-testnet, /explorer/bot-mainnet) so a link unambiguously refers
 // to one chain. These helpers map between the URL slug and the chain id.
 //
-// "testnet"/"mainnet" (no prefix) are QIE's slugs and are never renamed — every
+// "testnet"/"mainnet" (no prefix) are QIE's slugs and are never renamed, every
 // existing /explorer/testnet and /explorer/mainnet link keeps working exactly
 // as before. Other chain families get their own prefixed slugs.
 //
-// Both supported families are Blockscout-backed (confirmed live per chain —
+// Both supported families are Blockscout-backed (confirmed live per chain -
 // see src/lib/chains.ts).
 
 export type NetworkSlug = "testnet" | "mainnet" | "bot-testnet" | "bot-mainnet";
@@ -77,7 +77,7 @@ export function devstationExplorerBase(slug: NetworkSlug): string {
   return `${DEVSTATION_SITE}/explorer/${slug}`;
 }
 
-// The app's default network, expressed as an explorer slug — QIE mainnet
+// The app's default network, expressed as an explorer slug: QIE mainnet
 // (see chains.ts's DEFAULT_CHAIN).
 export const DEFAULT_NETWORK_SLUG: NetworkSlug = slugForChainId(DEFAULT_CHAIN.id);
 

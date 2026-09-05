@@ -42,7 +42,7 @@ export function DevStationAnalytics() {
   const registry = projectRegistryAddress(chainId);
   const onChain = isContractConfigured(registry);
   // Links stay inside DevStation's own explorer rather than bouncing out to
-  // Blockscout — the built-in explorer resolves contract labels and project
+  // Blockscout: the built-in explorer resolves contract labels and project
   // names, which the external one cannot.
   const network = slugForChainId(chainId);
 
@@ -137,7 +137,7 @@ export function DevStationAnalytics() {
         <Kpi
           icon={TrendingUp}
           label="Last Deploy"
-          value={kpis.latest ? new Date(kpis.latest * 1000).toLocaleDateString() : "—"}
+          value={kpis.latest ? new Date(kpis.latest * 1000).toLocaleDateString() : "-"}
         />
       </div>
 
@@ -274,7 +274,7 @@ export function DevStationAnalytics() {
               {truncateAddress(d.deployer, 6, 4)}
             </span>
             <span className="inline-flex items-center gap-1 text-right text-meta">
-              {d.timestamp ? new Date(d.timestamp * 1000).toLocaleDateString() : "—"}
+              {d.timestamp ? new Date(d.timestamp * 1000).toLocaleDateString() : "-"}
               <ChevronRight className="h-3 w-3" />
             </span>
           </Link>

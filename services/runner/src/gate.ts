@@ -46,7 +46,7 @@ export function tokenMatches(header: string | undefined, expected: string): bool
 const hits = new Map<string, number[]>();
 
 /** Sliding-window counter. In-memory, so it resets on restart and does not
- *  span replicas — this is one process on one box, and the failure it exists
+ *  span replicas: this is one process on one box, and the failure it exists
  *  to stop is a loop, not a botnet. */
 export function withinRateLimit(
   key: string,

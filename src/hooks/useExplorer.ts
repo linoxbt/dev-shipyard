@@ -5,7 +5,7 @@ import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
 
 // Generic explorer fetch hook, scoped to the network in the URL
 // (/explorer/testnet|mainnet). `path` is a Blockscout v2 path like
-// "/transactions" or "/addresses/0x..../logs" — the SAME path convention is
+// "/transactions" or "/addresses/0x..../logs": the SAME path convention is
 // Every supported chain is Blockscout-backed, so one fetcher serves them all.
 export function useExplorer<T = unknown>(
   path: string | null,

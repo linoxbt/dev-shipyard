@@ -44,7 +44,7 @@ describe("generateApp", () => {
     }
   });
 
-  it("bakes the contract binding correctly — verified by EXECUTING it", async () => {
+  it("bakes the contract binding correctly: verified by EXECUTING it", async () => {
     // Importing the generated module proves two things a string check cannot:
     // that it is valid JavaScript, and that the values it exports are right.
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "appgen-"));
@@ -59,7 +59,7 @@ describe("generateApp", () => {
     expect(mod.CHAIN.rpcUrl).toBe("https://rpc1mainnet.qie.digital/");
     expect(mod.CHAIN.symbol).toBe("QIE");
     expect(mod.CONTRACT.address).toBe(spec.address);
-    // The ABI must survive intact — every call the app makes depends on it.
+    // The ABI must survive intact, every call the app makes depends on it.
     expect(JSON.stringify(mod.CONTRACT.abi)).toBe(JSON.stringify(abi));
     fs.rmSync(dir, { recursive: true, force: true });
   });
@@ -109,7 +109,7 @@ describe("generateApp", () => {
 
   it("survives a missing or hostile contract name", () => {
     expect(generateApp({ ...spec, contractName: null })["app/index.html"]).toContain("Contract");
-    // The safety property is that no markup can be INJECTED — angle brackets,
+    // The safety property is that no markup can be INJECTED: angle brackets,
     // quotes and equals are stripped. Surviving letters are inert text, so
     // asserting the absence of the word "onerror" would test the wrong thing.
     const weird = generateApp({ ...spec, contractName: '"><img src=x onerror=alert(1)>' });

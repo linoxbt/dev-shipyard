@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { COMING_SOON, comingSoon, isComingSoon } from "./coming-soon";
 
-// The property worth protecting here is not what the map contains today — that
-// changes as pages ship — but that ONE map decides both the sidebar badge and
+// The property worth protecting here is not what the map contains today: that
+// changes as pages ship, but that ONE map decides both the sidebar badge and
 // what a route renders. Two lists would drift, and the drift is silent: a badge
 // promising "Soon" over a working page, or a nav item landing on a placeholder.
 

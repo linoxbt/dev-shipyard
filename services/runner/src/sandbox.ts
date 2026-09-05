@@ -1,8 +1,8 @@
 // Running one phase of a job inside a throwaway container.
 //
 // Everything here is about limiting what model-written code can reach. The
-// container gets no host mount, no capabilities, no writable root and — for
-// every phase except install — no network at all. Files go in through a tar
+// container gets no host mount, no capabilities, no writable root and, for
+// every phase except install: no network at all. Files go in through a tar
 // stream on stdin and come back the same way, so the host filesystem is never
 // exposed to the job.
 
@@ -94,8 +94,8 @@ function run(
  *  refused `network connect` on stderr with a non-zero exit and carries on
  *  quite happily; swallowing that once already cost a debugging session, where
  *  every install ran with no network and simply timed out after three minutes
- *  with an empty log. Failing to detach is worse still — it would leave
- *  model-written code running with an open network — so that aborts the job. */
+ *  with an empty log. Failing to detach is worse still: it would leave
+ *  model-written code running with an open network, so that aborts the job. */
 async function setNetwork(name: string, connected: boolean): Promise<void> {
   const verb = connected ? "connect" : "disconnect";
   const res = await run("docker", ["network", verb, "bridge", name], { timeoutMs: 20_000 });
@@ -111,19 +111,19 @@ async function setNetwork(name: string, connected: boolean): Promise<void> {
  *  gVisor: the sandbox configures its netstack when it starts, and an interface
  *  hot-plugged afterwards never reaches it. `docker network connect` on a
  *  running runsc container reports success and leaves DNS resolving nothing, so
- *  npm fails with EAI_AGAIN — which is invisible until a project asks for a
+ *  npm fails with EAI_AGAIN, which is invisible until a project asks for a
  *  package the warm image does not already carry.
  *
  *  Cutting the network works fine in that direction, so the order is reversed:
  *  attached at creation, detached once, never reattached. Nothing of the job
- *  runs before install anyway — the container sleeps while its files are
- *  unpacked — so the window where it can reach out is the same one it always
+ *  runs before install anyway: the container sleeps while its files are
+ *  unpacked, so the window where it can reach out is the same one it always
  *  had.
  *
  *  Created on the bridge and detached a moment later, rather than created with
  *  `--network none`. Docker refuses to connect a second network to a container
  *  in "private (none) mode", so a container born with no network can never be
- *  given one — install could never reach the registry. Detaching from the
+ *  given one: install could never reach the registry. Detaching from the
  *  bridge leaves exactly the same isolation and can be reversed. Nothing of the
  *  job's runs in the gap: the container sleeps until the files are unpacked. */
 /** Container runtime for job containers.
@@ -174,7 +174,7 @@ export async function createContainer(image: string, name: string): Promise<stri
       "/home/runner:rw,nosuid,mode=1777,size=64m",
       // The workspace must allow exec: node_modules/.bin lives here, and
       // packages with a postinstall (esbuild, and so vite) run their own
-      // downloaded binary. `exec` has to be asked for explicitly — every tmpfs
+      // downloaded binary. `exec` has to be asked for explicitly, every tmpfs
       // docker mounts is noexec by default, and `--mount type=tmpfs` offers no
       // way to say otherwise, which is why this is `--tmpfs` while the rest are
       // not. Without it npm fails inside a postinstall with a bare EACCES that
@@ -258,8 +258,8 @@ export async function getDir(name: string, dir: string): Promise<Buffer | null> 
   return res.stdout;
 }
 
-/** Containers whose network has been cut. Cutting is one-way — see
- *  createContainer for why — so this records that it has happened rather than
+/** Containers whose network has been cut. Cutting is one-way: see
+ *  createContainer for why, so this records that it has happened rather than
  *  toggling anything. Cleared when the container is destroyed. */
 const detached = new Set<string>();
 
@@ -281,7 +281,7 @@ export async function runPhase(
     // Refuse rather than run it without a registry and report a confusing
     // failure. Reattaching is not an option under gVisor.
     throw new Error(
-      `Cannot run "${phase}" after the job network has been cut — order the phases with install first.`,
+      `Cannot run "${phase}" after the job network has been cut: order the phases with install first.`,
     );
   }
   if (!needsNetwork && !detached.has(name)) {

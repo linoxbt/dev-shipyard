@@ -15,7 +15,7 @@ export const Route = createFileRoute("/explorer/$network/tokens")({
 
 function TokensPage() {
   // The chain being BROWSED comes from the route param, not the globally
-  // selected network — those differ whenever someone opens an explorer link
+  // selected network: those differ whenever someone opens an explorer link
   // for a chain they aren't currently switched to.
   const chainId = chainIdForSlug(useExplorerNetwork());
   const [stack, setStack] = useState<Array<Record<string, unknown> | null>>([null]);
@@ -65,14 +65,14 @@ function TokensPage() {
                         <AddrLink hash={t.address} />
                       </Td>
                       <Td className="text-right text-muted-foreground">
-                        {t.holders ? withCommas(t.holders) : "—"}
+                        {t.holders ? withCommas(t.holders) : "-"}
                       </Td>
                       <Td className="text-right text-foreground">
                         {t.total_supply
                           ? withCommas(
                               formatUnits(t.total_supply, t.decimals ? Number(t.decimals) : 18, 2),
                             )
-                          : "—"}
+                          : "-"}
                       </Td>
                     </tr>
                   ))}

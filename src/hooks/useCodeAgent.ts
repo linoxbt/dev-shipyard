@@ -1,6 +1,6 @@
 // The autonomous build loop for "Code with AI": stream the model, parse its
 // directive, run the requested tool (compile in-browser, deploy via the
-// connected wallet), feed the result back, and repeat — up to a fix/turn cap.
+// connected wallet), feed the result back, and repeat: up to a fix/turn cap.
 // All tool execution is client-side (the solc worker and the wallet both live
 // in the browser), so the loop runs here, not on the server.
 //
@@ -149,7 +149,7 @@ function save(p: Persisted) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
   } catch {
-    /* quota / serialization — non-fatal */
+    /* quota / serialization: non-fatal */
   }
 }
 
@@ -201,13 +201,13 @@ export function useCodeAgent() {
   const artifactRef = useRef<Artifact | null>(null);
   const compileFailsRef = useRef(0);
   const testFailsRef = useRef(0);
-  // Source of the most recent SUCCESSFUL compile — what the security review
+  // Source of the most recent SUCCESSFUL compile: what the security review
   // analyses, so review and bytecode always describe the same contract.
   const lastSourceRef = useRef<string | null>(null);
   const reviewFailsRef = useRef(0);
   // Bytecode of the artifact that PASSED the security review. Compared against
   // the current artifact before any deploy, so recompiling always invalidates
-  // the pass — the gate cannot be satisfied by reviewing one contract and then
+  // the pass: the gate cannot be satisfied by reviewing one contract and then
   // deploying a different one.
   const reviewedBytecodeRef = useRef<string | null>(null);
   // Address of the contract deployed in this run, so @@LABEL knows its target.
@@ -309,11 +309,11 @@ export function useCodeAgent() {
       step: { kind: "deploy", status: "running", title: `Deploying to ${chain.name}…` },
     });
     try {
-      if (!artifact) throw new Error("No compiled contract yet — compile first.");
+      if (!artifact) throw new Error("No compiled contract yet: compile first.");
       // The security gate lives HERE, not at the call sites, because doDeploy
       // has two of them: the model loop and submitDeployForm (the constructor
       // form the user submits after a pause). Guarding only the loop left the
-      // form path open — and since the review state was not persisted, a page
+      // form path open, and since the review state was not persisted, a page
       // reload with a pending form would deploy a contract that had never
       // passed a review. Checking at the single point of action closes both.
       if (!canDeploy(reviewedBytecodeRef.current, artifact.bytecode)) {
@@ -334,7 +334,7 @@ export function useCodeAgent() {
       // Gas top-up (sponsor-eligible mainnets only, when configured): tops
       // up THIS wallet with just enough native gas token to cover the
       // deploy, same mechanism as the LaunchKit deploy wizard. Auto-applied
-      // without asking — unlike the
+      // without asking: unlike the
       // old sponsor-broadcasts-the-deploy design, a top-up changes nothing
       // about who ends up owning the contract, so there's no tradeoff to
       // surface to the user here. Best-effort: a failed top-up doesn't block
@@ -398,7 +398,7 @@ export function useCodeAgent() {
 
       // Record on the ProjectRegistry so it shows on My Projects (also mirrored
       // to local history). Best-effort: a failed record must not fail the deploy
-      // — and it prompts a second wallet signature.
+      //, and it prompts a second wallet signature.
       const rIdx = push({
         type: "tool",
         step: { kind: "record", status: "running", title: "Recording to My Projects…" },
@@ -436,7 +436,7 @@ export function useCodeAgent() {
         step: { kind: "verify", status: "running", title: "Verifying source on the explorer…" },
       });
       try {
-        // Wait for the explorer to index the new address before submitting —
+        // Wait for the explorer to index the new address before submitting -
         // otherwise it 404s with "Address is not a smart-contract".
         for (let i = 0; i < 15; i++) {
           const { indexed } = await getIsContractIndexed({ data: { chainId, address: addr } });
@@ -476,7 +476,7 @@ export function useCodeAgent() {
               : "Verification submitted (pending)",
             detail: verified
               ? undefined
-              : "The explorer may finish shortly — check the contract page.",
+              : "The explorer may finish shortly: check the contract page.",
           });
         }
       } catch (e) {
@@ -590,7 +590,7 @@ export function useCodeAgent() {
           if (!artifact) {
             convoRef.current.push({
               role: "user",
-              content: testSetupFailMessage("No compiled contract yet — @@COMPILE first.", 0),
+              content: testSetupFailMessage("No compiled contract yet: @@COMPILE first.", 0),
             });
             continue;
           }
@@ -622,7 +622,7 @@ export function useCodeAgent() {
               bytecode: artifact.bytecode,
               suite: parsedSuite.data,
               // Helper contracts are compiled with the same in-browser solc
-              // the real contract uses, but SEPARATELY — they never enter the
+              // the real contract uses, but SEPARATELY: they never enter the
               // source that gets deployed and verified onchain.
               compileHelper: async (source) => {
                 const out = await compile({
@@ -708,7 +708,7 @@ export function useCodeAgent() {
           if (!artifact || !lastSourceRef.current) {
             convoRef.current.push({
               role: "user",
-              content: "[TOOL RESULT] No compiled contract to review — @@COMPILE first.",
+              content: "[TOOL RESULT] No compiled contract to review: @@COMPILE first.",
             });
             continue;
           }
@@ -834,7 +834,7 @@ export function useCodeAgent() {
           if (!artifact) {
             convoRef.current.push({
               role: "user",
-              content: deployErrorMessage("No compiled contract yet — @@COMPILE first."),
+              content: deployErrorMessage("No compiled contract yet: @@COMPILE first."),
             });
             continue;
           }
@@ -862,7 +862,7 @@ export function useCodeAgent() {
               suggested: suggestedFormValues(artifact.constructorInputs, action.args, address),
               status: "pending",
             });
-            return; // paused — resumed by submitDeployForm / cancelDeployForm
+            return; // paused: resumed by submitDeployForm / cancelDeployForm
           }
           // No constructor args → deploy directly.
           await doDeploy([]);
@@ -873,11 +873,11 @@ export function useCodeAgent() {
       }
 
       // Fell out of the loop by exhausting the turn budget rather than by
-      // finishing. Say so — silently stopping mid-build looks like a hang.
+      // finishing. Say so: silently stopping mid-build looks like a hang.
       if (turn >= MAX_TURNS - 1) {
         push({
           type: "assistant",
-          text: `⚠ Stopped after ${MAX_TURNS} steps without finishing. The run is saved — send a follow-up message to continue from here, or Reset to start over.`,
+          text: `⚠ Stopped after ${MAX_TURNS} steps without finishing. The run is saved: send a follow-up message to continue from here, or Reset to start over.`,
         });
         commitSave();
       }
@@ -901,7 +901,7 @@ export function useCodeAgent() {
     setRunning(true);
     // Every retry budget resets per run. Resetting only the compile counter
     // meant a run that burned its test/review attempts left the NEXT run
-    // starting from a negative budget — it would give up on its first test
+    // starting from a negative budget: it would give up on its first test
     // failure with no explanation.
     compileFailsRef.current = 0;
     testFailsRef.current = 0;

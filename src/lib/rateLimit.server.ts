@@ -1,6 +1,6 @@
 // Minimal in-memory sliding-window rate limiter for server routes that proxy
 // a paid/abusable upstream (AI provider keys, sponsor wallet gas). No
-// database — consistent with the rest of this app's server-fn architecture —
+// database: consistent with the rest of this app's server-fn architecture -
 // so this is best-effort: it resets on a cold start and doesn't share state
 // across serverless instances. That's an acceptable trade for its purpose
 // (blocking a naive tight-loop abuser), not a claim of hard, distributed

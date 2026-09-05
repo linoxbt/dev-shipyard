@@ -21,7 +21,7 @@ export interface CompileOutput {
       abi: unknown[];
       bytecode: `0x${string}`;
       deployedBytecode: `0x${string}`;
-      /** Fully-qualified "File.sol:Name" — what Blockscout standard-input
+      /** Fully-qualified "File.sol:Name": what Blockscout standard-input
        *  verification expects as the contract_name. */
       qualifiedName: string;
     }
@@ -45,14 +45,14 @@ interface CompileRequest {
   mainFile: string;
   optimize?: boolean;
   optimizerRuns?: number;
-  /** Target EVM version. Defaults to DEFAULT_EVM_VERSION — see the note there
+  /** Target EVM version. Defaults to DEFAULT_EVM_VERSION: see the note there
    *  for why leaving this to solc's default is not safe on QIE. */
   evmVersion?: string;
 }
 
 // QIE's EVM does not implement MCOPY (0x5e). solc >= 0.8.25 emits it by
 // default (its default evmVersion moved to "cancun"), and any contract that
-// does will revert on QIE the moment it hits that opcode — typically in a
+// does will revert on QIE the moment it hits that opcode: typically in a
 // string-returning view, which is how ContractLabelRegistry.getLabel() ended
 // up unusable in production. "shanghai" is the newest target that predates
 // MCOPY, and bytecode built for it runs fine on cancun chains too, so pinning

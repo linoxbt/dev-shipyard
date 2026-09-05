@@ -50,7 +50,7 @@ function CodeWithAI() {
       />
 
       <Callout tone="warning">
-        Agent deploys are real, wallet-signed transactions on the network you have selected —
+        Agent deploys are real, wallet-signed transactions on the network you have selected -
         whichever that is. You approve every transaction in your wallet, where the actual cost is
         shown before you sign, and the run is saved so it survives a page refresh.
       </Callout>
@@ -63,7 +63,7 @@ function CodeWithAI() {
       </P>
       <Bullets
         items={[
-          "OpenRouter (default) — one key reaches all 15 models below",
+          "OpenRouter (default): one key reaches all 15 models below",
           "Anthropic: Claude Opus 5, Sonnet 5, Fable 5, Opus 4.8, Haiku 4.5",
           "OpenAI: GPT-5.6 Sol / Terra / Luna, GPT-5.5, GPT-5.4 Mini",
           "DeepSeek: V4 Pro, V4 Flash",

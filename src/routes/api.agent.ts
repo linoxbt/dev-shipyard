@@ -9,7 +9,7 @@ import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 // stays server-side and the browser only ever talks to this route.
 //
 // The turn itself does NOT run here. This handler starts one and returns an id,
-// or reads a job's current state — both of which finish in milliseconds. That
+// or reads a job's current state, both of which finish in milliseconds. That
 // matters because this app deploys to Netlify, where a function is killed after
 // ten seconds; a build takes minutes. Polling short requests is what lets the
 // same code work on a serverless host and survive a refresh.

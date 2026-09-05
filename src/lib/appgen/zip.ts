@@ -4,7 +4,7 @@
 // app is a handful of small text files, so compression would save little, and
 // a dependency-free ~70 lines is easier to audit than pulling a compression
 // library into the bundle for one button. Every unzip tool reads stored
-// entries — it is the original, universally supported ZIP mode.
+// entries: it is the original, universally supported ZIP mode.
 
 const encoder = new TextEncoder();
 

@@ -143,7 +143,7 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop fixed rail — hidden when collapsed */}
+      {/* Desktop fixed rail: hidden when collapsed */}
       {!sidebarCollapsed && (
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-surface md:flex">
           <SidebarContent />

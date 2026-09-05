@@ -46,7 +46,7 @@ function ExplorerHome() {
   });
   // With placeholderData: keepPreviousData (see useExplorer), a failed
   // background refetch leaves `data` as the last successful snapshot instead
-  // of surfacing an error state — otherwise correct for avoiding UI flicker,
+  // of surfacing an error state: otherwise correct for avoiding UI flicker,
   // but it means a dead backend can silently freeze this feed forever with
   // no indication it's stopped updating. `error` is non-null exactly when
   // the most recent fetch attempt failed, even while stale `data` persists.
@@ -120,13 +120,13 @@ function ExplorerHome() {
 }
 
 // Shown over a feed that's still displaying its last successful snapshot
-// because the most recent background refresh failed — makes clear the data
+// because the most recent background refresh failed: makes clear the data
 // isn't necessarily live right now, instead of freezing silently.
 function StaleBanner() {
   return (
     <div className="mb-2 flex items-center gap-1.5 rounded border border-warning/30 bg-warning/10 px-2.5 py-1.5 font-mono text-[10px] text-warning">
       <AlertTriangle className="h-3 w-3 shrink-0" />
-      Showing last-known data — live updates are currently failing.
+      Showing last-known data: live updates are currently failing.
     </div>
   );
 }

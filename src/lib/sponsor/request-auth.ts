@@ -4,7 +4,7 @@
 // The sponsor endpoint sends real mainnet token to `requesterAddress`. Without
 // this, the endpoint is an open faucet: anyone could POST any address in a
 // loop and drain the daily budget into wallets they own. A signature costs no
-// gas, so this does not break the whole point of sponsorship — a user with a
+// gas, so this does not break the whole point of sponsorship: a user with a
 // zero balance can still sign.
 //
 // Shared by the client (which signs) and the server (which verifies) so the

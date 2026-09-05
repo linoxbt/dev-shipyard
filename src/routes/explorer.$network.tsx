@@ -94,7 +94,7 @@ function EvmExplorerLayout() {
               Data source <ExternalLink className="h-3 w-3" />
             </a>
 
-            {/* Network dropdown — pick any chain + testnet/mainnet combination */}
+            {/* Network dropdown: pick any chain + testnet/mainnet combination */}
             <NetworkDropdown slug={slug} />
           </div>
         </div>

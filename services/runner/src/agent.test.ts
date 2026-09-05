@@ -173,7 +173,7 @@ describe("canMovePhase", () => {
   });
 });
 
-/** A job paused on a question, written straight to disk — as a process that
+/** A job paused on a question, written straight to disk, as a process that
  *  has since died would have left it. */
 function writePausedJob(id: string, expiresAt?: number) {
   const request = createDecisionRequest({

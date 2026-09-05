@@ -55,7 +55,7 @@ describe("buildPreview", () => {
     expect(() => buildPreview(generateApp(spec))).not.toThrow();
     const { srcdoc } = buildPreview(generateApp(spec));
     const entry = /src="(data:text\/javascript[^"]*)"/.exec(srcdoc)?.[1] ?? "";
-    expect(decodeURIComponent(entry.split(",")[1] ?? "")).toContain("—");
+    expect(decodeURIComponent(entry.split(",")[1] ?? "")).toContain("-");
   });
 
   it("fails loudly when there is no index.html", () => {

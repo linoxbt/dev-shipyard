@@ -3,7 +3,7 @@ import { useActiveChain } from "@/hooks/useActiveChain";
 import { SUPPORTED_CHAINS } from "@/lib/chains";
 
 // Shows only when the connected wallet is on a chain DevStation doesn't support.
-// It does NOT force a specific network — it offers to switch to the user's
+// It does NOT force a specific network: it offers to switch to the user's
 // currently-selected one.
 export function WrongNetworkBanner() {
   const { walletOnWrongNetwork, chain, select, chainId } = useActiveChain();

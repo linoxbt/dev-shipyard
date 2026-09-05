@@ -45,13 +45,13 @@ export function TxTable({
                   <MethodPill method={t.method} />
                 </Td>
               )}
-              <Td>{t.block_number != null ? <BlockLink height={t.block_number} /> : "—"}</Td>
+              <Td>{t.block_number != null ? <BlockLink height={t.block_number} /> : "-"}</Td>
               <Td className="whitespace-nowrap text-muted-foreground">{timeAgo(t.timestamp)}</Td>
               <Td>
                 {t.from ? (
                   <AddrLink hash={t.from.hash} name={t.from.name} isContract={t.from.is_contract} />
                 ) : (
-                  "—"
+                  "-"
                 )}
               </Td>
               <Td>
@@ -63,7 +63,7 @@ export function TxTable({
                     <AddrLink hash={t.created_contract.hash} isContract />
                   </span>
                 ) : (
-                  "—"
+                  "-"
                 )}
               </Td>
               <Td className="text-right text-foreground">{formatQie(t.value)}</Td>
@@ -98,7 +98,7 @@ export function TxFeed({ txs, symbol = "QIE" }: { txs: ExTx[]; symbol?: string }
           </div>
           <div className="min-w-0 text-right font-mono text-[10px] text-muted-foreground">
             <div className="truncate">
-              From {t.from ? <AddrLink hash={t.from.hash} name={t.from.name} /> : "—"}
+              From {t.from ? <AddrLink hash={t.from.hash} name={t.from.name} /> : "-"}
             </div>
             <div className="truncate">
               To{" "}
@@ -107,7 +107,7 @@ export function TxFeed({ txs, symbol = "QIE" }: { txs: ExTx[]; symbol?: string }
               ) : t.created_contract ? (
                 <AddrLink hash={t.created_contract.hash} isContract />
               ) : (
-                "—"
+                "-"
               )}
             </div>
           </div>
@@ -136,7 +136,7 @@ export function BlockFeed({ blocks }: { blocks: ExBlock[] }) {
           </div>
           <div className="min-w-0 text-right font-mono text-[10px] text-muted-foreground">
             <div className="truncate">
-              Miner {b.miner ? <AddrLink hash={b.miner.hash} name={b.miner.name} /> : "—"}
+              Miner {b.miner ? <AddrLink hash={b.miner.hash} name={b.miner.name} /> : "-"}
             </div>
             <div>{b.transaction_count} txns</div>
           </div>
@@ -169,7 +169,7 @@ export function BlockTable({ blocks }: { blocks: ExBlock[] }) {
               </Td>
               <Td className="whitespace-nowrap text-muted-foreground">{timeAgo(b.timestamp)}</Td>
               <Td className="text-right">{b.transaction_count}</Td>
-              <Td>{b.miner ? <AddrLink hash={b.miner.hash} name={b.miner.name} /> : "—"}</Td>
+              <Td>{b.miner ? <AddrLink hash={b.miner.hash} name={b.miner.name} /> : "-"}</Td>
               <Td className="text-right text-muted-foreground">
                 {withCommas(b.gas_used)}
                 {b.gas_used_percentage != null && (

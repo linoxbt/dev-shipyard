@@ -6,7 +6,7 @@ import { useNetworkPref } from "@/lib/active-chain";
 import { hasBurnerSession, touchBurnerSession, isBurnerSessionIdle } from "@/lib/burner/session";
 
 // Auto-locks the burner wallet after the configured unlock window of no
-// tracked activity (see UNLOCK_OPTIONS in burner/session.ts) —
+// tracked activity (see UNLOCK_OPTIONS in burner/session.ts) -
 // see session.ts's header comment for why this exists (the decrypted
 // mnemonic otherwise sits in sessionStorage indefinitely for as long as the
 // tab is open). Runs only while the burner is actually unlocked.
@@ -54,7 +54,7 @@ function WalletAutoReconnect() {
     ran.current = true;
     // hasBurnerSession is the cheap synchronous check; restoring actually
     // decrypts, so the connect MUST wait for it. Connecting first would reach a
-    // connector with no account and throw "No burner wallet unlocked" — which
+    // connector with no account and throw "No burner wallet unlocked", which
     // is what made a refresh ask for the password again.
     // Promote the vault's real presence/address now that localStorage is
     // readable. Kept before the session restore so the UI never shows "no

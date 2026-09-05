@@ -2,7 +2,7 @@
 // in-browser EVM.
 //
 // Why a local EVM rather than a testnet: tests must be instant, free, and
-// available even when a network is unreachable — QIE testnet has been down for
+// available even when a network is unreachable: QIE testnet has been down for
 // long stretches and BOT testnet has no funded faucet wallet. Running locally
 // also means a failing test costs nothing and can be retried in the agent's
 // fix loop as fast as a compile.
@@ -35,7 +35,7 @@ const GAS_LIMIT = 30_000_000n;
  *  `block.timestamp == 0` makes every cliff, vesting schedule, timelock and
  *  deadline behave as though no time has ever passed, so those tests pass or
  *  fail for reasons that have nothing to do with the contract. Starting from a
- *  real wall-clock time — and letting a suite advance it with `warpSeconds` —
+ *  real wall-clock time, and letting a suite advance it with `warpSeconds` -
  *  is what makes time-dependent contracts genuinely testable. */
 const START_BLOCK = 1_000_000n;
 /** Balance seeded on both test accounts so payable calls can send value. */
@@ -82,7 +82,7 @@ function placeholderHint(unknown_: string[], ph: Placeholders): string {
 
 /** Map the suite's JSON args onto the ABI's real types (uint256 -> bigint etc).
  *  Reuses the same parser the deploy forms use, so tests and deploys coerce
- *  arguments identically — a value that works in a test works in a deploy.
+ *  arguments identically: a value that works in a test works in a deploy.
  *
  *  Known limit, shared with the deploy wizard: abiArgParser handles address,
  *  uint/int, bool, bytes, string and one level of array, but NOT tuples or
@@ -121,7 +121,7 @@ const toHex = (u: Uint8Array): `0x${string}` =>
   `0x${Array.from(u, (b) => b.toString(16).padStart(2, "0")).join("")}`;
 
 /** Compiles a helper contract's source for the test run. Injected rather than
- *  imported so the runner stays independent of HOW compilation happens — the
+ *  imported so the runner stays independent of HOW compilation happens: the
  *  app passes the in-browser solc worker, tests pass node solc. */
 export type HelperCompiler = (source: string) => Promise<{
   contracts: Record<string, { abi: unknown[]; bytecode: `0x${string}` }>;
@@ -146,7 +146,7 @@ export async function runSuite({
   const { Common, Chain, Hardfork } = await import("@ethereumjs/common");
   const { Address, hexToBytes, Account } = await import("@ethereumjs/util");
 
-  // Shanghai, matching what DevStation compiles for — QIE has no MCOPY, so
+  // Shanghai, matching what DevStation compiles for: QIE has no MCOPY, so
   // testing under a later hardfork could pass code that cannot run on-chain.
   const common = new Common({ chain: Chain.Mainnet, hardfork: Hardfork.Shanghai });
   const evm = await EVM.create({ common });
@@ -227,7 +227,7 @@ export async function runSuite({
         args: coerce(constructorInputs(art.abi as Abi), h.args, ph) as never,
       });
     } catch (e) {
-      return bail(`Helper ${h.as}: could not encode constructor arguments — ${msg(e)}`);
+      return bail(`Helper ${h.as}: could not encode constructor arguments: ${msg(e)}`);
     }
     const hRes = await evm.runCall({
       data: hexToBytes(hData),
@@ -442,8 +442,8 @@ async function runOne(
     }
     const a = normalise(actual);
     // Resolve placeholders on the EXPECTED side too. They are resolved in
-    // args via coerce(), and a suite that writes {"equals": "$OWNER"} — the
-    // natural way to assert an owner/recipient — must compare against the
+    // args via coerce(), and a suite that writes {"equals": "$OWNER"}: the
+    // natural way to assert an owner/recipient: must compare against the
     // real test address, not the literal string.
     const b = normalise(resolveAddress(t.expect.equals, ctx.ph));
     if (a !== b) {

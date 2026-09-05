@@ -1,11 +1,11 @@
-# Build Runner — architecture and trade-offs
+# Build Runner: architecture and trade-offs
 
 ## Why this exists
 
 The App Builder generated apps that ran as ES modules straight in the browser:
 an import map, no bundler, no build step. That made preview instant and needed
 no infrastructure, but it put a hard ceiling on what the agent could do. It
-could not install a dependency, run a linter, typecheck, or drive a browser —
+could not install a dependency, run a linter, typecheck, or drive a browser -
 all of which need a filesystem and processes, not an iframe.
 
 This service supplies those. It is the piece that lets the agent say "I
@@ -24,7 +24,7 @@ Three consequences, all real:
 2. **Trust boundary.** Until now DevStation never executed model-written code
    outside a browser sandbox. It now runs it on a machine, with a package
    manager reaching the public registry. That is the substantial part of this
-   design — see below.
+   design: see below.
 
 3. **Preview stops being instant.** A real Vite project must install and build
    before it can be looked at: seconds to a minute, not milliseconds. In
@@ -56,7 +56,7 @@ Every job gets its own container, destroyed afterwards.
 The network rule is the one worth stressing. A package manager needs the
 registry, so the container is created with the bridge attached and keeps it for
 `install`; it is disconnected in a `finally` as soon as the last networked phase
-finishes, so every later phase — the build and any test — runs with no route
+finishes, so every later phase, the build and any test, runs with no route
 out. The cut is **one-way**: nothing reattaches it, and asking for a networked
 phase afterwards raises rather than silently running without a registry.
 
@@ -80,7 +80,7 @@ VM-isolated runtime (Firecracker, gVisor, or a dedicated throwaway host).
   works in that direction, which is why the container is created *with* the
   network and loses it once, rather than starting bare and being granted it for
   install. The failure is easy to miss because the warm image already carries
-  every dependency a generated project starts with — npm only needs the registry
+  every dependency a generated project starts with: npm only needs the registry
   when the model *adds* a package, which is exactly the feature the Vite target
   exists for.
 - **After the cut, gVisor blocks by timeout rather than `ENETUNREACH`.** Its
@@ -89,7 +89,7 @@ VM-isolated runtime (Firecracker, gVisor, or a dedicated throwaway host).
   specific errno.
 - **A container created with `--network none` can never be given a network.**
   Docker refuses with *"cannot be connected to multiple networks with one of
-  the networks in private (none) mode"* — so the obvious shape for this, start
+  the networks in private (none) mode"*, so the obvious shape for this, start
   with nothing and attach the bridge for `install`, does not work. Containers
   are created on the bridge and detached immediately instead, which isolates
   them identically but can be reversed. Docker reports the refusal on stderr
@@ -100,8 +100,8 @@ VM-isolated runtime (Firecracker, gVisor, or a dedicated throwaway host).
   and the files are absent. Files are unpacked with `docker exec … tar -x`
   instead, which runs inside the container and writes to the real mount.
 - **Every tmpfs docker mounts is `noexec` unless asked otherwise.** The
-  workspace has to run binaries — `node_modules/.bin`, and postinstall scripts
-  such as esbuild's, which execute the binary they just downloaded — so `/work`
+  workspace has to run binaries: `node_modules/.bin`, and postinstall scripts
+  such as esbuild's, which execute the binary they just downloaded, so `/work`
   is mounted with an explicit `exec`. `--mount type=tmpfs` has no option for
   this (`tmpfs-mode` sets permission bits, not mount flags), so the workspace
   uses `--tmpfs` while the others do not. The failure is an EACCES from
@@ -121,7 +121,7 @@ Node 22, plus two things baked in, both about time rather than convenience:
   Downloading a browser per job would dominate the runtime, and the phases that
   need it have no network to download it with.
 - **The dependency set every generated project starts with.** A cold
-  `npm install` was measured at **175s against a 180s phase deadline** — jobs
+  `npm install` was measured at **175s against a 180s phase deadline**: jobs
   were failing by seconds. The install phase copies `/opt/warm/node_modules`
   into the workspace first, so npm has only what the model added left to fetch.
   That took install to about 45s. `warm-package.json` mirrors `VITE_DEPS` in

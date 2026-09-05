@@ -3,7 +3,7 @@
 // Creating a QIE Pass request makes QIE notify a real person and ask them to
 // approve sharing their identity. Without this, an anonymous caller could aim
 // that at any wallet, username or .qie name they liked, using DevStation's
-// partner credentials — the prompts would carry DevStation's name and the
+// partner credentials: the prompts would carry DevStation's name and the
 // damage would land on DevStation's standing with QIE, not on the sender.
 //
 // So the rule is simple: you may only request verification for a wallet you
@@ -49,14 +49,14 @@ export function issuedAtProblem(issuedAt: number, now = Date.now()): QieAuthProb
  * May this wallet request verification for this identifier?
  *
  * Only for itself. A `.qie` name or @username belongs to whoever controls it,
- * and DevStation cannot check that from here — so the identifier must be the
+ * and DevStation cannot check that from here, so the identifier must be the
  * signing wallet's own address, and QIE resolves the rest.
  */
 export function identifierAllowed(address: string, identifier: string): boolean {
   return address.toLowerCase() === identifier.toLowerCase();
 }
 
-/** Human wording for each refusal. Vague on purpose about which part failed —
+/** Human wording for each refusal. Vague on purpose about which part failed -
  *  it says what to do, not what an attacker got closest to. */
 export const AUTH_PROBLEM_MESSAGE: Record<QieAuthProblem, string> = {
   expired: "That request expired. Try again.",

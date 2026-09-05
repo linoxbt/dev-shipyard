@@ -4,8 +4,8 @@ import type { BuildOutcome } from "./session";
 //
 // Everything goes through /api/build, never to the runner directly: its token
 // grants the ability to run code on the runner host, so it stays on the
-// server. This module's job is the translation either side of that call —
-// workspace paths in, a BuildOutcome out — and making failure legible, because
+// server. This module's job is the translation either side of that call -
+// workspace paths in, a BuildOutcome out, and making failure legible, because
 // "the build failed" with nothing else is the problem this whole phase exists
 // to remove.
 

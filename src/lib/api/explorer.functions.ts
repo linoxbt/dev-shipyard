@@ -29,7 +29,7 @@ export const getExplorerData = createServerFn({ method: "GET" })
     // "/blocks/../../../admin/secret" still matches it while resolving to a
     // completely different path once the URL is constructed below (the
     // fetch/URL parser normalizes ".." segments). Reject any dot-dot segment
-    // outright — this is a same-host path-traversal check, not (only) SSRF:
+    // outright: this is a same-host path-traversal check, not (only) SSRF:
     // the host is always the fixed, chainId-derived explorerUrl below, never
     // caller-controlled, but the "known API namespace" allowlist above is
     // meant to be a real boundary, not just a prefix match.

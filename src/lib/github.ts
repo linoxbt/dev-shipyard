@@ -1,11 +1,11 @@
 // Pushing a generated app to GitHub.
 //
-// Runs on the SERVER, with an OAuth token from the signed-in session — see
+// Runs on the SERVER, with an OAuth token from the signed-in session: see
 // src/lib/github-oauth.server.ts. Earlier this took a pasted personal access
 // token and ran in the browser, which kept the user's own secret off our
 // infrastructure. OAuth changes the calculus: the token is issued to this app,
 // lives in an httpOnly cookie the page cannot read, and an OAuth token can do
-// the two things a fine-grained PAT cannot — create a repository
+// the two things a fine-grained PAT cannot: create a repository
 // (POST /user/repos) and read the signed-in account (GET /user). That is what
 // collapses the flow to "connect once, then push".
 
@@ -87,7 +87,7 @@ async function ensureRepo(
     };
   }
   // An OAuth token with the `repo` scope may create repositories, including
-  // private ones — the whole reason sign-in replaced a pasted token here.
+  // private ones: the whole reason sign-in replaced a pasted token here.
   let created: { default_branch: string; html_url: string };
   try {
     created = await gh<{ default_branch: string; html_url: string }>(token, "/user/repos", {

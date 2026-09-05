@@ -4,7 +4,7 @@
 // POST /jobs, which runs code; a dashboard is a browser surface with cookies
 // and a rendered page, and giving it the same authority would mean any leak of
 // a viewing session became a leak of code execution. A dashboard session can
-// read and nothing else — the job route never accepts one.
+// read and nothing else: the job route never accepts one.
 
 import { randomBytes, timingSafeEqual } from "node:crypto";
 

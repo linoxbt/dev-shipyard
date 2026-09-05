@@ -7,19 +7,19 @@ import { useNetworkPref } from "@/lib/active-chain";
 
 // The on-chain template marketplace.
 //
-// Templates published here are readable by anyone — the Solidity source lives
+// Templates published here are readable by anyone: the Solidity source lives
 // on-chain, because ~2 KB costs about 0.0014 QIE and putting it behind a server
 // would make the body the one part of a "decentralised marketplace" that isn't.
 // What a price buys is attribution: paying is what records the deploy against
 // the template, which is what pays the creator and grows their deployCount.
 
 /** QIE's eth_estimateGas returns ~24k for calls that need far more, which
- *  silently runs writes out of gas — the same defect ONCHAIN_WRITE_GAS exists
+ *  silently runs writes out of gas: the same defect ONCHAIN_WRITE_GAS exists
  *  for. Publishing stores the whole source, so it needs far more headroom than
  *  the registry writes do: budget by source size rather than a flat number. */
 export function publishGasFor(sourceBytes: number): bigint {
   // 20k gas per 32-byte storage word is the floor; the rest is slack for the
-  // name/description/abi strings and the array push. Deliberately generous —
+  // name/description/abi strings and the array push. Deliberately generous -
   // unused gas is refunded, whereas too little loses the transaction outright,
   // and QIE's own estimate cannot be trusted to catch that.
   const words = BigInt(Math.ceil(sourceBytes / 32));
@@ -56,7 +56,7 @@ export function useTemplateRegistry() {
   const client = usePublicClient({ chainId });
   const { writeContractAsync } = useWriteContract();
 
-  /** Listing metadata only — deliberately without the source bodies, which
+  /** Listing metadata only: deliberately without the source bodies, which
    *  would be tens of kilobytes of ABI-encoded strings in a single call. */
   const summaries = useQuery({
     queryKey: ["template-registry", "summaries", chainId],

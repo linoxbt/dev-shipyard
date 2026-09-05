@@ -15,8 +15,8 @@ import {
 //
 // It exists for one reason: the partner API authenticates with an HMAC over a
 // shared secret, and that secret cannot go anywhere near a browser. Anyone
-// holding it can create verification requests in DevStation's name — which
-// send real consent prompts to real people — so it stays here and the client
+// holding it can create verification requests in DevStation's name, which
+// send real consent prompts to real people, so it stays here and the client
 // only ever talks to this route.
 //
 // This is a CONSENT flow, not a lookup. Creating a request notifies the user
@@ -33,7 +33,7 @@ const API_BASE = "https://did-stapi.qie.digital/api/v1";
 const createSchema = z.object({
   action: z.literal("create"),
   /** QIE accepts a wallet, @username or name.qie. DevStation only ever sends
-   *  the signing wallet's own address — see request-auth.ts for why. */
+   *  the signing wallet's own address: see request-auth.ts for why. */
   identifier: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   claims: z.array(z.enum(QIE_CLAIMS)).min(1).max(QIE_CLAIMS.length),
   /** Proof the caller controls the wallet being verified. */
@@ -103,7 +103,7 @@ export const Route = createFileRoute("/api/qie-identity")({
 
         // A create request makes QIE notify a real person. Prove the caller
         // controls the wallet before spending DevStation's partner credentials
-        // on it — an IP limit alone lets anyone aim prompts at anyone.
+        // on it: an IP limit alone lets anyone aim prompts at anyone.
         if (parsed.data.action === "create") {
           const { address, identifier, signature, issuedAt } = parsed.data;
 

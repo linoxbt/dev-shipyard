@@ -5,8 +5,8 @@ import { ChainLogo } from "@/lib/chain-logos";
 import { cn } from "@/lib/utils";
 
 // Network selector across DevStation's supported chains (QIE and BOT Chain,
-// testnet + mainnet each). The selected network — not the wallet's current
-// chain — drives reads everywhere in the app.
+// testnet + mainnet each). The selected network, not the wallet's current
+// chain: drives reads everywhere in the app.
 export function NetworkSelector({ className }: { className?: string }) {
   const { chainId, supported, select, isTestnet, walletMismatch } = useActiveChain();
 
@@ -22,7 +22,7 @@ export function NetworkSelector({ className }: { className?: string }) {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  // Open upward when there isn't room below — the sidebar sits low enough that
+  // Open upward when there isn't room below: the sidebar sits low enough that
   // a downward panel would otherwise render off-screen.
   useLayoutEffect(() => {
     if (!open || !ref.current) return;

@@ -2,7 +2,7 @@
 // ContractLabelRegistry) on a chain's Blockscout explorer, for contracts
 // deployed via scripts/deploy.ts (i.e. never seen by the app's own
 // verify-through-the-UI flow in src/lib/api/verify.functions.ts). Needs no
-// private key — verification only needs the deployed address, read from
+// private key: verification only needs the deployed address, read from
 // .env.local, and recompiles from source to submit the exact solc
 // standard-JSON input.
 //
@@ -89,7 +89,7 @@ function readSource(name: string): string {
   return fs.readFileSync(path.join(ROOT, "contracts", `${name}.sol`), "utf8");
 }
 
-// Same solc settings as scripts/compile.ts — must match exactly, or the
+// Same solc settings as scripts/compile.ts: must match exactly, or the
 // recompiled bytecode won't match what's actually on chain.
 function standardJsonInput() {
   return {
@@ -126,13 +126,13 @@ async function submitStandardInput(params: {
   // NOTE: this deliberately shells out to curl instead of using fetch's
   // FormData. Confirmed by hand: Bun's fetch/FormData encodes the required
   // "files[0]" bracket-notation field name in a way Blockscout's Plug-based
-  // multipart parser doesn't recognize as an array field — it silently
+  // multipart parser doesn't recognize as an array field: it silently
   // accepts the request (200) but responds {"message":"JSON files not
   // found"} instead of starting verification. The identical request shape
   // sent via `curl -F` succeeds immediately ("Smart-contract verification
   // started"). This may also affect src/lib/api/verify.functions.ts's
   // submitStandardJsonVerification if that ever runs under Bun (worth
-  // checking separately) — but this script needs to work regardless, so it
+  // checking separately), but this script needs to work regardless, so it
   // uses curl directly rather than depending on that being fixed.
   const tmpFile = path.join(ROOT, `.verify-input-${Date.now()}.json`);
   fs.writeFileSync(tmpFile, params.standardJsonInput);
@@ -215,7 +215,7 @@ async function main() {
     const envVar = `VITE_${name === "ProjectRegistry" ? "PROJECT" : "LABEL"}_REGISTRY_ADDRESS_${chain.envSuffix}`;
     const address = process.env[envVar];
     if (!address) {
-      console.log(`\n${name}: skipped — ${envVar} is not set in .env.local`);
+      console.log(`\n${name}: skipped: ${envVar} is not set in .env.local`);
       continue;
     }
 
@@ -224,7 +224,7 @@ async function main() {
 
     // ContractLabelRegistry is the only contract with a constructor arg
     // (autoLabeler). Read the REAL value from the deployed contract itself
-    // rather than assuming — this script never needs a private key.
+    // rather than assuming: this script never needs a private key.
     let constructorArgs: `0x${string}` | undefined;
     const ctor = abi.find((e) => e.type === "constructor");
     if (ctor && "inputs" in ctor && ctor.inputs.length > 0) {
@@ -242,7 +242,7 @@ async function main() {
       .then((j) => j?.is_contract === true)
       .catch(() => false);
     if (!indexed) {
-      console.log(`  skipped — explorer hasn't indexed this address as a contract yet`);
+      console.log(`  skipped: explorer hasn't indexed this address as a contract yet`);
       continue;
     }
 

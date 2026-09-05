@@ -14,13 +14,13 @@ function Quickstart() {
   return (
     <DocPage
       title="Quickstart"
-      intro="Deploy your first contract in under a minute — on whichever network you choose."
+      intro="Deploy your first contract in under a minute, on whichever network you choose."
     >
       <Steps
         steps={[
           {
             title: "Connect a wallet",
-            body: "Open DevStation and connect an injected wallet, or generate a DevStation wallet from the sidebar — generated wallets show you a recovery phrase before you continue. Pick any testnet from the network selector; the whole console follows your choice.",
+            body: "Open DevStation and connect an injected wallet, or generate a DevStation wallet from the sidebar: generated wallets show you a recovery phrase before you continue. Pick any testnet from the network selector; the whole console follows your choice.",
           },
           {
             title: "Get testnet funds for gas",

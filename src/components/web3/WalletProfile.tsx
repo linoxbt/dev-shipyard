@@ -145,7 +145,7 @@ function BurnerControls() {
   const remove = () => {
     if (
       !confirm(
-        "Remove this wallet? Make sure you have backed up the seed phrase — this cannot be undone.",
+        "Remove this wallet? Make sure you have backed up the seed phrase: this cannot be undone.",
       )
     ) {
       return;

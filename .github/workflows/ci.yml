@@ -32,5 +32,5 @@ jobs:
         env:
           # Nitro's final bundling step exceeds Node's default ~2GB old-space
           # heap for this app's dependency graph (wagmi, WalletConnect,
-          # Coinbase/MetaMask SDKs, Monaco) — see DEPLOYMENT.md.
+          # Coinbase/MetaMask SDKs, Monaco): see DEPLOYMENT.md.
           NODE_OPTIONS: --max-old-space-size=4096

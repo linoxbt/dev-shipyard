@@ -52,7 +52,7 @@ const search = z.object({ template: z.string().optional() });
 export const Route = createFileRoute("/launchkit/deploy")({
   validateSearch: search,
   head: () => ({
-    meta: [{ title: "Deploy a Contract — DevStation LaunchKit" }],
+    meta: [{ title: "Deploy a Contract: DevStation LaunchKit" }],
   }),
   component: DeployRoute,
 });
@@ -111,11 +111,11 @@ function DeployWizard() {
     ? (getTemplate(templateId) ?? userTemplates.find((t) => t.id === templateId) ?? null)
     : null;
 
-  // Whether this wallet actually needs a top-up to deploy `template` — null
+  // Whether this wallet actually needs a top-up to deploy `template`: null
   // while checking. When false, the "Gas-free deploy" option goes inert
   // (see render below): offering sponsorship a wallet doesn't need is just
   // confusing. Uses the template's static estimatedGas (bytecode isn't
-  // compiled yet at this point in the wizard — compiling early just to
+  // compiled yet at this point in the wizard: compiling early just to
   // check this isn't worth it) rather than a live per-args estimate, so this
   // is deliberately approximate; the actual top-up request re-checks
   // precisely against the real compiled bytecode right before deploying.
@@ -140,7 +140,7 @@ function DeployWizard() {
         );
         setNeedsTopup(needed > balance);
       } catch {
-        if (!cancelled) setNeedsTopup(true); // can't tell — fail open
+        if (!cancelled) setNeedsTopup(true); // can't tell: fail open
       }
     })();
     return () => {
@@ -165,7 +165,7 @@ function DeployWizard() {
     // Pre-fill arguments from known addresses for the ACTIVE chain.
     //
     // Ownership args are seeded with the connected wallet because these
-    // templates deliberately take an explicit owner rather than msg.sender —
+    // templates deliberately take an explicit owner rather than msg.sender -
     // on a gas-sponsored deploy msg.sender is the sponsor wallet, which would
     // otherwise end up owning the contract (see src/lib/data/templates.ts).
     //
@@ -200,7 +200,7 @@ function DeployWizard() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 1_500_000) {
-      toast.error("Image too large — keep it under ~1.5 MB");
+      toast.error("Image too large: keep it under ~1.5 MB");
       return;
     }
     const reader = new FileReader();
@@ -256,7 +256,7 @@ function DeployWizard() {
         constructorArgs: encodeConstructorArgs(contract.abi as unknown[], encodedArgs),
       });
       // Gas sponsorship tops up THIS wallet with just enough native gas
-      // token to cover the deploy (and the registry writes after it) — it
+      // token to cover the deploy (and the registry writes after it): it
       // never broadcasts anything itself. Everything below runs exactly like a normal
       // self-paid deploy either way, so the connected wallet is always the
       // genuine deployer of record.
@@ -273,7 +273,7 @@ function DeployWizard() {
           log(
             result.toppedUp
               ? `[${ts()}] [Deploy] ✓ Wallet funded (${result.txHash})`
-              : `[${ts()}] [Deploy] Wallet already had enough gas — no top-up needed`,
+              : `[${ts()}] [Deploy] Wallet already had enough gas: no top-up needed`,
             "success",
           );
         } catch (err) {
@@ -285,7 +285,7 @@ function DeployWizard() {
       }
 
       log(`[${ts()}] [Deploy] Submitting deployment to ${chain.name} (chain ${chain.id})...`);
-      // Pad the gas limit — chains like QIE lowball eth_estimateGas for
+      // Pad the gas limit: chains like QIE lowball eth_estimateGas for
       // constructor-heavy CREATE calls (see src/lib/contracts.ts). Falls
       // back to letting the wallet estimate if this itself fails.
       let gasLimit: bigint | undefined;
@@ -336,19 +336,19 @@ function DeployWizard() {
         constructorArgsEncoded: encodeConstructorArgs(contract.abi as unknown[], encodedArgs),
       }).catch((err) => {
         // Non-fatal: the contract IS deployed and the local record is already
-        // saved, so never fail the deploy here. But do not swallow it either —
+        // saved, so never fail the deploy here. But do not swallow it either -
         // silently losing the registry write is why a deploy could succeed and
         // then never appear on the Projects page with no explanation.
         const why = err instanceof Error ? err.message : "unknown error";
         log(
           `[${ts()}] [Registry] Could not record this deploy onchain (${why}). ` +
-            `It is saved locally — you can register it later from Projects.`,
+            `It is saved locally: you can register it later from Projects.`,
           "warning",
         );
       });
 
       // Verify on-chain: register the contract's name in the ContractLabelRegistry
-      // (a second signature). Non-blocking — deploy already succeeded.
+      // (a second signature). Non-blocking: deploy already succeeded.
       if (labelsOnChain) {
         log(`[${ts()}] [Verify] Registering "${projectName || template.name}" on-chain...`);
         try {
@@ -381,7 +381,7 @@ function DeployWizard() {
         <PageHeader
           breadcrumb={["DevStation", "LaunchKit", "Deploy"]}
           title="Deploy a Contract"
-          subtitle="Step 1 of 3 — Select a verified template to get started."
+          subtitle="Step 1 of 3: Select a verified template to get started."
         />
         <div className="space-y-4 p-6">
           <input
@@ -454,7 +454,7 @@ function DeployWizard() {
         <PageHeader
           breadcrumb={["DevStation", "LaunchKit", "Deploy", templateLabel(template, chainId)]}
           title={`Configure ${templateLabel(template, chainId)}`}
-          subtitle="Step 2 of 3 — Fill in constructor arguments and review deployment."
+          subtitle="Step 2 of 3: Fill in constructor arguments and review deployment."
         />
         <div className="grid gap-6 p-6 lg:grid-cols-5">
           {/* Form */}
@@ -609,7 +609,7 @@ function DeployWizard() {
                     disabled
                     className="h-3.5 w-3.5 rounded border-border"
                   />
-                  Gas-free deploy — not needed, your wallet already has enough{" "}
+                  Gas-free deploy, not needed, your wallet already has enough{" "}
                   {nativeSymbol(chain.id)}
                 </span>
               ) : (
@@ -631,7 +631,7 @@ function DeployWizard() {
                 <span className="font-mono text-[10px] text-meta">
                   {sponsorChecking
                     ? "Checking gas sponsorship…"
-                    : "Gas-free deploy isn't available right now — you'll pay gas from your own wallet."}
+                    : "Gas-free deploy isn't available right now: you'll pay gas from your own wallet."}
                 </span>
               )
             )}
@@ -676,7 +676,7 @@ function DeployWizard() {
         <PageHeader
           breadcrumb={["DevStation", "LaunchKit", "Deploy", templateLabel(template, chainId)]}
           title="Deploying…"
-          subtitle="Step 3 of 3 — Compile, sign in your wallet, broadcast, confirm."
+          subtitle="Step 3 of 3: Compile, sign in your wallet, broadcast, confirm."
         />
         <div className="space-y-4 p-6">
           <TerminalOutput lines={deployLines} instant />
@@ -733,7 +733,7 @@ function DeployWizard() {
                   <SuccessRow label="Tx Hash" value={<TxHashChip hash={deployResult.txHash} />} />
                 </dl>
 
-                {/* Jump-off links — all internal to DevStation: Routebook + explorer */}
+                {/* Jump-off links, all internal to DevStation: Routebook + explorer */}
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Link
                     to="/routebook/$txHash"

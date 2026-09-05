@@ -17,7 +17,7 @@ import { shortAddr } from "@/lib/explorer/format";
 //
 // Templates published here store their Solidity ON-CHAIN, so the source is
 // public and free to read. Paying a template's price is what records the deploy
-// against it — that is what pays the creator and grows their deploy count. The
+// against it: that is what pays the creator and grows their deploy count. The
 // UI says so plainly rather than implying the payment unlocks something.
 
 export const Route = createFileRoute("/launchkit/marketplace")({

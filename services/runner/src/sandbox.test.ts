@@ -14,14 +14,14 @@ import { packTar, unpackTar } from "./tar";
 // The timeouts here are generous because the sandbox is genuinely slow: under
 // gVisor a warm install measured 138s against 43s under runc, and every phase
 // carries 1.4-3.2x. Sized for runc, three of these failed at exactly their
-// declared limit the moment gVisor was switched on — a timeout, not a defect.
+// declared limit the moment gVisor was switched on: a timeout, not a defect.
 //
 // These drive real Docker, so they are slow and they are skipped when there is
 // no daemon (CI without a socket, a laptop with Docker stopped). They are worth
 // the seconds they cost: the isolation claims in ARCHITECTURE.md are the reason
 // this service is allowed to run model-written code at all, and an untested
-// security control is a wish. Every failure fixed here — the network that could
-// not be attached, the workspace that could not execute — passed a typecheck,
+// security control is a wish. Every failure fixed here: the network that could
+// not be attached, the workspace that could not execute: passed a typecheck,
 // a lint and a review first, and was only ever visible by running it.
 
 const IMAGE = process.env.RUNNER_IMAGE ?? "devstation-runner:3";
@@ -73,8 +73,8 @@ const when = imageExists ? describe : describe.skip;
 when("sandbox", () => {
   it("gives install the network and takes it away again afterwards", async () => {
     // The single most important property here. `install` needs a registry,
-    // so it gets the bridge; everything after it — the build, the tests,
-    // anything the model wrote — must not be able to reach anything.
+    // so it gets the bridge; everything after it: the build, the tests,
+    // anything the model wrote: must not be able to reach anything.
     const probe = [
       "const net=require('net');",
       "const s=net.connect(443,'104.16.0.35');",

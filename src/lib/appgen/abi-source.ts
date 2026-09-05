@@ -2,7 +2,7 @@
 //
 // Three sources, one normalised result. The ordering matters: a contract
 // deployed in THIS browser has its ABI in localStorage and needs no network
-// call, but that is the only place it exists — ProjectRegistry stores just
+// call, but that is the only place it exists: ProjectRegistry stores just
 // five strings onchain, with no ABI and no chainId. So a project restored from
 // chain (different device, cleared storage) must fall through to the explorer
 // rather than being treated as "no ABI available".
@@ -16,7 +16,7 @@ export interface ResolvedAbi {
   abi: unknown[];
   address: `0x${string}`;
   chainId: number;
-  /** Contract name if known — used for headings in the generated app. */
+  /** Contract name if known: used for headings in the generated app. */
   name: string | null;
   source: AbiSourceKind;
   /** False for a pasted ABI, or an explorer hit that is somehow unverified. */
@@ -50,7 +50,7 @@ export function fromSession(address: string, chainId?: number): AbiResult {
   if (!project || !looksLikeAbi(project.abi)) {
     return {
       ok: false,
-      message: "No locally stored ABI for that deploy — falling back to the explorer.",
+      message: "No locally stored ABI for that deploy: falling back to the explorer.",
     };
   }
   // chainId is absent on records reconstructed from the onchain registry.
@@ -119,7 +119,7 @@ export function fromPasted(address: string, chainId: number, json: string): AbiR
     return {
       ok: false,
       message:
-        "That does not look like an ABI — expected a JSON array, or an artifact with an `abi` field.",
+        "That does not look like an ABI: expected a JSON array, or an artifact with an `abi` field.",
     };
   }
   return {

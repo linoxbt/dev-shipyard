@@ -45,7 +45,7 @@ export const Route = createFileRoute("/routebook/$txHash")({
     };
   },
   head: ({ params }) => ({
-    meta: [{ title: `Routebook · ${params.txHash.slice(0, 10)}… — DevStation` }],
+    meta: [{ title: `Routebook · ${params.txHash.slice(0, 10)}…: DevStation` }],
   }),
   component: TxView,
 });

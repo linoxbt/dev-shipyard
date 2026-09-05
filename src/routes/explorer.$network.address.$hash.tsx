@@ -46,7 +46,7 @@ function AddressPage() {
   const { data: counters } = useExplorer<ExAddrCounters>(`/addresses/${hash}/counters`);
   // The name the user actually gave this contract when deploying through
   // DevStation (the deploy wizard's "Project Name" field), read from the
-  // on-chain ContractLabelRegistry — same source Routebook already uses.
+  // on-chain ContractLabelRegistry: same source Routebook already uses.
   // Preferred over Blockscout's own `addr.name`/`token.name`, which for a
   // verified contract is just its Solidity contract/template name (e.g.
   // "SimpleERC20"), not what the user actually called their project.
@@ -223,7 +223,7 @@ function AddrTransfers({ hash }: { hash: string }) {
                 ? formatUnits(t.total.value, dec, 6)
                 : t.total?.token_id
                   ? `#${t.total.token_id}`
-                  : "—";
+                  : "-";
               return (
                 <tr key={i} className="border-t border-border hover:bg-surface-2/50">
                   <Td>
@@ -232,14 +232,14 @@ function AddrTransfers({ hash }: { hash: string }) {
                   <Td className="whitespace-nowrap text-muted-foreground">
                     {timeAgo(t.timestamp)}
                   </Td>
-                  <Td>{t.from ? <AddrLink hash={t.from.hash} name={t.from.name} /> : "—"}</Td>
-                  <Td>{t.to ? <AddrLink hash={t.to.hash} name={t.to.name} /> : "—"}</Td>
+                  <Td>{t.from ? <AddrLink hash={t.from.hash} name={t.from.name} /> : "-"}</Td>
+                  <Td>{t.to ? <AddrLink hash={t.to.hash} name={t.to.name} /> : "-"}</Td>
                   <Td className="text-right text-foreground">{amt}</Td>
                   <Td>
                     {t.token ? (
                       <TokenLink hash={t.token.address} label={t.token.symbol ?? "Token"} />
                     ) : (
-                      "—"
+                      "-"
                     )}
                   </Td>
                 </tr>
@@ -347,10 +347,10 @@ function AddrInternal({ hash, symbol }: { hash: string; symbol: string }) {
           <tbody>
             {data.items.map((t, i) => (
               <tr key={i} className="border-t border-border hover:bg-surface-2/50">
-                <Td>{t.transaction_hash ? <TxLink hash={t.transaction_hash} /> : "—"}</Td>
+                <Td>{t.transaction_hash ? <TxLink hash={t.transaction_hash} /> : "-"}</Td>
                 <Td className="text-meta">{t.type ?? "call"}</Td>
-                <Td>{t.from ? <AddrLink hash={t.from.hash} name={t.from.name} /> : "—"}</Td>
-                <Td>{t.to ? <AddrLink hash={t.to.hash} name={t.to.name} /> : "—"}</Td>
+                <Td>{t.from ? <AddrLink hash={t.from.hash} name={t.from.name} /> : "-"}</Td>
+                <Td>{t.to ? <AddrLink hash={t.to.hash} name={t.to.name} /> : "-"}</Td>
                 <Td className="text-right text-foreground">{formatQie(t.value)}</Td>
               </tr>
             ))}
@@ -594,7 +594,7 @@ function Field({ label, value }: { label: string; value?: string }) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider text-meta">{label}</div>
-      <div className="text-foreground break-all">{value || "—"}</div>
+      <div className="text-foreground break-all">{value || "-"}</div>
     </div>
   );
 }

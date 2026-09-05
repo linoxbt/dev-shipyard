@@ -6,7 +6,7 @@
 // string the AI agent chose to emit. Both the deploy wizard and the agent
 // wrote the TEMPLATE vocabulary onchain, so a label saved as "Token Standards"
 // could never match the registry's "Token" filter, and "Utility"/"Custom"
-// matched nothing at all — labels DevStation wrote were unfindable in
+// matched nothing at all: labels DevStation wrote were unfindable in
 // DevStation's own registry UI.
 //
 // This module is the single source of truth. The category written onchain is
@@ -15,7 +15,7 @@
 import type { TemplateCategory } from "@/lib/data/templates";
 
 /** Categories the label registry UI filters by. Written onchain, so treat
- *  these strings as a stable data contract — renaming one orphans every label
+ *  these strings as a stable data contract: renaming one orphans every label
  *  already saved under the old name. */
 export const LABEL_CATEGORIES = [
   "Token",
@@ -97,7 +97,7 @@ const ALIASES: Record<string, LabelCategory> = {
  * Coerce arbitrary caller input to a valid registry category.
  *
  * The agent emits free text, and that string goes onchain where it cannot be
- * corrected later — so normalise before writing rather than validating after.
+ * corrected later, so normalise before writing rather than validating after.
  * Unknown input falls back to "Other", which is a real filterable category,
  * instead of an orphan string nothing can find.
  */

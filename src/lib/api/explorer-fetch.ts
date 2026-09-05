@@ -4,18 +4,18 @@ import { SUPPORTED_CHAINS, chainConfig } from "@/lib/chains";
 // Fetching block-explorer data when the explorer's certificate is broken.
 //
 // QIE's explorer certificates expired on 2026-08-30 and stayed expired. The
-// service itself is fine — it answers normally once verification is skipped —
+// service itself is fine: it answers normally once verification is skipped -
 // but every server-side call failed with "certificate has expired", which took
 // out the leaderboard, verification rate, ecosystem stats and address history.
 //
 // This tries TLS STRICTLY first and only falls back for a request that failed
 // on the certificate specifically, to a host that appears in our own chain
 // config. The moment the operator renews, the strict attempt succeeds and the
-// fallback stops being reached — no redeploy, no code change.
+// fallback stops being reached: no redeploy, no code change.
 //
 // What is being traded, plainly: a relaxed request keeps its encryption but
 // loses authentication, so an attacker positioned on the network path could
-// serve false block data — a balance that is wrong, or a transaction shown as
+// serve false block data: a balance that is wrong, or a transaction shown as
 // confirmed when it is not. That is why it is scoped to explorer reads (no
 // credential is ever sent to these hosts), server-side only, and switchable.
 //
@@ -44,7 +44,7 @@ export function fallbackEnabled(): boolean {
 }
 
 /** Certificate problems only. A DNS failure, a refused connection or a 500 must
- *  NOT trigger a retry with verification disabled — those are not certificate
+ *  NOT trigger a retry with verification disabled: those are not certificate
  *  problems, and treating them as one would quietly widen the exemption. */
 const CERT_ERRORS =
   /certificate has expired|CERT_HAS_EXPIRED|unable to verify the first certificate|self.signed certificate|UNABLE_TO_VERIFY_LEAF_SIGNATURE|DEPTH_ZERO_SELF_SIGNED_CERT|ERR_TLS_CERT_ALTNAME_INVALID/i;
@@ -64,7 +64,7 @@ function isCertError(e: unknown): boolean {
 const warned = new Set<string>();
 
 /** GET over https with verification disabled, via node:https because it behaves
- *  the same under Bun and under Node — Bun's own `tls` fetch option does not
+ *  the same under Bun and under Node: Bun's own `tls` fetch option does not
  *  exist on the Netlify runtime, and undici is not a dependency. */
 function insecureGet(url: string, headers: Record<string, string>): Promise<Response> {
   return new Promise((resolve, reject) => {
@@ -102,7 +102,7 @@ function insecureGet(url: string, headers: Record<string, string>): Promise<Resp
  *
  *  Split out from fetchExplorer and exported so the guardrails can be tested
  *  directly. They used to be tested by calling the live QIE explorer and
- *  asserting it threw — which only held while QIE's certificate was expired.
+ *  asserting it threw, which only held while QIE's certificate was expired.
  *  It was renewed on 2026-09-03 and both tests started failing, having never
  *  really tested this decision at all. A rule about what we permit should not
  *  depend on someone else's certificate being broken. */

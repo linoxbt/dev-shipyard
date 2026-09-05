@@ -7,7 +7,7 @@ import type { PassState, QieClaim } from "@/lib/qie/identity";
 //
 // Deliberately user-initiated. Creating a request makes QIE notify the wallet
 // holder and ask them to approve sharing identity data, so it never fires on
-// connect or on render — only when someone presses the button.
+// connect or on render: only when someone presses the button.
 //
 // The request id is kept in this browser so a half-finished verification
 // survives a refresh. It is not a secret: it identifies a request the user
@@ -18,7 +18,7 @@ const STORAGE_KEY = "devstation-qie-pass-request";
  *  in another tab or on a phone, so this is a human timescale, not a machine
  *  one. */
 const POLL_MS = 4000;
-/** Stop polling eventually — a request the user abandoned should not have this
+/** Stop polling eventually: a request the user abandoned should not have this
  *  tab talking to QIE forever. */
 const MAX_POLLS = 90;
 
@@ -51,7 +51,7 @@ function writeStored(v: Stored | null) {
     if (v) localStorage.setItem(STORAGE_KEY, JSON.stringify(v));
     else localStorage.removeItem(STORAGE_KEY);
   } catch {
-    /* quota — the flow still works for this session */
+    /* quota: the flow still works for this session */
   }
 }
 
@@ -73,7 +73,7 @@ export function useQiePass(configured: boolean): QiePassFlow {
   const [error, setError] = useState<string | null>(null);
   const [requestId, setRequestId] = useState<string | null>(null);
 
-  // Resume a request left unfinished, but only for the wallet that made it —
+  // Resume a request left unfinished, but only for the wallet that made it -
   // switching wallets must not show someone else's verification.
   useEffect(() => {
     const stored = readStored();

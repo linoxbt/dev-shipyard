@@ -12,7 +12,7 @@ function Networks() {
   return (
     <DocPage
       title="Networks"
-      intro="DevStation is built for QIE, and also supports BOT Chain. Pick a network from the selector and the whole console follows it — templates, the deploy path, the explorer, and analytics all switch to match. The selected network is authoritative for every read and write."
+      intro="DevStation is built for QIE, and also supports BOT Chain. Pick a network from the selector and the whole console follows it: templates, the deploy path, the explorer, and analytics all switch to match. The selected network is authoritative for every read and write."
     >
       <P>
         When a connected wallet is on a different network, the console surfaces a mismatch prompt
@@ -33,7 +33,7 @@ function Networks() {
         ]}
       />
       <P>
-        QIE Mainnet is the default — it&apos;s what the console opens on before you pick anything
+        QIE Mainnet is the default: it&apos;s what the console opens on before you pick anything
         else.
       </P>
 
@@ -42,13 +42,13 @@ function Networks() {
         On QIE Mainnet and BOT Chain Mainnet, DevStation can top your own wallet up with just enough
         native token to cover a deploy, so you can ship a contract without holding gas first. Your
         wallet still signs and sends everything itself, so it stays the deployer of record. Testnets
-        aren&apos;t sponsored — they each have a public faucet instead.
+        aren&apos;t sponsored: they each have a public faucet instead.
       </P>
 
       <P>
         Add a network to a wallet manually, or let DevStation request the switch when you connect.
-        Endpoints (RPCs and explorers) are configurable — the defaults are each network&apos;s
-        public infrastructure, overridable via environment variables.
+        Endpoints (RPCs and explorers) are configurable: the defaults are each network&apos;s public
+        infrastructure, overridable via environment variables.
       </P>
       <PageNav prev={prev} next={next} />
     </DocPage>

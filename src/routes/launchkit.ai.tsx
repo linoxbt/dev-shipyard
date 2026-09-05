@@ -7,7 +7,7 @@ import { AgentChat } from "@/components/ai/AgentChat";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/launchkit/ai")({
-  head: () => ({ meta: [{ title: "Code with AI — DevStation" }] }),
+  head: () => ({ meta: [{ title: "Code with AI: DevStation" }] }),
   component: AiRoute,
 });
 
@@ -27,7 +27,7 @@ function CodeWithAi() {
         title="Code with AI"
         subtitle={
           mode === "agent"
-            ? "Autonomous agent: generate, compile, auto-fix, and deploy a contract — without leaving this page."
+            ? "Autonomous agent: generate, compile, auto-fix, and deploy a contract, without leaving this page."
             : "Write, debug, and explain Solidity contracts with an AI assistant."
         }
       />

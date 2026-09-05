@@ -50,7 +50,7 @@ const m = (vendor: string, id: string, label: string, note?: string): AiModel =>
 //
 // Model ids and prices were read from OpenRouter's live catalogue
 // (GET https://openrouter.ai/api/v1/models). Prices are USD per 1M tokens as
-// input/output and are indicative only — OpenRouter is the source of truth.
+// input/output and are indicative only: OpenRouter is the source of truth.
 export const AI_PROVIDERS: Record<AiProvider, ProviderPreset> = {
   openrouter: {
     id: "openrouter",

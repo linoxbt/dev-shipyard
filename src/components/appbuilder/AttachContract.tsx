@@ -7,7 +7,7 @@ import { fromPasted, resolveAbi, type ResolvedAbi } from "@/lib/appgen/abi-sourc
 //
 // The chat panel stays a chat panel: one box, one send button. Everything to
 // do with picking a contract lives behind this control, because most ideas do
-// not start from a deployed address — and when one does, it is a detail of the
+// not start from a deployed address, and when one does, it is a detail of the
 // build, not a precondition for starting.
 
 interface Props {
@@ -81,8 +81,7 @@ export function AttachContract({ chainId, attached, onAttach }: Props) {
       {open && (
         <div className="absolute right-0 top-6 z-50 w-72 space-y-2 rounded border border-border bg-surface p-2 shadow-lg">
           <p className="font-mono text-[10px] text-meta">
-            Optional. Attach a contract and the app is wired to it — address, chain and ABI baked
-            in.
+            Optional. Attach a contract and the app is wired to it: address, chain and ABI baked in.
           </p>
 
           {deployed.length > 0 && (
@@ -109,7 +108,7 @@ export function AttachContract({ chainId, attached, onAttach }: Props) {
             value={abiJson}
             onChange={(e) => setAbiJson(e.target.value)}
             rows={3}
-            placeholder="ABI JSON — only needed if it is not verified"
+            placeholder="ABI JSON: only needed if it is not verified"
             className="w-full resize-y rounded border border-border bg-background px-2 py-1 font-mono text-[10px] text-foreground focus:border-primary focus:outline-none"
           />
           {error && <p className="font-mono text-[10px] text-danger">{error}</p>}

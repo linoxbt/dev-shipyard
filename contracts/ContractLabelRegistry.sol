@@ -10,7 +10,7 @@ pragma solidity ^0.8.20;
 ///      `autoLabeler` may set it true; anyone claiming autoLabeled=true from
 ///      another address reverts instead of silently minting a trusted-looking
 ///      label for an address they don't control). Only the current submitter,
-///      the owner, or the autoLabeler may overwrite an existing label — the
+///      the owner, or the autoLabeler may overwrite an existing label: the
 ///      original version allowed anyone to overwrite anyone's label. See
 ///      `getLabeledContractsPage` for a bounded alternative to
 ///      `getLabeledContracts`, which has no size limit and can be grown by an
@@ -18,7 +18,7 @@ pragma solidity ^0.8.20;
 contract ContractLabelRegistry {
     address public owner;
     /// @notice The only address allowed to submit a pre-approved (autoLabeled=true)
-    ///         label — DevStation's own deploy flow signer. Anyone can still submit
+    ///         label: DevStation's own deploy flow signer. Anyone can still submit
     ///         a COMMUNITY label (autoLabeled=false) for any address.
     address public autoLabeler;
 
@@ -61,7 +61,7 @@ contract ContractLabelRegistry {
     }
 
     /// @notice Submit (or overwrite) a label for `contractAddress`.
-    /// @param autoLabeled true for a pre-approved DevStation auto-label — only
+    /// @param autoLabeled true for a pre-approved DevStation auto-label: only
     ///        callable by `autoLabeler`, reverts for anyone else. Everyone else
     ///        may submit with autoLabeled=false (a COMMUNITY label pending
     ///        owner approval via `approveLabel`).
@@ -133,7 +133,7 @@ contract ContractLabelRegistry {
         }
     }
 
-    /// @notice Full labeled-address list. UNBOUNDED — grows by one for every
+    /// @notice Full labeled-address list. UNBOUNDED: grows by one for every
     ///         new address ever submitted, with no size cap. Anyone can grow
     ///         this until this call reverts out-of-gas for every caller.
     ///         Prefer `getLabeledContractsPage` for anything reachable

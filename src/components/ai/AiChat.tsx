@@ -496,7 +496,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
               {group.models.map((model) => (
                 <option key={model.id} value={model.id}>
                   {model.label}
-                  {model.note ? ` — ${model.note}` : ""}
+                  {model.note ? `: ${model.note}` : ""}
                 </option>
               ))}
             </optgroup>

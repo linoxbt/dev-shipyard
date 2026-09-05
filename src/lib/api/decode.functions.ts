@@ -91,7 +91,7 @@ function mapCallNode(node: RawCall, path: string, depth: number, addrs: Set<stri
     id: path,
     type,
     contractAddress: to,
-    fn: truncated ? `${decoded.fn} [trace truncated — max depth reached]` : decoded.fn,
+    fn: truncated ? `${decoded.fn} [trace truncated: max depth reached]` : decoded.fn,
     args: decoded.args,
     events: [],
     gasUsed: node.gasUsed ? Number(BigInt(node.gasUsed)) : 0,
@@ -312,7 +312,7 @@ export const decodeTransaction = createServerFn({ method: "POST" })
               revertExplain = REVERT_PATTERNS[pattern].explain;
               revertFix = REVERT_PATTERNS[pattern].fix;
             } else {
-              // Not a known OZ-style revert STRING — try decoding the raw
+              // Not a known OZ-style revert STRING: try decoding the raw
               // revert bytes as a Panic(uint256) or one of DevStation's own
               // known custom errors, which the string-matching table above
               // can't catch (viem's shortMessage often just says "reverted"

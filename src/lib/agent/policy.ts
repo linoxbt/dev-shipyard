@@ -4,11 +4,11 @@ import type { ProtectedAction, RiskLevel } from "./authorization";
 //
 // This is the layer that decides, not the model. The agent proposes an action;
 // this classifies its risk and says whether it may proceed. A model cannot
-// argue its way past it, because it never gets asked — the answer comes from
+// argue its way past it, because it never gets asked: the answer comes from
 // the operation name and the resources, not from anything the model wrote.
 //
 // The bar for interrupting someone is deliberately high. Ordinary development
-// — writing a component, restyling, running tests, fixing an error — is safe
+//, writing a component, restyling, running tests, fixing an error, is safe
 // and must never prompt. Interruptions are reserved for actions that lose data,
 // spend money, change who can get in, or reach production.
 
@@ -121,7 +121,7 @@ function escalateForProduction(risk: Exclude<RiskLevel, "low">): Exclude<RiskLev
 
 export interface PolicyOptions {
   /** How much the user has asked to be consulted. Cannot lower a critical
-   *  action below confirmation — that floor belongs to the platform. */
+   *  action below confirmation: that floor belongs to the platform. */
   autonomy?: "ask_sensitive" | "ask_integrations" | "ask_deploy" | "autonomous";
 }
 

@@ -1,5 +1,5 @@
 // Minimal line-level diff (LCS) for the editor's "apply AI code" confirm view.
-// No dependency — contracts are small, so the O(n*m) table is fine; very large
+// No dependency: contracts are small, so the O(n*m) table is fine; very large
 // inputs fall back to a whole-file replace rather than build a huge table.
 
 export type DiffOp = { type: "ctx" | "add" | "del"; text: string };

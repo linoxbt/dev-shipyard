@@ -125,7 +125,7 @@ describe("decoder rejects things that are not labels", () => {
   it("does not read a small integer as a name", () => {
     // 0x616263 is "abc" if you ignore alignment. ABI numbers are
     // right-aligned and strings are left-aligned, so the first byte settles it
-    // — without that check this decoded to a registered name.
+    //, without that check this decoded to a registered name.
     expect(decodeRegistrationStrings("0xbc96db3f" + num("616263"))).toEqual([]);
   });
 

@@ -1,4 +1,4 @@
-// Trimmed Blockscout v2 response types — only the fields the explorer renders.
+// Trimmed Blockscout v2 response types: only the fields the explorer renders.
 
 export interface AddrRef {
   hash: string;

@@ -31,7 +31,7 @@ import { shortAddr, timeAgo } from "@/lib/explorer/format";
 // token never reaches our servers.
 
 export const Route = createFileRoute("/launchkit/apps/$id")({
-  head: () => ({ meta: [{ title: "App — DevStation" }] }),
+  head: () => ({ meta: [{ title: "App: DevStation" }] }),
   component: AppDetail,
 });
 
@@ -132,7 +132,7 @@ function AppDetail() {
         body: JSON.stringify({
           repoName: repoNameFrom(repoName || project.name),
           isPrivate,
-          // Source, deliberately — not `dist`. A repository holds what a person
+          // Source, deliberately, not `dist`. A repository holds what a person
           // edits; the built output belongs to the publish flow.
           files: project.files,
           message: `Update ${project.name} from DevStation`,
@@ -243,7 +243,7 @@ function AppDetail() {
             </Row>
           ) : (
             <p className="py-1 font-mono text-[11px] text-meta">
-              Not recorded — this app predates authorship tracking.
+              Not recorded: this app predates authorship tracking.
             </p>
           )}
           {project.attached ? (
@@ -336,7 +336,7 @@ function AppDetail() {
                 title={
                   isConnected
                     ? undefined
-                    : "Connect a wallet — publishing is rate limited per wallet"
+                    : "Connect a wallet: publishing is rate limited per wallet"
                 }
                 className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
               >

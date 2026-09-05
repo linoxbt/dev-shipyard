@@ -10,11 +10,11 @@ import { toast } from "sonner";
 import { LABEL_CATEGORIES } from "@/lib/labels/categories";
 
 export const Route = createFileRoute("/routebook/labels")({
-  head: () => ({ meta: [{ title: "Label Registry — DevStation Routebook" }] }),
+  head: () => ({ meta: [{ title: "Label Registry: DevStation Routebook" }] }),
   component: LabelRegistry,
 });
 
-// Source filters first, then the category vocabulary itself — imported rather
+// Source filters first, then the category vocabulary itself: imported rather
 // than restated, so the list a user filters by can never drift from the list
 // written onchain.
 const SOURCE_FILTERS = ["All", "Verified", "Community", "Auto-labeled"] as const;
@@ -54,7 +54,7 @@ function LabelRegistry() {
       <PageHeader
         breadcrumb={["DevStation", "Routebook", "Labels"]}
         title="Contract Label Registry"
-        subtitle="Human-readable names for contracts on QIE — read from the on-chain registry."
+        subtitle="Human-readable names for contracts on QIE: read from the on-chain registry."
         action={
           <button
             onClick={() => setModal(true)}
@@ -132,7 +132,7 @@ function LabelRegistry() {
                     {!onChain
                       ? "Label registry not configured for this deployment."
                       : labels.length === 0
-                        ? "No labels yet — be the first to submit one."
+                        ? "No labels yet: be the first to submit one."
                         : "No labels match this filter."}
                   </td>
                 </tr>
@@ -159,10 +159,10 @@ function Row({ label }: { label: OnChainLabel }) {
         <StatusBadge kind={label.source} />
       </td>
       <td className="px-3 py-2 text-muted-foreground">
-        {label.submitter ? `${label.submitter.slice(0, 6)}…${label.submitter.slice(-4)}` : "—"}
+        {label.submitter ? `${label.submitter.slice(0, 6)}…${label.submitter.slice(-4)}` : "-"}
       </td>
       <td className="px-3 py-2 text-meta">
-        {label.submittedAt ? formatDistanceToNow(label.submittedAt, { addSuffix: true }) : "—"}
+        {label.submittedAt ? formatDistanceToNow(label.submittedAt, { addSuffix: true }) : "-"}
       </td>
     </tr>
   );

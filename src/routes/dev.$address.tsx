@@ -13,7 +13,7 @@ import { reputationSummary, TIER_LABEL } from "@/lib/reputation";
 //
 // Everything here is derived from chain: what ProjectRegistry says they
 // deployed, and what the explorer says about those contracts' source
-// verification. There is no editable field anywhere, by design — a reputation
+// verification. There is no editable field anywhere, by design: a reputation
 // someone can type in tells you nothing about them.
 
 export const Route = createFileRoute("/dev/$address")({
@@ -73,7 +73,7 @@ function DeveloperProfile() {
   // for an unreachable explorer would defame a developer whose contracts are
   // all verified.
   const rate =
-    rep && rep.verificationRate !== null ? `${Math.round(rep.verificationRate * 100)}%` : "—";
+    rep && rep.verificationRate !== null ? `${Math.round(rep.verificationRate * 100)}%` : "-";
 
   return (
     <div>
@@ -136,7 +136,7 @@ function DeveloperProfile() {
               <Stat
                 icon={CalendarClock}
                 label="Active"
-                value={rep!.activeDays ? `${rep!.activeDays}d` : "—"}
+                value={rep!.activeDays ? `${rep!.activeDays}d` : "-"}
                 sub={
                   rep!.firstAt
                     ? `since ${timeAgo(new Date(rep!.firstAt).toISOString())}`
@@ -161,7 +161,7 @@ function DeveloperProfile() {
                   <tbody>
                     {data.deployments.map((d) => (
                       <tr key={d.txHash} className="border-b border-border last:border-0">
-                        <td className="px-3 py-2 text-foreground">{d.projectName || "—"}</td>
+                        <td className="px-3 py-2 text-foreground">{d.projectName || "-"}</td>
                         <td className="px-3 py-2">
                           <Link
                             to="/explorer/$network/address/$hash"
@@ -174,11 +174,11 @@ function DeveloperProfile() {
                             {shortAddr(d.contractAddress)}
                           </Link>
                         </td>
-                        <td className="px-3 py-2 text-muted-foreground">{d.templateId || "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{d.templateId || "-"}</td>
                         <td className="px-3 py-2 text-right text-meta">
                           {Number(d.deployedAt) > 0
                             ? timeAgo(new Date(Number(d.deployedAt)).toISOString())
-                            : "—"}
+                            : "-"}
                         </td>
                       </tr>
                     ))}

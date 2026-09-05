@@ -8,15 +8,15 @@ interface TxListEntry {
   value?: string;
 }
 
-// Sum of what the sponsor wallet has actually spent in the trailing 24h —
+// Sum of what the sponsor wallet has actually spent in the trailing 24h -
 // both the QIE it sent out (top-ups to user wallets) and the gas fees it
-// paid broadcasting those top-up transactions — read directly from the
+// paid broadcasting those top-up transactions: read directly from the
 // chain's own explorer tx history (same legacy txlist API
 // src/lib/api/chain.functions.ts already uses for getAllLabels). No
 // separate datastore needed, consistent with the rest of the app's "no
 // backend database" architecture.
 //
-// Deliberately counts EVERY tx from this address, including failed ones —
+// Deliberately counts EVERY tx from this address, including failed ones -
 // a reverted tx still burns the gas it used, so excluding it would
 // undercount real spend and let the budget check under-protect the wallet.
 //
@@ -24,7 +24,7 @@ interface TxListEntry {
 // atomic. A burst of concurrent top-up requests near the budget boundary
 // could all read a "spend so far" from before any of them landed on-chain
 // and all pass the check. The caller applies a 90%-of-budget cutoff
-// specifically to leave headroom for this — see api.sponsor-topup.ts.
+// specifically to leave headroom for this: see api.sponsor-topup.ts.
 // One page of history. Sorted newest-first, this covers far more than 24h of
 // plausible sponsor traffic while keeping the request bounded.
 const PAGE_SIZE = 500;
@@ -59,7 +59,7 @@ export async function getSponsorSpendLast24hWei(
   }
 
   // If the whole page fell inside the 24h window, older spend may exist beyond
-  // it and this is an UNDERCOUNT — which would let the budget check pass when
+  // it and this is an UNDERCOUNT, which would let the budget check pass when
   // it should not. Fail closed rather than under-protect the wallet.
   if (txs.length >= PAGE_SIZE && counted === txs.length) {
     throw new Error(

@@ -2,9 +2,9 @@
 //
 // Two separate jobs, deliberately not merged:
 //
-//   redact()          — strip secrets from text on its way OUT (messages,
+//   redact()         : strip secrets from text on its way OUT (messages,
 //                       events, audit entries, logs).
-//   clientExposure()  — refuse to WRITE a private value into code the browser
+//   clientExposure() : refuse to WRITE a private value into code the browser
 //                       will download, which is a different failure: the app
 //                       ships the key rather than merely printing it.
 //
@@ -36,8 +36,8 @@ const PATTERNS: Array<{ name: string; re: RegExp }> = [
 /** Names whose VALUE is a secret, wherever it appears as key=value. */
 // The optional quote before the separator matters: an event payload is
 // serialised as JSON, so the key arrives as "DATABASE_PASSWORD": rather than
-// DATABASE_PASSWORD=. Without it, secrets in structured payloads — the common
-// case — passed straight through unredacted.
+// DATABASE_PASSWORD=. Without it, secrets in structured payloads: the common
+// case: passed straight through unredacted.
 const SECRET_KEY =
   /\b([A-Z0-9_]*(?:SECRET|PASSWORD|PRIVATE_KEY|API_KEY|TOKEN|CREDENTIAL|PASSPHRASE)[A-Z0-9_]*)(["']?\s*[:=]\s*)(["']?)([^\s"',;}]{6,})\3/g;
 
@@ -45,7 +45,7 @@ export const REDACTED = "[redacted]";
 
 export interface RedactionResult {
   text: string;
-  /** What kinds were found — safe to log, unlike the values. */
+  /** What kinds were found: safe to log, unlike the values. */
   kinds: string[];
 }
 
@@ -76,7 +76,7 @@ export function containsSecret(input: string): boolean {
 }
 
 /** Env names safe to inline into a browser bundle. Everything else is private
- *  until proven otherwise — the default has to be refusal. */
+ *  until proven otherwise: the default has to be refusal. */
 const PUBLIC_PREFIX = /^(?:VITE_|NEXT_PUBLIC_|PUBLIC_|REACT_APP_)/;
 /** …except when the NAME itself says it is a secret. A VITE_ prefix on a
  *  secret is a mistake, not permission. */

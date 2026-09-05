@@ -19,7 +19,7 @@ import { useTemplateDeploys } from "@/hooks/useTemplateDeploys";
 export const Route = createFileRoute("/launchkit/templates/")({
   head: () => ({
     meta: [
-      { title: "Templates — DevStation LaunchKit" },
+      { title: "Templates: DevStation LaunchKit" },
       {
         name: "description",
         content: "Verified Solidity contract templates ready to deploy on QIE Testnet.",

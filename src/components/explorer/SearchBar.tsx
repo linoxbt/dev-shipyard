@@ -9,7 +9,7 @@ import { shortAddr, shortHash } from "@/lib/explorer/format";
 // Universal explorer search: routes a query to the right detail page by shape.
 // Address/contract (0x + 40), tx hash (0x + 64), or block number. Stays on the
 // network in the current URL. Recent searches are persisted to localStorage and
-// surfaced in a dropdown when the input is focused — Etherscan-style; for
+// surfaced in a dropdown when the input is focused: Etherscan-style; for
 // contracts the resolved name is shown once the address page has loaded it.
 export function SearchBar() {
   const [q, setQ] = useState("");

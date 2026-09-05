@@ -1,7 +1,7 @@
 import { encodeAbiParameters, type AbiParameter } from "viem";
 
 // Blockscout's `constructor_args` is the ABI-encoded constructor tail that
-// follows the creation bytecode — the raw encoded args, with NO function
+// follows the creation bytecode: the raw encoded args, with NO function
 // selector. `encodeAbiParameters` produces exactly that. Passing it explicitly
 // is more reliable than Blockscout's autodetect, and we already have the typed
 // argument values at deploy time (the same array handed to deployContract).

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-// A real directory, so persistence is exercised rather than mocked — the whole
+// A real directory, so persistence is exercised rather than mocked: the whole
 // point of this module is surviving a restart.
 const dir = mkdtempSync(join(tmpdir(), "runner-history-"));
 process.env.RUNNER_STATE_DIR = dir;

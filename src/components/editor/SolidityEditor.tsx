@@ -175,7 +175,7 @@ export function SolidityEditor({ value, filename, onChange, diagnostics, gotoLin
 
     // Lightweight autocomplete. The `as never` cast satisfies monaco-editor 0.55
     // which requires a `range` on each CompletionItem; range is optional at
-    // runtime — Monaco computes it from the cursor position when absent.
+    // runtime: Monaco computes it from the cursor position when absent.
     monaco.languages.registerCompletionItemProvider("sol", {
       provideCompletionItems: () => ({
         suggestions: [

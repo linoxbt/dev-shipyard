@@ -4,7 +4,7 @@ import { SUPPORTED_CHAINS } from "./chains";
 import { burnerConnector } from "./burner/connector";
 
 // Every supported chain's wallet is a MetaMask-style EVM browser extension, so
-// they are picked up by the injected() connector via EIP-6963 discovery — no
+// they are picked up by the injected() connector via EIP-6963 discovery: no
 // special SDK required. We also register metaMask() and the in-app burner wallet.
 //
 // Connection state persists to localStorage (durable across refreshes/sessions

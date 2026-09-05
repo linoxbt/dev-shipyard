@@ -6,7 +6,7 @@ import { fetchExplorer } from "@/lib/api/explorer-fetch";
 // Contract source verification against the QIE explorer (Blockscout). DevStation
 // templates are self-contained single files, so we use Blockscout's v2
 // "flattened-code" verification endpoint and let it auto-detect constructor args
-// from the creation transaction — no manual ABI encoding needed.
+// from the creation transaction: no manual ABI encoding needed.
 //
 // Flow: submitVerification() POSTs the source + compiler settings, then the
 // client polls getVerificationStatus() until the contract reports is_verified.
@@ -41,7 +41,7 @@ const submitInput = z.object({
   // Must match what the compiler actually targeted, or the explorer rebuilds
   // different bytecode and verification fails. The in-browser compiler pins
   // "shanghai" (see DEFAULT_EVM_VERSION in src/lib/compiler.ts), so that is
-  // the default here too — "default" would let the explorer pick cancun.
+  // the default here too: "default" would let the explorer pick cancun.
   evmVersion: z.string().default("shanghai"),
   licenseType: z.string().default("mit"),
 });
@@ -93,7 +93,7 @@ export const submitVerification = createServerFn({ method: "POST" })
 // resubmit the EXACT solc standard-JSON input the in-browser worker compiled, so
 // the explorer recompiles to byte-identical bytecode regardless of how many
 // source files (e.g. OpenZeppelin imports) the contract pulls in. Flattened-code
-// verification can't do this — it only carries the top source file.
+// verification can't do this: it only carries the top source file.
 const stdInput = z.object({
   chainId: z.number(),
   address: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
@@ -126,7 +126,7 @@ export const submitStandardJsonVerification = createServerFn({ method: "POST" })
     };
     const ok = (status: number) => status === 200 || status === 201 || status === 409;
 
-    // Primary: multipart/form-data with the standard-JSON as an uploaded file —
+    // Primary: multipart/form-data with the standard-JSON as an uploaded file -
     // the shape Blockscout's v2 standard-input endpoint expects. Never set the
     // content-type manually; fetch derives the multipart boundary.
     try {
@@ -151,7 +151,7 @@ export const submitStandardJsonVerification = createServerFn({ method: "POST" })
       if (ok(resp.status)) {
         return { ok: true as const, message: parse(text) || "Verification submitted" };
       }
-      // Some Blockscout builds want a JSON body instead — fall back on a
+      // Some Blockscout builds want a JSON body instead: fall back on a
       // request-shape rejection (400/422) before giving up.
       if (resp.status !== 400 && resp.status !== 422) {
         return { ok: false as const, message: parse(text) || `Explorer returned ${resp.status}` };
@@ -244,7 +244,7 @@ export const getContractAbi = createServerFn({ method: "GET" })
       }
       // Returned as a JSON string, not an array: a server function's return
       // type must be provably serializable, and `unknown[]` is not. The
-      // caller parses it — which is also the boundary's real shape.
+      // caller parses it, which is also the boundary's real shape.
       return {
         ok: true as const,
         abiJson: JSON.stringify(json.abi),
@@ -262,7 +262,7 @@ export const getContractAbi = createServerFn({ method: "GET" })
 
 // Has the explorer's indexer registered this address as a contract yet? Right
 // after a deploy the creation tx is mined but Blockscout may not have indexed
-// the address — submitting verification too early returns 404 "Address is not a
+// the address: submitting verification too early returns 404 "Address is not a
 // smart-contract". Callers poll this until it returns true before submitting.
 export const getIsContractIndexed = createServerFn({ method: "GET" })
   .inputValidator(statusInput)

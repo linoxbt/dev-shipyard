@@ -6,7 +6,7 @@ import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from "react-re
 // Chat on the left, preview on the right: a draggable divider and a chat panel
 // that collapses out of the way.
 //
-// A phone keeps the same arrangement — chat left, preview right — rather than
+// A phone keeps the same arrangement, chat left, preview right, rather than
 // stacking, with the chat taking the larger share because prose and a text
 // input suffer more from being narrow than a rendered app does.
 //
@@ -26,7 +26,7 @@ import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from "react-re
 //   - A NUMBER size means PIXELS, so defaultSize={32} is a 32-pixel panel.
 //     Sizes need an explicit unit: the size parser does read a unitless string
 //     as a percentage, but before the client has measured anything the library
-//     writes defaultSize straight into flex-basis, and "32" is invalid CSS —
+//     writes defaultSize straight into flex-basis, and "32" is invalid CSS -
 //     the browser drops it and the panel collapses to its content width. That
 //     is the server render and the first client paint, so use "32%".
 //   - Panels must be direct DOM children of their Group.
@@ -129,7 +129,7 @@ export function SplitLayout({ chat, preview }: Props) {
 
   if (mobile) {
     // Side by side on a phone, as asked, with the same draggable divider the
-    // desktop has — 390px split two ways is tight enough that being able to
+    // desktop has: 390px split two ways is tight enough that being able to
     // shift the balance matters more here than it does on a large screen.
     //
     // The switcher above collapses a pane through the library instead of
@@ -172,7 +172,7 @@ export function SplitLayout({ chat, preview }: Props) {
             minSize="25%"
             // No maxSize: the preview's own minSize already stops a drag from
             // squeezing it out, and a maxSize here would cap how far the chat
-            // can expand — which silently prevents the preview from ever
+            // can expand, which silently prevents the preview from ever
             // collapsing, since the chat cannot grow to take its place.
             className="flex min-w-0 flex-col"
           >
@@ -223,7 +223,7 @@ export function SplitLayout({ chat, preview }: Props) {
           // z-10 is load-bearing. The divider is one pixel wide and widens its
           // grab area with an ::after reaching into the panels either side. Any
           // positioned element inside a panel paints over that, and the drag
-          // silently stops working — pointer events land on the panel instead,
+          // silently stops working: pointer events land on the panel instead,
           // with no error and nothing in the DOM to suggest why.
           <Separator className="relative z-10 flex w-px cursor-col-resize items-center justify-center bg-border transition-colors after:absolute after:inset-y-0 after:left-1/2 after:w-2 after:-translate-x-1/2 hover:bg-primary/60" />
         )}
@@ -231,7 +231,7 @@ export function SplitLayout({ chat, preview }: Props) {
         <Panel id={PREVIEW} minSize="30%" className="flex min-w-0 flex-col">
           {/* The toggle lives here, at the preview's bottom-left corner, rather
               than the window's. Anchored to the window it sat on top of the
-              chat composer whenever the chat was open — visible in any
+              chat composer whenever the chat was open: visible in any
               screenshot, invisible in the code. */}
           <div className="relative flex h-full min-h-0 flex-col">
             {preview}

@@ -43,7 +43,7 @@ import { describePass, formatWalletAge } from "@/lib/qie/identity";
 // than showing a zero that looks like a real one.
 
 export const Route = createFileRoute("/activity")({
-  head: () => ({ meta: [{ title: "Dashboard — DevStation" }] }),
+  head: () => ({ meta: [{ title: "Dashboard: DevStation" }] }),
   // Gated on the shared map, never on a flag local to this file: the
   // sidebar badge reads the same entry, so the two cannot disagree.
   // DashboardPage stays referenced, so removing the map entry is all it takes
@@ -74,7 +74,7 @@ function DashboardPage() {
 
   // Templates this wallet published, and how often others deployed them. The
   // registry has no per-creator aggregate, so the summaries are filtered by
-  // creator here — cheap, since the same query already backs the marketplace.
+  // creator here: cheap, since the same query already backs the marketplace.
   const templateRegistry = useTemplateRegistry();
   const myTemplates = templateRegistry.summaries.filter(
     (t) => address && t.creator.toLowerCase() === address.toLowerCase(),
@@ -103,7 +103,7 @@ function DashboardPage() {
   // --- QIE identity -------------------------------------------------------
   // The QIE-native identity layer: name, names held, wallet age. Verification
   // needs QIE Pass credentials and the user's consent, so it is not fetched
-  // here — see api.qie-identity.ts.
+  // here: see api.qie-identity.ts.
   const { data: identity, isLoading: identityLoading } = useQieIdentity(address, chainId);
   const primaryName = identity?.names[0] ?? null;
 
@@ -111,7 +111,7 @@ function DashboardPage() {
 
   // QIE Pass is QIE's identity verification service, not a contract anyone
   // deploys. Its status comes from QIE's partner API, which needs credentials
-  // AND the user's consent — so with neither present the honest answer is
+  // AND the user's consent, so with neither present the honest answer is
   // simply that this wallet has not verified.
   const { data: passConfig } = useQuery({
     queryKey: ["qie-pass-configured"],
@@ -123,7 +123,7 @@ function DashboardPage() {
     retry: false,
   });
   const passConfigured = passConfig?.configured === true;
-  // The flow the user drives. identity.pass stays null by design — a
+  // The flow the user drives. identity.pass stays null by design: a
   // verification request notifies a real person, so it is never fetched
   // passively; this hook owns the state once they ask for it.
   const qiePass = useQiePass(passConfigured);
@@ -201,8 +201,8 @@ function DashboardPage() {
             <span className="font-mono text-[10px] text-meta sm:ml-auto">on {chain.name}</span>
           </div>
           <p className="mt-2 font-mono text-[10px] text-meta">
-            Standing is derived from the onchain ProjectRegistry — every deployment counted here
-            cost gas, so nothing in it can be self-awarded.
+            Standing is derived from the onchain ProjectRegistry, every deployment counted here cost
+            gas, so nothing in it can be self-awarded.
           </p>
         </div>
 
@@ -231,13 +231,13 @@ function DashboardPage() {
             icon={Globe}
             label="Networks"
             value={reputation.networks.length}
-            sub={reputation.networks.join(", ") || "—"}
+            sub={reputation.networks.join(", ") || "-"}
           />
           <Stat
             icon={Boxes}
             label="Templates used"
             value={reputation.templates.length}
-            sub={reputation.activeDays >= 1 ? `active ${reputation.activeDays} days` : "—"}
+            sub={reputation.activeDays >= 1 ? `active ${reputation.activeDays} days` : "-"}
           />
           {/* Only for wallets that have actually published something. A
               permanent "0 published" tile would push the common case to five
@@ -336,7 +336,7 @@ function DashboardPage() {
                   "Identity verified through QIE Pass."
                 ) : qiePass.phase === "waiting" ? (
                   <>
-                    Approve the request in QIE Pass — this updates automatically.{" "}
+                    Approve the request in QIE Pass: this updates automatically.{" "}
                     {qiePass.pass?.redirectUrl && (
                       <a
                         href={qiePass.pass.redirectUrl}

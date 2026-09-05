@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { runSuite } from "@/lib/testing/runner";
 
 // TemplateRegistry exercised in the same in-process EVM the agent uses, pinned
-// to Shanghai — the hardfork QIE actually runs. Testing under a later fork
+// to Shanghai: the hardfork QIE actually runs. Testing under a later fork
 // could pass code that reverts on-chain.
 
 const artifact = JSON.parse(readFileSync("contracts/out/TemplateRegistry.json", "utf8")) as {

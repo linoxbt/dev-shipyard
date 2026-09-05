@@ -93,7 +93,7 @@ describe("applyTerminology (prose)", () => {
     );
   });
 
-  it("leaves prose untouched on BOT Chain — the whole point of the fix", () => {
+  it("leaves prose untouched on BOT Chain: the whole point of the fix", () => {
     expect(applyTerminology(SRC, BOT_MAINNET)).toBe(SRC);
     expect(applyTerminology("A standard ERC-721 collection", BOT_TESTNET)).toBe(
       "A standard ERC-721 collection",

@@ -19,7 +19,7 @@ describe("languageForPath", () => {
   });
 
   it("falls back to plaintext so an unknown file still opens", () => {
-    // Returning undefined would leave Monaco unmounted — the old behaviour
+    // Returning undefined would leave Monaco unmounted: the old behaviour
     // this replaced showed "(not a .sol file)" and no editor at all.
     expect(languageForPath("LICENSE")).toBe("plaintext");
     expect(languageForPath("weird.xyz")).toBe("plaintext");

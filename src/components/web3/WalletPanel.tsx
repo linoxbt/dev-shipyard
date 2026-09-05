@@ -66,7 +66,7 @@ export function WalletPanel() {
 
       <div className="mt-2 space-y-1 font-mono text-[10px]">
         <div className="flex items-center justify-between">
-          <span className="text-meta">{balance?.symbol ?? "—"}</span>
+          <span className="text-meta">{balance?.symbol ?? "-"}</span>
           <span className="text-muted-foreground">
             {balance ? Number(balance.formatted).toFixed(4) : "…"}
           </span>

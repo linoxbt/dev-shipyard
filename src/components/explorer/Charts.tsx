@@ -19,7 +19,7 @@ import { getChainPriceHistory } from "@/lib/api/chain.functions";
 
 interface TxPoint {
   date: string;
-  // Blockscout instances disagree on this field's name — QIE/BOT Chain send
+  // Blockscout instances disagree on this field's name: QIE/BOT Chain send
   // "transaction_count"; other Blockscout builds send "transactions_count".
   // Read either.
   transaction_count?: number;
@@ -66,7 +66,7 @@ const tooltipStyle = {
 
 // Two analytics charts for the explorer dashboard: daily transactions and the
 // native coin's price, read from Blockscout's /stats/charts endpoints via the
-// proxy. Client only (recharts touches the DOM) — wrap usage in <ClientOnly>.
+// proxy. Client only (recharts touches the DOM): wrap usage in <ClientOnly>.
 export function ExplorerCharts({ symbol = "QIE" }: { symbol?: string }) {
   return (
     <div className="grid gap-3 lg:grid-cols-2">
@@ -145,7 +145,7 @@ function PriceChart({ symbol = "QIE" }: { symbol?: string }) {
     .filter((p): p is { date: string; price: number } => p.price != null);
 
   // Some chains' own explorer has no price-chart history at all (no oracle
-  // configured — confirmed empty chart_data on BOT Chain's Blockscout).
+  // configured: confirmed empty chart_data on BOT Chain's Blockscout).
   // Fall back to
   // CoinGecko's own history wherever a coin id is known, same chains that
   // already get a live price/market-cap fallback in StatsOverview.

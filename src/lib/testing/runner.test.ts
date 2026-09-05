@@ -75,7 +75,7 @@ contract MockERC20 {
     allowance[f][msg.sender] -= a; balanceOf[f] -= a; balanceOf[t] += a; return true; }
 }`;
 
-// A vault that PULLS tokens — the exact shape that could not be tested before,
+// A vault that PULLS tokens: the exact shape that could not be tested before,
 // because nothing existed at the token address inside the isolated EVM.
 const VAULT_SRC = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
@@ -371,7 +371,7 @@ describe("runSuite", () => {
             args: ["$WALLET", "0"],
             expect: { reverts: true },
           },
-          // The funded happy path — the half that used to be untestable.
+          // The funded happy path: the half that used to be untestable.
           {
             name: "deposit fails without approval",
             call: "deposit",
@@ -473,7 +473,7 @@ describe("runSuite", () => {
 
   it("gives the chain a realistic clock, and warpSeconds advances it", async () => {
     // block.timestamp used to be 0, which made every cliff, vesting schedule
-    // and deadline behave as though no time had passed — tests passed or
+    // and deadline behave as though no time had passed: tests passed or
     // failed for reasons unrelated to the contract.
     const clock = (() => {
       const out = JSON.parse(

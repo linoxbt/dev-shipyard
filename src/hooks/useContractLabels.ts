@@ -39,7 +39,7 @@ export function useContractLabels() {
   // view returns a single global array with no size cap, so it's a
   // gas-griefing DoS vector for anyone who submits enough unique-address
   // labels (see contracts/ContractLabelRegistry.sol). Nothing in the app
-  // consumed this read, so it's dropped entirely rather than made safe — the
+  // consumed this read, so it's dropped entirely rather than made safe: the
   // Label Registry page already sources everything from useAllLabels()
   // (tx-history based, paginated implicitly by the explorer API).
   const submitLabel = useCallback(

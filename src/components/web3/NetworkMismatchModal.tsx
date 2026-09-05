@@ -10,7 +10,7 @@ interface Props {
 }
 
 // Blocks a deploy/write when the wallet is on a different chain than the
-// selected network. Does not auto-close — the user must switch or cancel.
+// selected network. Does not auto-close: the user must switch or cancel.
 export function NetworkMismatchModal({
   isOpen,
   onClose,

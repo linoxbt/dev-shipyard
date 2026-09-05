@@ -78,7 +78,7 @@ function BlockPage() {
           <Row label="Timestamp">
             {block.timestamp
               ? `${timeAgo(block.timestamp)}  (${new Date(block.timestamp).toUTCString()})`
-              : "—"}
+              : "-"}
           </Row>
           <Row label="Transactions">
             {block.transaction_count > 0 ? (
@@ -97,7 +97,7 @@ function BlockPage() {
                 <CopyBtn value={block.miner.hash} />
               </span>
             ) : (
-              "—"
+              "-"
             )}
           </Row>
           {block.rewards?.[0] && (

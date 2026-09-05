@@ -1,5 +1,5 @@
 // Deploys the DevStation registries (ProjectRegistry, ContractLabelRegistry)
-// to a chain. The private key is read from PRIVATE_KEY in .env.local — it
+// to a chain. The private key is read from PRIVATE_KEY in .env.local: it
 // never leaves your machine and must never be committed.
 //
 // Usage:
@@ -173,7 +173,7 @@ async function main() {
   }
 
   if (network === "mainnet") {
-    console.log(`\n⚠  MAINNET deployment — this spends real ${chain.nativeSymbol}.`);
+    console.log(`\n⚠  MAINNET deployment: this spends real ${chain.nativeSymbol}.`);
     console.log("   Re-run within 8s to proceed (Ctrl-C to abort)...");
     await new Promise((r) => setTimeout(r, 8000));
   }
@@ -186,7 +186,7 @@ async function main() {
     const { abi, bytecode } = artifact(name);
     process.stdout.write(`Deploying ${name}... `);
     // ContractLabelRegistry takes the authorized auto-labeler address as its
-    // sole constructor arg — defaults to this deployer wallet, which is also
+    // sole constructor arg: defaults to this deployer wallet, which is also
     // the address DevStation's own deploy flow signs auto-labels from.
     // ContractLabelRegistry takes the authorized auto-labeler; TemplateRegistry
     // takes the protocol treasury that receives its 5% fee. Both default to the
@@ -208,7 +208,7 @@ async function main() {
   };
   fs.writeFileSync(path.join(ROOT, "deployment-output.json"), JSON.stringify(result, null, 2));
 
-  console.log("\n=== DONE — paste these into .env.local ===\n");
+  console.log("\n=== DONE: paste these into .env.local ===\n");
   const ENV_VAR: Record<string, string> = {
     ProjectRegistry: `VITE_PROJECT_REGISTRY_ADDRESS_${chain.envSuffix}`,
     ContractLabelRegistry: `VITE_LABEL_REGISTRY_ADDRESS_${chain.envSuffix}`,

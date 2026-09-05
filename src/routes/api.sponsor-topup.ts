@@ -11,20 +11,20 @@ import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 import { verifyMessage } from "viem";
 
 // Gas top-up for a deploy, on whichever mainnets are sponsor-eligible (see
-// isSponsorEligibleChain — QIE and BOT Chain mainnet today). The sponsor
+// isSponsorEligibleChain: QIE and BOT Chain mainnet today). The sponsor
 // wallet for that chain (configured server-side, e.g. via
 // SPONSOR_PRIVATE_KEY / SPONSOR_PRIVATE_KEY_BOT) sends the REQUESTER'S OWN
 // wallet just enough native gas token to cover the deploy plus the registry
-// writes that follow it — it never broadcasts the deploy itself. The
+// writes that follow it: it never broadcasts the deploy itself. The
 // requester's wallet signs and sends everything (the CREATE,
 // ProjectRegistry.recordDeployment, ContractLabelRegistry.submitLabel), so
-// it's genuinely the deployer of record everywhere — no ownership caveats,
+// it's genuinely the deployer of record everywhere: no ownership caveats,
 // no special-cased "who owns this" logic anywhere in the client.
 //
-// There is deliberately NO per-wallet/per-IP gate — see DEPLOYMENT.md's
+// There is deliberately NO per-wallet/per-IP gate: see DEPLOYMENT.md's
 // "Sponsored deploys" section for why. This is a real risk shift from a
 // pure gas-payer: once the native token lands in the requester's wallet,
-// nothing forces it to actually be spent on the deploy — each chain's daily
+// nothing forces it to actually be spent on the deploy, each chain's daily
 // budget (cut off at 90% to leave headroom for concurrent in-flight
 // requests) is the only backstop against it being used as a plain faucet.
 //
@@ -44,7 +44,7 @@ const bodySchema = z.object({
   abi: z.array(z.unknown()).min(1),
   bytecode: z.string().regex(/^0x[0-9a-fA-F]+$/),
   args: z.array(z.unknown()).default([]),
-  // Proof the caller controls requesterAddress. See sponsor/request-auth.ts —
+  // Proof the caller controls requesterAddress. See sponsor/request-auth.ts -
   // without it this endpoint funds any address anyone names.
   signature: z.string().regex(/^0x[0-9a-fA-F]+$/),
   issuedAt: z.number(),
@@ -66,7 +66,7 @@ function fail(reason: string, message: string, status: number) {
 }
 
 // The client JSON-stringifies bigint constructor args (a uint256 initial
-// supply, say) as decimal strings, since JSON has no bigint type — this
+// supply, say) as decimal strings, since JSON has no bigint type: this
 // converts them back using the constructor's own ABI type info so gas
 // estimation sees correctly-typed values. Handles plain numeric types and
 // one level of array nesting (uint256[] etc.), which covers every
@@ -137,7 +137,7 @@ export const Route = createFileRoute("/api/sponsor-topup")({
         // That is deliberate: it runs BEFORE the rate-limit check, so it must
         // stay cheap and must not let an unauthenticated caller drive RPC
         // traffic. The trade-off is that it does not support smart-contract
-        // wallets (ERC-1271) — fine today, because every configured connector
+        // wallets (ERC-1271): fine today, because every configured connector
         // (injected, metaMask, the in-app burner) is an EOA. If a
         // contract-wallet connector is ever added, switch to
         // publicClient.verifyMessage and move this AFTER the rate-limit check.
@@ -178,7 +178,7 @@ export const Route = createFileRoute("/api/sponsor-topup")({
         }
 
         // Only chains in the eligible-chains table (mainnets with a
-        // configured sponsor wallet) are ever reachable here — chainId
+        // configured sponsor wallet) are ever reachable here: chainId
         // picks which sponsor wallet/RPC client is used, via
         // sponsorClients(chainId).
         if (!isSponsorEligibleChain(chainId)) {
@@ -223,7 +223,7 @@ export const Route = createFileRoute("/api/sponsor-topup")({
 
         // Estimate as the REQUESTER, since they're the one who will actually
         // broadcast the deploy. Padding math (and why it's this generous)
-        // lives in paddedTopupCost — shared with the client-side checks that
+        // lives in paddedTopupCost: shared with the client-side checks that
         // decide whether to offer sponsorship at all. Add headroom for the
         // two registry writes (ProjectRegistry + ContractLabelRegistry) that
         // follow the deploy from the same wallet, each pinned to
@@ -251,7 +251,7 @@ export const Route = createFileRoute("/api/sponsor-topup")({
         // Budget check: current rolling-24h spend + this top-up must stay
         // under 90% of the configured daily budget. The 10% headroom exists
         // because this check is not atomic across concurrent requests (see
-        // spend.server.ts) — it reduces, not eliminates, the chance of a
+        // spend.server.ts): it reduces, not eliminates, the chance of a
         // burst of requests overshooting the configured cap.
         let spentWei: bigint;
         try {

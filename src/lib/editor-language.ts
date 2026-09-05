@@ -1,6 +1,6 @@
 // Monaco language id for a workspace file.
 //
-// The editor holds more than Solidity now — generated app files (html, js,
+// The editor holds more than Solidity now: generated app files (html, js,
 // css, json) live in the same workspace. Monaco's CDN bundle already ships
 // language services for all of these, so mapping by extension needs no extra
 // grammar registration and no new dependency. Only "sol" is ours, registered

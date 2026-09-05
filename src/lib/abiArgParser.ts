@@ -7,7 +7,7 @@ export function parseArg(value: string, type: string): unknown {
   // MUST come before the uint/int prefix check below: "uint256[]" and
   // "int128[]" both start with "uint"/"int" too, so checking array-ness
   // first is the only way a numeric array doesn't get routed into
-  // BigInt(v) — which throws on anything but a single plain number.
+  // BigInt(v), which throws on anything but a single plain number.
   if (type.endsWith("[]")) {
     const inner = type.slice(0, -2);
     try {

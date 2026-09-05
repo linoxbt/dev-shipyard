@@ -106,7 +106,7 @@ describe("buildConfigured", () => {
   });
 });
 
-describe("projectFiles — the workspace prefix", () => {
+describe("projectFiles: the workspace prefix", () => {
   it("moves the project to the root, because npm installs in /work", () => {
     // 38 of 54 recorded builds failed on "ENOENT /work/package.json" because a
     // caller sent app/-prefixed paths straight to the runner. The container
@@ -125,7 +125,7 @@ describe("projectFiles — the workspace prefix", () => {
     expect(out["package.json"]).toBe("{}");
   });
 
-  it("returns nothing when NOTHING carries the prefix — the failure mode", () => {
+  it("returns nothing when NOTHING carries the prefix: the failure mode", () => {
     // An empty result is what the runner saw: a container with no package.json.
     // Callers must not hand these files to the runner expecting a build.
     expect(projectFiles({ "package.json": "{}", "index.html": "<h1/>" })).toEqual({});

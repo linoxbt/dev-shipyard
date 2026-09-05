@@ -13,7 +13,7 @@ function Introduction() {
   return (
     <DocPage
       title="Introduction"
-      intro="DevStation is the AI Developer OS for QIE and Web3. Describe what you want built and the agent writes, tests, deploys and verifies it — or work by hand with templates, the in-browser Solidity editor, the transaction decoder and the explorer. No local toolchain required."
+      intro="DevStation is the AI Developer OS for QIE and Web3. Describe what you want built and the agent writes, tests, deploys and verifies it, or work by hand with templates, the in-browser Solidity editor, the transaction decoder and the explorer. No local toolchain required."
     >
       <P>
         Everything a QIE developer needs sits in one place: audited templates, a real in-browser
@@ -21,8 +21,8 @@ function Introduction() {
         explorer. Nothing to install, and nothing that only works on someone else&apos;s machine.
       </P>
       <P>
-        Pick a network once — QIE Testnet or Mainnet, or BOT Chain — and the whole console follows
-        it: templates, the deploy flow, the explorer, and analytics all point at that network. The
+        Pick a network once, QIE Testnet or Mainnet, or BOT Chain, and the whole console follows it:
+        templates, the deploy flow, the explorer, and analytics all point at that network. The
         selected network is authoritative for every read and write.
       </P>
       <P>The console is organised into two products and a set of shared tools:</P>
@@ -48,7 +48,7 @@ function Introduction() {
         <FeatureCard
           icon={Wallet}
           title="Wallets"
-          body="Connect an existing wallet, or generate a DevStation wallet in-app — every generated wallet shows its recovery phrase before you continue."
+          body="Connect an existing wallet, or generate a DevStation wallet in-app, every generated wallet shows its recovery phrase before you continue."
           to="/settings"
         />
         <FeatureCard
@@ -59,7 +59,7 @@ function Introduction() {
         />
       </CardGrid>
       <P>
-        Where networks genuinely differ, these docs say so rather than papering over it — different
+        Where networks genuinely differ, these docs say so rather than papering over it: different
         chains have different compilers, different wallet standards, and different ideas of what a
         &quot;contract&quot; even is. The Networks page is the reference for what each one supports.
       </P>

@@ -29,8 +29,8 @@ export const Route = createFileRoute("/launchkit/templates/$id")({
     meta: [
       {
         title: loaderData?.tpl
-          ? `${loaderData.tpl.displayName ?? loaderData.tpl.name} — DevStation`
-          : "Template — DevStation",
+          ? `${loaderData.tpl.displayName ?? loaderData.tpl.name}: DevStation`
+          : "Template: DevStation",
       },
       { name: "description", content: loaderData?.tpl?.description ?? "Contract template" },
     ],
@@ -88,12 +88,12 @@ function TemplateDetail() {
   const canEdit = !!tpl.submitter && tpl.submitter === address;
 
   // Publishing pushes a locally-drafted template on-chain, where anyone can
-  // find it. The local copy stays as the working draft — publishing is a
+  // find it. The local copy stays as the working draft: publishing is a
   // deliberate act, not an autosave, and the source is immutable once listed.
   const publishOnChain = async () => {
     const priceInput = window.prompt(
       `Price to deploy this template, in ${nativeSymbol(chainId)}.\n\n` +
-        "The source is stored on-chain and is free for anyone to read — the price buys " +
+        "The source is stored on-chain and is free for anyone to read: the price buys " +
         "attribution: paying is what records a deploy against your template and pays you. " +
         "Enter 0 to publish it free.",
       "0",

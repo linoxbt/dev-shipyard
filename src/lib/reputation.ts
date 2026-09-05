@@ -1,7 +1,7 @@
 // Developer reputation, derived from what is actually on chain.
 //
 // No new contract and no score anyone can mint: everything here is computed
-// from the deployments the ProjectRegistry already records — the same data the
+// from the deployments the ProjectRegistry already records: the same data the
 // Projects page reads. A number nobody can inflate by clicking is worth more
 // than a badge that can be, so this deliberately measures only things that
 // cost gas to create.
@@ -17,7 +17,7 @@ export interface DeploymentLike {
   network: string;
   /** Milliseconds. The registry stores seconds, but useProjectRegistry
    *  normalises to ms on the way in, so that is the app's convention and the
-   *  one this follows — converting here as well would double-scale it. */
+   *  one this follows: converting here as well would double-scale it. */
   deployedAt: number | bigint;
   txHash: string;
 }
@@ -28,7 +28,7 @@ export interface Reputation {
   deployments: number;
   /** Distinct chains deployed to. Breadth, not just volume. */
   networks: string[];
-  /** Distinct templates used — a proxy for range. */
+  /** Distinct templates used: a proxy for range. */
   templates: string[];
   /** Milliseconds. */
   firstAt: number | null;
@@ -47,7 +47,7 @@ export interface Reputation {
   templateDeploys: number;
   /** Share of deployments that are source-verified, 0-1.
    *
-   *  NULL when verification could not be established — the explorer was
+   *  NULL when verification could not be established: the explorer was
    *  unreachable, or nobody asked. That is deliberately distinct from 0: "we
    *  do not know" and "none are verified" are different claims about a
    *  developer, and showing the second when the first is true is a lie. */
@@ -67,7 +67,7 @@ const TIERS: Array<{ tier: Tier; min: number }> = [
  *  A deploy of someone else's template and a deploy of your own are the same
  *  amount of work; having written something others reach for is not. Each
  *  third-party deploy of your template counts as one, so a template nobody uses
- *  adds nothing — which is the point. */
+ *  adds nothing, which is the point. */
 export function tierFor(deployments: number, templateDeploys = 0): Tier {
   const weight = deployments + templateDeploys;
   return TIERS.find((t) => weight >= t.min)?.tier ?? "newcomer";
@@ -90,7 +90,7 @@ function toNumber(value: number | bigint): number {
 /** Reputation from on-chain facts alone.
  *
  *  `verifiedAddresses` is the set of this developer's contracts the explorer
- *  reports as source-verified. Pass null when that could not be checked —
+ *  reports as source-verified. Pass null when that could not be checked -
  *  verificationRate then reports null rather than implying zero. */
 export interface TemplateCredit {
   /** Templates published by this developer. */
@@ -163,7 +163,7 @@ export interface LeaderboardEntry {
   address: string;
   deployments: number;
   tier: Tier;
-  /** 1-based, and SHARED by ties — two developers on 9 deploys are both 4th,
+  /** 1-based, and SHARED by ties: two developers on 9 deploys are both 4th,
    *  and the next is 6th. Ranking ties arbitrarily by address would invent a
    *  difference the chain does not record. */
   rank: number;

@@ -34,7 +34,7 @@ export const qieMainnet = defineChain({
 });
 
 // BOT Chain (docs.botchain.ai / dev-docs.botchain.ai). Second chain family
-// alongside QIE — same shape as the QIE config above.
+// alongside QIE: same shape as the QIE config above.
 const BOT_TESTNET_RPC = import.meta.env.VITE_BOT_TESTNET_RPC || "https://rpc.bohr.life";
 const BOT_TESTNET_EXPLORER = import.meta.env.VITE_BOT_TESTNET_EXPLORER || "https://scan.bohr.life";
 const BOT_TESTNET_CHAIN_ID = Number(import.meta.env.VITE_BOT_TESTNET_CHAIN_ID || 968);
@@ -113,7 +113,7 @@ export function chainConfig(chainId: number) {
 }
 
 /** Which chain family a chain id belongs to. Groups a family's testnet and
- *  mainnet together — the primitive behind QIE-native naming (see
+ *  mainnet together: the primitive behind QIE-native naming (see
  *  src/lib/terminology.ts) and per-family stats. */
 export type ChainFamily = (typeof CHAIN_CONFIG)[keyof typeof CHAIN_CONFIG]["family"];
 
@@ -155,7 +155,7 @@ export function gasLink(chainId: number): { url: string; label: string } {
   // Only mainnet configs reach here (faucetUrl is always set for testnets above).
   const dex = DEX_BY_MAINNET[chainId];
   if (dex) return { url: dex.url, label: `Swap for ${symbol} on ${dex.name}` };
-  // No known DEX for this chain family — point at its own explorer rather
+  // No known DEX for this chain family: point at its own explorer rather
   // than guessing a DEX link that might not actually list this token.
   return { url: cfg.explorerUrl, label: `Get ${symbol}` };
 }

@@ -19,7 +19,7 @@ import { formatDistanceToNow } from "date-fns";
 export const Route = createFileRoute("/overview")({
   head: () => ({
     meta: [
-      { title: "DevStation — Overview" },
+      { title: "DevStation: Overview" },
       {
         name: "description",
         content: "Your QIE workspace: deployments, network status, and quick tools.",
@@ -73,18 +73,18 @@ function Overview() {
             value={
               globalStats.totalDeployments != null
                 ? globalStats.totalDeployments.toLocaleString()
-                : "—"
+                : "-"
             }
             label="Total Deployments"
             sub={globalStats.onChain ? "all configured chains" : "registry not configured"}
           />
           <Stat
-            value={globalStats.onChain ? globalStats.uniqueDeployers.toLocaleString() : "—"}
+            value={globalStats.onChain ? globalStats.uniqueDeployers.toLocaleString() : "-"}
             label="Total Users"
             sub="unique wallets, all networks"
           />
           <Stat
-            value={address ? projects.length.toString() : "—"}
+            value={address ? projects.length.toString() : "-"}
             label="Your Deployments"
             sub={
               address
@@ -244,7 +244,7 @@ function Overview() {
 
             <Panel title="Network Status">
               <div className="space-y-2 p-3 font-mono text-xs">
-                <Row label="Gas price" value={online ? gas.text : "—"} />
+                <Row label="Gas price" value={online ? gas.text : "-"} />
                 <Row
                   label="RPC"
                   value={

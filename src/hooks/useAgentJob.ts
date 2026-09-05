@@ -15,7 +15,7 @@ const KEY = "devstation-agent-jobs-v1";
 /** Fast enough that the status line still reads as live, slow enough that a
  *  long build is not thousands of requests. */
 const POLL_MS = 2000;
-/** Stop chasing a job that has not moved in this long — the runner sweeps its
+/** Stop chasing a job that has not moved in this long: the runner sweeps its
  *  own jobs after a day, and a job it no longer has will 404 forever. */
 const MAX_SILENT_MS = 10 * 60 * 1000;
 
@@ -69,14 +69,14 @@ export interface AgentJob {
   history: ChatMessage[];
   issues: string[];
   pendingDecisionId?: string | null;
-  /** Why a turn stopped, when it stopped for a reason worth saying out loud —
+  /** Why a turn stopped, when it stopped for a reason worth saying out loud -
    *  a declined permission, or a question nobody answered in time. */
   buildNote?: string | null;
   error?: string;
 }
 
 /** The question a paused turn is waiting on, as the runner hands it over.
- *  Option ids are stable and are what an answer refers to — the labels are
+ *  Option ids are stable and are what an answer refers to: the labels are
  *  display text and matching on them would silently change what a click means. */
 export interface PendingDecision {
   id: string;
@@ -144,7 +144,7 @@ export interface UseAgentJob {
   /** True while a job is running, whether started here or resumed. */
   busy: boolean;
   /** True while the turn is stopped waiting for an answer. Still attached, and
-   *  still the user's turn to act — which is why it is not `busy`. */
+   *  still the user's turn to act, which is why it is not `busy`. */
   waiting: boolean;
   answering: boolean;
   start: (input: StartInput) => Promise<AgentJob | null>;
@@ -208,7 +208,7 @@ export function useAgentJob(
       const res = await fetch(`/api/agent?id=${encodeURIComponent(id)}`).catch(() => null);
       if (!alive || !res) return;
       if (res.status === 404) {
-        // The runner no longer has it — swept, or restarted mid-run. Nothing to
+        // The runner no longer has it: swept, or restarted mid-run. Nothing to
         // reattach to, so stop pretending there is.
         forgetJob(projectId);
         idRef.current = null;

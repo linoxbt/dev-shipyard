@@ -16,7 +16,7 @@
 //   The name is therefore NOT readable from a contract. It is recoverable
 //   from the registration transaction, whose calldata carries it, and is then
 //   verified by confirming the wallet still owns the token that transaction
-//   minted. That is authoritative — it comes from the registration itself —
+//   minted. That is authoritative: it comes from the registration itself -
 //   and it cannot be spoofed, because ownership is checked on chain.
 //
 //   Token ids are not derived from the name by any obvious scheme (keccak,
@@ -26,7 +26,7 @@
 //   QIE Identity / QIE Pass (did-stapi.qie.digital) is a consent-based
 //   verifiable-credential API, not a lookup. It answers "is this identity
 //   verified" only after the user approves a request, and it offers KYC
-//   claims — firstName, dateOfBirth, citizenship, age_over_18 and similar.
+//   claims: firstName, dateOfBirth, citizenship, age_over_18 and similar.
 //   It offers NO reputation score and NO wallet age.
 //
 // Consequently: reputation shown in DevStation is DevStation's own, derived
@@ -86,7 +86,7 @@ export type PassStatus =
 export type UserStatus = "verified" | "not_verified";
 
 /** Claims QIE offers. Enumerated from their own documentation rather than
- *  guessed — note there is no reputation or wallet-age claim among them. */
+ *  guessed: note there is no reputation or wallet-age claim among them. */
 export const QIE_CLAIMS = [
   "firstName",
   "lastName",
@@ -124,7 +124,7 @@ export interface QieIdentity {
   /** Names the wallet provably holds; empty is a real answer, not a failure. */
   names: ResolvedName[];
   /** Count from balanceOf. May exceed names.length when a registration could
-   *  not be indexed — the count is authoritative, the labels are best effort. */
+   *  not be indexed: the count is authoritative, the labels are best effort. */
   nameCount: number;
   /** Milliseconds since the wallet's first transaction, null when unknown. */
   walletAgeMs: number | null;
@@ -137,7 +137,7 @@ export interface QieIdentity {
  *
  *  Registration calldata is a struct array whose string members sit in the
  *  tail; every 32-byte word that decodes to printable ASCII is one of them.
- *  Crude, and correct for this shape — the alternative is an ABI the registrar
+ *  Crude, and correct for this shape: the alternative is an ABI the registrar
  *  does not publish. */
 export function decodeRegistrationStrings(rawInput: string): string[] {
   const body = rawInput.startsWith("0x") ? rawInput.slice(10) : rawInput;
@@ -146,7 +146,7 @@ export function decodeRegistrationStrings(rawInput: string): string[] {
     const word = body.slice(i, i + 64);
     // ABI strings are LEFT-aligned and zero-padded on the right. A number is
     // right-aligned, so its significant bytes sit at the end. Requiring the
-    // first byte to be printable rejects numbers outright — without it, a
+    // first byte to be printable rejects numbers outright, without it, a
     // small integer like 0x616263 decodes to "abc" and is treated as a
     // registered name.
     const firstByte = parseInt(word.slice(0, 2), 16);

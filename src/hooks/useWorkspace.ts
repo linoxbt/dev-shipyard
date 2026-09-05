@@ -39,7 +39,7 @@ export function useWorkspace() {
     files,
     folders,
     tree,
-    /** Solidity files only — what the compiler is given. */
+    /** Solidity files only: what the compiler is given. */
     solFiles,
     openFile: useWorkspaceStore((s) => s.openFile),
     setContent: useWorkspaceStore((s) => s.setContent),

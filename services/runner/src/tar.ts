@@ -1,7 +1,7 @@
 // Minimal tar reader/writer.
 //
 // Docker cp speaks tar on stdin/stdout, which is how files reach a job and how
-// build output comes back — without ever mounting a host path into a container
+// build output comes back, without ever mounting a host path into a container
 // running model-written code. Only the ustar basics are needed here, so this is
 // ~100 lines rather than a dependency.
 

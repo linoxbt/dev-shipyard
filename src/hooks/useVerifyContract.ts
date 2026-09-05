@@ -34,7 +34,7 @@ const POLL_MS = 4000;
 const MAX_POLLS = 30; // ~2 minutes
 
 // Submit a contract to the QIE explorer for source verification, then poll until
-// it reports verified (or times out). Stateless across contracts — pass the
+// it reports verified (or times out). Stateless across contracts: pass the
 // target each call; the returned `state`/`message` track the latest run.
 export function useVerifyContract() {
   const [state, setState] = useState<VerifyState>("idle");
@@ -53,7 +53,7 @@ export function useVerifyContract() {
     }
 
     // Wait for the explorer to index the freshly-deployed address. Submitting
-    // too early returns 404 "Address is not a smart-contract" — the explorer's
+    // too early returns 404 "Address is not a smart-contract": the explorer's
     // indexer lags the chain by a few seconds after the creation tx mines.
     for (let i = 0; i < 15; i++) {
       const { indexed } = await getIsContractIndexed({
@@ -99,7 +99,7 @@ export function useVerifyContract() {
     }
 
     setState("pending");
-    setMessage("Verification submitted — waiting for the explorer to confirm…");
+    setMessage("Verification submitted: waiting for the explorer to confirm…");
 
     for (let i = 0; i < MAX_POLLS; i++) {
       await new Promise((r) => setTimeout(r, POLL_MS));
@@ -113,7 +113,7 @@ export function useVerifyContract() {
       }
     }
     setState("failed");
-    setMessage("Still pending — the explorer may finish shortly. Check the explorer page.");
+    setMessage("Still pending: the explorer may finish shortly. Check the explorer page.");
     return false;
   }, []);
 

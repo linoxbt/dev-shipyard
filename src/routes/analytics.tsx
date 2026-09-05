@@ -10,7 +10,7 @@ import { ChainLogo } from "@/lib/chain-logos";
 export const Route = createFileRoute("/analytics")({
   head: () => ({
     meta: [
-      { title: "Analytics — DevStation" },
+      { title: "Analytics: DevStation" },
       {
         name: "description",
         content: "DevStation deployment & network analytics for the selected chain.",

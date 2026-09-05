@@ -9,7 +9,7 @@ import type { ChatMessage } from "../ai";
 // asked anything at all.
 //
 // Intent is now read from meaning. One model call decides the mode AND, when
-// the answer is simply an answer, writes it — so a greeting costs a single
+// the answer is simply an answer, writes it, so a greeting costs a single
 // round trip rather than a build pipeline.
 
 export type TurnMode = "converse" | "build" | "review";
@@ -37,7 +37,7 @@ export interface AgentProgress {
 
 export interface IntentResult {
   mode: TurnMode;
-  /** The model's own words for what it understood — shown while it works. */
+  /** The model's own words for what it understood: shown while it works. */
   understanding: string;
   /** Present only for `converse`: the whole answer, already written. */
   reply?: string;
@@ -45,12 +45,12 @@ export interface IntentResult {
   needsClarification: boolean;
 }
 
-/** Describes the project so intent can be judged against what exists — "make
+/** Describes the project so intent can be judged against what exists: "make
  *  the cards smaller" is a modification when there is something to modify and a
  *  vague idea when there is not. */
 export function projectSummary(files: Record<string, string>): string {
   const paths = Object.keys(files).filter((p) => !p.endsWith("/"));
-  if (paths.length === 0) return "There is no app yet — nothing has been built in this project.";
+  if (paths.length === 0) return "There is no app yet: nothing has been built in this project.";
   return [
     `The project currently has ${paths.length} file(s):`,
     paths
@@ -66,16 +66,16 @@ message actually calls for, then respond with a single JSON object and nothing e
 {
   "mode": "converse" | "build" | "review",
   "understanding": "one short sentence describing what you take the user to mean",
-  "reply": "your full answer — ONLY when mode is converse",
+  "reply": "your full answer: ONLY when mode is converse",
   "needsClarification": true | false
 }
 
 mode meanings:
-- "converse" — a greeting, a question, an explanation, brainstorming, feedback,
+- "converse": a greeting, a question, an explanation, brainstorming, feedback,
   a comment, or a request so under-specified that building would be guessing.
   Put your entire natural answer in "reply". Do not write code.
-- "build" — the user wants an app created, changed, extended, fixed or deployed.
-- "review" — the user is asking you to look over existing code and report back
+- "build": the user wants an app created, changed, extended, fixed or deployed.
+- "review": the user is asking you to look over existing code and report back
   WITHOUT changing it.
 
 Judge by meaning and by the conversation so far, never by keywords. "Hello" is
@@ -185,7 +185,7 @@ debugging, reviewing, optimizing, completing.
 Rules:
 - Emit one only when what you are doing has actually changed. A one-step task
   needs one; a long task earns several. Never pad them to look busy.
-- Say what is specific to THIS task — which file, which decision, which problem.
+- Say what is specific to THIS task, which file, which decision, which problem.
   "I'm reusing the existing card component rather than adding another pattern"
   is useful. "Working…", "Processing…", "Planning your app…" are not.
 - Never claim an action you are not performing. If you are not testing, do not

@@ -7,7 +7,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   // Build output. Kept in step with .gitignore: these are generated, and
-  // linting them is meaningless as well as slow — `.vercel` alone holds 12MB
+  // linting them is meaningless as well as slow: `.vercel` alone holds 12MB
   // of bundled code, which took `bun run lint` from about ninety seconds to
   // longer than anyone waits.
   { ignores: ["dist", "dist-ssr", ".output", ".vercel", ".netlify", ".vinxi", ".tanstack"] },

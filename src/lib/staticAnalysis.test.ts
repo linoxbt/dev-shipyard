@@ -29,7 +29,7 @@ contract C {
     expect(codes(src)).not.toContain("SA005");
   });
 
-  test("flags a state write after an external call (SA006 — reentrancy pattern)", () => {
+  test("flags a state write after an external call (SA006: reentrancy pattern)", () => {
     const src = `// SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 contract C {

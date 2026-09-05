@@ -40,7 +40,7 @@ import { useAgentJob, type AgentJob, type PendingDecision } from "@/hooks/useAge
 import type { ChatMessage } from "@/lib/ai";
 
 export const Route = createFileRoute("/launchkit/app-builder")({
-  head: () => ({ meta: [{ title: "App Builder — DevStation" }] }),
+  head: () => ({ meta: [{ title: "App Builder: DevStation" }] }),
   // Gated on the shared map, never on a flag local to this file: the
   // sidebar badge reads the same entry, so the two cannot disagree.
   // AppBuilderPage stays referenced, so removing the map entry is all it takes
@@ -199,7 +199,7 @@ interface Turn {
   text: string;
   changed?: string[];
   failed?: boolean;
-  /** Still streaming — rendered live rather than after the fact. */
+  /** Still streaming: rendered live rather than after the fact. */
   live?: boolean;
 }
 
@@ -230,11 +230,11 @@ function AppBuilderPage() {
   /** The built site, when a build runner produced one. The preview renders
    *  this rather than the sources, so what is on screen is what ships. */
   const [dist, setDist] = useState<Record<string, string> | null>(null);
-  /** The shown build predates the current turn — still worth looking at, but
+  /** The shown build predates the current turn: still worth looking at, but
    *  no longer what the code says. */
   const [stale, setStale] = useState(false);
   const [buildNote, setBuildNote] = useState<string | null>(null);
-  // Collapsed chat gives the preview the whole window — the point of building
+  // Collapsed chat gives the preview the whole window: the point of building
   // an app is looking at it.
   const abortRef = useRef<AbortController | null>(null);
   const [renaming, setRenaming] = useState(false);
@@ -303,8 +303,8 @@ function AppBuilderPage() {
   const activeProjectId = useProjects((s) => s.activeId);
 
   // A turn started here runs in the build runner, not in this tab, so a refresh
-  // reattaches to it instead of killing it. When one finishes — possibly in a
-  // page that never saw it start — its result is applied exactly as a local
+  // reattaches to it instead of killing it. When one finishes: possibly in a
+  // page that never saw it start: its result is applied exactly as a local
   // turn's would be.
   const applyAgentResult = useCallback(
     (job: AgentJob) => {
@@ -454,7 +454,7 @@ function AppBuilderPage() {
     return () => onProjectsWriteError(null);
   }, []);
 
-  // An empty workspace is not a broken app — it is one that has not been built
+  // An empty workspace is not a broken app: it is one that has not been built
   // yet, and telling someone their nonexistent app is missing index.html is
   // noise they cannot act on.
   const issues = useMemo(
@@ -464,7 +464,7 @@ function AppBuilderPage() {
   const fatal = issues.filter((i) => i.fatal);
 
   // What the preview shows. A built project is previewed from its build
-  // output, because that is what actually ships — and because its sources
+  // output, because that is what actually ships, and because its sources
   // import bare specifiers ("preact", "viem") that only a bundler resolves, so
   // there is nothing to show until it has been built.
   const previewFiles = dist ?? (target === "esm" ? files : null);
@@ -499,7 +499,7 @@ function AppBuilderPage() {
       ]);
       setBusy(true);
 
-      // Create the project HERE — on the first prompt, before anything can try
+      // Create the project HERE, on the first prompt, before anything can try
       // to save into it. Creating it on mount left an empty "Untitled app"
       // behind every time the builder was merely opened; creating it after the
       // turn meant the build finished with no project to save into, so the
@@ -510,7 +510,7 @@ function AppBuilderPage() {
       // The previous build is deliberately LEFT on screen while the next one
       // runs. Blanking it here meant the app you were looking at vanished the
       // moment you asked for a change and stayed gone for the minutes a build
-      // takes — the worst possible moment to lose sight of what you have. It is
+      // takes: the worst possible moment to lose sight of what you have. It is
       // marked stale instead, and replaced the moment a new build lands.
       if (mode !== "review") {
         setBuildNote(null);
@@ -555,8 +555,8 @@ function AppBuilderPage() {
       abortRef.current = controller;
 
       try {
-        // First turn starts from a runnable scaffold — with the contract's
-        // binding baked in when one is attached — so even a partial reply
+        // First turn starts from a runnable scaffold, with the contract's
+        // binding baked in when one is attached, so even a partial reply
         // leaves something that loads.
         const base =
           files ??
@@ -595,7 +595,7 @@ function AppBuilderPage() {
             }),
           onFile: (path) => {
             // Stale from the moment a file actually changes, not from the
-            // moment a message was sent — a greeting must not grey out a
+            // moment a message was sent: a greeting must not grey out a
             // working preview.
             setStale(true);
             setTurns((t) => {
@@ -704,14 +704,14 @@ function AppBuilderPage() {
   const publish = useCallback(async () => {
     if (!files) return;
     if (!wallet) {
-      toast.error("Connect a wallet — publishing is rate limited per wallet.");
+      toast.error("Connect a wallet: publishing is rate limited per wallet.");
       return;
     }
     setDeploying(true);
     setLiveUrl(null);
     try {
       // Publish what actually runs. For a Vite project that is the built
-      // output, not the source — publishing src/app.js would put a page on the
+      // output, not the source: publishing src/app.js would put a page on the
       // internet that cannot load. `dist` is already the built result when the
       // runner has produced one.
       const source = dist ?? files;
@@ -782,7 +782,7 @@ function AppBuilderPage() {
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         {/* Which project you are in, and the ability to name it, without
             leaving the builder. Previously the builder never said which app
-            was open — you clicked "Tip Jar" in My Apps and landed on an
+            was open: you clicked "Tip Jar" in My Apps and landed on an
             unlabelled page. */}
         {renaming ? (
           <input
@@ -879,10 +879,10 @@ function AppBuilderPage() {
 
       {fatal.length > 0 && (
         <button
-          onClick={() => setInput("The preview is broken — fix it.")}
+          onClick={() => setInput("The preview is broken: fix it.")}
           className="mx-3 mb-2 rounded border border-danger/40 bg-danger/10 p-2 text-left font-mono text-[10px] text-danger"
         >
-          {fatal[0].message} — click to ask for a fix
+          {fatal[0].message}: click to ask for a fix
         </button>
       )}
 
@@ -892,7 +892,7 @@ function AppBuilderPage() {
             <button
               onClick={() => void send("review")}
               disabled={busy || !input.trim()}
-              title="Read the code over and report what it finds — changes nothing"
+              title="Read the code over and report what it finds: changes nothing"
               className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 font-mono text-[10px] text-muted-foreground transition hover:border-info hover:text-info disabled:opacity-40"
             >
               <ShieldCheck className="h-3 w-3" /> Review code
@@ -1001,7 +1001,7 @@ function AppBuilderPage() {
       )}
 
       {/* Deliberately not gated on `busy`. When a build FAILS, busy goes false
-          and stale stays true — so gating on it removed the warning while the
+          and stale stays true, so gating on it removed the warning while the
           out-of-date preview stayed on screen, which is the one moment the
           warning matters most. */}
       {stale && dist && (
@@ -1014,7 +1014,7 @@ function AppBuilderPage() {
           ) : (
             <>
               <TriangleAlert className="h-2.5 w-2.5 shrink-0" />
-              This preview is from an earlier build — the code has changed since.
+              This preview is from an earlier build: the code has changed since.
             </>
           )}
         </div>
@@ -1040,7 +1040,7 @@ function AppBuilderPage() {
 
   // Wallet-gated. Every project is stored against a wallet, publishing and
   // reputation are wallet-scoped, and an app built with no wallet connected
-  // has nowhere to be saved — so the builder asks for one up front rather
+  // has nowhere to be saved, so the builder asks for one up front rather
   // than letting a build finish and then losing it.
   if (!isConnected) {
     return (

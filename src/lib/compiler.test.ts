@@ -5,8 +5,8 @@ describe("compiler defaults", () => {
   it("pins evmVersion to shanghai", () => {
     // This is load-bearing, not cosmetic. QIE's EVM has no MCOPY (0x5e), and
     // solc >= 0.8.25 emits it by default for things like a struct-with-string
-    // return. Shipped templates DO contain that pattern — StablecoinInvoices
-    // compiles to MCOPY-containing bytecode at solc's default evmVersion — so
+    // return. Shipped templates DO contain that pattern: StablecoinInvoices
+    // compiles to MCOPY-containing bytecode at solc's default evmVersion, so
     // changing this silently produces contracts whose views revert on QIE.
     // If this test fails, do not "fix" it by updating the expectation.
     expect(DEFAULT_EVM_VERSION).toBe("shanghai");

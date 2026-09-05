@@ -10,7 +10,7 @@
 // localStorage in the initialiser (what this did before) makes the first
 // client render disagree with the server-rendered HTML.
 //
-// Nothing here restricts file extensions — the workspace holds Solidity,
+// Nothing here restricts file extensions: the workspace holds Solidity,
 // generated app files, or anything else. Only the compiler filters to `.sol`.
 
 import { create } from "zustand";
@@ -86,7 +86,7 @@ function readStored(): Persisted {
       }
     }
   } catch {
-    /* corrupt — fall through to the default */
+    /* corrupt: fall through to the default */
   }
   return emptyDefault();
 }
@@ -96,7 +96,7 @@ function save(p: Persisted) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
   } catch {
-    /* quota — the in-memory workspace still works */
+    /* quota: the in-memory workspace still works */
   }
 }
 

@@ -3,7 +3,7 @@
 // Pure over the file map on purpose: these answer questions about the code, and
 // nothing here writes, builds or reaches the network. That makes the whole
 // surface testable without a runner, and it means a bug in this file cannot
-// damage a project — the worst it can do is answer a question badly.
+// damage a project: the worst it can do is answer a question badly.
 //
 // Writing and deleting are NOT here. Files are produced by the generator as
 // complete fenced blocks, which is the part of this pipeline that is most

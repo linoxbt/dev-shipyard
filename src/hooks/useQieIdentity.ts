@@ -11,7 +11,7 @@ import { getExplorerData } from "@/lib/api/explorer.functions";
 //
 // The contract reads are authoritative; the explorer calls are how the labels
 // and the wallet's age are recovered, since neither is on chain in a readable
-// form. Every source is allowed to fail independently — see client.ts.
+// form. Every source is allowed to fail independently: see client.ts.
 
 const ownerOfAbi = [
   {
@@ -53,10 +53,10 @@ function makeSources(address: string, chainId: number): IdentitySources {
     transfers: async (limit) => {
       // No registry on this chain means no names to look for. Without this
       // guard the request went out with an empty `token=` and the explorer
-      // answered "Invalid parameter(s)" — a wasted round-trip on every load
+      // answered "Invalid parameter(s)": a wasted round-trip on every load
       // on every non-QIE chain.
       if (!isContractConfigured(contract)) return [];
-      // Mints of this token into the wallet — each one is a registration.
+      // Mints of this token into the wallet, each one is a registration.
       const d = (await json(
         `/addresses/${address}/token-transfers?type=ERC-721&token=${contract}`,
       )) as { items?: Array<Record<string, unknown>> };
@@ -91,8 +91,8 @@ function makeSources(address: string, chainId: number): IdentitySources {
 
     firstSeenAt: async () => {
       // Age is the wallet's first ACTIVITY, not its first outgoing
-      // transaction. A wallet that has only ever received — which is the norm
-      // for one holding a name someone else registered for it — has no
+      // transaction. A wallet that has only ever received, which is the norm
+      // for one holding a name someone else registered for it: has no
       // transactions at all, and reporting it as ageless would be wrong.
       // Not a QIE ID signal either way; QIE offers no wallet-age claim.
       const stamps: number[] = [];

@@ -191,7 +191,7 @@ export function decodeCalldata(input?: string): DecodedCall {
   return { fn: input.slice(0, 10), args: [] };
 }
 
-// Standard Panic(uint256) selector — part of the Solidity ABI spec itself
+// Standard Panic(uint256) selector: part of the Solidity ABI spec itself
 // (emitted by assert/overflow/array-bounds/etc. checks), so unlike custom
 // errors it can be decoded WITHOUT knowing the reverting contract's ABI.
 const PANIC_SELECTOR = "0x4e487b71";
@@ -210,8 +210,8 @@ const PANIC_CODES: Record<number, string> = {
 // Best-effort revert-data decoder: tries the universal Panic(uint256) format
 // first, then falls back to decoding as a custom error from one of
 // DevStation's own known ABIs. Arbitrary third-party contracts' custom
-// errors genuinely can't be decoded without their specific ABI — that's a
-// hard limitation, not something this can work around — so this returns
+// errors genuinely can't be decoded without their specific ABI: that's a
+// hard limitation, not something this can work around, so this returns
 // undefined rather than guessing when neither applies.
 export function decodeRevertData(data: Hex | undefined): string | undefined {
   if (!data || data.length < 10) return undefined;

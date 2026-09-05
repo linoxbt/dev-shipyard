@@ -55,7 +55,7 @@ export type TaskStatus =
   | "failed";
 
 /** Which transitions are legal. A completed task cannot start running again,
- *  and a cancelled one cannot execute anything — those are the transitions an
+ *  and a cancelled one cannot execute anything: those are the transitions an
  *  attacker or a race would try. */
 const TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   running: ["waiting_for_user", "paused", "completed", "cancelled", "failed"],
@@ -97,7 +97,7 @@ export class TaskLog {
     readonly taskId: string,
     readonly conversationId: string,
     /** Restores a log persisted by an earlier process. The sequence continues
-     *  from where it left off rather than restarting at 1 — a restart must not
+     *  from where it left off rather than restarting at 1: a restart must not
      *  produce two different events numbered 12. */
     restore?: TaskLogSnapshot,
   ) {

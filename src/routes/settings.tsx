@@ -20,7 +20,7 @@ import { useTheme, type Theme } from "@/lib/theme";
 import { storage } from "@/lib/storage";
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "Settings — DevStation" }] }),
+  head: () => ({ meta: [{ title: "Settings: DevStation" }] }),
   component: SettingsPage,
 });
 
@@ -180,7 +180,7 @@ function UnlockWindow() {
       <p className="mt-1 font-mono text-[10px] text-meta">
         The DevStation wallet stays unlocked for this long after your last action, surviving
         refreshes and browser restarts. The seed phrase is encrypted with a key the browser will not
-        hand back to any script — but a longer window is still longer for an unattended tab to be
+        hand back to any script, but a longer window is still longer for an unattended tab to be
         used. Only applies to the in-app wallet.
       </p>
     </div>

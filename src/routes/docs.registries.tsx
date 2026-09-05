@@ -48,7 +48,7 @@ uint256 public totalDeployments;`}
       <Callout>
         Registry writes use an explicit gas limit. some networks’ gas estimators under-report the
         gas a storage-writing call needs, so DevStation pins a safe limit to keep these transactions
-        from running out of gas — a negligible cost at typical gas prices.
+        from running out of gas: a negligible cost at typical gas prices.
       </Callout>
       <PageNav prev={prev} next={next} />
     </DocPage>

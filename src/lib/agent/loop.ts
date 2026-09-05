@@ -4,7 +4,7 @@ import { toolUsageLines } from "./tools";
 //
 // Before this, a turn could only do one thing: write the files it had already
 // decided on. It could not look at anything first. The whole project is put in
-// the briefing, so it was not blind — but it could not grep, could not re-read
+// the briefing, so it was not blind, but it could not grep, could not re-read
 // a file after changing it, and could not run the tests without also rebuilding
 // everything. Every question it had, it had to answer by guessing.
 //
@@ -15,14 +15,14 @@ import { toolUsageLines } from "./tools";
 //
 // Two budgets, because they fail differently. A step ceiling stops a model that
 // keeps looking things up instead of answering. A wall-clock budget stops one
-// whose individual calls are slow — four fast reads and four full builds are
+// whose individual calls are slow: four fast reads and four full builds are
 // the same number of steps and nothing like the same wait.
 
 /** What the model is told about calling tools.
  *
  *  Generated from the registry, never written out by hand. push_to_github was
  *  registered, classified and covered by tests while this text still listed
- *  five tools, so the model answered that it had no way to push — which was
+ *  five tools, so the model answered that it had no way to push, which was
  *  true from where it was standing. A tool the prompt does not mention does not
  *  exist, however well the rest of the system knows about it. */
 export function toolProtocol(): string {
@@ -37,7 +37,7 @@ export function toolProtocol(): string {
     `Available: ${agent.join(", ")}.`,
     "",
     "The result comes back as an observation and you may then call another or",
-    "answer. Use this when you genuinely do not know something — not to confirm",
+    "answer. Use this when you genuinely do not know something, not to confirm",
     "what the project state above already tells you. Do NOT mix tool calls and",
     "file blocks in the same reply: do one or the other.",
     "",
@@ -47,7 +47,7 @@ export function toolProtocol(): string {
     "",
     "These are requests, not actions you perform. The user is shown exactly what",
     "you asked for and decides; if they allow it, their own browser carries it",
-    "out and you are told. So when you are asked to push or publish, ASK — do not",
+    "out and you are told. So when you are asked to push or publish, ASK: do not",
     "reply that you are unable to.",
   ].join("\n");
 }

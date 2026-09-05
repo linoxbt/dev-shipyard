@@ -2,7 +2,7 @@
 //
 // The contract-driven path generates deterministically because an ABI fully
 // describes what the UI must do. A free-form prompt does not, so this path is
-// model-authored — but it starts from a fixed scaffold so the parts that are
+// model-authored, but it starts from a fixed scaffold so the parts that are
 // easy to get wrong (the import map, the mount point, the no-build setup) are
 // correct before the model touches anything. The model rewrites files; it does
 // not invent the project's shape.
@@ -27,7 +27,7 @@ export interface ParsedFile {
 /**
  * Pull files out of a model response.
  *
- * Accepts a fenced block whose info string names a path — `js app.js`,
+ * Accepts a fenced block whose info string names a path: `js app.js`,
  * `html path=index.html`, or just the bare filename. Models are inconsistent
  * about this, and rejecting a response over punctuation would be a poor
  * trade, so the parser is deliberately tolerant about WHERE the name appears
@@ -56,7 +56,7 @@ export function parseGeneratedFiles(text: string, dir = "app"): ParsedFile[] {
     const path = prefix + name;
 
     if (seen.has(path)) {
-      // A later block for the same file wins — models often correct themselves.
+      // A later block for the same file wins: models often correct themselves.
       const idx = out.findIndex((f) => f.path === path);
       if (idx >= 0) out[idx] = { path, content: body.replace(/\s+$/, "") };
       continue;
@@ -73,7 +73,7 @@ export function parseGeneratedFiles(text: string, dir = "app"): ParsedFile[] {
 /** A file the model asked to remove.
  *
  *  Deletion is a marker rather than a fence because a fence carries content and
- *  a deletion has none — an empty ```delete block would be indistinguishable
+ *  a deletion has none: an empty ```delete block would be indistinguishable
  *  from a file the model truncated. The shape matches the <status> protocol the
  *  model already emits, so this is one convention rather than a second one.
  *
@@ -206,7 +206,7 @@ export interface PromptContext {
  *  A separate mode because the two jobs pull in opposite directions: building
  *  rewards acting on a half-clear request, reviewing rewards saying plainly
  *  that something is wrong and leaving it alone. Asked to "check this over"
- *  while in build mode, a model edits — which is precisely what you did not
+ *  while in build mode, a model edits, which is precisely what you did not
  *  ask for. */
 export function reviewSystemPrompt(ctx: PromptContext = {}): string {
   const c = ctx.contract;
@@ -220,21 +220,21 @@ if they want it fixed.
 # What to report
 Go through the current code and report what you actually find, worst first:
 
-1. **Bugs** — things that are wrong now: unhandled errors, state that can go out
+1. **Bugs**: things that are wrong now: unhandled errors, state that can go out
    of sync, race conditions, off-by-one, values that can be null when used.
-2. **Web3 correctness**${c ? "" : " (only if the app touches a wallet or chain)"} — amounts assumed to be 18 decimals, missing
+2. **Web3 correctness**${c ? "" : " (only if the app touches a wallet or chain)"}: amounts assumed to be 18 decimals, missing
    decimals() reads, unchecked transaction results, a wallet on the wrong chain,
    anything that could move funds incorrectly.
-3. **Robustness** — what happens with empty input, a rejected wallet prompt, an
+3. **Robustness**: what happens with empty input, a rejected wallet prompt, an
    RPC that times out, a very large number.
-4. **Accessibility and UX** — unlabelled controls, colour as the only signal,
+4. **Accessibility and UX**: unlabelled controls, colour as the only signal,
    focus traps, anything unusable by keyboard.
-5. **Dead weight** — unused variables, unreachable branches, duplicated logic.
+5. **Dead weight**: unused variables, unreachable branches, duplicated logic.
 
 # How to report it
 - Lead with a one-line verdict: is this sound, or does it need work?
 - Then a short list. Each item: what is wrong, which file, why it matters.
-- Be specific and quote the offending line inline where it helps — INLINE, in
+- Be specific and quote the offending line inline where it helps: INLINE, in
   backticks, never as a fenced block.
 - If something is genuinely fine, say so briefly rather than inventing faults.
   A clean review is a useful review.
@@ -261,7 +261,7 @@ export function appBuilderSystemPrompt(ctx: PromptContext = {}): string {
   // an app that cannot load at all.
   const environment = vite
     ? `# The environment
-- A real Vite project. Source lives in \`src/\`. \`npm install\` runs before every build, so you MAY add dependencies — add them to package.json and return the whole file.
+- A real Vite project. Source lives in \`src/\`. \`npm install\` runs before every build, so you MAY add dependencies: add them to package.json and return the whole file.
 - Preact is the framework. \`htm\` tagged templates and JSX both work (\`@preact/preset-vite\` is configured); the existing files use htm.
     import { html, render } from "htm/preact";
     import { useState } from "preact/hooks";
@@ -272,7 +272,7 @@ export function appBuilderSystemPrompt(ctx: PromptContext = {}): string {
 - Mount into <div id="root">.
 - Style in src/styles.css. Support light and dark via prefers-color-scheme. Make it look considered, not default-browser.
 - The preview runs the BUILT site inside a sandboxed iframe: no cookies, no server, and no network during tests. Keep state in memory unless asked otherwise.`
-    : `# The environment (this is fixed — do not fight it)
+    : `# The environment (this is fixed: do not fight it)
 - Plain ES modules in the browser. NO bundler, NO build step, NO npm install, NO JSX.
 - index.html already contains an import map. Keep it exactly as it is. It provides:
     "preact"        -> preact ${preact}
@@ -304,15 +304,15 @@ Return ONE fenced code block per file, with the filename in the fence info strin
 
 Rules:
 - Change as LITTLE as possible. Make the smallest edit that satisfies the request, and leave everything else exactly as it is.
-- Output ONLY the files you actually changed. A file you did not need to touch must not appear in your reply at all — re-emitting an unchanged file is a mistake, not a courtesy.
-- For each file you DO change, return its COMPLETE new contents. Never diffs, never fragments, never "// rest unchanged" — the file is written verbatim from your reply, so anything you leave out is deleted.
+- Output ONLY the files you actually changed. A file you did not need to touch must not appear in your reply at all: re-emitting an unchanged file is a mistake, not a courtesy.
+- For each file you DO change, return its COMPLETE new contents. Never diffs, never fragments, never "// rest unchanged": the file is written verbatim from your reply, so anything you leave out is deleted.
 - Never rebuild the app from scratch on a follow-up. The current code is given to you above; work from it. Start over only if explicitly asked to.
 - When fixing an error, fix THAT error. Do not restructure, rename, restyle or "improve" code that has nothing to do with it.
 - Only these files: ${vite ? "index.html, src/app.js, src/styles.css, package.json (plus extra modules under src/ if you genuinely need them)" : "index.html, app.js, styles.css (plus extra .js modules if you genuinely need them)"}.
 - Prefer few files, but use as many as the app genuinely needs (services/, hooks/ and components/ modules are fine).
 - To REMOVE a file, emit \`<delete path="app.js" />\` on its own line. That is the only way a file is ever removed; leaving a file out of your reply keeps it exactly as it is. Removing a file needs the user's permission, so expect it to pause and ask.
 - Say what you built in one or two sentences BEFORE the code blocks. No commentary after them.
-- ALWAYS BUILD. Never reply with only a question, a plan, or a refusal. A long, detailed request is over-specified, not ambiguous — build it.
+- ALWAYS BUILD. Never reply with only a question, a plan, or a refusal. A long, detailed request is over-specified, not ambiguous: build it.
 - If the request is too large for one reply, build the most valuable COMPLETE slice now (it must run), then name what you will do next in one sentence. Never ask permission before starting.
 - Never say you "cannot" build something because credentials, network access or an API key are missing. Build the real integration behind an env var and render a clear "not configured" state when it is absent. That is what the user asked for.
 - Ask a question ONLY when you have also shipped working code in the same reply, and only when a genuine either/or would send the next pass in the wrong direction.
@@ -334,7 +334,7 @@ This app is not wired to a smart contract. Build exactly what the user asks for 
   return `${base}
 
 # This app talks to a deployed contract
-A file \`contract.js\` already exists and is GENERATED — do not output it, and do not redefine its values. Import from it:
+A file \`contract.js\` already exists and is GENERATED: do not output it, and do not redefine its values. Import from it:
 
     import { CHAIN, CONTRACT } from "./contract.js";
     // CHAIN   = { id, name, symbol, rpcUrl, explorerUrl }
@@ -342,13 +342,13 @@ A file \`contract.js\` already exists and is GENERATED — do not output it, and
 
 There is also \`wallet.js\` with: hasWallet(), connect(), currentAccount(), currentChainId(), switchToAppChain(), request(method, params), onWalletChange(fn). Use it for anything wallet-related; it works both standalone and inside DevStation's preview.
 
-Reads: createPublicClient({ chain, transport: http(CHAIN.rpcUrl) }) — these work with no wallet.
+Reads: createPublicClient({ chain, transport: http(CHAIN.rpcUrl) }): these work with no wallet.
 Writes: createWalletClient({ account, chain, transport: custom({ request: (a) => wallet.request(a.method, a.params) }) }).
 
 Contract: ${c.address} on ${c.chainName} (chain id ${c.chainId}), native token ${c.nativeSymbol}.
 Functions available: ${abiSummary(c.abi)}
 
-Amounts are in the smallest unit. Do not assume 18 decimals — if the contract exposes decimals(), read it.`;
+Amounts are in the smallest unit. Do not assume 18 decimals, if the contract exposes decimals(), read it.`;
 }
 
 /** Compact function list, so the model sees the surface without the full ABI

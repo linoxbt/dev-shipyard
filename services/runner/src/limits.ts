@@ -9,12 +9,12 @@ export const LIMITS = {
   phaseTimeoutMs: 180_000,
   /** Installing gets longer than the rest. It is the only phase that touches
    *  the network, and a cold install of a generated project was measured at
-   *  175s — near enough to the ordinary limit that jobs failed by a few
+   *  175s: near enough to the ordinary limit that jobs failed by a few
    *  seconds. The image is warmed to make this rare, but a project that adds
    *  its own dependencies still has real downloading to do.
    *
    *  Widened again for gVisor. Measured on this host: a warm install is 43s
-   *  under runc and 138s under runsc — 3.2x, because gVisor services syscalls
+   *  under runc and 138s under runsc: 3.2x, because gVisor services syscalls
    *  in user space and npm does little else. A cold install at that ratio
    *  would be around nine minutes, so the ceiling has to clear it. */
   installTimeoutMs: 600_000,
@@ -48,7 +48,7 @@ export const NETWORK_PHASES: ReadonlySet<PhaseName> = new Set<PhaseName>(["insta
 export const PHASE_COMMANDS: Record<PhaseName, string[]> = {
   // Seeded from the image's warm copy before npm runs. Everything a generated
   // project starts with is then already present, so npm has only the packages
-  // the model added to fetch — usually none. `cp -a` of ~120MB inside the
+  // the model added to fetch: usually none. `cp -a` of ~120MB inside the
   // container costs a second or two against the ~175s a cold install took.
   //
   // A shell, because it is two commands. `|| true` on the copy: a project

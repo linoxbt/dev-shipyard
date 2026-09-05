@@ -23,7 +23,7 @@ import { useActiveChain } from "@/hooks/useActiveChain";
 import { qieMainnet } from "@/lib/chains";
 
 export const Route = createFileRoute("/launchkit/projects")({
-  head: () => ({ meta: [{ title: "My Projects — DevStation" }] }),
+  head: () => ({ meta: [{ title: "My Projects: DevStation" }] }),
   component: ProjectsPage,
 });
 
@@ -88,7 +88,7 @@ function ProjectsPage() {
     );
   const projects = [...extra, ...myLocal];
 
-  // A pure read over the deployments already fetched — no extra request, and
+  // A pure read over the deployments already fetched: no extra request, and
   // nothing that is not on chain. chainId is the network dimension; there is
   // no `network` field on DeployedProject.
   const reputation = deriveReputation(
@@ -121,7 +121,7 @@ function ProjectsPage() {
       })),
     });
     void navigator.clipboard.writeText(text);
-    toast.success("Submission copied — fill in the repo, demo and description");
+    toast.success("Submission copied: fill in the repo, demo and description");
   };
 
   return (
@@ -158,7 +158,7 @@ function ProjectsPage() {
               </span>
             </div>
             <p className="mt-1.5 font-mono text-[10px] text-meta">
-              Derived from the onchain ProjectRegistry — every deployment here cost gas, so nothing
+              Derived from the onchain ProjectRegistry, every deployment here cost gas, so nothing
               in this summary can be self-awarded.
             </p>
             <button
@@ -353,7 +353,7 @@ function ProjectsPage() {
                     />
                   );
                 }
-                // Legacy record with no stored source — let the user paste it.
+                // Legacy record with no stored source: let the user paste it.
                 return (
                   <ManualVerify
                     chainId={vChain}
@@ -435,7 +435,7 @@ function ProjectsPage() {
               />
             ) : (
               <p className="font-mono text-xs text-meta">
-                No ABI stored for this contract — interaction is only available for contracts
+                No ABI stored for this contract: interaction is only available for contracts
                 deployed locally through DevStation.
               </p>
             )}

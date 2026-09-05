@@ -22,7 +22,7 @@ import { fetchExplorer } from "@/lib/api/explorer-fetch";
 // Nothing here is self-reported. A profile is what ProjectRegistry says the
 // wallet deployed, plus what the explorer says about those contracts' source
 // verification. A developer cannot raise their own standing by editing a field,
-// which is the whole point — a reputation you can type in is worthless.
+// which is the whole point: a reputation you can type in is worthless.
 //
 // There is no database. The Phase 4 sketch assumed one would index deployers
 // for the leaderboard; instead the leaderboard is rebuilt from the explorer's
@@ -40,7 +40,7 @@ const RECORD_DEPLOYMENT_SELECTOR = "0x4311b312"; // recordDeployment(address,str
 
 /** How many contracts to ask the explorer about per profile. Verification is
  *  one request per contract, so a prolific deployer would otherwise fan out
- *  into hundreds — the rate is computed over this sample and says so. */
+ *  into hundreds: the rate is computed over this sample and says so. */
 const MAX_VERIFICATION_CHECKS = 40;
 
 /** How many templates to scan when summing a creator's deploys. The registry
@@ -51,7 +51,7 @@ const MAX_TEMPLATE_SCAN = 200;
 
 /** Templates this developer published, and how often others deployed them.
  *
- *  Returns null when there is no registry on the chain or it cannot be read —
+ *  Returns null when there is no registry on the chain or it cannot be read -
  *  so "no marketplace here" never renders as "published nothing". */
 async function templateCredit(chainId: number, address: string): Promise<TemplateCredit | null> {
   const registry = templateRegistryAddress(chainId);
@@ -66,7 +66,7 @@ async function templateCredit(chainId: number, address: string): Promise<Templat
     })) as bigint[];
     if (!ids || ids.length === 0) return { published: 0, deploys: 0 };
 
-    // One call for every template's deploy count, then index by id — cheaper
+    // One call for every template's deploy count, then index by id: cheaper
     // than a getTemplate per id, which would also drag the full source back.
     const summaries = (await client.readContract({
       address: registry as `0x${string}`,
@@ -100,7 +100,7 @@ interface RawDeployment {
 }
 
 /** Source-verification status for one contract, straight from Blockscout.
- *  Returns null — not false — when the explorer could not answer, so an
+ *  Returns null, not false, when the explorer could not answer, so an
  *  unreachable explorer never reads as "this contract is unverified". */
 async function verifiedOnExplorer(chainId: number, address: string): Promise<boolean | null> {
   try {

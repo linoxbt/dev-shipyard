@@ -1,5 +1,5 @@
 // UI-facing state for the in-app generated wallet. Holds only lock status and
-// the public address; the mnemonic/private key never enter this store — they
+// the public address; the mnemonic/private key never enter this store: they
 // live transiently in the connector module after unlock.
 import { create } from "zustand";
 import type { HDAccount } from "viem/accounts";

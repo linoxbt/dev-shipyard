@@ -3,8 +3,8 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 // GitHub sign-in, server side.
 //
 // OAuth rather than a pasted token because an OAuth token can do the two things
-// a fine-grained PAT cannot — create a repository (POST /user/repos) and read
-// the signed-in account (GET /user) — which is what collapses the flow to
+// a fine-grained PAT cannot: create a repository (POST /user/repos) and read
+// the signed-in account (GET /user), which is what collapses the flow to
 // "connect once, then push".
 //
 // The access token is held in an httpOnly cookie and never reaches JavaScript,
@@ -33,7 +33,7 @@ export function githubConfig(): GithubConfig {
 }
 
 /** Signing key for the session cookie and the CSRF state. Falls back to the
- *  client secret so there is one less thing to configure — it is already a
+ *  client secret so there is one less thing to configure: it is already a
  *  server-only secret of exactly the right shape. */
 function signingKey(): string {
   return process.env.GITHUB_SESSION_SECRET || githubConfig().clientSecret;
@@ -43,7 +43,7 @@ function sign(value: string): string {
   return createHmac("sha256", signingKey()).update(value).digest("base64url");
 }
 
-/** Signed so a forged cookie cannot hand the server an attacker's token —
+/** Signed so a forged cookie cannot hand the server an attacker's token -
  *  every request that pushes code is authorised by this value. */
 export function sealSession(token: string): string {
   const payload = Buffer.from(JSON.stringify({ token, exp: Date.now() + SESSION_TTL_MS })).toString(
@@ -118,7 +118,7 @@ export function stateCookie(value: string, secure: boolean): string {
 }
 
 /** The callback URL for whichever origin the request arrived on, so the same
- *  build works on localhost, the branch deploy and production — each with its
+ *  build works on localhost, the branch deploy and production, each with its
  *  own registered OAuth app. */
 export function callbackUrl(request: Request): string {
   return `${new URL(request.url).origin}/api/github/callback`;

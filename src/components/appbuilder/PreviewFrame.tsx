@@ -11,7 +11,7 @@ import { buildPreview, PREVIEW_ERROR_TAG, type PreviewError } from "@/lib/appgen
 // already connected. That means no second connect flow, and a much smaller
 // surface than handing an iframe a provider.
 //
-// Only the methods below are answered. Reads never come through here — the
+// Only the methods below are answered. Reads never come through here: the
 // generated app talks to the RPC directly for those.
 const BRIDGE_TAG = "devstation-app-bridge";
 
@@ -33,7 +33,7 @@ interface Props {
    *  transaction from the preview would actually touch. */
   chainName: string;
   /** Errors the running app reported. Without this a failed module is just a
-   *  white frame — invisible to the user and to the agent trying to fix it. */
+   *  white frame: invisible to the user and to the agent trying to fix it. */
   onError?: (error: PreviewError) => void;
   className?: string;
 }

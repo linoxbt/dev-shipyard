@@ -53,18 +53,18 @@ auto-detection (it would otherwise misidentify the TanStack/Vite setup):
 client, since the default `dist/`-only assumption 404s every route on this
 setup:
 
-- `[build]` — `command = "bun run build"`, `publish = "dist"`.
-- `[build.environment]` — `NODE_OPTIONS=--max-old-space-size=8192` (this
-  app's dependency graph — wagmi, WalletConnect, Coinbase/MetaMask SDKs,
-  Monaco — exceeds Node's default ~2 GB old-space heap during Nitro's final
+- `[build]`: `command = "bun run build"`, `publish = "dist"`.
+- `[build.environment]`: `NODE_OPTIONS=--max-old-space-size=8192` (this
+  app's dependency graph: wagmi, WalletConnect, Coinbase/MetaMask SDKs,
+  Monaco: exceeds Node's default ~2 GB old-space heap during Nitro's final
   bundling step without this) and `NITRO_PRESET=netlify` (pinned so a stray
   build command can't fall back to the wrong preset).
-- `[functions]` — `directory = ".netlify/functions-internal"`,
+- `[functions]`: `directory = ".netlify/functions-internal"`,
   `node_bundler = "none"` (the Nitro bundle ships its own deps; don't let
   Netlify re-bundle them).
 - A long-cache header for hashed `/assets/*` files.
 
-All client-readable env vars use the **`VITE_`** prefix — Vite inlines them
+All client-readable env vars use the **`VITE_`** prefix: Vite inlines them
 into the browser bundle at **build time**, so set them in the host dashboard
 and **rebuild** (changing them at runtime has no effect).
 
@@ -110,7 +110,7 @@ Blockscout explorer.
 
 Two dependency-free Solidity contracts (`contracts/ProjectRegistry.sol`,
 `contracts/ContractLabelRegistry.sol`) back every chain's Projects page and
-Label Registry. Each chain is a **separate deployment** — addresses are not
+Label Registry. Each chain is a **separate deployment**: addresses are not
 shared across chains. Configure them with the `VITE_{PROJECT,LABEL}_REGISTRY_ADDRESS_<FAMILY>_<NETWORK>`
 vars (QIE keeps its legacy no-suffix names for backward compatibility).
 
@@ -121,8 +121,8 @@ vars (QIE keeps its legacy no-suffix names for backward compatibility).
 | BOT Chain | Testnet `968`  | _not wired in_                               | _not wired in_                               |
 | BOT Chain | Mainnet `677`  | `0xd7b68abdbae4496cb0bf5ce6c8684bc6f3dd9c9b` | `0x341b13cbab421cd318da7906d894ac1ba5b9fd3f` |
 
-QIE mainnet was redeployed separately from testnet (v2 contract source — see
-`contracts/ContractLabelRegistry.sol`'s `@dev` note — plus this is a distinct
+QIE mainnet was redeployed separately from testnet (v2 contract source: see
+`contracts/ContractLabelRegistry.sol`'s `@dev` note, plus this is a distinct
 deployer nonce sequence), so the two networks now have **different**
 addresses, unlike the earlier coincidental match. `src/lib/contracts.ts` now
 carries a **separate default per network**, so leaving the mainnet vars unset
@@ -130,7 +130,7 @@ falls back to the correct mainnet pair rather than the testnet one. Setting
 `VITE_PROJECT_REGISTRY_ADDRESS_MAINNET` / `VITE_LABEL_REGISTRY_ADDRESS_MAINNET`
 is still supported for custom deployments.
 
-If you do set them, **check the address actually holds contract code** —
+If you do set them, **check the address actually holds contract code** -
 a wrong value here fails silently. Production had
 `VITE_PROJECT_REGISTRY_ADDRESS_MAINNET` pointed at a wallet (EOA) rather than
 the registry, so Projects, Activity and the ecosystem stats on QIE mainnet
@@ -138,19 +138,19 @@ read a dead address with nothing surfacing an error.
 
 BOT Chain testnet previously had a deployed, source-verified pair
 (ProjectRegistry `0x4d6267f8...`, ContractLabelRegistry `0xe36ca612...`, still
-live on `scan.bohr.life` — a deployed contract can't be un-deployed from an
+live on `scan.bohr.life`: a deployed contract can't be un-deployed from an
 immutable chain), but their addresses have been removed from local config, so
 DevStation no longer reads or writes them. Redeploy with the steps below and
 set the two `VITE_..._BOT_TESTNET` vars again to bring that back.
 
 BOT Chain mainnet's pair above was deployed in two separate transactions
 (the deployer wallet ran low on BOT mid-deploy), so the two contracts sit at
-different block heights but share the same deployer/`autoLabeler` address —
+different block heights but share the same deployer/`autoLabeler` address -
 functionally identical to a single-run deploy.
 
 When an address is unset for a network, DevStation falls back to local
 history and hides the registry-backed UI (Projects, Label Registry, ecosystem
-stats) for that network — nothing crashes, those features are just inactive
+stats) for that network: nothing crashes, those features are just inactive
 until (re)deployed.
 
 ---
@@ -164,7 +164,7 @@ bun run contracts:verify <family> [testnet|mainnet]   # source-verify on the exp
 ```
 
 `<family>` is one of `qie` (default) or `bot`. Requires `PRIVATE_KEY` (an unprefixed,
-server-only var — **never** add it to a hosted deploy, the running app has no
+server-only var: **never** add it to a hosted deploy, the running app has no
 use for it) set to a funded deployer key in `.env.local`.
 
 After deploying, copy the printed addresses into the matching
@@ -172,7 +172,7 @@ After deploying, copy the printed addresses into the matching
 [table above](#registry-contract-addresses)) in your host's env config, then
 rebuild.
 
-`contracts:verify` needs no private key — it reads the addresses back out of
+`contracts:verify` needs no private key: it reads the addresses back out of
 `.env.local` (the same vars above) and recompiles from source to submit the
 exact solc standard-JSON input to the chain's Blockscout explorer. Run it
 after deploying (once the explorer has indexed the new address, usually
@@ -184,12 +184,12 @@ within a minute or two of the deploy tx confirming).
 
 Optional, off by default, configured **per chain**. When that chain's sponsor
 private key is set, DevStation can **top up a visitor's own wallet** with
-just enough native gas token to cover a deploy — a "Gas-free deploy
+just enough native gas token to cover a deploy: a "Gas-free deploy
 (DevStation tops up your wallet)" checkbox appears in LaunchKit's deploy
 wizard and the editor's Deploy panel, on that chain's **mainnet only**. The
 client and server both hard-check the chain against a small eligible-chains
 table (`SPONSOR_ELIGIBLE_CHAIN_IDS` in `src/lib/sponsor/pricing.ts`); this
-never applies to testnet or any other chain family — every testnet here
+never applies to testnet or any other chain family, every testnet here
 already has a public faucet.
 
 | Chain             | Sponsor key env var       | Budget env var             |
@@ -202,21 +202,21 @@ native-token transfer to the requester's own connected wallet
 (`src/routes/api.sponsor-topup.ts`), sized from a gas estimate of the actual
 deploy plus the two registry writes that follow it (`ONCHAIN_WRITE_GAS` × 2,
 from `src/lib/contracts.ts`), minus whatever balance that wallet already has.
-The requester's wallet then signs and sends everything itself — the CREATE,
-`ProjectRegistry.recordDeployment`, `ContractLabelRegistry.submitLabel` —
+The requester's wallet then signs and sends everything itself: the CREATE,
+`ProjectRegistry.recordDeployment`, `ContractLabelRegistry.submitLabel` -
 exactly like a normal self-paid deploy. That means the connected wallet is
 **always** the genuine deployer of record: no ownership caveats, no
 constructor-argument workarounds, no registry-misattribution risk to design
 around.
 
 **This is genuinely new infrastructure, not a config toggle to flip lightly.**
-Unlike `PRIVATE_KEY` above — a one-off local CLI key used only to deploy
-DevStation's own registries — each `SPONSOR_PRIVATE_KEY*` is held live by the
+Unlike `PRIVATE_KEY` above: a one-off local CLI key used only to deploy
+DevStation's own registries, each `SPONSOR_PRIVATE_KEY*` is held live by the
 running server and spends real mainnet funds in response to requests. Treat
 each like an exchange hot wallet, and use a separate dedicated wallet per
 chain rather than reusing one key across chains.
 
-**Abuse model (read before enabling) — this is a real token faucet, not just
+**Abuse model (read before enabling): this is a real token faucet, not just
 a gas payer.** Requests are authenticated: the caller must sign a message
 (`src/lib/sponsor/request-auth.ts`) proving they control the address the gas
 is sent to, and that signature is bound to the address + chain and expires
@@ -227,39 +227,39 @@ rate-limited per wallet, per IP and globally.
 Those controls stop an anonymous script from draining the wallet, but they
 do **not** make sponsorship free of abuse: the native token lands in the
 requester's wallet *before* any deploy happens, so nothing forces it to be
-spent on one — someone with several funded-enough wallets can still farm up
+spent on one: someone with several funded-enough wallets can still farm up
 to the cap. Note also that the rate limiter is in-process (see
 `src/lib/rateLimit.server.ts`), so on serverless it is friction rather than a
 hard guarantee. The durable backstop remains that chain's daily
 budget var (default `5`): a rolling 24h spend ceiling per chain, computed by
 summing that chain's sponsor wallet's own outgoing value _and_ gas fees from
-the chain's explorer tx history (no separate database — consistent with the
+the chain's explorer tx history (no separate database: consistent with the
 rest of this app). Sponsorship stops once spend crosses **90% of this
-value**, not 100% — the 10% headroom exists because this check isn't atomic
+value**, not 100%: the 10% headroom exists because this check isn't atomic
 across concurrent requests; it reduces, not eliminates, the chance of a
 burst of simultaneous requests overshooting the configured cap. Once a
 chain's daily cap is hit, top-up requests on that chain start failing with
-`budget_exhausted` until spend rolls off the 24h window — the other chain is
+`budget_exhausted` until spend rolls off the 24h window: the other chain is
 unaffected, since each has its own independent budget. The app can't lose
 more than roughly the configured daily budget per chain per day; that whole
 budget could still be drained by one actor within minutes if they choose to,
 with nothing to show for it on DevStation's side (no deploy, no registry
 record).
 
-**A wallet that already has enough of the native token gets no top-up** —
+**A wallet that already has enough of the native token gets no top-up** -
 the server checks the requester's current balance first and only sends the
 shortfall, so sponsorship doesn't hand out free tokens to wallets that don't
 need it.
 
 Enable a chain by setting its sponsor private key (and optionally its daily
-budget var) on the host and rebuilding — see `.env.example`.
+budget var) on the host and rebuilding: see `.env.example`.
 
 **Open question for BOT Chain specifically:** the padding math in
 `paddedTopupCost` (10x the gas estimate, 1.5x the gas price) was tuned
 against a real undershoot observed on QIE, whose `eth_estimateGas` returns
 meaningfully different numbers between two back-to-back calls for the same
 transaction. Nothing has confirmed whether BOT Chain's estimator behaves the
-same way — the same margin is reused there as the only data point available,
+same way: the same margin is reused there as the only data point available,
 but watch the first few live sponsored BOT mainnet deploys closely.
 
 ---
@@ -272,7 +272,7 @@ whole setup is **two variables**:
 
 | Variable             | Value          | Notes                                                  |
 | -------------------- | -------------- | ------------------------------------------------------ |
-| `VITE_AI_PROXY`      | `true`         | Public flag — routes the browser through `/api/ai`.    |
+| `VITE_AI_PROXY`      | `true`         | Public flag: routes the browser through `/api/ai`.    |
 | `OPENROUTER_API_KEY` | `sk-or-v1-...` | Server-only. One key serves every model in the picker. |
 
 Optional: `OPENAI_MODEL` pins the default model (any OpenRouter id, e.g.
@@ -289,7 +289,7 @@ provider  = AI_PROVIDER || (openaiKey ? "openai" : ANTHROPIC_API_KEY ? "anthropi
 ```
 
 so a key sitting in `ANTHROPIC_API_KEY` sends the app down the Anthropic
-branch — which then talks the Anthropic Messages protocol to whatever
+branch, which then talks the Anthropic Messages protocol to whatever
 `ANTHROPIC_ENDPOINT` points at. This happened in production: an OpenRouter key
 was stored as `ANTHROPIC_API_KEY` with `ANTHROPIC_ENDPOINT` left pointing at an
 unrelated project's router, and the only symptom was a bare
@@ -301,4 +301,4 @@ unset.
 **2. Env changes need a redeploy.** The proxy runs inside the Nitro server
 function, which reads `process.env` from the environment captured at deploy
 time. Editing a variable in the Netlify dashboard does **not** affect the
-running function — trigger a redeploy afterwards, or the old value stays live.
+running function: trigger a redeploy afterwards, or the old value stays live.

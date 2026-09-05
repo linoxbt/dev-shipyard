@@ -1,14 +1,14 @@
 // AI chat client for the Contract Editor assistant + "Code with AI".
 //
 // Three modes, resolved from ai-settings.ts:
-//   • server proxy — POST /api/ai; the key lives server-side (set VITE_AI_PROXY
+//   • server proxy: POST /api/ai; the key lives server-side (set VITE_AI_PROXY
 //     plus a server-only key). Preferred: nothing sensitive reaches the browser.
-//   • "anthropic"  — Claude via the native Messages API (api.anthropic.com).
-//   • "openai"     — any OpenAI-compatible /chat/completions endpoint.
+//   • "anthropic" : Claude via the native Messages API (api.anthropic.com).
+//   • "openai"    , any OpenAI-compatible /chat/completions endpoint.
 //
 // The two direct modes are bring-your-own-key: the user pastes a key in the UI,
 // stored in this browser only. That's fine for a personal dev console, but the
-// key is visible to anyone using the build — for a shared deployment, use the
+// key is visible to anyone using the build, for a shared deployment, use the
 // server proxy instead.
 
 import {
@@ -31,7 +31,7 @@ export const SOLIDITY_SYSTEM_PROMPT =
   "You are a senior Solidity engineer and smart-contract auditor embedded in " +
   "DevStation, a developer console for EVM chains including QIE and BOT Chain. Help " +
   "the user write, audit, debug, explain, and improve smart contracts. Write " +
-  "PRODUCTION-GRADE, secure code — never toy snippets. Always include an SPDX " +
+  "PRODUCTION-GRADE, secure code: never toy snippets. Always include an SPDX " +
   "license and pragma ^0.8.20, and build on audited OpenZeppelin v5 contracts " +
   '(imports from "@openzeppelin/contracts/..." resolve from a CDN) rather than ' +
   "hand-rolling ERC-20/721/1155, access control, or math. Apply security best " +
@@ -46,8 +46,8 @@ export const SOLIDITY_SYSTEM_PROMPT =
   "(Critical/High/Medium/Low/Gas) with concrete fixes. Always put Solidity in " +
   "```solidity fenced code blocks. Be concise but complete. " +
   "When the user is on a QIE network, refer to token standards by their QIE " +
-  "names in PROSE — QIE-20 (fungible), QIE-721 / QIE NFT (non-fungible), " +
-  "QIE-1155 — noting the ERC equivalent once so they can search for it. These " +
+  "names in PROSE: QIE-20 (fungible), QIE-721 / QIE NFT (non-fungible), " +
+  "QIE-1155: noting the ERC equivalent once so they can search for it. These " +
   "are DevStation's ecosystem names for the ordinary EVM standards, NOT " +
   "different standards: the CODE you write is always plain, fully-compliant " +
   "ERC-20/721/1155, keeping real identifiers (ERC20, IERC721, " +
@@ -110,7 +110,7 @@ async function streamAnthropic({
   const s = getAiSettings();
   const { endpoint } = resolveEndpoint(s);
   // Some Anthropic-compatible routers (confirmed on 0G's router-api.0g.ai)
-  // 500 "upstream_error" on ANY request with a top-level `system` field —
+  // 500 "upstream_error" on ANY request with a top-level `system` field -
   // folding it into the messages array as a synthetic opening exchange works
   // around it and is harmless on real api.anthropic.com too.
   const anthropicMessages = system
@@ -129,7 +129,7 @@ async function streamAnthropic({
       // Required for calls that originate from a browser.
       "anthropic-dangerous-direct-browser-access": "true",
     },
-    // Opus 4.x rejects temperature/top_p/top_k — steer via the prompt instead.
+    // Opus 4.x rejects temperature/top_p/top_k: steer via the prompt instead.
     body: JSON.stringify({
       model: s.model,
       max_tokens: MAX_TOKENS,
@@ -243,7 +243,7 @@ async function consumeStream(
   if (!out) throw new Error("AI returned an empty response.");
   if (truncated) {
     throw new Error(
-      "The reply hit the response size limit and was cut off mid-file. Ask for a smaller change — one file or one feature at a time — rather than a whole app in a single prompt.",
+      "The reply hit the response size limit and was cut off mid-file. Ask for a smaller change, one file or one feature at a time, rather than a whole app in a single prompt.",
     );
   }
   return out;

@@ -70,7 +70,7 @@ const RESERVED = new Set([
 
 export interface Manifest {
   slug: string;
-  /** Wallet that published it. Only this wallet may overwrite the site — a
+  /** Wallet that published it. Only this wallet may overwrite the site: a
    *  subdomain is a name people share, so it cannot be first-come-then-stolen. */
   owner: string;
   createdAt: number;
@@ -276,7 +276,7 @@ export function serveFile(host: string, urlPath: string): ServedFile | null {
   if (rel === MANIFEST || rel.endsWith(`/${MANIFEST}`)) return null;
 
   let full = safeTarget(root, rel);
-  // A single-page app routes client-side, so an unknown path is not a 404 —
+  // A single-page app routes client-side, so an unknown path is not a 404 -
   // it is the app's own router being asked to handle it.
   if (!full || !existsSync(full) || !statSync(full).isFile()) {
     full = safeTarget(root, "index.html");

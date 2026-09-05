@@ -10,7 +10,7 @@ describe("tar", () => {
     "package.json": '{"name":"x"}\n',
     "src/app.js": "export const x = 1;\n",
     "src/deep/nested/styles.css": "body{color:red}\n",
-    "unicode.md": "# héllo — ünicode ✓\n",
+    "unicode.md": "# héllo: ünicode ✓\n",
   };
 
   it("produces an archive REAL tar can extract byte-for-byte", () => {

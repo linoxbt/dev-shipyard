@@ -7,7 +7,7 @@ import { dirname } from "node:path";
 // persisted atomically to disk. That mismatch was the bug: restart the runner
 // while a task was waiting on an answer and the job came back still waiting,
 // with no grant and no request left to answer it. Hung forever, and with no
-// error to show for it, because nothing had failed — the question had simply
+// error to show for it, because nothing had failed: the question had simply
 // stopped existing.
 //
 // The interface is deliberately dumb: whole-document read and write of an
@@ -27,7 +27,7 @@ export interface PersistentStore {
  *
  * Writes go to a sibling and are renamed into place. A rename is atomic, so a
  * crash midway through cannot leave a half-written file that fails to parse on
- * the way back up — the same reason the job store does it, and the failure mode
+ * the way back up: the same reason the job store does it, and the failure mode
  * matters more here: an unparseable grant file means every grant is gone.
  */
 export function fileStore(path: string): PersistentStore {

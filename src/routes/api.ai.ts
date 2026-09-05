@@ -33,12 +33,12 @@ interface ServerConfig {
 
 // Server-only env. process.env is shimmed across Nitro presets (Vercel/Netlify
 // Node functions; Cloudflare via the build). These have NO VITE_ prefix on
-// purpose — Vite only inlines VITE_*, so keys here never reach the browser.
+// purpose: Vite only inlines VITE_*, so keys here never reach the browser.
 function serverConfig(): ServerConfig {
   const e = process.env;
   // OpenRouter is an OpenAI-compatible provider, so it maps onto the "openai"
   // branch with the OpenRouter base URL. Setting OPENROUTER_API_KEY (e.g. in the
-  // Netlify env) is the simplest — and recommended — way to provide a default
+  // Netlify env) is the simplest, and recommended, way to provide a default
   // key for all users: that one key reaches every model in the app's picker
   // (Claude, GPT, DeepSeek, Gemini, Grok, Qwen), so there's nothing else to
   // configure per vendor.
@@ -53,7 +53,7 @@ function serverConfig(): ServerConfig {
   const openaiModel =
     e.OPENAI_MODEL || e.AI_MODEL || (openrouterKey ? "anthropic/claude-sonnet-5" : "gpt-5.6-sol");
 
-  // Prefer the OpenAI-compatible branch when a key for it exists — that's the
+  // Prefer the OpenAI-compatible branch when a key for it exists: that's the
   // OpenRouter path, which serves every vendor. Only fall through to Anthropic
   // when an Anthropic key is the only thing configured.
   const provider: Provider =
@@ -83,12 +83,12 @@ function isConfigured(c: ServerConfig): boolean {
 // and would otherwise surface as a bare upstream 401 with no clue which var is
 // wrong. This is a real failure we hit in production: an OpenRouter key
 // (sk-or-...) had been stored as ANTHROPIC_API_KEY, with ANTHROPIC_ENDPOINT
-// pointed at an unrelated router — so the proxy dutifully sent an OpenRouter
+// pointed at an unrelated router, so the proxy dutifully sent an OpenRouter
 // key, in Anthropic Messages format, to a third party, and all the operator
 // saw was "Invalid API key or token".
 //
 // Returns an operator-facing message, or null when nothing looks wrong. Only
-// ever shown on POST (never GET) — see the GET handler's note about not
+// ever shown on POST (never GET): see the GET handler's note about not
 // handing anonymous callers a map of which keys are set.
 function configProblem(c: ServerConfig): string | null {
   if (c.provider === "anthropic") {
@@ -112,8 +112,8 @@ function configProblem(c: ServerConfig): string | null {
 // about it. Sized for a few complete files rather than one.
 // anthropic/claude-sonnet-5 through OpenRouter allows 128k completion tokens
 // against a 1M context (checked live against /api/v1/models). A real app is
-// 15+ complete files — measured: a swap app truncated mid-run at 16000 and
-// surfaced as "needs another pass" — so the ceiling is raised well above what
+// 15+ complete files: measured: a swap app truncated mid-run at 16000 and
+// surfaced as "needs another pass", so the ceiling is raised well above what
 // one app costs while staying under the provider maximum.
 const MAX_TOKENS = Number(process.env.AI_MAX_TOKENS ?? 64000);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -132,7 +132,7 @@ async function upstreamRequest(
   if (c.provider === "anthropic") {
     // Some Anthropic-compatible routers (confirmed on 0G's router-api.0g.ai,
     // used to run this proxy against the same backend as the Lunex project)
-    // 500 "upstream_error" on ANY request with a top-level `system` field —
+    // 500 "upstream_error" on ANY request with a top-level `system` field -
     // isolated via direct testing: system alone fails, tools alone works,
     // folding the same instructions into the messages array as a synthetic
     // opening exchange works around it without changing what the model sees.
@@ -158,10 +158,10 @@ async function upstreamRequest(
     };
 
     // Some provider nodes (0G's router included) have exactly one backing
-    // node per model, so transient 404/500s are expected — retry up to 3
+    // node per model, so transient 404/500s are expected: retry up to 3
     // total attempts with a short backoff before surfacing the failure.
     // Only retry statuses that can plausibly succeed on a retry (routing
-    // hiccups, rate limits, upstream 5xx) — a 400/401/403 means the request
+    // hiccups, rate limits, upstream 5xx): a 400/401/403 means the request
     // or key is bad and will fail identically every time, so retrying it
     // just triples the latency (and, behind a shared rate-limited proxy,
     // the load) for a request that was never going to succeed.
@@ -204,7 +204,7 @@ async function upstreamRequest(
       // Measured against this App Builder's own system prompt: the model
       // emitted 208 KB of pure reasoning and had still produced zero content
       // after 300s, which a serverless host kills long before the first
-      // visible token — the user sees "Planning the app…" and then a network
+      // visible token: the user sees "Planning the app…" and then a network
       // error. Disabling it produced content in 2.4s instead. Set
       // AI_REASONING=on to restore provider-default reasoning.
       ...(process.env.AI_REASONING === "on" ? {} : { reasoning: { enabled: false } }),
@@ -221,7 +221,7 @@ export const Route = createFileRoute("/api/ai")({
         // Deliberately minimal: earlier versions of this endpoint also
         // returned which specific key env vars were set (booleans, not
         // values) for debugging. That's reconnaissance for the abuse this
-        // route rate-limits against, so it's gone — an anonymous caller only
+        // route rate-limits against, so it's gone: an anonymous caller only
         // learns whether SOME provider is configured, not which one/how.
         return Response.json({ configured: isConfigured(c) });
       },

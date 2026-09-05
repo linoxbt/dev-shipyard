@@ -17,7 +17,7 @@ interface Props {
 // (resolving OpenZeppelin imports just like the deploy flow) and verify via the
 // robust standard-input path. The compiler version (and optimizer settings, which
 // DevStation always leaves off) must match the original deploy for the bytecode
-// to match — we default the version and let the user change it.
+// to match: we default the version and let the user change it.
 export function ManualVerify({ chainId, address, defaultCompilerVersion }: Props) {
   const [open, setOpen] = useState(false);
   const [source, setSource] = useState("");

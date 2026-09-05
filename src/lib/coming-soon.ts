@@ -6,8 +6,8 @@ import { LayoutDashboard, Store, Trophy, Wand2 } from "lucide-react";
 // One map, read by two places: the sidebar decides which items get a "Soon"
 // badge from it, and each gated route decides from it whether to render itself
 // or the placeholder. That pairing is the entire reason this file exists. Two
-// separate lists drift, and the drift is silent — a badge saying "Soon" over a
-// page that works, or a nav item that navigates to a placeholder — so the badge
+// separate lists drift, and the drift is silent: a badge saying "Soon" over a
+// page that works, or a nav item that navigates to a placeholder, so the badge
 // and the gate are made the same fact rather than two facts kept in step.
 //
 // Nothing here deletes a page. Removing an entry restores the real component

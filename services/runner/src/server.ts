@@ -54,7 +54,7 @@ import {
 
 const PORT = Number(process.env.PORT ?? 8792);
 const HOST = process.env.RUNNER_HOST ?? "127.0.0.1";
-/** Separate from RUNNER_TOKEN on purpose — see session.ts. Unset means the
+/** Separate from RUNNER_TOKEN on purpose: see session.ts. Unset means the
  *  dashboard is off entirely rather than open. */
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD ?? "";
 const TOKEN = process.env.RUNNER_TOKEN ?? "";
@@ -94,7 +94,7 @@ function html(res: import("node:http").ServerResponse, status: number, body: str
 }
 
 /** Read a bounded request body. Anything longer is truncated rather than
- *  buffered — a login form is a few dozen bytes. */
+ *  buffered: a login form is a few dozen bytes. */
 async function readBody(req: import("node:http").IncomingMessage, limit: number): Promise<string> {
   let out = "";
   for await (const chunk of req) {
@@ -257,7 +257,7 @@ const server = createServer(async (req, res) => {
   //
   // These outlive the page that started them, which is the entire point: the
   // browser holds an id, not a connection, so a refresh reattaches instead of
-  // losing the build. Same bearer token as /jobs — starting a turn runs code.
+  // losing the build. Same bearer token as /jobs: starting a turn runs code.
   // --- Publish API --------------------------------------------------------
   //
   // Same bearer token as the rest: writing a site is a privileged operation,
@@ -356,7 +356,7 @@ const server = createServer(async (req, res) => {
         dir: body.dir,
         // Passed through, NOT defaulted to "build". runTurn only classifies
         // when the mode is unset, so forcing one here bypassed the intent
-        // layer entirely — "hello" reached the build pipeline and wrote files.
+        // layer entirely: "hello" reached the build pipeline and wrote files.
         mode: body.mode === "review" || body.mode === "build" ? body.mode : undefined,
         // Same header the publish route trusts: DevStation's server has already
         // verified the wallet. Only accepted in the address shape it must have,
@@ -372,7 +372,7 @@ const server = createServer(async (req, res) => {
 
     // Answering the question a paused task is waiting on. Everything it needs
     // is on disk, so this works even in a process that never saw the question
-    // asked — which is the whole point of the phase.
+    // asked, which is the whole point of the phase.
     if (rest.endsWith("/decision") && req.method === "POST") {
       const jobId = rest.replace(/\/decision$/, "");
       let raw = "";
@@ -446,7 +446,7 @@ const server = createServer(async (req, res) => {
   }
   // Per caller, not one global bucket. Keying every build under the literal
   // string "token" meant all of DevStation shared a single 30/hour budget, so
-  // one busy user — or one abuser — starved everybody else. The caller is
+  // one busy user, or one abuser, starved everybody else. The caller is
   // identified by the header DevStation's proxy sets; the shared key remains as
   // a ceiling so the host itself cannot be swamped by many distinct callers.
   const caller = String(req.headers["x-devstation-caller"] ?? "").slice(0, 100) || clientKey(req);
@@ -543,7 +543,7 @@ const server = createServer(async (req, res) => {
       };
     } finally {
       await destroyContainer(name);
-      // Recorded whatever happened, including a job that never got going —
+      // Recorded whatever happened, including a job that never got going -
       // "it did not start" is exactly the kind of thing you want a record of.
       recordJob({
         id: name,
@@ -567,7 +567,7 @@ const server = createServer(async (req, res) => {
   if (!outcome) {
     return json(res, 429, {
       ok: false,
-      message: `The runner is busy — more than ${MAX_QUEUED} jobs are already waiting. Try again shortly.`,
+      message: `The runner is busy: more than ${MAX_QUEUED} jobs are already waiting. Try again shortly.`,
     });
   }
   return json(res, outcome.status, outcome.body);
@@ -576,7 +576,7 @@ const server = createServer(async (req, res) => {
 // Loopback by default, and deliberately.
 //
 // node's listen() with no host binds every interface, which on a VPS with no
-// firewall means this is on the public internet — an endpoint that runs
+// firewall means this is on the public internet: an endpoint that runs
 // arbitrary code, guarded by one shared bearer token. That is not a default
 // anyone should have to opt out of. Set RUNNER_HOST=0.0.0.0 only behind a
 // reverse proxy that terminates TLS and does its own authentication.

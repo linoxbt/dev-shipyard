@@ -8,8 +8,8 @@
 // would block a pragma nit and wave through a drainable contract.
 //
 // So exploitability is mapped explicitly, by check id. The mapping is
-// deliberately small and auditable — a reader can see exactly what will and
-// will not stop a deploy — and anything unrecognised is treated as advisory
+// deliberately small and auditable: a reader can see exactly what will and
+// will not stop a deploy, and anything unrecognised is treated as advisory
 // rather than blocking, so adding a new lint check can never silently start
 // blocking every deploy.
 
@@ -22,15 +22,15 @@ export type RiskLevel = "critical" | "high" | "medium" | "low";
 const RISK_BY_CODE: Record<string, RiskLevel> = {
   // Funds can be drained or the contract bricked by an attacker.
   SA006: "critical", // reentrancy
-  SA003: "high", // tx.origin auth — phishable authentication bypass
-  SA004: "high", // selfdestruct — contract can be destroyed
-  SA005: "high", // unchecked low-level call — silent failure, often fund loss
+  SA003: "high", // tx.origin auth: phishable authentication bypass
+  SA004: "high", // selfdestruct: contract can be destroyed
+  SA005: "high", // unchecked low-level call: silent failure, often fund loss
   SA009: "high", // pre-0.8 arithmetic with no overflow protection
 
   // Real issues, but not "do not deploy this" on their own.
   SA007: "medium", // precision loss
   SA008: "medium", // missing zero-address check
-  SA010: "medium", // unbounded loop — DoS risk at scale
+  SA010: "medium", // unbounded loop: DoS risk at scale
   SA012: "low", // no events
   SA001: "low", // missing SPDX
   SA002: "low", // floating pragma
@@ -38,7 +38,7 @@ const RISK_BY_CODE: Record<string, RiskLevel> = {
 };
 
 /** Unknown checks are advisory. A new lint rule must never start blocking
- *  deploys just by existing — that decision belongs in the table above. */
+ *  deploys just by existing: that decision belongs in the table above. */
 const DEFAULT_RISK: RiskLevel = "low";
 
 export function riskOf(finding: Pick<AnalysisFinding, "code">): RiskLevel {

@@ -100,7 +100,7 @@ contract Counter {
   });
 });
 
-describe("canDeploy — the gate the agent cannot talk its way past", () => {
+describe("canDeploy: the gate the agent cannot talk its way past", () => {
   const BYTECODE = "0x6080604052";
 
   it("allows a deploy of exactly what was reviewed", () => {

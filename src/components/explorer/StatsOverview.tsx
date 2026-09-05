@@ -12,13 +12,13 @@ import type { ExStats } from "@/lib/explorer/types";
 // logic below only has to be right once.
 export function useStatsOverview(chainId: number) {
   // Testnet token "prices" are not real market data (thin/fake liquidity feeding
-  // the chain's own price oracle) — e.g. BOT Chain's testnet Blockscout reports
+  // the chain's own price oracle): e.g. BOT Chain's testnet Blockscout reports
   // a wildly wrong coin_price. Real explorers don't show a price for testnets
   // either, so we don't fetch or display price/market-cap there at all.
   const isTestnet = SUPPORTED_CHAINS.find((c) => c.id === chainId)?.testnet ?? true;
   const { data: stats } = useExplorer<ExStats>("/stats", { refetchInterval: 20_000 });
   // CoinGecko fallback for price + 24h change (Blockscout returns null change).
-  // Only wired up for chains with a known CoinGecko coin id (see getChainPrice) —
+  // Only wired up for chains with a known CoinGecko coin id (see getChainPrice) -
   // others rely solely on Blockscout's own coin_price field below.
   const { data: price } = useQuery({
     queryKey: ["chain-price", chainId],
@@ -47,7 +47,7 @@ export function useStatsOverview(chainId: number) {
         ? price.change24h
         : null;
   // Blockscout returns market_cap: "0" (i.e. "we don't have this") rather than
-  // null when it has no real figure — treat 0 the same as missing. Chains
+  // null when it has no real figure: treat 0 the same as missing. Chains
   // with no Blockscout market_cap at all fall
   // back to CoinGecko's market cap the same way price does above.
   const marketCap = isTestnet
@@ -84,7 +84,7 @@ export function StatsGrid({
         value={
           coinPrice != null
             ? `$${coinPrice.toLocaleString(undefined, { maximumFractionDigits: 6 })}`
-            : "—"
+            : "-"
         }
         sub={
           change24h != null ? (
@@ -97,28 +97,28 @@ export function StatsGrid({
       />
       <StatCard
         label="Market Cap"
-        value={marketCap != null ? `$${withCommas(marketCap.toFixed(0))}` : "—"}
+        value={marketCap != null ? `$${withCommas(marketCap.toFixed(0))}` : "-"}
       />
       <StatCard
         label="Avg Block Time"
-        value={stats?.average_block_time ? `${(stats.average_block_time / 1000).toFixed(1)}s` : "—"}
+        value={stats?.average_block_time ? `${(stats.average_block_time / 1000).toFixed(1)}s` : "-"}
       />
       <StatCard
         label="Total Blocks"
-        value={stats?.total_blocks ? withCommas(stats.total_blocks) : "—"}
+        value={stats?.total_blocks ? withCommas(stats.total_blocks) : "-"}
       />
       <StatCard
         label="Total Transactions"
-        value={stats?.total_transactions ? withCommas(stats.total_transactions) : "—"}
+        value={stats?.total_transactions ? withCommas(stats.total_transactions) : "-"}
       />
-      <StatCard label="Gas Price" value={gas != null ? formatGwei(String(gas * 1e9)) : "—"} />
+      <StatCard label="Gas Price" value={gas != null ? formatGwei(String(gas * 1e9)) : "-"} />
       <StatCard
         label="Wallet Addresses"
-        value={stats?.total_addresses ? withCommas(stats.total_addresses) : "—"}
+        value={stats?.total_addresses ? withCommas(stats.total_addresses) : "-"}
       />
       <StatCard
         label="Gas Used Today"
-        value={stats?.gas_used_today ? withCommas(stats.gas_used_today) : "—"}
+        value={stats?.gas_used_today ? withCommas(stats.gas_used_today) : "-"}
       />
     </div>
   );

@@ -39,7 +39,7 @@ describe("sequencing", () => {
 });
 
 describe("the state machine", () => {
-  it("lets a waiting task resume — the whole point of a checkpoint", () => {
+  it("lets a waiting task resume: the whole point of a checkpoint", () => {
     expect(canTransition("waiting_for_user", "running")).toBe(true);
   });
 

@@ -6,7 +6,7 @@ import type { PersistentStore } from "./store";
 //
 // A decision is a checkpoint, not the end of a task. The store here exists so
 // that an answer can be validated server-side and applied EXACTLY ONCE, however
-// many times the browser sends it — a double click, a retry after a dropped
+// many times the browser sends it: a double click, a retry after a dropped
 // connection, or a reconnect must never run a destructive action twice.
 //
 // Options carry stable ids. The label is display text and may be reworded or
@@ -34,7 +34,7 @@ export interface DecisionRequest {
   /** Absolute ms, server clock. */
   expiresAt?: number;
   affectedAction?: string;
-  /** What actually happens if they say yes — "are you sure?" is not enough. */
+  /** What actually happens if they say yes: "are you sure?" is not enough. */
   consequences?: string;
   allowCustomResponse?: boolean;
   status: "pending" | "answered" | "expired" | "cancelled";
@@ -75,7 +75,7 @@ const processed = new Map<string, DecisionResponse>();
 //
 // `processed` is persisted alongside the requests, not treated as a cache. It
 // is what makes an answer apply exactly once, and idempotency that forgets
-// across a restart is not idempotency — the retry a dropped connection
+// across a restart is not idempotency: the retry a dropped connection
 // provokes is exactly when the process is most likely to have bounced.
 let store: PersistentStore | null = null;
 let loaded = false;

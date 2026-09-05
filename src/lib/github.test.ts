@@ -41,7 +41,7 @@ describe("OAuth session sealing", () => {
     const sealed = sealSession("gho_realtoken");
     expect(openSession(sealed)).toBe("gho_realtoken");
 
-    // A forged cookie must not hand the server somebody else's token — this is
+    // A forged cookie must not hand the server somebody else's token: this is
     // what authorises pushing code to a GitHub account.
     const [payload] = sealed.split(".");
     expect(openSession(`${payload}.forgedsignature`)).toBeNull();

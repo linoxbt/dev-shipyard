@@ -20,7 +20,7 @@ function clientFor(chainId: number) {
 }
 
 // Groups a chain id by FAMILY (testnet + mainnet of the same chain share a
-// key) — used so "unique wallets" is deduped within a family (a wallet that
+// key): used so "unique wallets" is deduped within a family (a wallet that
 // deployed on both QIE testnet and QIE mainnet is one QIE user) without
 // merging unrelated ecosystems together (a wallet on QIE and a wallet on BOT
 // Chain are two separate users, not one). Falls back to the chain id itself
@@ -106,7 +106,7 @@ export const getChainPrice = createServerFn({ method: "GET" })
 
 // 30-day price history fallback for the explorer's Price chart. Some chains'
 // own Blockscout instance has no price-chart history at all (BOT Chain
-// confirmed live to return chart_data: [] from /stats/charts/market — no
+// confirmed live to return chart_data: [] from /stats/charts/market: no
 // oracle configured). Wherever a CoinGecko id is known (see
 // COINGECKO_ID_BY_CHAIN above), CoinGecko's own market_chart endpoint gives
 // real daily closing prices to chart instead of an empty state.
@@ -197,7 +197,7 @@ export const getEcosystemStats = createServerFn({ method: "GET" })
 //   - totalContracts: sum of each chain's onchain totalDeployments counter
 //   - totalUsers:     unique wallets PER CHAIN FAMILY, summed. QIE testnet and
 //     QIE mainnet share one dedup set (a wallet that deployed on both is one
-//     QIE user), but that set is never merged with another family's — a
+//     QIE user), but that set is never merged with another family's: a
 //     wallet on QIE and a wallet on BOT Chain are two separate users, not
 //     one, even though today only QIE actually has a registry deployed.
 const combinedStatsInput = z.object({
@@ -439,7 +439,7 @@ export interface EcosystemLabel {
 
 // The deployed ContractLabelRegistry.submitLabel takes `autoLabeled` as a
 // caller-supplied bool with NO on-chain access control tying it to a real
-// DevStation deploy — anyone can call it directly (bypassing the app UI
+// DevStation deploy: anyone can call it directly (bypassing the app UI
 // entirely) with autoLabeled=true and get an instantly-"AUTO"/trusted label
 // for any address. Since the already-deployed contract's bytecode can't be
 // patched, this cross-checks every autoLabeled=true claim against
@@ -479,7 +479,7 @@ async function verifiedAutoDeployPairs(chainId: number): Promise<Set<string> | n
     }
     return pairs;
   } catch {
-    return null; // couldn't verify — caller fails closed
+    return null; // couldn't verify: caller fails closed
   }
 }
 

@@ -7,7 +7,7 @@
 //
 // A project carries its FILES and its CONVERSATION together, and that pairing
 // is the point. Reopening one restores the code and the whole exchange that
-// produced it, so the agent still knows what you asked for and why — without
+// produced it, so the agent still knows what you asked for and why, without
 // it, a reopened project is one where the agent has amnesia about everything
 // except the code, which is precisely the failure this is meant to fix.
 //
@@ -50,14 +50,14 @@ export interface AppProject {
    *  rather than replaying raw model output. */
   turns: ProjectTurn[];
   /** The build output, so reopening a project shows the app immediately.
-   *  Without it the preview is blank until you prompt again — and a Vite
+   *  Without it the preview is blank until you prompt again, and a Vite
    *  project cannot be previewed from source at all. */
   dist?: Record<string, string> | null;
   /** Where this app is published, so reopening it shows the live URL instead
    *  of making you publish again to find out. */
   liveUrl?: string | null;
-  /** Wallet that built this app. Recorded at creation — the builder is
-   *  wallet-gated, so there is always one — and never overwritten, so the
+  /** Wallet that built this app. Recorded at creation: the builder is
+   *  wallet-gated, so there is always one, and never overwritten, so the
    *  credit survives switching accounts in the same browser. */
   owner?: string | null;
   /** GitHub repository this app has been pushed to, if any. */
@@ -68,7 +68,7 @@ export interface AppProject {
 
 // Everything below is read back from localStorage, which is user-editable and
 // carries data written by older versions of this code. Parsing it as trusted
-// input meant a corrupt entry rendered straight into JSX — `t.changed.map(...)`
+// input meant a corrupt entry rendered straight into JSX: `t.changed.map(...)`
 // on a non-array throws and white-screens the route. Anything that does not
 // match is dropped rather than crashing the page.
 const turnSchema = z.object({
@@ -149,7 +149,7 @@ export function defaultName(existing: AppProject[]): string {
 }
 
 /** A project name from the first thing you asked for. "Build a tip jar with a
- *  QIE amount input" becomes "Tip jar with a QIE amount input" — far easier to
+ *  QIE amount input" becomes "Tip jar with a QIE amount input": far easier to
  *  find later than "Untitled app 3". */
 export function nameFromPrompt(prompt: string): string {
   const cleaned = prompt
@@ -208,8 +208,8 @@ function write(projects: AppProject[], activeId: string | null): boolean {
     attempt(projects);
     return true;
   } catch {
-    // Out of quota. Rather than silently dropping the write — which loses work
-    // with no signal at all — shed the oldest projects' build output (much the
+    // Out of quota. Rather than silently dropping the write, which loses work
+    // with no signal at all: shed the oldest projects' build output (much the
     // largest part of a project) and retry, then tell the caller if even that
     // was not enough.
     // Keep the newest project's preview and shed the rest. Mapped back into
@@ -220,7 +220,7 @@ function write(projects: AppProject[], activeId: string | null): boolean {
     try {
       attempt(trimmed);
       onWriteError?.(
-        "Storage was full — older previews were cleared to make room. They rebuild on the next prompt.",
+        "Storage was full: older previews were cleared to make room. They rebuild on the next prompt.",
       );
       return true;
     } catch {

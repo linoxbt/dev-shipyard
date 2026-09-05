@@ -117,13 +117,12 @@ export function AgentChat({ className }: { className?: string }) {
                     {t('"I need an NFT with a mint function. Deploy it to me as the owner."')}
                   </li>
                   <li>
-                    &quot;Here&apos;s my contract source — compile, fix any errors, and
-                    deploy.&quot;
+                    &quot;Here&apos;s my contract source: compile, fix any errors, and deploy.&quot;
                   </li>
                 </ul>
                 <p className="text-[10px]">
                   I generate the Solidity, compile it, auto-fix errors (up to 5 tries), then deploy
-                  with your wallet — without leaving this page.
+                  with your wallet, without leaving this page.
                 </p>
               </>
             ) : (
@@ -339,7 +338,7 @@ function DeployForm({
       <div className="flex items-center gap-2">
         <Rocket className="h-3.5 w-3.5 text-primary" />
         <span className="font-semibold text-foreground">
-          Deploy {item.artifactName} — set constructor arguments
+          Deploy {item.artifactName}: set constructor arguments
         </span>
       </div>
       <div className="mt-2 space-y-2">

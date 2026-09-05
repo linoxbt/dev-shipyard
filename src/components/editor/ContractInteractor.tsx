@@ -317,7 +317,7 @@ function WriteFunctionRow({
       const args = parseArgs(fn.inputs, values);
       const value = payable && ethValue ? parseEther(ethValue) : undefined;
 
-      // Pad the gas limit — some chains' eth_estimateGas lowballs
+      // Pad the gas limit: some chains' eth_estimateGas lowballs
       // storage-writing calls (documented for QIE in src/lib/contracts.ts).
       // Best-effort: an estimation failure here just falls back to letting
       // the wallet estimate, same as before this fix.

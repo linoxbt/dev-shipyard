@@ -31,7 +31,7 @@ export function LogoMark({ className }: { className?: string }) {
 }
 
 export function Logo({ compact = false }: { compact?: boolean }) {
-  // Clickable brand — navigates back to the landing page.
+  // Clickable brand: navigates back to the landing page.
   return (
     <Link to="/" className="flex items-center gap-2" aria-label="DevStation home">
       <LogoMark />

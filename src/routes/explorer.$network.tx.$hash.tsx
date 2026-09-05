@@ -96,7 +96,7 @@ function TxPage() {
           <Row label="Timestamp">
             {tx.timestamp
               ? `${timeAgo(tx.timestamp)}  (${new Date(tx.timestamp).toUTCString()})`
-              : "—"}
+              : "-"}
           </Row>
           {tx.method && (
             <Row label="Method">
@@ -117,7 +117,7 @@ function TxPage() {
                 <CopyBtn value={tx.from.hash} />
               </span>
             ) : (
-              "—"
+              "-"
             )}
           </Row>
           <Row label={tx.created_contract ? "Contract Created" : "To"}>
@@ -137,7 +137,7 @@ function TxPage() {
                 <CopyBtn value={tx.created_contract.hash} />
               </span>
             ) : (
-              "—"
+              "-"
             )}
           </Row>
           {transfers.length > 0 && (
@@ -180,7 +180,7 @@ function TxPage() {
               </span>
             </Row>
           )}
-          <Row label="Nonce">{tx.nonce ?? "—"}</Row>
+          <Row label="Nonce">{tx.nonce ?? "-"}</Row>
           <Row label="Decode / trace">
             <Link
               to="/routebook/$txHash"
@@ -258,8 +258,8 @@ function TokenTransferLine({ t }: { t: ExTokenTransfer }) {
       : "";
   return (
     <span className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
-      From {t.from ? <AddrLink hash={t.from.hash} name={t.from.name} /> : "—"} to{" "}
-      {t.to ? <AddrLink hash={t.to.hash} name={t.to.name} /> : "—"} for{" "}
+      From {t.from ? <AddrLink hash={t.from.hash} name={t.from.name} /> : "-"} to{" "}
+      {t.to ? <AddrLink hash={t.to.hash} name={t.to.name} /> : "-"} for{" "}
       <span className="text-foreground">
         {amt} {sym}
       </span>

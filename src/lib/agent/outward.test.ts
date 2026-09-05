@@ -5,7 +5,7 @@ import { actionFingerprint, type ProtectedAction } from "./authorization";
 
 // The tools that reach outside DevStation. The agent never performs one and
 // never holds a credential for one: it proposes, a person approves, and their
-// own session carries it out. These pin the three properties that makes safe —
+// own session carries it out. These pin the three properties that makes safe -
 // that it always asks, that an approval covers exactly one target, and that the
 // agent cannot be handed the job of doing it.
 
@@ -175,7 +175,7 @@ describe("the registry as a whole", () => {
       // Either it is recognised safe, or it is recognised as needing a person.
       // What must never happen is a tool whose operation the policy engine has
       // never heard of, which it reports as needing approval with a generic
-      // reason — correct, but a sign the tool was added and not classified.
+      // reason: correct, but a sign the tool was added and not classified.
       if (verdict.decision === "confirm") {
         expect(verdict.why).not.toContain("not a recognised safe operation");
       }

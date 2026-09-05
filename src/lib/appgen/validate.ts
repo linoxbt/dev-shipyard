@@ -5,7 +5,7 @@
 //
 // For the no-build target this is the closest honest equivalent to "run the
 // tests": the app runs straight in the browser, so there is no bundler to
-// catch anything, and these three failures all end as a silent white frame —
+// catch anything, and these three failures all end as a silent white frame -
 // the module never evaluates, nothing mounts, and "it's blank" is the only
 // available bug report:
 //
@@ -16,7 +16,7 @@
 // For a real Vite project every one of those is wrong. There is no import map;
 // bare imports are the normal way to use a dependency; JSX compiles. Applying
 // the no-build rules there rejects perfectly good apps and sends the model
-// rewriting working code to satisfy a rule that does not apply — which is
+// rewriting working code to satisfy a rule that does not apply, which is
 // exactly what happened the first time an app was generated with a runner
 // attached. So the Vite path checks only what a bundler cannot tell you
 // earlier, and leaves the rest to install, lint, build and test, which say it
@@ -34,7 +34,7 @@ export interface ValidationIssue {
 const BARE_IMPORT = /(?:^|\n)\s*import\s[^;]*?from\s*["']([^"'./][^"']*)["']/g;
 const SIDE_EFFECT_IMPORT = /(?:^|\n)\s*import\s*["']([^"']+)["']/g;
 const RELATIVE_IMPORT = /from\s*["'](\.\/[^"']+)["']/g;
-/** Also matches "../", which only the Vite layout can produce — its source
+/** Also matches "../", which only the Vite layout can produce: its source
  *  sits in src/, so a module can legitimately reach above itself. */
 const RELATIVE_IMPORT_ANY = /from\s*["'](\.\.?\/[^"']+)["']/g;
 
@@ -56,7 +56,7 @@ function syntaxError(source: string): string | null {
   try {
     // Function() parses without executing. Module syntax is not valid inside a
     // function body, so strip the statements that only appear at module scope
-    // before checking — we are looking for JSX and broken expressions, which
+    // before checking: we are looking for JSX and broken expressions, which
     // is what models actually get wrong here.
     const stripped = source
       .replace(/^\s*import\s[^;]*;?\s*$/gm, "")
@@ -90,7 +90,7 @@ export function validateApp(
   const issues: ValidationIssue[] = [];
 
   // Nothing to validate. An empty workspace is an app that has not been built
-  // yet, not a broken one — and after a purely conversational turn, reporting
+  // yet, not a broken one, and after a purely conversational turn, reporting
   // "There is no index.html." offered a fix for something nobody had asked to
   // exist.
   if (Object.keys(files).length === 0) return issues;
@@ -159,7 +159,7 @@ export function validateApp(
         message:
           `Invalid JavaScript: ${syntax}` +
           (/[<>]/.test(source) && /return\s*\(?\s*</.test(source)
-            ? " — this looks like JSX, which cannot run without a build step. Use htm tagged templates."
+            ? ": this looks like JSX, which cannot run without a build step. Use htm tagged templates."
             : ""),
         fatal: true,
       });

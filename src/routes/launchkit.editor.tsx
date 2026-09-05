@@ -54,7 +54,7 @@ import type { TerminalLine } from "@/components/shared/TerminalOutput";
 
 export const Route = createFileRoute("/launchkit/editor")({
   validateSearch: z.object({ template: z.string().optional() }),
-  head: () => ({ meta: [{ title: "Contract Editor — DevStation" }] }),
+  head: () => ({ meta: [{ title: "Contract Editor: DevStation" }] }),
   component: EditorRoute,
 });
 
@@ -162,23 +162,23 @@ function EditorPage() {
         } else {
           const count = Object.keys(result.contracts).length;
           logT({
-            text: `[${ts}] [Compiler] ✓ Compiled successfully — ${count} contract${count !== 1 ? "s" : ""} (${result.timeMs}ms)`,
+            text: `[${ts}] [Compiler] ✓ Compiled successfully: ${count} contract${count !== 1 ? "s" : ""} (${result.timeMs}ms)`,
             status: "success",
           });
           for (const w of result.warnings) {
             logT({ text: `[${ts}] [Warning] ${w.formattedMessage}`, status: "warning" });
           }
 
-          // ── Static analysis (Inspector) — runs after a successful compile ──
+          // ── Static analysis (Inspector): runs after a successful compile ──
           const found = runStaticAnalysis(src, ws.activePath);
           setFindings(found);
           logT({
-            text: `[${ts}] [Inspector] Running static analysis — ${STATIC_ANALYSIS_CHECK_COUNT} checks...`,
+            text: `[${ts}] [Inspector] Running static analysis: ${STATIC_ANALYSIS_CHECK_COUNT} checks...`,
             status: "pending",
           });
           if (found.length === 0) {
             logT({
-              text: `[${ts}] [Inspector] ✓ Static analysis complete — ${STATIC_ANALYSIS_CHECK_COUNT} checks passed`,
+              text: `[${ts}] [Inspector] ✓ Static analysis complete: ${STATIC_ANALYSIS_CHECK_COUNT} checks passed`,
               status: "success",
             });
           } else {
@@ -263,8 +263,8 @@ function EditorPage() {
   const clearTerminal = () => setLines([]);
 
   // A small interactive command set for the terminal (Remix-like). It drives the
-  // same actions as the toolbar — compile, change solc version, inspect the
-  // workspace — without leaving the keyboard. Deploys still go through the Deploy
+  // same actions as the toolbar: compile, change solc version, inspect the
+  // workspace, without leaving the keyboard. Deploys still go through the Deploy
   // panel (they need wallet signing + constructor args).
   const runTerminalCommand = useCallback(
     (raw: string) => {
@@ -310,7 +310,7 @@ function EditorPage() {
           break;
         case "ls":
         case "files": {
-          // Every file, not just Solidity — the workspace also holds
+          // Every file, not just Solidity: the workspace also holds
           // generated app files.
           const paths = Object.keys(ws.files).sort();
           if (paths.length === 0) print("(no files)");
@@ -500,7 +500,7 @@ function EditorPage() {
           <Rocket className="h-3 w-3" /> Compile & Deploy
         </button>
 
-        {/* AI error actions — appear when the active compile failed */}
+        {/* AI error actions: appear when the active compile failed */}
         {hasErrors && (
           <>
             <button
@@ -652,7 +652,7 @@ function EditorPage() {
                   </div>
                 }
               >
-                {/* Every file is editable, not just Solidity — the workspace
+                {/* Every file is editable, not just Solidity: the workspace
                     also holds generated app files (html/js/css). The editor
                     picks its language from the extension; only compilation is
                     still Solidity-only. */}
@@ -763,7 +763,7 @@ function EditorPage() {
         />
       )}
 
-      {/* Safe-apply confirm — replacing a non-empty file from the AI panel */}
+      {/* Safe-apply confirm: replacing a non-empty file from the AI panel */}
       {pendingApply !== null && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -780,7 +780,7 @@ function EditorPage() {
               </span>
             </div>
             <div className="px-4 py-2 font-mono text-[11px] text-meta">
-              Overwrites the whole file —{" "}
+              Overwrites the whole file -{" "}
               <span className="text-success">+{applyDiffStats.added}</span>{" "}
               <span className="text-danger">−{applyDiffStats.removed}</span> lines. Recoverable only
               via editor undo.
@@ -958,7 +958,7 @@ function FileTree({
   const isRoot = isDir && node.path === "";
   const pad = { paddingLeft: depth * 12 + 4 };
 
-  // The root is a transparent container — render only its children.
+  // The root is a transparent container: render only its children.
   if (isRoot) {
     return (
       <div>

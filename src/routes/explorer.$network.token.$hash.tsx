@@ -34,7 +34,7 @@ function TokenPage() {
     transfers_count?: string;
   }>(`/tokens/${hash}/counters`);
   // DevStation's own project name for this contract (from the deploy
-  // wizard), when it differs from the token's own on-chain name() — e.g. a
+  // wizard), when it differs from the token's own on-chain name(): e.g. a
   // project called "Q1 Airdrop" whose ERC-20 name() is "AirdropToken".
   const projectLabel = useLabelName(hash);
 
@@ -58,8 +58,8 @@ function TokenPage() {
           {token.name ?? "Token"}{" "}
           {token.symbol && <span className="text-meta">({token.symbol})</span>}
         </h1>
-        {/* This is the technical detail view, so it carries BOTH names —
-            "QIE-20 (ERC-20)" — keeping the real standard one glance away. */}
+        {/* This is the technical detail view, so it carries BOTH names -
+            "QIE-20 (ERC-20)": keeping the real standard one glance away. */}
         <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-meta">
           {tokenStandardWithTechnical(token.type ?? "", chainId)}
         </span>
@@ -74,12 +74,12 @@ function TokenPage() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Total Supply"
-          value={token.total_supply ? withCommas(formatUnits(token.total_supply, dec, 4)) : "—"}
+          value={token.total_supply ? withCommas(formatUnits(token.total_supply, dec, 4)) : "-"}
           sub={token.symbol ?? undefined}
         />
-        <StatCard label="Holders" value={counters?.token_holders_count ?? token.holders ?? "—"} />
-        <StatCard label="Transfers" value={counters?.transfers_count ?? "—"} />
-        <StatCard label="Decimals" value={token.decimals ?? "—"} />
+        <StatCard label="Holders" value={counters?.token_holders_count ?? token.holders ?? "-"} />
+        <StatCard label="Transfers" value={counters?.transfers_count ?? "-"} />
+        <StatCard label="Decimals" value={token.decimals ?? "-"} />
       </div>
 
       <Tabs
@@ -141,14 +141,14 @@ function TokenTransfers({
                   <TxLink hash={t.transaction_hash} />
                 </Td>
                 <Td className="whitespace-nowrap text-muted-foreground">{timeAgo(t.timestamp)}</Td>
-                <Td>{t.from ? <AddrLink hash={t.from.hash} name={t.from.name} /> : "—"}</Td>
-                <Td>{t.to ? <AddrLink hash={t.to.hash} name={t.to.name} /> : "—"}</Td>
+                <Td>{t.from ? <AddrLink hash={t.from.hash} name={t.from.name} /> : "-"}</Td>
+                <Td>{t.to ? <AddrLink hash={t.to.hash} name={t.to.name} /> : "-"}</Td>
                 <Td className="text-right text-foreground">
                   {t.total?.value
                     ? formatUnits(t.total.value, dec, 6)
                     : t.total?.token_id
                       ? `#${t.total.token_id}`
-                      : "—"}{" "}
+                      : "-"}{" "}
                   {symbol}
                 </Td>
               </tr>
@@ -210,7 +210,7 @@ function TokenHolders({
                     {h.token_id ? `#${h.token_id}` : formatUnits(h.value, dec, 6)} {symbol}
                   </Td>
                   <Td className="text-right text-muted-foreground">
-                    {pct > 0 ? `${pct.toFixed(2)}%` : "—"}
+                    {pct > 0 ? `${pct.toFixed(2)}%` : "-"}
                   </Td>
                 </tr>
               );

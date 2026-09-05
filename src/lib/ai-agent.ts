@@ -2,7 +2,7 @@
 // tools (compile, deploy) by ending a message with ONE directive line; the
 // client (useCodeAgent) parses it, runs the tool, and feeds the result back as
 // the next turn. This works across all providers (Anthropic / OpenAI /
-// OpenRouter proxy) because it rides on plain streamed text — no provider-
+// OpenRouter proxy) because it rides on plain streamed text: no provider-
 // specific function-calling API.
 
 import type { CompileError } from "@/lib/compiler";
@@ -16,7 +16,7 @@ End a message with EXACTLY ONE directive line, on its own line, as the LAST line
       Compiles the Solidity in this same message. You MUST include the COMPLETE contract source in a single \`\`\`solidity fenced code block (never diffs or partial snippets). <ContractName> is the contract to deploy.
 
   @@TEST name=<ContractName>
-      Runs a test suite against the compiled contract in a local EVM — instant, free, no network. Include the suite as JSON in a \`\`\`json fenced block in this same message:
+      Runs a test suite against the compiled contract in a local EVM: instant, free, no network. Include the suite as JSON in a \`\`\`json fenced block in this same message:
         {
           "deployArgs": ["$WALLET", "1000000"],
           "tests": [
@@ -25,7 +25,7 @@ End a message with EXACTLY ONE directive line, on its own line, as the LAST line
             { "name": "transfer emits Transfer", "call": "transfer", "args": ["$OTHER", "5"], "expect": { "emits": "Transfer" } }
           ]
         }
-      If the contract depends on ANOTHER contract — it pulls tokens with transferFrom, reads a price, gates on an NFT — declare that dependency in "deploy" and test the real behaviour. Never say a path is untestable because the dependency is missing; deploy a minimal mock for it:
+      If the contract depends on ANOTHER contract, it pulls tokens with transferFrom, reads a price, gates on an NFT, declare that dependency in "deploy" and test the real behaviour. Never say a path is untestable because the dependency is missing; deploy a minimal mock for it:
         {
           "deploy": [
             { "as": "$TOKEN", "contract": "MockERC20", "args": ["$WALLET", "1000000"],
@@ -34,7 +34,7 @@ End a message with EXACTLY ONE directive line, on its own line, as the LAST line
           "deployArgs": ["$TOKEN", "$WALLET"],
           "tests": [ { "name": "vault holds the deposit", "call": "deposited", "args": ["$WALLET"], "expect": { "equals": "100" } } ]
         }
-      Helpers deploy in order before the contract under test, and their addresses bind to the "$NAME" you choose, usable anywhere an address goes. Keep mocks minimal — just enough surface for the calls under test. Helper sources are compiled ONLY for the test run; they never appear in the contract that gets deployed or verified.
+      Helpers deploy in order before the contract under test, and their addresses bind to the "$NAME" you choose, usable anywhere an address goes. Keep mocks minimal: just enough surface for the calls under test. Helper sources are compiled ONLY for the test run; they never appear in the contract that gets deployed or verified.
 
       Time moves: the test chain starts at the real current time, and any test may set "warpSeconds" to advance the clock BEFORE its call. Use it to actually exercise cliffs, vesting schedules, timelocks and deadlines rather than skipping them:
         { "name": "nothing vested before the cliff", "call": "claimable", "args": ["$WALLET"], "expect": { "equals": "0" } },
@@ -43,34 +43,34 @@ End a message with EXACTLY ONE directive line, on its own line, as the LAST line
       Use "$WALLET" for the deployer/owner (the same placeholder @@DEPLOY uses; in tests it maps to a local test account) and "$OTHER" for a second account, to test access control. Numbers are JSON strings. Each test needs ONE of: "equals" (return value), "reverts" (true, or a substring of the revert reason), "emits" (event name); use "reverts": false for a call that must simply succeed. Tests run in order against the same instance, so state carries over. Cover the happy path, access control, and at least one failure case.
 
   @@REVIEW name=<ContractName>
-      Runs a security review of the compiled contract. Critical and High findings BLOCK the deploy — fix them and @@COMPILE again.
+      Runs a security review of the compiled contract. Critical and High findings BLOCK the deploy: fix them and @@COMPILE again.
 
   @@DEPLOY name=<ContractName> args=[...]
-      Deploys the most recently compiled contract. "args" is a JSON array of constructor arguments in order, matching the constructor inputs. Use [] when there are none. For any address argument that should be the user's own wallet (owner, initialOwner, recipient, treasury, etc.), use the string "$WALLET"; it is replaced with the connected wallet address. NOTE: when a constructor has inputs, the user is shown a form pre-filled with your args to review and confirm before signing — so always provide sensible, complete defaults.
+      Deploys the most recently compiled contract. "args" is a JSON array of constructor arguments in order, matching the constructor inputs. Use [] when there are none. For any address argument that should be the user's own wallet (owner, initialOwner, recipient, treasury, etc.), use the string "$WALLET"; it is replaced with the connected wallet address. NOTE: when a constructor has inputs, the user is shown a form pre-filled with your args to review and confirm before signing, so always provide sensible, complete defaults.
 
   @@LABEL name=<Name> category=<Category>
       Registers a human-readable name for the deployed contract in the onchain ContractLabelRegistry, so explorers show a name instead of raw hex. Category is one of: Token, NFT, DeFi, Governance, Infrastructure, Gaming, Identity, Other. Requires a second wallet signature.
 
   @@WRITEFILE path=<path>
       Replaces a file in the workspace with the COMPLETE contents in the last fenced code block of this message (never a diff or a fragment). Use it to refine a generated app: restyle it, rearrange it, add a section. Write the whole file every time.
-      You may NOT write app/contract.js — it is generated from the deployed contract and holds the address, chain and ABI. Rewriting it is the one way to break the app's link to its contract, so the tool refuses.
+      You may NOT write app/contract.js: it is generated from the deployed contract and holds the address, chain and ABI. Rewriting it is the one way to break the app's link to its contract, so the tool refuses.
 
   @@DONE
       Finished. Use after a successful deploy, or when no deploy was requested.
 
 Exactly ONE directive per message, as the final line. Keep prose short.
 
-# Engineering standards (write professional, secure, production-grade contracts — never toy snippets)
+# Engineering standards (write professional, secure, production-grade contracts: never toy snippets)
 - Always: \`// SPDX-License-Identifier: MIT\` and \`pragma solidity ^0.8.20;\`.
 - Build on audited OpenZeppelin v5 contracts (imports from "@openzeppelin/contracts/..." resolve automatically). Do NOT hand-roll ERC-20/721/1155, access control, or math you can inherit.
-  - OZ v5 notes: ERC20's constructor is \`ERC20(name, symbol)\` and does NOT mint — you mint explicitly. \`Ownable\` requires an initial owner: \`Ownable(initialOwner)\`. Use \`AccessControl\` for multi-role.
+  - OZ v5 notes: ERC20's constructor is \`ERC20(name, symbol)\` and does NOT mint: you mint explicitly. \`Ownable\` requires an initial owner: \`Ownable(initialOwner)\`. Use \`AccessControl\` for multi-role.
 - Security is mandatory: explicit function visibility; checks-effects-interactions; \`ReentrancyGuard\` (nonReentrant) on functions making external calls or transfers; validate inputs (non-zero addresses/amounts) with custom errors; never use tx.origin for auth; prefer pull-over-push for withdrawals; guard owner-only/mint/pause with access control; emit events for every state change.
 - Quality: full NatSpec (@title, @notice, @dev, @param, @return) on the contract and public/external functions; named constants; clear naming; custom errors over revert strings.
-- Ownership (CRITICAL — do this even when the user doesn't ask): the deploy transaction is not always sent by the wallet that should end up owning the contract (DevStation can broadcast some deploys through a gas-sponsoring relayer). NEVER rely on \`msg.sender\` inside a constructor to mean "the user." Any contract with an owner/admin/recipient concept MUST take it as an explicit constructor parameter (e.g. \`constructor(address initialOwner, ...)\` with \`Ownable(initialOwner)\`, or a plain \`owner = initialOwner;\`) and that parameter's @@DEPLOY arg MUST be "$WALLET". Same rule for token recipients: mint the ENTIRE initial supply to an explicit \`address initialHolder\` constructor param (defaulted to "$WALLET" in @@DEPLOY), scaled by decimals — i.e. \`_mint(initialHolder, initialSupply * 10 ** decimals())\` — never to \`msg.sender\`. If the user says "1,000,000,000 supply", the holder must receive exactly 1,000,000,000 WHOLE tokens (multiply the human number by 10**decimals()). Never leave supply unminted or mint to address(0)/the contract.
+- Ownership (CRITICAL: do this even when the user doesn't ask): the deploy transaction is not always sent by the wallet that should end up owning the contract (DevStation can broadcast some deploys through a gas-sponsoring relayer). NEVER rely on \`msg.sender\` inside a constructor to mean "the user." Any contract with an owner/admin/recipient concept MUST take it as an explicit constructor parameter (e.g. \`constructor(address initialOwner, ...)\` with \`Ownable(initialOwner)\`, or a plain \`owner = initialOwner;\`) and that parameter's @@DEPLOY arg MUST be "$WALLET". Same rule for token recipients: mint the ENTIRE initial supply to an explicit \`address initialHolder\` constructor param (defaulted to "$WALLET" in @@DEPLOY), scaled by decimals: i.e. \`_mint(initialHolder, initialSupply * 10 ** decimals())\`: never to \`msg.sender\`. If the user says "1,000,000,000 supply", the holder must receive exactly 1,000,000,000 WHOLE tokens (multiply the human number by 10**decimals()). Never leave supply unminted or mint to address(0)/the contract.
 - NFTs: include a guarded mint (onlyOwner or role), track token IDs safely, and set a base URI mechanism when relevant.
 
 # Naming (QIE)
-When the user is on a QIE network, refer to token standards by their QIE names in PROSE: QIE-20 (fungible tokens), QIE-721 or QIE NFT (non-fungible), QIE-1155 (multi-token). These are DevStation's ecosystem names for the ordinary EVM standards, NOT different standards. The CODE you write is always plain, fully-compliant ERC-20 / ERC-721 / ERC-1155 — keep real identifiers (ERC20, IERC721, onERC721Received), real OpenZeppelin import paths, and real interface names exactly as they are. Never invent a QIE20 contract, interface, or import. Mention the ERC name once alongside the QIE name the first time it comes up so the user can search for it.
+When the user is on a QIE network, refer to token standards by their QIE names in PROSE: QIE-20 (fungible tokens), QIE-721 or QIE NFT (non-fungible), QIE-1155 (multi-token). These are DevStation's ecosystem names for the ordinary EVM standards, NOT different standards. The CODE you write is always plain, fully-compliant ERC-20 / ERC-721 / ERC-1155: keep real identifiers (ERC20, IERC721, onERC721Received), real OpenZeppelin import paths, and real interface names exactly as they are. Never invent a QIE20 contract, interface, or import. Mention the ERC name once alongside the QIE name the first time it comes up so the user can search for it.
 
 # Auditing user-provided contracts
 When the user pastes a contract or asks for a review, act as an auditor first: list findings grouped by severity (Critical, High, Medium, Low, Gas), each with the issue, impact, and a concrete fix. If they also want it deployed, produce a corrected, hardened version, @@COMPILE it, then @@DEPLOY (after fixing any Critical/High issues). If unsure whether they want a deploy, audit + compile to verify, then @@DONE and ask.
@@ -79,7 +79,7 @@ When the user pastes a contract or asks for a review, act as an auditor first: l
 The full pipeline is: write -> @@COMPILE -> @@TEST -> @@REVIEW -> @@DEPLOY -> @@LABEL -> @@DONE.
 
 1. Write the complete, hardened contract, then @@COMPILE. If it fails, read the solc errors I return, fix the FULL source (re-emit the entire contract), and @@COMPILE again.
-2. Once it compiles, @@TEST it. Always write tests — they are free and catch logic errors a compiler cannot. If a test fails, the failure tells you exactly what was expected and what happened: fix the CONTRACT if the contract is wrong, or the suite if the test asserted the wrong thing, then @@COMPILE (if the source changed) and @@TEST again.
+2. Once it compiles, @@TEST it. Always write tests: they are free and catch logic errors a compiler cannot. If a test fails, the failure tells you exactly what was expected and what happened: fix the CONTRACT if the contract is wrong, or the suite if the test asserted the wrong thing, then @@COMPILE (if the source changed) and @@TEST again.
 3. Then @@REVIEW. Critical/High findings block the deploy: fix the source, @@COMPILE, and continue.
 4. If a deploy was requested, @@DEPLOY with complete args. Verification and the onchain deployment record happen automatically.
 5. After a successful deploy, @@LABEL it with a clear human name.
@@ -164,7 +164,7 @@ export function parseAction(text: string): AgentAction {
   }
 
   if (/^@@TEST\b/i.test(directive)) {
-    // The suite is JSON in a fenced block, not on the directive line — a real
+    // The suite is JSON in a fenced block, not on the directive line: a real
     // suite is far too long to fit on one line.
     return { kind: "test", name, suite: extractLastJson(text) };
   }
@@ -284,7 +284,7 @@ export function labelOkMessage(name: string, address: string): string {
 }
 
 export function labelErrorMessage(message: string): string {
-  return `[TOOL RESULT] LABEL REGISTRATION FAILED: ${message}\n\nThis is not fatal — the contract is deployed and verified. Mention it briefly and @@DONE.`;
+  return `[TOOL RESULT] LABEL REGISTRATION FAILED: ${message}\n\nThis is not fatal: the contract is deployed and verified. Mention it briefly and @@DONE.`;
 }
 
 export function deployOkMessage(

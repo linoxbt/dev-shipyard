@@ -22,7 +22,7 @@ export function usePublishApp() {
   const publish = useCallback(
     async (project: AppProject): Promise<PublishResult> => {
       if (!wallet) {
-        const message = "Connect a wallet — publishing is rate limited per wallet.";
+        const message = "Connect a wallet: publishing is rate limited per wallet.";
         toast.error(message);
         return { ok: false, message };
       }

@@ -14,20 +14,20 @@ const DEMOS = [
     icon: Coins,
     title: "ERC-20 transfer",
     blurb:
-      "A token transfer — decoded transfer(to, amount) call plus 1,000 DMO1 moving in Token Movements.",
+      "A token transfer: decoded transfer(to, amount) call plus 1,000 DMO1 moving in Token Movements.",
   },
   {
     hash: "0x9ad9367de62261ec16c3b80fb4d61308b18c6da0a56ce5433bfaf04706e7ccf9",
     icon: FileCode2,
     title: "ProjectRegistry.recordDeployment(…)",
-    blurb: "A registry write — named contract, decoded method, and every argument typed out.",
+    blurb: "A registry write: named contract, decoded method, and every argument typed out.",
   },
 ];
 
 export const Route = createFileRoute("/routebook/")({
   head: () => ({
     meta: [
-      { title: "Routebook — DevStation" },
+      { title: "Routebook: DevStation" },
       {
         name: "description",
         content: "Turn any transaction hash into a human-readable execution map.",
@@ -53,7 +53,7 @@ function RoutebookHome() {
 
   // Opens a demo tx WITHOUT touching the user's selected network. The
   // inspector's loader already searches every supported chain for the hash, so
-  // forcing a chain switch here was both unnecessary and wrong — it silently
+  // forcing a chain switch here was both unnecessary and wrong: it silently
   // moved someone off the network they had chosen.
   const openDemo = (h: string) => {
     navigate({ to: "/routebook/$txHash", params: { txHash: h } });
@@ -63,7 +63,7 @@ function RoutebookHome() {
     <div>
       <PageHeader
         breadcrumb={["DevStation", "Routebook"]}
-        title="Routebook — Transaction Inspector"
+        title="Routebook: Transaction Inspector"
         subtitle="Turn any transaction into a readable execution map."
       />
       <div className="p-6">
@@ -114,7 +114,7 @@ function RoutebookHome() {
             )}
           </div>
 
-          {/* Try a demo — two real mainnet txs that decode into a named route */}
+          {/* Try a demo: two real mainnet txs that decode into a named route */}
           <div className="mt-6">
             <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-meta">
               Try a demo transaction
@@ -143,7 +143,7 @@ function RoutebookHome() {
           <div className="mt-6 rounded border border-border bg-surface p-6 text-center font-mono text-xs text-meta">
             <div className="mb-2 text-2xl">{"{ }"}</div>
             Paste any supported-chain transaction hash above to decode its execution route, token
-            movements, and approvals — live from the chain.
+            movements, and approvals: live from the chain.
           </div>
         </div>
       </div>

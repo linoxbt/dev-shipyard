@@ -1,9 +1,9 @@
 // Per-chain logos for the explorer header (and anywhere a chain mark is shown).
 //
-// Keyed by the chain family's *label* — the same string the explorer header
+// Keyed by the chain family's *label*: the same string the explorer header
 // already renders (e.g. "QIE", "BOT Chain").
 // Assets live in public/chains/*.svg; drop official brand files there to
-// upgrade the look — the mapping and fallback stay the same. Any chain without
+// upgrade the look: the mapping and fallback stay the same. Any chain without
 // a mapped asset (or whose image fails to load) renders a colored monogram
 // badge, so the header always shows *something* before the chain name.
 

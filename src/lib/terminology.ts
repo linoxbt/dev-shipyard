@@ -1,7 +1,7 @@
 // QIE-native terminology.
 //
 // QIE is EVM-equivalent, so under the hood everything here is plain ERC-20 /
-// ERC-721 / ERC-1155 — and it MUST stay that way in the code we generate, the
+// ERC-721 / ERC-1155, and it MUST stay that way in the code we generate, the
 // ABIs we parse and the sources we verify. What changes is only what a
 // developer READS while a QIE chain is selected: "QIE-20 Token" rather than
 // "ERC-20 Token", so the product reinforces the ecosystem it belongs to.
@@ -10,7 +10,7 @@
 // QIE does NOT publish a QIE-20 / QIE-721 standard. Its own docs say
 // ERC-20/721/1155 and its explorer labels tokens that way. This naming is
 // DevStation's, which is exactly why `technicalStandard()` exists and why
-// every details panel shows the real ERC name alongside — a developer must
+// every details panel shows the real ERC name alongside: a developer must
 // always be one glance away from a term they can search real documentation
 // for. Never present QIE-20 as a distinct on-chain standard.
 //
@@ -49,7 +49,7 @@ export function tokenStandard(standard: string, chainId: number): string {
 }
 
 /**
- * The real EVM standard, always — for technical details panels, tooltips,
+ * The real EVM standard, always, for technical details panels, tooltips,
  * generated NatSpec and docs links. Normalises "ERC20" to "ERC-20" so the
  * spelling is consistent wherever it is shown next to a QIE-native name.
  */
@@ -90,8 +90,8 @@ const PROSE_REPLACEMENTS: Record<string, string> = {
  *
  * Source copy is always stored in NEUTRAL form ("a standard ERC-20 token"),
  * which is what actually renders off QIE. On a QIE chain this swaps in the
- * QIE-native names. Storing the neutral form and substituting — rather than
- * hardcoding "QIE-20" into the data — is what keeps BOT Chain correct; a
+ * QIE-native names. Storing the neutral form and substituting: rather than
+ * hardcoding "QIE-20" into the data: is what keeps BOT Chain correct; a
  * static QIE string would leak onto every chain.
  */
 export function applyTerminology(text: string, chainId: number): string {
@@ -120,7 +120,7 @@ export function gasNoun(chainId: number, nativeTokenSymbol: string): string {
 /**
  * Convenience hook for components rendering on the *selected* network.
  * Components driven by a route param (the explorer) must call the plain
- * functions with `chainIdForSlug(...)` instead — the selected chain and the
+ * functions with `chainIdForSlug(...)` instead: the selected chain and the
  * chain being browsed are not always the same.
  */
 export function useTerminology() {

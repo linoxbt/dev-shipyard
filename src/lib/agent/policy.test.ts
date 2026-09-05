@@ -48,7 +48,7 @@ describe("consequential actions ask, and say why", () => {
       expect(v.decision).toBe("confirm");
       if (v.decision !== "confirm") continue;
       expect(v.riskLevel).toBe(risk as never);
-      // "Are you sure?" is not enough — the reason must be concrete.
+      // "Are you sure?" is not enough: the reason must be concrete.
       expect(v.why.length).toBeGreaterThan(30);
     }
   });

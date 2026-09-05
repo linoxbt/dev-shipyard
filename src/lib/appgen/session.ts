@@ -2,7 +2,7 @@
 //
 // A build is a conversation, not a one-shot: you describe an app, look at it,
 // and say what is wrong. So the model keeps the full history, and each turn is
-// given the things it cannot see for itself — which files currently exist,
+// given the things it cannot see for itself, which files currently exist,
 // what the validator found, and any error the running preview reported.
 //
 // That last part is the difference between "the preview is blank" and a fix:
@@ -63,7 +63,7 @@ export interface BuildOutcome {
   phases: BuildPhaseResult[];
   /** The built site, when the build succeeded. */
   dist: Record<string, string> | null;
-  /** Set when the build could not be attempted — no runner configured, rate
+  /** Set when the build could not be attempted: no runner configured, rate
    *  limited, unreachable. Not a failure of the app, so it is reported to the
    *  user rather than fed back to the model as something to fix. */
   unavailable?: string;
@@ -137,10 +137,10 @@ export interface TurnInput {
   /** "review" reads the app over and reports findings without touching it.
    *  Nothing is written, nothing is built, and no repair rounds run. */
   /** Force a mode. Left unset, the turn decides for itself from the message and
-   *  the conversation — a greeting must never reach the build pipeline. */
+   *  the conversation: a greeting must never reach the build pipeline. */
   mode?: TurnMode;
   /** Consulted before the turn does anything with an effect: every file it
-   *  wants to write, and the build itself. A refusal does not throw — the
+   *  wants to write, and the build itself. A refusal does not throw: the
    *  reason is fed back to the model as feedback, so a blocked call becomes a
    *  repair round rather than a dead turn.
    *
@@ -150,7 +150,7 @@ export interface TurnInput {
   gate?: (call: GateCall) => Promise<GateDecision> | GateDecision;
   /** Runs the project's real toolchain. Absent when no build runner is
    *  configured, in which case static validation is the only feedback there
-   *  is — which is exactly how this worked before, and still works. */
+   *  is, which is exactly how this worked before, and still works. */
   runBuild?: (files: Record<string, string>) => Promise<BuildOutcome>;
   /** How to reach the model. Injected for the same reason runBuild is: the
    *  identical turn logic has to run in two places. In the browser it posts to
@@ -172,7 +172,7 @@ export interface TurnResult {
    *  updated" and "3 files deleted" are not the same sentence. */
   removed: string[];
   /** Outward actions the user approved and that their OWN session must carry
-   *  out — pushing to GitHub, publishing a site. The agent never holds the
+   *  out: pushing to GitHub, publishing a site. The agent never holds the
    *  credential for these, so approval hands the action over rather than
    *  unlocking it here. */
   handoffs: Array<{ name: string; args: Record<string, unknown> }>;
@@ -205,7 +205,7 @@ function clip(content: string): string {
  *  knowledge of the code was whatever it had written earlier in the
  *  conversation, so on a follow-up it reconstructed whole files from memory
  *  rather than editing what was there. That looks like the agent throwing away
- *  your app and starting again, because that is exactly what it was doing —
+ *  your app and starting again, because that is exactly what it was doing -
  *  and it got worse the longer the conversation ran, as its recollection drifted
  *  further from the files on disk.
  *
@@ -235,12 +235,12 @@ export function stateBriefing(
       }
       budget -= body.length;
       const generated = /(^|\/)contract\.js$/.test(name)
-        ? " [GENERATED — read it, never output it]"
+        ? " [GENERATED: read it, never output it]"
         : "";
       blocks.push(`--- ${name}${generated} ---\n${body}`);
     }
     parts.push(
-      "The app as it stands right now. This is the real code — edit THESE files,\n" +
+      "The app as it stands right now. This is the real code: edit THESE files,\n" +
         "do not rewrite them from memory and do not start over:\n\n" +
         blocks.join("\n\n"),
     );
@@ -255,7 +255,7 @@ export function stateBriefing(
         (e) => `  - [${e.kind}] ${e.message}${e.source ? ` (${e.source}:${e.line ?? "?"})` : ""}`,
       );
     parts.push(
-      `The running preview reported these errors — this is why it looks blank or broken:\n${lines.join("\n")}`,
+      `The running preview reported these errors: this is why it looks blank or broken:\n${lines.join("\n")}`,
     );
   }
   return parts.join("\n\n");
@@ -265,7 +265,7 @@ export function stateBriefing(
  *
  *  Two reasons, and they compound. The current files are sent fresh every turn
  *  by stateBriefing, so old code in the transcript is at best duplication and
- *  at worst a contradiction — a model that sees three versions of app.js has to
+ *  at worst a contradiction: a model that sees three versions of app.js has to
  *  guess which is live, and it guesses wrong. And an app's worth of code
  *  repeated over ten turns crowds out the thing that actually matters: what you
  *  asked for, and why.
@@ -319,7 +319,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   };
 
   // Decide what this message actually is before doing anything. Skipped only
-  // when the caller has already decided — the Review button, for instance.
+  // when the caller has already decided: the Review button, for instance.
   let mode: TurnMode = input.mode ?? "build";
   if (!input.mode) {
     const intent = await classifyIntent({
@@ -332,7 +332,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     mode = intent.mode;
 
     // A conversation ends here. No files are written, no build runs, and no
-    // build-shaped status is ever shown — which is the entire point.
+    // build-shaped status is ever shown, which is the entire point.
     if (mode === "converse" && intent.reply) {
       report(
         intent.needsClarification ? "asking_clarification" : "conversational",
@@ -381,7 +381,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   let build: BuildOutcome | undefined;
 
   // A review is one pass: ask, read the answer, stop. No files, no build, no
-  // repair rounds — there is nothing to repair.
+  // repair rounds: there is nothing to repair.
   if (review) {
     let streamed = "";
     let reviewStatuses = 0;
@@ -418,8 +418,8 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
 
   let forcedBuild = false;
   // Looking things up is budgeted separately from repairing. They are different
-  // failures — one is a model that will not stop reading, the other is a model
-  // that cannot fix what it wrote — and spending the repair allowance on
+  // failures: one is a model that will not stop reading, the other is a model
+  // that cannot fix what it wrote, and spending the repair allowance on
   // inspection would leave nothing to fix the build with.
   const budget: BudgetState = { steps: 0, startedAt: Date.now() };
   for (let round = 0; round <= MAX_REPAIR_ROUNDS; round++) {
@@ -447,7 +447,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
         // separately as files land, and the markers are not prose.
         // Streamed prose is what the chat renders live, so markers have to be
         // stripped HERE as well as from the final reply. Stripping only the
-        // reply left the raw <delete .../> tag on screen for the whole turn —
+        // reply left the raw <delete .../> tag on screen for the whole turn -
         // caught by a live run, not by any test, because the tests assert on
         // the returned reply rather than on what was streamed.
         input.onProse?.(
@@ -536,7 +536,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
       // it wrote something.
       const mixed =
         parseGeneratedFiles(reply, dir).length > 0
-          ? "You mixed tool calls with file blocks. The files were NOT applied — send tool calls or files, not both."
+          ? "You mixed tool calls with file blocks. The files were NOT applied: send tool calls or files, not both."
           : undefined;
 
       budget.steps++;
@@ -560,10 +560,10 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     const requestedDeletions = parseDeletions(reply, dir).filter((path) => path in files);
     // "Remove the old file" is a complete answer with no files in it. Without
     // this it fell into the branch below, which pushes back with "you did not
-    // produce any files" and then treats the reply as conversation — so the
+    // produce any files" and then treats the reply as conversation, so the
     // deletion the user asked for silently never happened.
     if (produced.length === 0 && requestedDeletions.length === 0) {
-      // A build request that comes back as prose is the model deferring —
+      // A build request that comes back as prose is the model deferring -
       // asking permission, proposing stages, or declining because an API key
       // is missing. Observed live on a long, highly-detailed spec: the reply
       // was a plan ending in "Do you want me to build Stage 1 now?", which
@@ -572,7 +572,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
       // treating the reply as conversation.
       if (input.mode !== "review" && !forcedBuild) {
         forcedBuild = true;
-        report("implementing", "That came back without any code — asking again…");
+        report("implementing", "That came back without any code: asking again…");
         messages.push({
           role: "user",
           content:
@@ -675,8 +675,8 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
 }
 
 // The keyword classifier that used to live here is gone. It routed on a
-// regular expression — any message without a "building verb" that opened
-// with "review" was a review, everything else was a build — so "hello" set
+// regular expression, any message without a "building verb" that opened
+// with "review" was a review, everything else was a build, so "hello" set
 // the status to "Planning the app…" and went looking for files to write.
 // Intent is now read from meaning by classifyIntent() in ./intent.ts.
 

@@ -12,12 +12,12 @@ export interface DeployedProject {
   deployedAt: number; // ms
   status: "VERIFIED" | "PENDING" | "FAILED";
   constructorArgs: Record<string, string>;
-  /** Compiled ABI, when available (local deployments) — powers the Interact panel. */
+  /** Compiled ABI, when available (local deployments): powers the Interact panel. */
   abi?: unknown[];
   chainId?: number;
   /** Lowercased wallet that deployed this (per-wallet scoping). */
   deployer?: string;
-  /** Source-verification metadata (see StoredProject) — lets the Projects page
+  /** Source-verification metadata (see StoredProject): lets the Projects page
    *  re-verify a deployment via the standard-input path. */
   standardJsonInput?: string;
   qualifiedName?: string;
@@ -34,7 +34,7 @@ interface ProjectsState {
   hydrate: () => void;
 }
 
-// No seed data — projects come only from the user's real deployments
+// No seed data: projects come only from the user's real deployments
 // (persisted to localStorage) and the on-chain ProjectRegistry. SSR starts
 // empty; the client hydrates from storage to avoid hydration mismatches.
 export const useProjects = create<ProjectsState>((set) => ({

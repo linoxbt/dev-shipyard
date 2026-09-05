@@ -36,7 +36,7 @@ export interface Template {
    *  it breaks compile + verify, including for already-deployed instances.
    *  Use `displayName` (via `templateLabel()`) for anything a user reads. */
   name: string;
-  /** What a user sees, when it should differ from the contract identifier —
+  /** What a user sees, when it should differ from the contract identifier -
    *  e.g. "ERC-20 Token" for the contract `SimpleERC20`. Optional: falls back
    *  to `name`.
    *
@@ -49,8 +49,8 @@ export interface Template {
   longDescription: string;
   tags: string[];
   /** True for templates that ship WITH DevStation, as opposed to
-   *  community-submitted ones. It is a provenance flag, NOT an audit claim —
-   *  no third-party audit has been performed — so the UI must label it
+   *  community-submitted ones. It is a provenance flag, NOT an audit claim -
+   *  no third-party audit has been performed, so the UI must label it
    *  "BUILT-IN", never "VERIFIED". */
   verified: boolean;
   deployCount: number;
@@ -89,7 +89,7 @@ interface IERC20 {
 /// @notice Issue invoices payable in a stablecoin (QUSDC on QIE) and collect
 ///         them onchain, with a per-invoice paid/cancelled record.
 /// @dev Amounts are in the TOKEN'S OWN smallest unit. QUSDC has 6 decimals,
-///      not 18 — 1 QUSDC is 1_000_000. Never assume 1e18 here.
+///      not 18: 1 QUSDC is 1_000_000. Never assume 1e18 here.
 ///      Uses transferFrom, so a payer must approve() this contract for the
 ///      invoice amount first. Pull-based on withdraw, and state is written
 ///      before the external call on every path.
@@ -219,7 +219,7 @@ interface IERC721Balance {
 /// @notice Access control gated on holding a QIE ID (.qie) name, with an
 ///         onchain record of who claimed a place and when.
 /// @dev The gate is deliberately \`balanceOf(user) > 0\` and nothing else.
-///      QIE ID is an ERC-721 of .qie names — verified onchain: it answers
+///      QIE ID is an ERC-721 of .qie names: verified onchain: it answers
 ///      supportsInterface(0x80ac58cd) and balanceOf(), but ownerOf() reverts
 ///      for sequential ids (ids are not sequential), tokenURI is empty, and
 ///      the ENS-style addr()/name() resolver calls revert. So "holds at least
@@ -227,7 +227,7 @@ interface IERC721Balance {
 ///      name-resolution logic on top of it, it will revert.
 ///
 ///      The registry address is a constructor parameter rather than a
-///      constant so this deploys on any network — pass the QIE ID address on
+///      constant so this deploys on any network: pass the QIE ID address on
 ///      QIE Mainnet, or any ERC-721 you want to gate on elsewhere.
 contract QieIdGatedAllowlist {
     IERC721Balance public immutable gateToken;
@@ -263,7 +263,7 @@ contract QieIdGatedAllowlist {
     constructor(address gateToken_, address initialOwner, uint256 maxClaims_) {
         if (gateToken_ == address(0) || initialOwner == address(0)) revert ZeroAddress();
         // gateToken is immutable, so a wrong address here bricks the contract
-        // permanently — every read reverts and nobody can ever claim. Reject
+        // permanently, every read reverts and nobody can ever claim. Reject
         // anything without code at deploy time rather than after the fact.
         if (gateToken_.code.length == 0) revert NotAContract();
         gateToken = IERC721Balance(gateToken_);
@@ -957,7 +957,7 @@ export const TEMPLATES: Template[] = [
     description:
       "Issue invoices payable in a stablecoin and collect them onchain, with a paid/cancelled record per invoice. Pre-filled with QUSDC on QIE Mainnet.",
     longDescription:
-      "A merchant contract for onchain billing. Issue an invoice to a specific payer or to anyone, optionally with a due date, and let them settle it in QUSDC. Amounts are in the token's own smallest unit — QUSDC has 6 decimals, so 1 QUSDC is 1000000, not 1e18. Payers must approve() this contract for the amount before paying. State is written before every external transfer, and withdrawals are owner-only.",
+      "A merchant contract for onchain billing. Issue an invoice to a specific payer or to anyone, optionally with a due date, and let them settle it in QUSDC. Amounts are in the token's own smallest unit: QUSDC has 6 decimals, so 1 QUSDC is 1000000, not 1e18. Payers must approve() this contract for the amount before paying. State is written before every external transfer, and withdrawals are owner-only.",
     tags: ["QUSDC", "Payments", "Invoicing", "Commerce"],
     verified: true,
     deployCount: 0,
@@ -1044,7 +1044,7 @@ export const TEMPLATES: Template[] = [
     description:
       "An allowlist only holders of a QIE ID (.qie) name can claim a place on, with an optional cap and an onchain member record.",
     longDescription:
-      "Gates access on holding a QIE ID name — the check is balanceOf(user) > 0 against the .qie ERC-721, which is the only sound onchain check that registry supports: ownerOf reverts for sequential ids, tokenURI is empty, and ENS-style resolution reverts. Useful for allowlists, early access, or any perk you want to reserve for people who hold a .qie name. The registry is a constructor argument, so the same contract gates on any ERC-721 on any network.",
+      "Gates access on holding a QIE ID name: the check is balanceOf(user) > 0 against the .qie ERC-721, which is the only sound onchain check that registry supports: ownerOf reverts for sequential ids, tokenURI is empty, and ENS-style resolution reverts. Useful for allowlists, early access, or any perk you want to reserve for people who hold a .qie name. The registry is a constructor argument, so the same contract gates on any ERC-721 on any network.",
     tags: ["QIE ID", "Access Control", "Allowlist", "Identity"],
     verified: true,
     deployCount: 0,
@@ -1351,14 +1351,14 @@ export function getTemplate(id: string) {
 
 /** Name to show a user for a template, in that chain's vocabulary:
  *  "ERC-20 Token" on BOT Chain, "QIE-20 Token" on QIE.
- *  Never pass this to the compiler or the verifier — those need `template.name`. */
+ *  Never pass this to the compiler or the verifier: those need `template.name`. */
 export function templateLabel(t: Pick<Template, "name" | "displayName">, chainId: number): string {
   return applyTerminology(t.displayName ?? t.name, chainId);
 }
 
 // Display labels for the category values. The raw TemplateCategory strings are
-// FUNCTIONAL — they are persisted in localStorage on user-submitted templates
-// and compared for equality when filtering — so they are never renamed; only
+// FUNCTIONAL: they are persisted in localStorage on user-submitted templates
+// and compared for equality when filtering, so they are never renamed; only
 // what we print changes.
 const CATEGORY_LABELS_QIE: Partial<Record<TemplateCategory, string>> = {
   "Token Standards": "QIE Token Standards",

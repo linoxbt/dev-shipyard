@@ -47,7 +47,7 @@ function load(): { sessions: ChatSession[]; activeId: string | null } {
 }
 
 // Warn (once per page load, not once per failed save) rather than silently
-// swallowing quota errors — without this, chat history can stop saving with
+// swallowing quota errors, without this, chat history can stop saving with
 // zero indication to the user, who reasonably assumes it's still working.
 let warnedAboutPersistFailure = false;
 
@@ -59,7 +59,7 @@ function persist(sessions: ChatSession[], activeId: string | null) {
     if (!warnedAboutPersistFailure) {
       warnedAboutPersistFailure = true;
       toast.warning(
-        "Chat history isn't saving (storage is full) — this conversation won't persist.",
+        "Chat history isn't saving (storage is full): this conversation won't persist.",
       );
     }
   }

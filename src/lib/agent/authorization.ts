@@ -4,7 +4,7 @@ import type { PersistentStore } from "./store";
 // The authorization boundary for privileged agent actions.
 //
 // The model proposes; this decides. Nothing here trusts the agent's own claim
-// that something was approved — a grant is a server-side record, and a tool may
+// that something was approved: a grant is a server-side record, and a tool may
 // only run when a grant is found that matches the action about to happen.
 //
 // The properties this file exists to guarantee, each covered by a test:
@@ -117,7 +117,7 @@ export type AuthorizationCheck =
 const grants = new Map<string, AuthorizationGrant>();
 
 // Durability. Without it a restart lost every grant while the jobs that were
-// waiting on them survived on disk — a task that could never be answered.
+// waiting on them survived on disk: a task that could never be answered.
 //
 // Nothing here starts a timer. Expiry is decided by comparing expiresAt to the
 // clock at the moment a grant is READ, which is what makes a rehydrated grant
@@ -188,7 +188,7 @@ export function issueGrant(params: {
 
 /** Every condition, evaluated server-side, before a protected tool may run.
  *
- *  Called immediately before execution — never only when the confirmation UI is
+ *  Called immediately before execution: never only when the confirmation UI is
  *  rendered, which would leave a window where the grant expires or is revoked
  *  between the click and the action. */
 export function checkAuthorization(

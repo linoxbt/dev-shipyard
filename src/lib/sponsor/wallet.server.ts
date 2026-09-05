@@ -4,22 +4,22 @@ import { qieMainnet, botMainnet } from "@/lib/chains";
 
 // Server-only sponsor wallets, one per eligible mainnet. Each tops up a
 // requester's OWN wallet with just enough native gas token to cover a deploy
-// (plus the registry writes that follow it), then gets out of the way — the
+// (plus the registry writes that follow it), then gets out of the way: the
 // requester's wallet signs and broadcasts everything itself, so it's
 // genuinely the deployer/owner and the one recorded in the registries. See
 // api.sponsor-topup.ts.
 //
 // The *_PRIVATE_KEY env vars have NO VITE_ prefix on purpose (same
 // convention as PRIVATE_KEY in scripts/deploy.ts) so Vite never inlines them
-// into the client bundle. Unlike PRIVATE_KEY — which only ever runs in a
-// one-off local CLI script — these keys are held live by the running server
+// into the client bundle. Unlike PRIVATE_KEY, which only ever runs in a
+// one-off local CLI script: these keys are held live by the running server
 // and spend real mainnet funds in response to requests. Treat each like an
 // exchange hot wallet: a dedicated wallet funded with only what you're
 // willing to see drained, never a wallet that also holds other funds.
 const PK_RE = /^0x[0-9a-fA-F]{64}$/;
 
 // Eligible chains are deliberately mainnet-only, one entry per chain family
-// — every testnet in this app already has a public faucet, so there's
+//, every testnet in this app already has a public faucet, so there's
 // nothing to sponsor there. Adding a new chain means adding one row here.
 const SPONSOR_CHAINS: Record<number, { chain: Chain; keyEnv: string; budgetEnv: string }> = {
   [qieMainnet.id]: {
@@ -66,7 +66,7 @@ interface SponsorClients {
 }
 
 // Built lazily and cached per chain for the life of this server
-// instance/process — cold starts on serverless hosts rebuild it, which is
+// instance/process: cold starts on serverless hosts rebuild it, which is
 // fine, each account is deterministic from its key.
 const cached = new Map<number, SponsorClients>();
 

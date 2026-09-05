@@ -129,7 +129,7 @@ export function StatusPill({ ok }: { ok: boolean }) {
 }
 
 export function MethodPill({ method }: { method?: string | null }) {
-  if (!method) return <span className="text-meta">—</span>;
+  if (!method) return <span className="text-meta">-</span>;
   return (
     <span className="inline-block max-w-[140px] truncate rounded border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
       {method}

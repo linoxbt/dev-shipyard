@@ -2,16 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 
-// Runs a generated project's real toolchain — install, lint, typecheck, build,
-// Playwright — and returns the logs and the built output.
+// Runs a generated project's real toolchain: install, lint, typecheck, build,
+// Playwright, and returns the logs and the built output.
 //
 // A thin proxy in front of services/runner, and it exists for one reason: the
 // runner's token must never reach a browser. Anyone holding it can run code on
 // the runner host, so it stays server-side and the browser only ever talks to
 // this route, which is rate limited.
 //
-// Builds are far more expensive than the other endpoints here — a job is a
-// whole CPU and up to a gigabyte for a minute or more — so the limits are
+// Builds are far more expensive than the other endpoints here: a job is a
+// whole CPU and up to a gigabyte for a minute or more, so the limits are
 // tighter than they look, and the global one exists so a single busy afternoon
 // cannot saturate the runner for everybody.
 

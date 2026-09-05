@@ -6,7 +6,7 @@ import type { Template } from "@/lib/data/templates";
 // NOT a marketplace, and the UI must not imply otherwise. Nothing here is
 // shared with anyone: a template saved on one machine is invisible on another
 // and to every other user. The wallet recorded against a template is an author
-// label, not an access control — the data lives in the user's own localStorage,
+// label, not an access control: the data lives in the user's own localStorage,
 // where they can edit it freely, so the ownership check in the UI is a
 // convenience and nothing more.
 //

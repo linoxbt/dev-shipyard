@@ -5,8 +5,8 @@
 // you saw immediately afterwards. Come back tomorrow and it was gone.
 //
 // A submission is usually about a body of work rather than one transaction, so
-// this takes the developer's whole registry footprint — every deployment, on
-// every network, with explorer links a judge can actually open — plus the
+// this takes the developer's whole registry footprint, every deployment, on
+// every network, with explorer links a judge can actually open, plus the
 // reputation summary derived from the same data.
 //
 // Deliberately not an API integration with any particular hackathon: their
@@ -44,16 +44,16 @@ export function generateSubmission(input: SubmissionInput): string {
   const header = [
     line("Project", projectName || "Untitled"),
     line("Developer", developer),
-    line("Built with", "DevStation — the AI Developer OS for QIE and Web3"),
+    line("Built with", "DevStation: the AI Developer OS for QIE and Web3"),
   ];
 
   const track = [
     "",
     "## Onchain footprint",
     line("Deployments", String(reputation.deployments)),
-    line("Networks", reputation.networks.join(", ") || "—"),
+    line("Networks", reputation.networks.join(", ") || "-"),
     line("Verified contracts", `${verifiedCount} of ${entries.length}`),
-    line("Developer standing", `${TIER_LABEL[reputation.tier]} — ${reputationSummary(reputation)}`),
+    line("Developer standing", `${TIER_LABEL[reputation.tier]}: ${reputationSummary(reputation)}`),
   ];
 
   const contracts =
@@ -63,7 +63,7 @@ export function generateSubmission(input: SubmissionInput): string {
           "## Contracts",
           ...entries.map((e) => {
             const bits = [
-              `- ${e.projectName || e.templateId || "Contract"} — \`${e.contractAddress}\``,
+              `- ${e.projectName || e.templateId || "Contract"}: \`${e.contractAddress}\``,
               e.network ? ` on ${e.network}` : "",
               e.verified ? " (verified)" : "",
             ].join("");

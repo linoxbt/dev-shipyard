@@ -115,14 +115,14 @@ const SCRIPT = String.raw`
 const $ = (id) => document.getElementById(id);
 
 function fmtBytes(n) {
-  if (n == null) return "—";
+  if (n == null) return "-";
   const u = ["B", "KB", "MB", "GB", "TB"];
   let i = 0;
   while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
   return n.toFixed(n < 10 && i > 0 ? 1 : 0) + " " + u[i];
 }
 function fmtDur(ms) {
-  if (ms == null) return "—";
+  if (ms == null) return "-";
   const s = Math.round(ms / 1000);
   if (s < 60) return s + "s";
   const m = Math.floor(s / 60);
@@ -162,7 +162,7 @@ function renderJobs(jobs) {
       " " + fmtDur(p.durationMs) + (p.timedOut ? " ⏱" : "") + "</span>"
     ).join("");
     const logs = j.phases.filter((p) => p.log).map((p) =>
-      "<h3>" + esc(p.phase) + (p.ok ? "" : " — failed") + "</h3>" +
+      "<h3>" + esc(p.phase) + (p.ok ? "" : ": failed") + "</h3>" +
       '<pre class="' + (p.ok ? "" : "bad") + '">' + esc(p.log) + "</pre>"
     ).join("");
     const err = j.error ? '<h3 class="err">Did not run</h3><pre class="bad">' + esc(j.error) + "</pre>" : "";
@@ -254,7 +254,7 @@ export function dashboardPage(): string {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Build Runner — DevStation</title>
+<title>Build Runner: DevStation</title>
 <style>${STYLE}</style>
 </head>
 <body>
@@ -266,30 +266,30 @@ export function dashboardPage(): string {
     </div>
     <div class="spacer"></div>
     <span class="pill"><span class="dot" id="conn"></span><span id="conn-label">connecting</span></span>
-    <span class="pill">updated <span id="updated">—</span></span>
+    <span class="pill">updated <span id="updated">-</span></span>
     <form method="POST" action="/logout" style="margin:0"><button class="link" type="submit">Sign out</button></form>
   </header>
 
   <div class="grid">
     <div class="card">
       <h2>Isolation</h2>
-      <div class="stat"><span class="dot" id="iso-dot"></span> <span id="iso">—</span></div>
-      <div class="note" id="iso-note">—</div>
+      <div class="stat"><span class="dot" id="iso-dot"></span> <span id="iso">-</span></div>
+      <div class="note" id="iso-note">-</div>
     </div>
     <div class="card">
       <h2>Running now</h2>
-      <div class="stat"><span id="queue">—</span><small id="queue-sub"></small></div>
-      <div class="note" id="queue-note">—</div>
+      <div class="stat"><span id="queue">-</span><small id="queue-sub"></small></div>
+      <div class="note" id="queue-note">-</div>
     </div>
     <div class="card">
       <h2>Builds recorded</h2>
-      <div class="stat" id="builds">—</div>
-      <div class="note" id="builds-note">—</div>
+      <div class="stat" id="builds">-</div>
+      <div class="note" id="builds-note">-</div>
     </div>
     <div class="card">
       <h2>Median build</h2>
-      <div class="stat" id="median">—</div>
-      <div class="note" id="median-note">—</div>
+      <div class="stat" id="median">-</div>
+      <div class="note" id="median-note">-</div>
     </div>
   </div>
 
@@ -298,27 +298,27 @@ export function dashboardPage(): string {
     <div class="grid">
       <div class="card">
         <h2>Memory</h2>
-        <div class="stat" id="mem">—</div>
-        <div class="note" id="mem-note">—</div>
+        <div class="stat" id="mem">-</div>
+        <div class="note" id="mem-note">-</div>
         <div class="bar"><i id="mem-bar"></i></div>
       </div>
       <div class="card">
         <h2>Disk</h2>
-        <div class="stat" id="disk">—</div>
-        <div class="note" id="disk-note">—</div>
+        <div class="stat" id="disk">-</div>
+        <div class="note" id="disk-note">-</div>
         <div class="bar"><i id="disk-bar"></i></div>
       </div>
       <div class="card">
         <h2>Load</h2>
-        <div class="stat" id="load">—</div>
-        <div class="note" id="load-note">—</div>
+        <div class="stat" id="load">-</div>
+        <div class="note" id="load-note">-</div>
         <div class="bar"><i id="load-bar"></i></div>
       </div>
       <div class="card">
         <h2>Uptime</h2>
-        <div class="stat" id="runner-up">—</div>
-        <div class="note" id="runner-note">—</div>
-        <div class="note">host up <span id="host-up">—</span></div>
+        <div class="stat" id="runner-up">-</div>
+        <div class="note" id="runner-note">-</div>
+        <div class="note">host up <span id="host-up">-</span></div>
       </div>
     </div>
   </section>
@@ -344,7 +344,7 @@ export function loginPage(error?: string): string {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Sign in — Build Runner</title>
+<title>Sign in: Build Runner</title>
 <style>${STYLE}
 .login { max-width: 320px; margin: 14vh auto; }
 .login h1 { font-size: 15px; margin: 0 0 4px; }

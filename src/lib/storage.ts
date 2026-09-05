@@ -8,12 +8,12 @@ const KEYS = {
 } as const;
 
 /** A recent explorer search the user ran (address, tx, or block), persisted so
- *  the SearchBar can offer it again on focus — Etherscan-style. For addresses we
+ *  the SearchBar can offer it again on focus: Etherscan-style. For addresses we
  *  remember the resolved name (contract/token) once the detail page loads it. */
 export interface SearchEntry {
   /** The raw query: an address, a tx hash, or a block number. */
   query: string;
-  /** "address" | "tx" | "block" — drives the icon and the link target. */
+  /** "address" | "tx" | "block": drives the icon and the link target. */
   kind: "address" | "tx" | "block";
   /** Network the search ran on ("testnet" | "mainnet"). */
   network: string;
@@ -77,7 +77,7 @@ function write(key: string, value: unknown) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    /* storage full or unavailable — non-fatal */
+    /* storage full or unavailable: non-fatal */
   }
 }
 

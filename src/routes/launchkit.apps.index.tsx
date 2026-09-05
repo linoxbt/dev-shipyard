@@ -11,7 +11,7 @@ import { fileCount, useProjects, type AppProject } from "@/lib/appgen/projects";
 // the list that makes them real things you can come back to.
 
 export const Route = createFileRoute("/launchkit/apps/")({
-  head: () => ({ meta: [{ title: "Apps — DevStation" }] }),
+  head: () => ({ meta: [{ title: "Apps: DevStation" }] }),
   component: AppsPage,
 });
 
@@ -124,7 +124,7 @@ function AppsPage() {
                 </>
               ) : (
                 <>
-                  {/* Clicking an app opens its details — who built it, what is
+                  {/* Clicking an app opens its details, who built it, what is
                       in it, where it is published. Going straight to the
                       builder skipped all of that, so the builder is now an
                       explicit action rather than the only destination. */}

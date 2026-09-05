@@ -16,7 +16,7 @@ import type { ProtectedAction } from "./authorization";
 //      before anything runs. A model that invents an argument gets a
 //      validation error, not an execution.
 //   2. Every call passes through the policy engine first. The tool does not
-//      decide whether it may run — evaluate() does, from the operation name
+//      decide whether it may run: evaluate() does, from the operation name
 //      and the resources, never from anything the model wrote.
 //
 // Output is redacted and wrapped as untrusted before it goes back to the model:
@@ -39,7 +39,7 @@ export interface ToolDefinition<S extends z.ZodTypeAny = z.ZodTypeAny> {
    *  materially different action. Covering all of them made approval brittle in
    *  a way a live run showed: the model asked to push, was approved, re-proposed
    *  the same push on the resumed turn with a commit message it had not
-   *  mentioned before, and the fingerprint no longer matched — so it asked
+   *  mentioned before, and the fingerprint no longer matched, so it asked
    *  again. A commit message does not change what you agreed to; the repository
    *  and whether it is private do.
    *
@@ -53,7 +53,7 @@ export interface ToolDefinition<S extends z.ZodTypeAny = z.ZodTypeAny> {
    *  Required, and that is the point: the model can only call what the prompt
    *  tells it exists. push_to_github was registered, classified and tested
    *  while the prompt still listed five tools, so the model replied that it had
-   *  no way to push — correct, from where it was standing. Generating the
+   *  no way to push: correct, from where it was standing. Generating the
    *  protocol from this field makes that failure a type error instead. */
   usage: string;
   /** Who actually carries this out.
@@ -176,7 +176,7 @@ export const TOOLS: Record<string, ToolDefinition> = {
     // Scoped to the repository, so approving a push to one never authorises a
     // push to another.
     resourcesFrom: (a) => [`github:${(a as { repoName: string }).repoName}`],
-    // Visibility is material — approving a private push must not authorise a
+    // Visibility is material: approving a private push must not authorise a
     // public one. The commit message is not.
     materialArgs: ["repoName", "isPrivate"],
     returnsUntrustedContent: false,

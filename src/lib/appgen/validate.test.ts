@@ -26,7 +26,7 @@ describe("validateApp", () => {
     expect(validateApp(blankScaffold()).filter((i) => i.fatal)).toHaveLength(0);
   });
 
-  it("catches JSX — the usual reason a preview is blank", () => {
+  it("catches JSX: the usual reason a preview is blank", () => {
     const issues = validateApp({
       "app/index.html": html,
       "app/app.js": 'const App = () => { return (<div className="x">hi</div>); };',
@@ -151,7 +151,7 @@ describe("validateApp, vite target", () => {
 describe("an empty workspace is not a broken app", () => {
   it("reports nothing for a project with no files", () => {
     // A conversational turn leaves the workspace untouched. Validating it
-    // produced "There is no index.html." for an app that was never built —
+    // produced "There is no index.html." for an app that was never built -
     // shown as a fixable error, which the user could do nothing about.
     expect(validateApp({}, "app")).toEqual([]);
   });

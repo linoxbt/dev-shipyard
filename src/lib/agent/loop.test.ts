@@ -100,7 +100,7 @@ describe("toolProtocol", () => {
     // The bug this exists to prevent: push_to_github was registered,
     // classified and covered by tests while the prompt still listed five
     // tools, so the model answered a request to push with "I don't have the
-    // ability to perform GitHub account actions". It was right — nothing had
+    // ability to perform GitHub account actions". It was right: nothing had
     // told it otherwise. A tool the prompt does not name does not exist.
     const text = toolProtocol();
     for (const name of Object.keys(TOOLS)) {

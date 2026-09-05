@@ -10,7 +10,7 @@ describe("createZip", () => {
     "app/index.html": "<!doctype html><title>hi</title>",
     "app/app.js": 'export const x = "hello";\n',
     "app/nested/deep/styles.css": "body { color: red }",
-    "app/unicode.md": "# héllo — ünicode ✓\n",
+    "app/unicode.md": "# héllo: ünicode ✓\n",
   };
 
   it("produces an archive a REAL unzip can read back byte-for-byte", () => {

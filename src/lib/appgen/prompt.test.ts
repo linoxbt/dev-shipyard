@@ -19,7 +19,7 @@ describe("parseGeneratedFiles", () => {
       'console.log("hi");',
       "```",
       "```css",
-      "ignored — no filename",
+      "ignored: no filename",
       "```",
       "```styles.css",
       "body{}",
@@ -120,7 +120,7 @@ describe("appBuilderSystemPrompt", () => {
     });
     expect(p).toContain("claim() [write]");
     expect(p).toContain("holdsQieId(address) [read]");
-    // contract.js is generated — the model must not overwrite the binding.
+    // contract.js is generated: the model must not overwrite the binding.
     expect(p).toContain("do not output it");
   });
 });

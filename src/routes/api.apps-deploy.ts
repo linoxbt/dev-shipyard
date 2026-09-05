@@ -72,7 +72,7 @@ async function netlify(path: string, token: string, init?: RequestInit) {
 export const Route = createFileRoute("/api/apps-deploy")({
   server: {
     handlers: {
-      // Deliberately reports only whether hosting is available — never which
+      // Deliberately reports only whether hosting is available: never which
       // variables are set.
       GET: () => Response.json({ configured: serverConfig().token.length > 0 }),
 

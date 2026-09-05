@@ -28,7 +28,7 @@ const ERC20_ABI = [
 
 // Read-only QUSDC (QIE stablecoin) balance for the connected wallet, on the
 // selected network. Returns null unless the QUSDC address is configured and the
-// wallet is connected — honest reference display, nothing forced.
+// wallet is connected: honest reference display, nothing forced.
 export function useQusdcBalance(address: `0x${string}` | null | undefined, chainId?: number) {
   // Per-network: QUSDC is a QIE-mainnet asset with no canonical testnet
   // deployment, so this is "" (and the UI hides) everywhere else.

@@ -3,7 +3,7 @@ import { useNetworkPref, chainById, SUPPORTED_CHAINS } from "@/lib/active-chain"
 import { chainConfig, DEFAULT_CHAIN } from "@/lib/chains";
 
 // Resolves the active QIE chain. The user's SELECTED network is authoritative
-// for reads everywhere in the app — it is NOT overridden by the wallet's chain.
+// for reads everywhere in the app: it is NOT overridden by the wallet's chain.
 // When a wallet is connected on a different chain, `walletMismatch` is true and
 // write/deploy flows surface a mismatch modal (reads still use the selected
 // chain's RPC). `select(id)` records the preference and also asks the wallet to

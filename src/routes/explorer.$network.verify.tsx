@@ -14,13 +14,13 @@ const search = z.object({
 
 export const Route = createFileRoute("/explorer/$network/verify")({
   validateSearch: search,
-  head: () => ({ meta: [{ title: "Verify Contract — Explorer" }] }),
+  head: () => ({ meta: [{ title: "Verify Contract: Explorer" }] }),
   component: VerifyPage,
 });
 
 // Targets solc can build for. DevStation's own compiler pins "shanghai"
 // (QIE's EVM has no MCOPY), but this page also verifies contracts built
-// elsewhere — Hardhat and Foundry default to "cancun" — and the explorer must
+// elsewhere, Hardhat and Foundry default to "cancun", and the explorer must
 // be told the same target the bytecode was actually produced with.
 const EVM_VERSIONS = [
   "shanghai",

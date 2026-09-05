@@ -1,4 +1,4 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
+// @lovable.dev/vite-tanstack-config already includes the following: do NOT add them manually
 // or the app will break with duplicate plugins:
 //   - tanstackStart, viteReact, tailwindcss, tsConfigPaths, nitro (build-only using cloudflare as a default target),
 //     componentTagger (dev-only), VITE_* env injection, @ path alias, React/TanStack dedupe,
@@ -10,7 +10,7 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 // Deploy target selection.
 //
 // The Lovable config defaults to the Cloudflare Workers preset, whose output
-// layout neither Vercel nor Netlify can serve as an SSR app — the static client
+// layout neither Vercel nor Netlify can serve as an SSR app: the static client
 // is served but the SSR server isn't wired as a function, so deep links and
 // refreshes 404 and pages don't render.
 //

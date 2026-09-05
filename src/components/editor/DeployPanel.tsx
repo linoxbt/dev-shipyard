@@ -95,7 +95,7 @@ export function DeployPanel({
     return c?.inputs ?? [];
   }, [contract]);
 
-  // Whether this wallet actually needs a top-up for this specific deploy —
+  // Whether this wallet actually needs a top-up for this specific deploy -
   // null while checking. When it comes back false, the "Gas-free deploy"
   // option goes inert (see render below): offering sponsorship a wallet
   // doesn't need is just confusing, and forcing `useSponsor` back to false
@@ -126,7 +126,7 @@ export function DeployPanel({
         const needed = paddedTopupCost(estimate, gasPrice, 2n * ONCHAIN_WRITE_GAS);
         setNeedsTopup(needed > balance);
       } catch {
-        // Can't tell — fail open (show the option) rather than hide a
+        // Can't tell: fail open (show the option) rather than hide a
         // control that might genuinely be needed.
         if (!cancelled) setNeedsTopup(true);
       }
@@ -157,7 +157,7 @@ export function DeployPanel({
       setEncodedCtorArgs(encodeConstructorArgs(contract.abi, parsed));
 
       // Gas sponsorship tops up THIS wallet with just enough native gas
-      // token to cover the deploy (and the registry write after it) — it
+      // token to cover the deploy (and the registry write after it): it
       // never broadcasts anything itself. The deploy below runs exactly like a normal
       // self-paid deploy either way, so the connected wallet is always the
       // genuine deployer of record.
@@ -176,7 +176,7 @@ export function DeployPanel({
         onLog({
           text: result.toppedUp
             ? `[${ts}] [Deploy] ✓ Wallet funded (${result.txHash})`
-            : `[${ts}] [Deploy] Wallet already had enough gas — no top-up needed`,
+            : `[${ts}] [Deploy] Wallet already had enough gas: no top-up needed`,
           status: "success",
         });
       }
@@ -239,7 +239,7 @@ export function DeployPanel({
     const addr = receipt.contractAddress as `0x${string}`;
     setDeployed({ addr });
     const ts = new Date().toLocaleTimeString();
-    onLog({ text: `[${ts}] [Deploy] ✓ Confirmed — address: ${addr}`, status: "success" });
+    onLog({ text: `[${ts}] [Deploy] ✓ Confirmed: address: ${addr}`, status: "success" });
     const cfg = chainConfig(chainId);
     void recordDeployment({
       contractAddress: addr,
@@ -361,7 +361,7 @@ export function DeployPanel({
             <p className="font-mono text-[11px] text-meta">No constructor arguments</p>
           )}
 
-          {/* Gas sponsorship (sponsor-eligible mainnets only) — inert once
+          {/* Gas sponsorship (sponsor-eligible mainnets only): inert once
               the wallet is confirmed to already hold enough native gas
               token, since offering it then would be a no-op at best and
               confusing at worst. */}
@@ -374,7 +374,7 @@ export function DeployPanel({
                   disabled
                   className="h-3.5 w-3.5 rounded border-border"
                 />
-                Gas-free deploy — not needed, your wallet already has enough {nativeSymbol(chainId)}
+                Gas-free deploy, not needed, your wallet already has enough {nativeSymbol(chainId)}
               </label>
             ) : (
               <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
@@ -395,7 +395,7 @@ export function DeployPanel({
               <p className="font-mono text-[10px] text-meta">
                 {sponsorChecking
                   ? "Checking gas sponsorship…"
-                  : "Gas-free deploy isn't available right now — you'll pay gas from your own wallet."}
+                  : "Gas-free deploy isn't available right now: you'll pay gas from your own wallet."}
               </p>
             )
           )}

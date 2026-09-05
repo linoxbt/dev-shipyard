@@ -19,7 +19,7 @@ const env = import.meta.env;
 // config; a VITE_*_REGISTRY_ADDRESS_* override still wins for custom deployments.
 // Per-NETWORK defaults. These were previously a single pair reused for both
 // QIE networks, which meant an unset (or wrongly-set) mainnet var silently
-// fell back to the *testnet* registry address — reads would hit a contract
+// fell back to the *testnet* registry address: reads would hit a contract
 // that exists but holds the wrong network's data, with no error anywhere.
 // Keeping them separate makes that impossible.
 const QIE_TESTNET_PROJECT_REGISTRY = "0x75d7b39bc827367c409e1a2bf805bd5f337ca27b";
@@ -32,8 +32,8 @@ function envAddress(value: string | undefined, fallback = ""): `0x${string}` {
 }
 
 // Per-network registry addresses, keyed by chain id. Env overrides the default.
-// BOT Chain has no default — its registries are a separate deployment (the QIE
-// deployer-nonce coincidence above doesn't carry over to an unrelated chain) —
+// BOT Chain has no default: its registries are a separate deployment (the QIE
+// deployer-nonce coincidence above doesn't carry over to an unrelated chain) -
 // so its addresses stay unset until VITE_*_REGISTRY_ADDRESS_BOT_* is configured,
 // which is exactly the "not deployed yet" fallback path documented above.
 const PROJECT_REGISTRY: Record<number, `0x${string}`> = {
@@ -85,19 +85,19 @@ export function labelRegistryAddress(chainId: number): `0x${string}` {
   return LABEL_REGISTRY[chainId] ?? ("" as `0x${string}`);
 }
 
-// QIE ecosystem contracts (QIE's own — we do NOT deploy these).
+// QIE ecosystem contracts (QIE's own: we do NOT deploy these).
 //
 // QUSDC is QIE's USDC-backed stablecoin. docs.stable.qie.digital is entirely
 // conceptual and publishes no address, so this was verified directly against
 // mainnet: 0x3F43…5DA5 has 6096 bytes of code, symbol/name "QUSDC", and
-// decimals() == 6 (NOT 18 — anything formatting it must read decimals()).
+// decimals() == 6 (NOT 18: anything formatting it must read decimals()).
 //
 // Deliberately per-network, because QUSDC is NOT deployed at a matching
 // address on testnet. A single global address would make QIE Testnet read a
 // contract that isn't there and silently render a 0 balance. QIE testnet has
 // 10+ competing unofficial "QUSDC" contracts with no canonical one (and one
 // of them uses 18 decimals), so testnet stays unset until QIE publishes an
-// official address — the balance UI hides itself when unconfigured.
+// official address: the balance UI hides itself when unconfigured.
 const QIE_MAINNET_QUSDC = "0x3F43DA82eC9A4f5285F10FaF1F26EcA7319E5DA5";
 
 const QUSDC: Record<number, `0x${string}`> = {
@@ -113,14 +113,14 @@ export function qusdcAddress(chainId: number): `0x${string}` {
   return QUSDC[chainId] ?? ("" as `0x${string}`);
 }
 
-// QIE ID — the ".qie" name registry. Despite the "ID" branding this is a
+// QIE ID: the ".qie" name registry. Despite the "ID" branding this is a
 // plain ERC-721 of domain names, NOT an identity resolver: verified on
 // mainnet, supportsInterface(0x80ac58cd) returns true, 12,175 minted, and
 // balanceOf(holder) works. What does NOT work, and must not be built on:
 // ownerOf(1) reverts (token ids are not sequential), tokenURI is empty, and
 // the ENS-style addr()/name() resolver calls revert. So the only sound check
 // is "does this address hold at least one .qie name" via balanceOf.
-// Mainnet-only, like QUSDC — there is no published testnet deployment.
+// Mainnet-only, like QUSDC: there is no published testnet deployment.
 const QIE_MAINNET_QIE_ID = "0x9aab56e7727af53A3131985BFB16d845319b7bdc";
 
 const QIE_ID: Record<number, `0x${string}`> = {

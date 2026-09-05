@@ -2,7 +2,7 @@
 //
 // Security model: the mnemonic is encrypted with AES-GCM using a key derived
 // from the user's password via PBKDF2 (SHA-256, 310k iterations). Only the
-// ciphertext, salt, and IV are persisted to localStorage — the plaintext
+// ciphertext, salt, and IV are persisted to localStorage: the plaintext
 // mnemonic and private key live in memory only after a successful unlock and
 // are never logged or transmitted. This is appropriate for testnet and small
 // mainnet balances; it is NOT a substitute for a hardware wallet.
@@ -44,7 +44,7 @@ function randomBytes(len: number): Uint8Array<ArrayBuffer> {
 }
 
 // Web Crypto's SubtleCrypto is only exposed on secure origins (https:// or
-// localhost/127.0.0.1) — browsers make `crypto.subtle` undefined everywhere
+// localhost/127.0.0.1): browsers make `crypto.subtle` undefined everywhere
 // else, including plain-HTTP preview URLs. There is no polyfill or workaround
 // for this; it's a deliberate browser security restriction. Fail with a clear
 // message here instead of the raw "Cannot read properties of undefined
@@ -52,7 +52,7 @@ function randomBytes(len: number): Uint8Array<ArrayBuffer> {
 function assertCryptoAvailable(): void {
   if (typeof crypto === "undefined" || !crypto.subtle) {
     throw new Error(
-      "Generating or unlocking a wallet needs a secure connection (HTTPS or localhost) — this page is loaded over plain HTTP, and browsers disable the encryption APIs there.",
+      "Generating or unlocking a wallet needs a secure connection (HTTPS or localhost): this page is loaded over plain HTTP, and browsers disable the encryption APIs there.",
     );
   }
 }
