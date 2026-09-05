@@ -173,7 +173,7 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
         className="pointer-events-none absolute -right-40 -top-40 h-[28rem] w-[28rem] rounded-full opacity-20 blur-3xl"
         style={{ background: "var(--color-primary)" }}
       />
-      <div className="relative mx-auto grid w-full max-w-[2000px] items-center gap-10 py-14 sm:py-20 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,34rem)] lg:gap-12 lg:py-28 px-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto grid w-full max-w-[2000px] items-center gap-10 py-14 sm:py-20 lg:grid-cols-[1.4fr_1fr] lg:gap-12 lg:py-20 px-4 sm:px-6 lg:px-8">
         <div>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] text-meta">
             <Terminal className="h-3.5 w-3.5 text-primary" />
@@ -181,7 +181,7 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
             <span>~ AI Developer OS</span>
           </div>
 
-          <h1 className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-5xl font-bold leading-tight sm:text-6xl xl:text-7xl">
+          <h1 className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-5xl font-bold leading-tight xl:text-6xl 2xl:text-7xl">
             {WORDS.map((w, i) => (
               <span key={w} className={i < shown ? "animate-fade-up" : "opacity-0"}>
                 {w === "Deploy." ? (
@@ -231,7 +231,12 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
         {/* The work itself, turning. Both chain marks ride the same rotation
             at the same size, so the dual-chain claim in the copy is something
             the page shows rather than only states. */}
-        <HeroVisual className={cn(tagline ? "animate-fade-up" : "opacity-0")} />
+        <HeroVisual
+          className={cn(
+            "lg:ml-auto lg:w-full lg:max-w-[34rem]",
+            tagline ? "animate-fade-up" : "opacity-0",
+          )}
+        />
       </div>
     </section>
   );
