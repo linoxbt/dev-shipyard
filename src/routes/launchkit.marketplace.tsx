@@ -116,7 +116,7 @@ function Marketplace() {
         title="Template marketplace"
         subtitle={`Community templates published on ${chain.name}. Source is on-chain and free to read.`}
       />
-      <div className="space-y-4 p-4 sm:p-6">
+      <div className="space-y-4 py-4 sm:py-6 px-5 sm:px-8 lg:px-12">
         {!configured ? (
           <div className="rounded border border-dashed border-border p-12 text-center">
             <Store className="mx-auto h-6 w-6 text-meta" />

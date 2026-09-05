@@ -33,7 +33,9 @@ export function PageHeader({
   };
 
   return (
-    <div className={cn("border-b border-border bg-background px-6 py-5", className)}>
+    <div
+      className={cn("border-b border-border bg-background py-5 px-5 sm:px-8 lg:px-12", className)}
+    >
       <div className="mb-2 flex items-center gap-3">
         {canShowBack && (
           <button

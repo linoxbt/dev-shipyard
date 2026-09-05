@@ -104,7 +104,7 @@ function VerifyPage() {
       </p>
 
       <Card title="Contract details">
-        <div className="space-y-4 p-4">
+        <div className="space-y-4 py-4 px-5 sm:px-8 lg:px-12">
           <Field label="Contract Address" required>
             <input
               value={address}

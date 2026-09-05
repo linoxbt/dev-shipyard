@@ -100,7 +100,7 @@ function EvmExplorerLayout() {
         </div>
       </div>
 
-      <div className="p-4 lg:p-6">
+      <div className="py-4 lg:py-6 px-5 sm:px-8 lg:px-12">
         <Outlet />
       </div>
     </div>

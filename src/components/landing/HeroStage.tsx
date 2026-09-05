@@ -112,8 +112,8 @@ export function HeroStage({ className }: { className?: string }) {
       onMouseLeave={() => !reduced.current && setPaused(false)}
     >
       {/* Title bar: the step names double as the progress indicator. */}
-      <div className="flex items-center gap-1 border-b border-border bg-background/60 px-3 py-2">
-        <span className="mr-1 flex gap-1" aria-hidden>
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-background/60 px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <span className="mr-1 hidden gap-1 sm:flex" aria-hidden>
           <i className="h-2 w-2 rounded-full bg-border" />
           <i className="h-2 w-2 rounded-full bg-border" />
           <i className="h-2 w-2 rounded-full bg-border" />
@@ -124,16 +124,16 @@ export function HeroStage({ className }: { className?: string }) {
             type="button"
             onClick={() => setStep(i)}
             className={cn(
-              "rounded px-1.5 py-0.5 font-mono text-[10px] transition",
+              "shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] transition",
               i === step ? "bg-primary/15 text-primary" : "text-meta hover:text-foreground",
             )}
           >
             {s.label}
           </button>
         ))}
-        <span className="ml-auto flex items-center gap-1.5 font-mono text-[10px] text-meta">
+        <span className="ml-auto flex shrink-0 items-center gap-1.5 pl-2 font-mono text-[10px] text-meta">
           <ChainLogo family={chain.family} size={12} />
-          {chain.name}
+          <span className="hidden sm:inline">{chain.name}</span>
         </span>
       </div>
 

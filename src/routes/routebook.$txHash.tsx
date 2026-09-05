@@ -63,7 +63,7 @@ function TxView() {
     return (
       <div>
         <PageHeader breadcrumb={["DevStation", "Routebook"]} title="Transaction Not Found" />
-        <div className="p-6">
+        <div className="py-6 px-5 sm:px-8 lg:px-12">
           <div className="rounded border border-border bg-surface p-8 text-center">
             <div className="font-mono text-sm text-muted-foreground">
               {error ?? "No decoded data found for this hash."}
@@ -122,7 +122,7 @@ function TxView() {
         }
       />
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 py-6 px-5 sm:px-8 lg:px-12">
         {/* Overview Card */}
         <div className="rounded border border-border bg-surface p-5">
           <div className="mb-4 flex flex-wrap items-center gap-3">

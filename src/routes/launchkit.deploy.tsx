@@ -383,7 +383,7 @@ function DeployWizard() {
           title="Deploy a Contract"
           subtitle="Step 1 of 3: Select a verified template to get started."
         />
-        <div className="space-y-4 p-6">
+        <div className="space-y-4 py-6 px-5 sm:px-8 lg:px-12">
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
@@ -678,7 +678,7 @@ function DeployWizard() {
           title="Deploying…"
           subtitle="Step 3 of 3: Compile, sign in your wallet, broadcast, confirm."
         />
-        <div className="space-y-4 p-6">
+        <div className="space-y-4 py-6 px-5 sm:px-8 lg:px-12">
           <TerminalOutput lines={deployLines} instant />
           {hasError && (
             <button
@@ -711,7 +711,7 @@ function DeployWizard() {
           title="Deployed"
           subtitle="Your contract is live on-chain."
         />
-        <div className="space-y-6 p-6">
+        <div className="space-y-6 py-6 px-5 sm:px-8 lg:px-12">
           {/* Success banner */}
           <div className="rounded border border-success/40 bg-success/5 p-6">
             <div className="flex items-start gap-4">

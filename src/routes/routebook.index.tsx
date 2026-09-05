@@ -66,7 +66,7 @@ function RoutebookHome() {
         title="Routebook: Transaction Inspector"
         subtitle="Turn any transaction into a readable execution map."
       />
-      <div className="p-6">
+      <div className="py-6 px-5 sm:px-8 lg:px-12">
         <div className="mx-auto max-w-3xl">
           <div className="rounded border border-border bg-surface p-6">
             <label className="block">

@@ -53,7 +53,7 @@ function StatusDot({ chainId }: { chainId: number }) {
 export function ChainsBand() {
   return (
     <section className="border-b border-border">
-      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+      <div className="mx-auto max-w-6xl py-14 px-5 sm:px-8 lg:px-12">
         <div className="max-w-2xl">
           <div className="font-mono text-[11px] uppercase tracking-wider text-primary">
             Two chains, one console

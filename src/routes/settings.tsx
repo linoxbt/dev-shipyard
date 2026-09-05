@@ -199,7 +199,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
           {title}
         </h2>
       </div>
-      <div className="space-y-3 p-4">{children}</div>
+      <div className="space-y-3 py-4 px-5 sm:px-8 lg:px-12">{children}</div>
     </div>
   );
 }

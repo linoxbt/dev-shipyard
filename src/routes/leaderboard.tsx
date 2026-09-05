@@ -48,7 +48,7 @@ function LeaderboardPage() {
         title="Developer leaderboard"
         subtitle={`Ranked by contracts deployed through DevStation on ${chain.name}.`}
       />
-      <div className="p-4 sm:p-6">
+      <div className="py-4 sm:py-6 px-5 sm:px-8 lg:px-12">
         {isLoading ? (
           <p className="font-mono text-xs text-muted-foreground">Reading the registry…</p>
         ) : !data?.available ? (

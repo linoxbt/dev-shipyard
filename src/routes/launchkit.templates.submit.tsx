@@ -94,7 +94,7 @@ function SubmitTemplate() {
           breadcrumb={["DevStation", "LaunchKit", "Templates", "Edit"]}
           title="Edit Template"
         />
-        <div className="p-6">
+        <div className="py-6 px-5 sm:px-8 lg:px-12">
           <div className="flex items-center gap-2 rounded border border-warning/40 bg-warning/10 p-4 font-mono text-xs text-warning">
             <AlertTriangle className="h-4 w-4" />
             Only the wallet that submitted this template can edit it.

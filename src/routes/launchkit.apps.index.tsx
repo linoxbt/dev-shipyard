@@ -58,7 +58,7 @@ function AppsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6">
+    <div className="mx-auto max-w-4xl py-6 px-5 sm:px-8 lg:px-12">
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
           <h1 className="font-mono text-sm font-bold text-foreground">Apps</h1>

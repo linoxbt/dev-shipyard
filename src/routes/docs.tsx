@@ -20,7 +20,7 @@ function DocsLayout() {
   return (
     <div className="mx-auto max-w-7xl">
       {/* Docs top bar with its own hamburger */}
-      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur lg:px-6">
+      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/90 py-3 backdrop-blur px-5 sm:px-8 lg:px-12">
         <button
           onClick={() => setNavOpen(true)}
           className="flex items-center gap-2 rounded border border-border px-2.5 py-1.5 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary lg:hidden"
@@ -44,7 +44,7 @@ function DocsLayout() {
         </a>
       </div>
 
-      <div className="flex gap-8 px-4 py-8 lg:px-6">
+      <div className="flex gap-8 py-8 px-5 sm:px-8 lg:px-12">
         {/* Desktop sidebar nav */}
         <aside className="hidden w-56 shrink-0 lg:block">
           <div className="sticky top-20">

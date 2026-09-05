@@ -61,7 +61,7 @@ function DeveloperProfile() {
     return (
       <div>
         <PageHeader breadcrumb={["DevStation", "Developer"]} title="Developer" />
-        <div className="p-6">
+        <div className="py-6 px-5 sm:px-8 lg:px-12">
           <p className="font-mono text-xs text-muted-foreground">That is not a wallet address.</p>
         </div>
       </div>
@@ -82,7 +82,7 @@ function DeveloperProfile() {
         title={shortAddr(address)}
         subtitle={`Deployments recorded on ${chain.name}. Everything here is read from chain.`}
       />
-      <div className="space-y-4 p-4 sm:p-6">
+      <div className="space-y-4 py-4 sm:py-6 px-5 sm:px-8 lg:px-12">
         {isLoading ? (
           <p className="font-mono text-xs text-muted-foreground">Reading the registry…</p>
         ) : !data?.available ? (

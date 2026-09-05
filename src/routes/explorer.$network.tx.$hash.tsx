@@ -212,7 +212,7 @@ function TxPage() {
       {tab === "input" && (
         <Card title="Input Data">
           {tx.decoded_input ? (
-            <div className="space-y-3 p-4">
+            <div className="space-y-3 py-4 px-5 sm:px-8 lg:px-12">
               <div className="font-mono text-xs text-foreground">
                 {tx.decoded_input.method_call}
               </div>

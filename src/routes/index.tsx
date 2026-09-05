@@ -105,7 +105,7 @@ function LandingNav() {
   const toggle = useTheme((s) => s.toggle);
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-6xl items-center gap-4 py-3 px-5 sm:px-8 lg:px-12">
         <Link to="/" className="flex items-center gap-2" aria-label="DevStation">
           <LogoMark className="h-7 w-7" />
           <span className="font-mono text-sm font-bold tracking-tight">
@@ -173,7 +173,7 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
         className="pointer-events-none absolute -right-40 -top-40 h-[28rem] w-[28rem] rounded-full opacity-20 blur-3xl"
         style={{ background: "var(--color-primary)" }}
       />
-      <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-12">
+      <div className="relative mx-auto grid max-w-6xl items-center gap-10 py-14 sm:py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-12 lg:py-28 px-5 sm:px-8 lg:px-12">
         <div>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] text-meta">
             <Terminal className="h-3.5 w-3.5 text-primary" />
@@ -246,7 +246,7 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
 function PipelineBand() {
   return (
     <section className="border-b border-border bg-surface">
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-6xl py-10 px-5 sm:px-8 lg:px-12">
         <HeroStage />
       </div>
     </section>
@@ -280,7 +280,7 @@ function StatsBand() {
   ];
   return (
     <section className="border-b border-border bg-surface">
-      <div className="mx-auto grid max-w-6xl grid-cols-2 divide-x divide-border px-2 sm:grid-cols-5 sm:px-6">
+      <div className="mx-auto grid max-w-6xl grid-cols-2 divide-x divide-border sm:grid-cols-5 px-5 sm:px-8 lg:px-12">
         {items.map((s) => (
           <div key={s.label} className="px-4 py-6 text-center">
             <div className="font-mono text-2xl font-bold text-foreground">{s.value}</div>
@@ -332,7 +332,7 @@ const FEATURES = [
 function Features() {
   return (
     <section id="features" className="border-b border-border">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-6xl py-16 px-5 sm:px-8 lg:px-12">
         <SectionHeading
           kicker="Everything in one console"
           title="The complete onchain developer workflow"
@@ -363,7 +363,7 @@ function Features() {
 function TemplatesShowcase() {
   return (
     <section id="templates" className="border-b border-border bg-surface">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-6xl py-16 px-5 sm:px-8 lg:px-12">
         <SectionHeading
           kicker="LaunchKit templates"
           title="Ship in 60 seconds"
@@ -431,7 +431,7 @@ const STEPS = [
 function Steps() {
   return (
     <section className="border-b border-border">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-6xl py-16 px-5 sm:px-8 lg:px-12">
         <SectionHeading kicker="How it works" title="From idea to onchain in four steps" />
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((s, i) => (
@@ -458,7 +458,7 @@ function Steps() {
 function CtaBand() {
   return (
     <section className="border-b border-border bg-surface">
-      <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
+      <div className="mx-auto max-w-3xl py-16 text-center px-5 sm:px-8 lg:px-12">
         <h2 className="font-mono text-2xl font-bold text-foreground sm:text-3xl">
           Start building on QIE and BOT Chain
         </h2>
@@ -489,7 +489,7 @@ function CtaBand() {
 function Footer() {
   return (
     <footer className="bg-background">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-10 sm:flex-row sm:items-center sm:px-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 py-10 sm:flex-row sm:items-center px-5 sm:px-8 lg:px-12">
         <div className="flex items-center gap-2">
           <LogoMark className="h-6 w-6" />
           <span className="font-mono text-sm font-bold">

@@ -31,7 +31,7 @@ function CodeWithAi() {
             : "Write, debug, and explain Solidity contracts with an AI assistant."
         }
       />
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden p-4">
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden py-4 px-5 sm:px-8 lg:px-12">
         {/* Mode switch */}
         <div className="mb-3 inline-flex self-start rounded border border-border bg-surface p-0.5">
           <ModeButton active={mode === "chat"} onClick={() => setMode("chat")} icon={MessageSquare}>

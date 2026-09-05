@@ -108,7 +108,7 @@ function AppDetail() {
     return (
       <div>
         <PageHeader breadcrumb={["DevStation", "LaunchKit", "Apps"]} title="App not found" />
-        <div className="p-6">
+        <div className="py-6 px-5 sm:px-8 lg:px-12">
           <p className="font-mono text-xs text-muted-foreground">
             That app is not in this browser.{" "}
             <Link to="/launchkit/apps" className="text-primary hover:underline">
@@ -175,7 +175,7 @@ function AppDetail() {
         }
       />
 
-      <div className="grid gap-4 p-4 sm:p-6 lg:grid-cols-2">
+      <div className="grid gap-4 py-4 sm:py-6 lg:grid-cols-2 px-5 sm:px-8 lg:px-12">
         <Section title="Overview">
           <Row label="Name">
             {editing ? (

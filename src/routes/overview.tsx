@@ -66,7 +66,7 @@ function Overview() {
         subtitle="Your QIE workspace: deployments, network status, and quick tools."
       />
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 py-6 px-5 sm:px-8 lg:px-12">
         {/* Stat cards */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat

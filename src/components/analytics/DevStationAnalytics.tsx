@@ -106,7 +106,7 @@ export function DevStationAnalytics() {
 
   if (!onChain) {
     return (
-      <div className="p-4 lg:p-6">
+      <div className="py-4 lg:py-6 px-5 sm:px-8 lg:px-12">
         <div className="mx-auto max-w-lg rounded border border-border bg-surface p-6 text-center">
           <ChainLogo family={chain.name} size={40} className="mx-auto" />
           <h2 className="mt-3 font-mono text-sm font-bold text-foreground">{chain.name}</h2>

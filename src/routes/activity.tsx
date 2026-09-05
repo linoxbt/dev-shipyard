@@ -140,7 +140,7 @@ function DashboardPage() {
           title="Your dashboard"
           subtitle="Reputation, apps, contracts and QIE identity for the connected wallet."
         />
-        <div className="p-6">
+        <div className="py-6 px-5 sm:px-8 lg:px-12">
           <div className="rounded border border-dashed border-border p-12 text-center">
             <ShieldCheck className="mx-auto h-6 w-6 text-meta" />
             <p className="mt-3 font-mono text-xs text-muted-foreground">
@@ -163,7 +163,7 @@ function DashboardPage() {
         subtitle="Reputation, apps, contracts and QIE identity for the connected wallet."
       />
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 py-6 px-5 sm:px-8 lg:px-12">
         {/* Identity */}
         <div className="rounded border border-border bg-surface p-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">

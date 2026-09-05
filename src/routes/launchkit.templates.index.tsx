@@ -93,7 +93,7 @@ function TemplateGallery() {
         }
       />
 
-      <div className="p-6">
+      <div className="py-6 px-5 sm:px-8 lg:px-12">
         {/* Filter bar */}
         <div className="mb-4 flex flex-wrap items-center gap-2">
           {CATEGORIES.map((c) => (

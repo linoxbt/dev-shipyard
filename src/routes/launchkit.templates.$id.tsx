@@ -67,7 +67,7 @@ function TemplateDetail() {
     return (
       <div>
         <PageHeader breadcrumb={["DevStation", "LaunchKit", "Templates"]} title="Template" />
-        <div className="p-6">
+        <div className="py-6 px-5 sm:px-8 lg:px-12">
           <div className="rounded border border-border bg-surface p-10 text-center font-mono text-xs text-meta">
             {hydrated ? (
               <>

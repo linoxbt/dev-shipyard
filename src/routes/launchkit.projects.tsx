@@ -140,7 +140,7 @@ function ProjectsPage() {
         }
       />
 
-      <div className="p-6">
+      <div className="py-6 px-5 sm:px-8 lg:px-12">
         {onChain && (
           <div className="mb-3 flex items-center gap-1.5 font-mono text-[10px] text-success">
             <span className="h-1.5 w-1.5 rounded-full bg-success" /> Reading your deployments from
