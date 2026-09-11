@@ -1,9 +1,15 @@
-import { listCheckpoints, undoCheckpoint } from "../git";
+import { accessSync, constants, existsSync } from "node:fs";
+import { checkpointBase, isRepo, listCheckpoints, undoCheckpoint } from "../git";
+import { evaluate } from "../policy";
+import { runShell } from "../shell";
+import { requiresPerson, toolCatalogue, TOOLS, type ToolDefinition } from "../tools";
+import { configuredProviderName } from "../providers";
 import { Orchestrator, type AgentEvent, type ApprovalRequest } from "../orchestrator";
 import { SessionStore, type SessionRecord } from "../session-store";
 import { Workspace } from "../workspace";
 import type { ModelProvider, ProviderMessage } from "../providers";
 import { renderApproval, renderEvent, renderSessions, renderUsage } from "./render";
+import { CLI_NAME } from "./args";
 
 // The commands take their terminal as a parameter rather than reaching for
 // process.stdout, so every one of them can be driven by a test with no tty,
@@ -123,7 +129,7 @@ export async function runCommand(
     session.stoppedBecause = error instanceof Error ? error.message : String(error);
     store.save(session);
     terminal.err(`Run failed: ${session.stoppedBecause}`);
-    terminal.err(`Resume it with: agent resume ${session.id}`);
+    terminal.err(`Resume it with: ${CLI_NAME} resume ${session.id}`);
     return { code: 1, session };
   }
 }
@@ -211,4 +217,165 @@ export async function resumeCommand(
     `Continue the previous task: ${session.goal}. It stopped because: ${session.stoppedBecause || "unknown"}.`;
   const { code } = await runCommand(context, goal, { resume: session });
   return code;
+}
+
+// The rest of the command surface. None of these reach a model, which is why
+// they run with no key configured: a broken setup is exactly when you need
+// `doctor` and `sessions` to work.
+
+export function toolsCommand(context: CommandContext): number {
+  const rows = toolCatalogue().map((entry) => {
+    const definition = TOOLS[entry.name] as ToolDefinition;
+    const gate = gateFor(definition, context);
+    return { name: entry.name, gate, description: entry.description };
+  });
+  const nameWidth = Math.max(...rows.map((r) => r.name.length));
+  const gateWidth = Math.max(...rows.map((r) => r.gate.length));
+  for (const row of rows) {
+    context.terminal.out(
+      `${row.name.padEnd(nameWidth)}  ${row.gate.padEnd(gateWidth)}  ${row.description}`,
+    );
+  }
+  return 0;
+}
+
+/** What this tool will do when the agent reaches for it, under the autonomy in
+ *  force. Computed from the same policy the run uses, not a second table that
+ *  could drift away from it. */
+function gateFor(definition: ToolDefinition, context: CommandContext): string {
+  if (requiresPerson(definition.name)) return "you do it";
+  const verdict = evaluate(
+    {
+      actionId: "catalogue",
+      taskId: "catalogue",
+      userId: "",
+      projectId: context.root,
+      operation: definition.operation,
+      resources: [],
+      environment: "development",
+    },
+    { autonomy: context.autonomy ?? "ask_sensitive" },
+  );
+  return verdict.decision === "allow" ? "runs" : `asks (${verdict.riskLevel})`;
+}
+
+export async function checkpointsCommand(context: CommandContext): Promise<number> {
+  if (!isRepo(context.root)) {
+    context.terminal.err("Not a git repository, so there are no checkpoints.");
+    return 1;
+  }
+  const points = await listCheckpoints(context.root, 50);
+  if (points.length === 0) {
+    context.terminal.out(
+      "No checkpoints yet. The agent makes one after a turn that changes a file.",
+    );
+    return 0;
+  }
+  for (const point of points) context.terminal.out(point);
+  return 0;
+}
+
+export async function diffCommand(context: CommandContext): Promise<number> {
+  if (!isRepo(context.root)) {
+    context.terminal.err("Not a git repository, so there is nothing to diff against.");
+    return 1;
+  }
+  const base = await checkpointBase(context.root);
+  // Against the last commit that was not the agent's, so this shows the
+  // agent's work as one change rather than one commit at a time.
+  const command = base ? `git diff ${base}` : "git diff HEAD";
+  const result = await runShell(command, { cwd: context.root, timeoutMs: 60_000 });
+  if (!result.ok) {
+    context.terminal.err(result.stderr || "git diff failed.");
+    return 1;
+  }
+  context.terminal.out(result.stdout.trim() || "The agent has not changed anything yet.");
+  return 0;
+}
+
+export function configCommand(context: CommandContext): number {
+  const lines = [
+    `workspace   ${context.root}`,
+    `git         ${isRepo(context.root) ? "yes" : "no, so there are no checkpoints and no undo"}`,
+    // What a run would actually use, not what this command happens to hold:
+    // `config` is one of the commands that runs without a provider, so reading
+    // it off the context would always say "none configured".
+    `provider    ${context.provider ? `${context.provider.name}/${context.provider.model}` : (configuredProviderName() ?? "none configured, set ANTHROPIC_API_KEY or OPENROUTER_API_KEY")}`,
+    `autonomy    ${context.autonomy ?? "ask_sensitive"}`,
+    `max steps   ${context.maxSteps ?? 40}`,
+    `budget      ${context.maxCostUsd ? `$${context.maxCostUsd}` : "none set"}`,
+    `approvals   ${context.yes ? "auto-approved (--yes)" : "asked in the terminal"}`,
+  ];
+  for (const line of lines) context.terminal.out(line);
+  return 0;
+}
+
+export interface Check {
+  name: string;
+  ok: boolean;
+  detail: string;
+}
+
+/** Separated from the printing so the checks themselves can be asserted on. */
+export async function runChecks(
+  root: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<Check[]> {
+  const checks: Check[] = [];
+
+  const provider = configuredProviderName(env);
+  checks.push({
+    name: "model provider",
+    ok: provider !== null,
+    detail: provider ?? "set ANTHROPIC_API_KEY, or OPENROUTER_API_KEY",
+  });
+
+  const git = await runShell("git --version", { cwd: root, timeoutMs: 15_000 });
+  checks.push({
+    name: "git",
+    ok: git.ok,
+    detail: git.ok ? git.stdout.trim() : "not found, so checkpoints and undo will not work",
+  });
+
+  checks.push({
+    name: "workspace",
+    ok: existsSync(root),
+    detail: isRepo(root) ? `${root} (a git repository)` : `${root} (not a git repository)`,
+  });
+
+  // Writable is not the same as existing, and a read-only checkout fails in a
+  // confusing way much later if this is not said up front.
+  let writable = false;
+  try {
+    accessSync(root, constants.W_OK);
+    writable = true;
+  } catch {
+    writable = false;
+  }
+  checks.push({
+    name: "write access",
+    ok: writable,
+    detail: writable ? "the agent can edit files here" : "no write access to this directory",
+  });
+
+  checks.push({
+    name: "runtime",
+    ok: true,
+    detail: `bun ${typeof Bun === "undefined" ? "not detected" : Bun.version}`,
+  });
+
+  return checks;
+}
+
+export async function doctorCommand(context: CommandContext): Promise<number> {
+  const checks = await runChecks(context.root);
+  for (const check of checks) {
+    context.terminal.out(`${check.ok ? "ok  " : "no  "}${check.name.padEnd(15)}${check.detail}`);
+  }
+  const failed = checks.filter((c) => !c.ok);
+  if (failed.length > 0) {
+    context.terminal.err(`${failed.length} thing(s) need attention before a run will work.`);
+    return 1;
+  }
+  return 0;
 }

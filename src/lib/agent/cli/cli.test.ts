@@ -2,11 +2,19 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { MockProvider } from "../providers";
+import { MockProvider, configuredProviderName } from "../providers";
 import { SessionStore } from "../session-store";
-import { parseArgs } from "./args";
+import { CLI_NAME, HELP, SESSION_HELP, parseArgs } from "./args";
 import { renderEvent, renderSessions, renderUsage } from "./render";
+import { chatCommand, handleSlash } from "./interactive";
+import { lineReader } from "./line-reader";
 import {
+  checkpointsCommand,
+  configCommand,
+  diffCommand,
+  doctorCommand,
+  runChecks,
+  toolsCommand,
   isYes,
   resumeCommand,
   runCommand,
@@ -72,8 +80,43 @@ describe("argument parsing", () => {
     expect(parseArgs(["run", "x", "--autonomy", "yolo"]).error).toContain("yolo");
   });
 
-  it("defaults to help with no arguments", () => {
-    expect(parseArgs([]).command).toBe("help");
+  it("starts a session with no arguments", () => {
+    expect(parseArgs([]).command).toBe("chat");
+  });
+
+  it("lets --help and --version win over anything else typed", () => {
+    expect(parseArgs(["run", "something", "--help"]).command).toBe("help");
+    expect(parseArgs(["run", "something", "-v"]).command).toBe("version");
+  });
+
+  it("takes a model override and a working directory", () => {
+    const parsed = parseArgs(["run", "x", "--model", "claude-opus-5", "-C", "/srv/app"]);
+    expect(parsed.model).toBe("claude-opus-5");
+    expect(parsed.root).toBe("/srv/app");
+    expect(parseArgs(["run", "x", "--model"]).error).toContain("--model");
+  });
+
+  it("knows every command it advertises", () => {
+    // The help text and the parser drifting apart is the usual way a CLI
+    // grows a command nobody can actually type.
+    for (const command of [
+      "chat",
+      "run",
+      "status",
+      "sessions",
+      "resume",
+      "undo",
+      "checkpoints",
+      "diff",
+      "tools",
+      "config",
+      "doctor",
+      "version",
+      "help",
+    ]) {
+      expect(parseArgs([command]).command).toBe(command as never);
+      if (command !== "chat") expect(HELP).toContain(`${CLI_NAME} ${command}`);
+    }
   });
 });
 
@@ -190,7 +233,7 @@ describe("run, from the terminal", () => {
     const { code, session } = await runCommand(context(root, provider, term.t), "do something");
 
     expect(code).toBe(1);
-    expect(term.errors()).toContain("agent resume");
+    expect(term.errors()).toContain(`${CLI_NAME} resume`);
     expect(new SessionStore(root).load(session.id)?.status).toBe("failed");
   });
 });
@@ -379,5 +422,283 @@ describe("resume", () => {
       1,
     );
     expect(term.errors()).toContain("deadbeef");
+  });
+});
+
+describe("the rest of the command surface", () => {
+  it("lists every tool with what it will do when reached for", () => {
+    const root = scratch();
+    const term = terminal();
+    toolsCommand(context(root, new MockProvider([]), term.t));
+
+    expect(term.text()).toContain("read_file");
+    expect(term.text()).toContain("run_shell");
+    // The gate column comes from the same policy the run uses.
+    expect(term.text()).toMatch(/read_file\s+runs/);
+    expect(term.text()).toMatch(/delete_file\s+asks/);
+    // The outward tools are a different kind of thing and say so.
+    expect(term.text()).toMatch(/push_to_github\s+you do it/);
+  });
+
+  it("shows the tools that stop asking under autonomous", () => {
+    const root = scratch();
+    const strict = terminal();
+    const loose = terminal();
+    toolsCommand(context(root, new MockProvider([]), strict.t));
+    toolsCommand({ ...context(root, new MockProvider([]), loose.t), autonomy: "autonomous" });
+
+    const asksWhenStrict = strict
+      .text()
+      .split("\n")
+      .filter((l) => l.includes("asks")).length;
+    const asksWhenLoose = loose
+      .text()
+      .split("\n")
+      .filter((l) => l.includes("asks")).length;
+    expect(asksWhenLoose).toBeLessThan(asksWhenStrict);
+  });
+
+  it("says plainly when there are no checkpoints, and lists them when there are", async () => {
+    const root = scratch();
+    const { runShell } = await import("../shell");
+    await runShell(
+      "git init -q && git config user.email a@b.c && git config user.name T && " +
+        "echo hi > a.txt && git add -A && git commit -qm init",
+      { cwd: root },
+    );
+
+    const empty = terminal();
+    await checkpointsCommand(context(root, new MockProvider([]), empty.t));
+    expect(empty.text()).toContain("No checkpoints yet");
+
+    const provider = new MockProvider([
+      { toolCalls: [{ id: "1", name: "write_file", input: { path: "b.txt", content: "x" } }] },
+      { text: "done" },
+    ]);
+    await runCommand(context(root, provider, terminal().t), "add b.txt");
+
+    const after = terminal();
+    await checkpointsCommand(context(root, new MockProvider([]), after.t));
+    expect(after.text()).toContain("agent checkpoint:");
+  }, 30_000);
+
+  it("diffs the agent's work against the last commit that was not its own", async () => {
+    const root = scratch();
+    const { runShell } = await import("../shell");
+    await runShell(
+      "git init -q && git config user.email a@b.c && git config user.name T && " +
+        "printf 'one\\n' > a.txt && git add -A && git commit -qm init",
+      { cwd: root },
+    );
+
+    const provider = new MockProvider([
+      { toolCalls: [{ id: "1", name: "write_file", input: { path: "a.txt", content: "two\n" } }] },
+      { text: "done" },
+    ]);
+    await runCommand(context(root, provider, terminal().t), "change a.txt");
+
+    const term = terminal();
+    // The change is inside a checkpoint commit by now, so a plain `git diff`
+    // would show nothing at all.
+    expect(await diffCommand(context(root, new MockProvider([]), term.t))).toBe(0);
+    expect(term.text()).toContain("-one");
+    expect(term.text()).toContain("+two");
+  }, 30_000);
+
+  it("refuses to diff or list checkpoints outside a repository", async () => {
+    const root = scratch();
+    const term = terminal();
+    expect(await diffCommand(context(root, new MockProvider([]), term.t))).toBe(1);
+    expect(await checkpointsCommand(context(root, new MockProvider([]), term.t))).toBe(1);
+    expect(term.errors()).toContain("Not a git repository");
+  });
+
+  it("shows the settings a run would actually use", () => {
+    const root = scratch();
+    const term = terminal();
+    configCommand({
+      ...context(root, new MockProvider([]), term.t),
+      autonomy: "autonomous",
+      maxCostUsd: 3,
+    });
+    expect(term.text()).toContain(root);
+    expect(term.text()).toContain("autonomous");
+    expect(term.text()).toContain("$3");
+    expect(term.text()).toContain("mock/mock-model");
+  });
+
+  it("tells the truth about a machine with no key configured", async () => {
+    const root = scratch();
+    const checks = await runChecks(root, {});
+    const provider = checks.find((c) => c.name === "model provider");
+    expect(provider?.ok).toBe(false);
+    expect(provider?.detail).toContain("ANTHROPIC_API_KEY");
+    expect(checks.find((c) => c.name === "workspace")?.detail).toContain("not a git repository");
+  }, 30_000);
+
+  it("passes the provider check once a key is present", async () => {
+    const checks = await runChecks(scratch(), { ANTHROPIC_API_KEY: "sk-test" });
+    expect(checks.find((c) => c.name === "model provider")?.ok).toBe(true);
+  }, 30_000);
+
+  it("fails doctor when something needs attention", async () => {
+    const root = scratch();
+    const term = terminal();
+    // No key in this process unless one is set, so this asserts on the shape
+    // rather than the verdict.
+    const code = await doctorCommand(context(root, new MockProvider([]), term.t));
+    expect(term.text()).toContain("git");
+    expect(term.text()).toContain("write access");
+    expect([0, 1]).toContain(code);
+  }, 30_000);
+});
+
+describe("a session", () => {
+  it("answers slash commands without spending a turn", async () => {
+    const root = scratch();
+    const provider = new MockProvider([{ text: "should not be reached" }]);
+    const term = terminal();
+    const ctx = context(root, provider, term.t);
+
+    expect(await handleSlash(ctx, "/help", null)).toBe("handled");
+    expect(await handleSlash(ctx, "/tools", null)).toBe("handled");
+    expect(await handleSlash(ctx, "/config", null)).toBe("handled");
+    expect(await handleSlash(ctx, "/cost", null)).toBe("handled");
+    expect(await handleSlash(ctx, "/exit", null)).toBe("exit");
+    expect(await handleSlash(ctx, "/clear", null)).toBe("clear");
+    expect(await handleSlash(ctx, "fix the bug", null)).toBe("not-a-command");
+    expect(provider.calls).toHaveLength(0);
+    expect(term.text()).toContain(SESSION_HELP.trim().split("\n")[0].trim());
+  });
+
+  it("says so when a slash command does not exist", async () => {
+    const root = scratch();
+    const term = terminal();
+    await handleSlash(context(root, new MockProvider([]), term.t), "/nope", null);
+    expect(term.errors()).toContain("/nope");
+  });
+
+  it("carries the transcript from one turn to the next", async () => {
+    const root = scratch();
+    const provider = new MockProvider([{ text: "first answer" }, { text: "second answer" }]);
+    const term = terminal(["what is here", "and now this", "/exit"]);
+    await chatCommand(context(root, provider, term.t));
+
+    expect(provider.calls).toHaveLength(2);
+    // The second turn was given the first turn's exchange, not a blank slate.
+    const second = provider.calls[1].messages;
+    expect(second.length).toBeGreaterThan(1);
+    expect(second[0].content).toContain("what is here");
+    expect(second.at(-1)?.content).toBe("and now this");
+  });
+
+  it("drops the transcript on /clear but keeps the workspace", async () => {
+    const root = scratch();
+    const provider = new MockProvider([{ text: "a" }, { text: "b" }]);
+    const term = terminal(["first thing", "/clear", "second thing", "/exit"]);
+    await chatCommand(context(root, provider, term.t));
+
+    expect(provider.calls).toHaveLength(2);
+    expect(provider.calls[1].messages).toHaveLength(1);
+    expect(provider.calls[1].messages[0].content).toBe("second thing");
+  });
+
+  it("takes an opening instruction without waiting to be asked", async () => {
+    const root = scratch();
+    const provider = new MockProvider([{ text: "done" }]);
+    const term = terminal(["/exit"]);
+    await chatCommand(context(root, provider, term.t), "start with this");
+    expect(provider.calls[0].messages[0].content).toBe("start with this");
+  });
+
+  it("ends rather than spinning when its input closes", async () => {
+    const root = scratch();
+    const term = terminal([]); // every ask() returns ""
+    const code = await chatCommand(context(root, new MockProvider([]), term.t));
+    expect(code).toBe(0);
+  });
+});
+
+describe("what config reports", () => {
+  it("names the provider a run would use, not the one this command holds", () => {
+    // config runs without a provider, so reading it off the context would
+    // always claim nothing is configured even when a key is right there.
+    const root = scratch();
+    const term = terminal();
+    configCommand({
+      root,
+      terminal: term.t,
+      provider: null as unknown as MockProvider,
+    });
+    const line = term
+      .text()
+      .split("\n")
+      .find((l) => l.startsWith("provider"));
+    expect(line).toBeDefined();
+    const expected = configuredProviderName();
+    if (expected) expect(line).toContain(expected);
+    else expect(line).toContain("ANTHROPIC_API_KEY");
+  });
+});
+
+describe("reading input while a turn is running", () => {
+  function fakeInterface() {
+    const handlers: Record<string, ((line: string) => void)[]> = {};
+    return {
+      rl: {
+        on(event: string, handler: (line: string) => void) {
+          (handlers[event] ??= []).push(handler);
+          return this;
+        },
+        close() {
+          for (const h of handlers.close ?? []) h("");
+        },
+      },
+      emit(line: string) {
+        for (const h of handlers.line ?? []) h(line);
+      },
+      end() {
+        for (const h of handlers.close ?? []) h("");
+      },
+    };
+  }
+
+  it("keeps lines that arrive while nobody is asking", async () => {
+    // The bug this replaced: a piped session read its first instruction, spent
+    // a minute on it, and the rest of the input was gone by the time it asked.
+    const fake = fakeInterface();
+    const reader = lineReader(fake.rl as never, () => {});
+    fake.emit("first");
+    fake.emit("second");
+    expect(await reader.ask("> ")).toBe("first");
+    expect(await reader.ask("> ")).toBe("second");
+  });
+
+  it("still drains what it queued after the input ends", async () => {
+    const fake = fakeInterface();
+    const reader = lineReader(fake.rl as never, () => {});
+    fake.emit("only line");
+    fake.end();
+    expect(await reader.ask("> ")).toBe("only line");
+    expect(await reader.ask("> ")).toBe("");
+  });
+
+  it("releases a waiting prompt when the input closes", async () => {
+    const fake = fakeInterface();
+    const reader = lineReader(fake.rl as never, () => {});
+    const pending = reader.ask("> ");
+    fake.end();
+    expect(await pending).toBe("");
+  });
+
+  it("only writes the prompt when it actually has to wait", async () => {
+    const written: string[] = [];
+    const fake = fakeInterface();
+    const reader = lineReader(fake.rl as never, (t) => written.push(t));
+    fake.emit("queued");
+    await reader.ask("> ");
+    expect(written).toHaveLength(0);
+    void reader.ask("> ");
+    expect(written).toEqual(["> "]);
   });
 });

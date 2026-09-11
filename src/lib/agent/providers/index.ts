@@ -18,10 +18,13 @@ export { MockProvider, type MockTurn } from "./mock";
  * Returns null rather than throwing when neither key is set, so a caller can
  * say "no model is configured" in its own words instead of catching.
  */
-export function providerFromEnv(env: NodeJS.ProcessEnv = process.env): ModelProvider | null {
-  if (env.ANTHROPIC_API_KEY) return new AnthropicProvider({ apiKey: env.ANTHROPIC_API_KEY });
+export function providerFromEnv(
+  env: NodeJS.ProcessEnv = process.env,
+  model?: string,
+): ModelProvider | null {
+  if (env.ANTHROPIC_API_KEY) return new AnthropicProvider({ apiKey: env.ANTHROPIC_API_KEY, model });
   const openRouter = env.OPENROUTER_API_KEY || env.AI_API_KEY;
-  if (openRouter) return new OpenRouterProvider(openRouter);
+  if (openRouter) return new OpenRouterProvider(openRouter, model);
   return null;
 }
 

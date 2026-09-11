@@ -7,8 +7,8 @@ import type { ProtectedAction, RiskLevel } from "./authorization";
 // argue its way past it, because it never gets asked: the answer comes from
 // the operation name and the resources, not from anything the model wrote.
 //
-// The bar for interrupting someone is deliberately high. Ordinary development
-//, writing a component, restyling, running tests, fixing an error, is safe
+// The bar for interrupting someone is deliberately high. Ordinary development,
+// writing a component, restyling, running tests, fixing an error, is safe
 // and must never prompt. Interruptions are reserved for actions that lose data,
 // spend money, change who can get in, or reach production.
 

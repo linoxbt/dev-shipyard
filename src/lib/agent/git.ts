@@ -130,6 +130,26 @@ export async function undoCheckpoint(root: string): Promise<{ ok: boolean; messa
   return { ok: true, message: `Undid ${subject.stdout.trim()}` };
 }
 
+/**
+ * The newest commit that the agent did not make.
+ *
+ * This is what "what has the agent changed" is measured against: everything
+ * from here to the working tree is the agent's, and everything before it is
+ * the person's. Null when the agent's checkpoints go all the way back, which
+ * happens in a repository it started itself.
+ */
+export async function checkpointBase(root: string): Promise<string | null> {
+  if (!isRepo(root)) return null;
+  const log = await runShell("git log --pretty=%H%x09%s -n 200", { cwd: root, timeoutMs: 30_000 });
+  if (!log.ok) return null;
+  for (const line of log.stdout.split("\n")) {
+    const [sha, ...rest] = line.split("\t");
+    if (!sha) continue;
+    if (!rest.join("\t").startsWith(CHECKPOINT_PREFIX)) return sha;
+  }
+  return null;
+}
+
 /** The agent's checkpoints, newest first. */
 export async function listCheckpoints(root: string, limit = 20): Promise<string[]> {
   if (!isRepo(root)) return [];
