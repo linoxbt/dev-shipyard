@@ -183,3 +183,54 @@ describe("the registry as a whole", () => {
     }
   });
 });
+
+// Risk that depends on the arguments, not on a label fixed at registration.
+// Classifying `ls` and `rm -rf /` identically would mean either asking about
+// every directory listing or waving through a command that destroys work.
+describe("risk decided from the command itself", () => {
+  const ctx2 = { taskId: "t1", userId: "0xowner", projectId: "p1" } as const;
+
+  it("lets a read-only command through without asking", () => {
+    const r = preflight({ id: "s1", name: "run_shell", args: { command: "ls -la" } }, ctx2);
+    expect(r.ok).toBe(true);
+  });
+
+  it("asks before an ordinary writing command", () => {
+    const r = preflight({ id: "s2", name: "run_shell", args: { command: "npm run build" } }, ctx2);
+    expect(r.ok).toBe(false);
+    if (!r.ok && r.rejection.reason === "needs_authorization") {
+      expect(r.rejection.verdict.riskLevel).toBe("high");
+    }
+  });
+
+  it("treats a destructive command as critical, which autonomy cannot lower", () => {
+    const r = preflight({ id: "s3", name: "run_shell", args: { command: "rm -rf /" } }, ctx2);
+    expect(r.ok).toBe(false);
+    if (!r.ok && r.rejection.reason === "needs_authorization") {
+      expect(r.rejection.verdict.riskLevel).toBe("critical");
+      expect(alwaysRequiresPerson(r.rejection.action)).toBe(true);
+    }
+  });
+
+  it("is not fooled by a safe-looking first word", () => {
+    const r = preflight({ id: "s4", name: "run_shell", args: { command: "ls && rm -rf /" } }, ctx2);
+    expect(r.ok).toBe(false);
+    if (!r.ok && r.rejection.reason === "needs_authorization") {
+      expect(r.rejection.verdict.riskLevel).toBe("critical");
+    }
+  });
+
+  it("separates read-only git from git that writes", () => {
+    expect(preflight({ id: "g1", name: "git", args: { op: "status" } }, ctx2).ok).toBe(true);
+    expect(preflight({ id: "g2", name: "git", args: { op: "log" } }, ctx2).ok).toBe(true);
+    expect(preflight({ id: "g3", name: "git", args: { op: "commit" } }, ctx2).ok).toBe(false);
+  });
+
+  it("treats git checkout as able to discard work, not as an ordinary write", () => {
+    const r = preflight({ id: "g4", name: "git", args: { op: "checkout" } }, ctx2);
+    expect(r.ok).toBe(false);
+    if (!r.ok && r.rejection.reason === "needs_authorization") {
+      expect(r.rejection.verdict.riskLevel).toBe("critical");
+    }
+  });
+});

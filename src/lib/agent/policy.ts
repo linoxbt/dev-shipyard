@@ -112,6 +112,25 @@ const GATED: Array<{ prefix: string; risk: Exclude<RiskLevel, "low">; why: strin
     why: "This puts the code in a repository under your account, where it can be seen and cloned by anyone who can reach it.",
   },
   { prefix: "shell.exec", risk: "critical", why: "This runs an arbitrary command on the host." },
+  {
+    // The middle tier. A command that is not recognisably read-only, but is
+    // not on the destructive list either. Autonomy can widen this; the
+    // critical tier above it never widens.
+    prefix: "shell.write",
+    risk: "high",
+    why: "Running a command can change files, install software, or reach the network.",
+  },
+  {
+    prefix: "vcs.commit",
+    risk: "medium",
+    why: "This records a commit in the repository's history.",
+  },
+  {
+    // Rewinding discards work that is not recoverable from the repository.
+    prefix: "vcs.reset",
+    risk: "critical",
+    why: "This discards commits and any uncommitted work along with them.",
+  },
 ];
 
 /** Environment can raise the stakes even for an otherwise routine action. */

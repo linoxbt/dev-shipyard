@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { evaluate, type Verdict } from "./policy";
 import { asUntrusted, redact } from "./secrets";
+import { operationForCommand } from "./shell";
+import { READ_ONLY_OPS } from "./git";
 import type { ProtectedAction } from "./authorization";
 
 // The tool boundary.
@@ -32,6 +34,13 @@ export interface ToolDefinition<S extends z.ZodTypeAny = z.ZodTypeAny> {
   /** Which argument names identify what is being touched, so the policy engine
    *  and any authorization grant can be scoped to real resources. */
   resourcesFrom: (args: z.infer<S>) => string[];
+  /** Decide the operation from the arguments, when a fixed one would be wrong.
+   *
+   *  `ls` and `rm -rf /` are both run_shell, and classifying them identically
+   *  would mean either asking about every directory listing or waving through
+   *  a command that destroys work. The registry's `operation` stays as the
+   *  fallback for tools whose risk really is fixed. */
+  operationFrom?: (args: z.infer<S>) => string;
   /** The arguments that define WHAT is being authorised, when that is narrower
    *  than every argument.
    *
@@ -158,6 +167,62 @@ export const TOOLS: Record<string, ToolDefinition> = {
       dev: z.boolean().optional(),
     }),
     resourcesFrom: (a) => [(a as { name: string }).name],
+    returnsUntrustedContent: true,
+  },
+  run_shell: {
+    name: "run_shell",
+    usage: 'run_shell {"command", "timeoutSeconds?"}',
+    description: "Run a shell command in the workspace and return its output and exit code.",
+    // The operation is decided from the command itself, not fixed here: `ls`
+    // and `rm -rf /` are not the same action and must not carry the same risk.
+    operation: "shell.write",
+    schema: z.object({
+      command: z.string().min(1).max(4_000),
+      timeoutSeconds: z.number().int().min(1).max(600).optional(),
+    }),
+    operationFrom: (a) => operationForCommand(String((a as { command: string }).command)),
+    resourcesFrom: (a) => [String((a as { command: string }).command).slice(0, 120)],
+    returnsUntrustedContent: true,
+    materialArgs: ["command"],
+  },
+  git: {
+    name: "git",
+    usage: 'git {"op", "args?"}',
+    description:
+      "Run a git operation: status, log, diff, show, branch, add, commit, init, checkout, rev-parse.",
+    operation: "vcs.commit",
+    schema: z.object({
+      op: z.enum([
+        "status",
+        "log",
+        "diff",
+        "show",
+        "branch",
+        "add",
+        "commit",
+        "init",
+        "checkout",
+        "rev-parse",
+      ]),
+      args: z.array(z.string().max(500)).max(20).optional(),
+    }),
+    operationFrom: (a) => {
+      const op = (a as { op: string }).op;
+      if (READ_ONLY_OPS.has(op as never)) return "project.inspect";
+      // checkout can discard uncommitted work, so it is not an ordinary write.
+      return op === "checkout" ? "vcs.reset" : "vcs.commit";
+    },
+    resourcesFrom: (a) => [`git:${(a as { op: string }).op}`],
+    returnsUntrustedContent: true,
+    materialArgs: ["op"],
+  },
+  lint_and_typecheck: {
+    name: "lint_and_typecheck",
+    usage: "lint_and_typecheck {}",
+    description: "Run the project's linter and type-checker, returning what they report.",
+    operation: "code.analyze",
+    schema: z.object({}),
+    resourcesFrom: () => ["project"],
     returnsUntrustedContent: true,
   },
   run_build: {
@@ -299,7 +364,8 @@ export function preflight(call: ToolCall, ctx: PreflightContext): ToolPreflight 
     actionId: call.id,
     taskId: ctx.taskId,
     userId: ctx.userId,
-    operation: tool.operation,
+    // The tool's own reading of its arguments wins over the static label.
+    operation: tool.operationFrom ? tool.operationFrom(args) : tool.operation,
     resources: tool.resourcesFrom(args),
     environment: ctx.environment,
     projectId: ctx.projectId,

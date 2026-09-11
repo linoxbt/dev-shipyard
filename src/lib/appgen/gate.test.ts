@@ -192,7 +192,10 @@ describe("the calls the runner actually proposes", () => {
   });
 
   it("refuses a tool name the registry does not define", () => {
-    const r = preflight({ id: "a5", name: "run_shell", args: { cmd: "rm -rf /" } }, ctx);
+    // Deliberately not a plausible future tool name. This test previously used
+    // run_shell, which Phase C then registered for real, and the assertion
+    // started failing for the right reason: the tool existed.
+    const r = preflight({ id: "a5", name: "definitely_not_a_tool", args: {} }, ctx);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.rejection.reason).toBe("unknown_tool");
   });
