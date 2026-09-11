@@ -5,6 +5,14 @@
 // here assumes the code it is given is hostile.
 
 import { createServer } from "node:http";
+import {
+  cancelRepoJob,
+  changeFor,
+  getRepoJob,
+  initRepoStore,
+  startRepoJob,
+  viewOf,
+} from "./repo-agent";
 import { LIMITS, type PhaseName } from "./limits";
 import { packTar, unpackTar } from "./tar";
 import {
@@ -67,6 +75,30 @@ interface JobBody {
   phases?: PhaseName[];
   /** Directory to return after a successful build. */
   outDir?: string;
+}
+
+/** Read a JSON body with a ceiling, the same way every other route here does.
+ *  Factored out when a fourth copy of it was about to be written. */
+async function readJsonBody<T>(
+  req: import("node:http").IncomingMessage,
+  limit: number,
+): Promise<{ ok: true; value: T } | { ok: false; status: number; message: string }> {
+  let raw = "";
+  let tooBig = false;
+  req.on("data", (chunk) => {
+    raw += chunk;
+    if (raw.length > limit) {
+      tooBig = true;
+      req.destroy();
+    }
+  });
+  await new Promise((r) => req.on("end", r).on("close", r));
+  if (tooBig) return { ok: false, status: 413, message: "Request too large" };
+  try {
+    return { ok: true, value: JSON.parse(raw) as T };
+  } catch {
+    return { ok: false, status: 400, message: "Malformed JSON" };
+  }
 }
 
 function json(res: import("node:http").ServerResponse, status: number, body: unknown) {
@@ -438,6 +470,71 @@ const server = createServer(async (req, res) => {
     return json(res, 404, { ok: false, message: "Not found" });
   }
 
+  // Agent runs against a repository somebody already has. Separate from
+  // /agent/jobs: that one builds an app from a prompt, this one changes a
+  // project that exists. No GitHub credential reaches this process for either.
+  if (path.startsWith("/agent/repo-jobs")) {
+    if (!tokenMatches(req.headers.authorization, TOKEN)) {
+      return json(res, 401, { ok: false, message: "Unauthorized" });
+    }
+    const rest = path.slice("/agent/repo-jobs".length).replace(/^\//, "");
+
+    if (!rest && req.method === "POST") {
+      const caller =
+        String(req.headers["x-devstation-caller"] ?? "").slice(0, 100) || clientKey(req);
+      if (!withinRateLimit(`repo:${caller}`)) {
+        return json(res, 429, { ok: false, message: "Too many runs from this client." });
+      }
+      const body = await readJsonBody<{
+        repo?: unknown;
+        ref?: unknown;
+        goal?: unknown;
+        files?: unknown;
+      }>(req, LIMITS.maxInputBytes * 2);
+      if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
+
+      const { repo, ref, goal, files } = body.value;
+      if (typeof repo !== "string" || !repo.trim()) {
+        return json(res, 400, { ok: false, message: "A repository is required." });
+      }
+      if (typeof goal !== "string" || !goal.trim()) {
+        return json(res, 400, { ok: false, message: "A goal is required." });
+      }
+      if (!files || typeof files !== "object" || Array.isArray(files)) {
+        return json(res, 400, { ok: false, message: "The repository files are required." });
+      }
+      const job = startRepoJob({
+        repo: repo.slice(0, 200),
+        ref: typeof ref === "string" && ref ? ref.slice(0, 200) : "main",
+        goal: goal.slice(0, 4000),
+        files: files as Record<string, string>,
+      });
+      return json(res, 200, { ok: true, job: viewOf(job) });
+    }
+
+    if (rest.endsWith("/cancel") && req.method === "POST") {
+      const cancelled = cancelRepoJob(rest.replace(/\/cancel$/, ""));
+      return json(res, cancelled ? 200 : 404, { ok: cancelled });
+    }
+
+    // The change itself, for the app's server alone. It holds the person's
+    // session and is about to ask them whether to open the pull request; the
+    // browser never needs the file contents and is never sent them.
+    if (rest.endsWith("/change") && req.method === "GET") {
+      const change = changeFor(rest.replace(/\/change$/, ""));
+      if (!change) return json(res, 404, { ok: false, message: "No finished run with that id." });
+      return json(res, 200, { ok: true, ...change });
+    }
+
+    if (rest && req.method === "GET") {
+      const job = getRepoJob(rest);
+      if (!job) return json(res, 404, { ok: false, message: "No such run." });
+      return json(res, 200, { ok: true, job: viewOf(job) });
+    }
+
+    return json(res, 404, { ok: false, message: "Not found" });
+  }
+
   if (path !== "/jobs" || req.method !== "POST") {
     return json(res, 404, { ok: false, message: "Not found" });
   }
@@ -583,6 +680,7 @@ const server = createServer(async (req, res) => {
 // Before the first request, so a grant or a question written by the process
 // that just died is read back rather than silently starting empty.
 initAgentStores();
+initRepoStore();
 
 server.listen(PORT, HOST, () => {
   console.log(

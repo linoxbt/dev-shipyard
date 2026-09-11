@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
+  Bot,
   BookOpen,
   Code2,
   Compass,
@@ -44,6 +45,7 @@ const NAV = [
       { to: "/launchkit/ai", label: "Code with AI", icon: Sparkles },
       { to: "/launchkit/deploy", label: "Deploy", icon: Rocket },
       { to: "/launchkit/app-builder", label: "App Builder", icon: Wand2 },
+      { to: "/launchkit/coding-agent", label: "Coding Agent", icon: Bot },
       // My Apps and Projects are reached from the dashboard, not from here.
       // They are personal views of your own work rather than tools, so they
       // belong behind the dashboard that summarises them.

@@ -26,6 +26,7 @@ import { Route as LaunchkitProjectsRouteImport } from './routes/launchkit.projec
 import { Route as LaunchkitMarketplaceRouteImport } from './routes/launchkit.marketplace'
 import { Route as LaunchkitEditorRouteImport } from './routes/launchkit.editor'
 import { Route as LaunchkitDeployRouteImport } from './routes/launchkit.deploy'
+import { Route as LaunchkitCodingAgentRouteImport } from './routes/launchkit.coding-agent'
 import { Route as LaunchkitAppBuilderRouteImport } from './routes/launchkit.app-builder'
 import { Route as LaunchkitAiRouteImport } from './routes/launchkit.ai'
 import { Route as ExplorerNetworkRouteImport } from './routes/explorer.$network'
@@ -43,6 +44,7 @@ import { Route as DocsEditorRouteImport } from './routes/docs.editor'
 import { Route as DocsAiRouteImport } from './routes/docs.ai'
 import { Route as DevAddressRouteImport } from './routes/dev.$address'
 import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
+import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
 import { Route as ApiQieIdentityRouteImport } from './routes/api.qie-identity'
 import { Route as ApiPublishRouteImport } from './routes/api.publish'
 import { Route as ApiGithubRouteImport } from './routes/api.github'
@@ -153,6 +155,11 @@ const LaunchkitDeployRoute = LaunchkitDeployRouteImport.update({
   path: '/launchkit/deploy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaunchkitCodingAgentRoute = LaunchkitCodingAgentRouteImport.update({
+  id: '/launchkit/coding-agent',
+  path: '/launchkit/coding-agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LaunchkitAppBuilderRoute = LaunchkitAppBuilderRouteImport.update({
   id: '/launchkit/app-builder',
   path: '/launchkit/app-builder',
@@ -236,6 +243,11 @@ const DevAddressRoute = DevAddressRouteImport.update({
 const ApiSponsorTopupRoute = ApiSponsorTopupRouteImport.update({
   id: '/api/sponsor-topup',
   path: '/api/sponsor-topup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRepoAgentRoute = ApiRepoAgentRouteImport.update({
+  id: '/api/repo-agent',
+  path: '/api/repo-agent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiQieIdentityRoute = ApiQieIdentityRouteImport.update({
@@ -379,6 +391,7 @@ export interface FileRoutesByFullPath {
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/publish': typeof ApiPublishRoute
   '/api/qie-identity': typeof ApiQieIdentityRoute
+  '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
@@ -396,6 +409,7 @@ export interface FileRoutesByFullPath {
   '/explorer/$network': typeof ExplorerNetworkRouteWithChildren
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/app-builder': typeof LaunchkitAppBuilderRoute
+  '/launchkit/coding-agent': typeof LaunchkitCodingAgentRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/marketplace': typeof LaunchkitMarketplaceRoute
@@ -437,6 +451,7 @@ export interface FileRoutesByTo {
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/publish': typeof ApiPublishRoute
   '/api/qie-identity': typeof ApiQieIdentityRoute
+  '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
@@ -453,6 +468,7 @@ export interface FileRoutesByTo {
   '/docs/wallets': typeof DocsWalletsRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/app-builder': typeof LaunchkitAppBuilderRoute
+  '/launchkit/coding-agent': typeof LaunchkitCodingAgentRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/marketplace': typeof LaunchkitMarketplaceRoute
@@ -497,6 +513,7 @@ export interface FileRoutesById {
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/publish': typeof ApiPublishRoute
   '/api/qie-identity': typeof ApiQieIdentityRoute
+  '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
@@ -514,6 +531,7 @@ export interface FileRoutesById {
   '/explorer/$network': typeof ExplorerNetworkRouteWithChildren
   '/launchkit/ai': typeof LaunchkitAiRoute
   '/launchkit/app-builder': typeof LaunchkitAppBuilderRoute
+  '/launchkit/coding-agent': typeof LaunchkitCodingAgentRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
   '/launchkit/marketplace': typeof LaunchkitMarketplaceRoute
@@ -559,6 +577,7 @@ export interface FileRouteTypes {
     | '/api/github'
     | '/api/publish'
     | '/api/qie-identity'
+    | '/api/repo-agent'
     | '/api/sponsor-topup'
     | '/dev/$address'
     | '/docs/ai'
@@ -576,6 +595,7 @@ export interface FileRouteTypes {
     | '/explorer/$network'
     | '/launchkit/ai'
     | '/launchkit/app-builder'
+    | '/launchkit/coding-agent'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/marketplace'
@@ -617,6 +637,7 @@ export interface FileRouteTypes {
     | '/api/github'
     | '/api/publish'
     | '/api/qie-identity'
+    | '/api/repo-agent'
     | '/api/sponsor-topup'
     | '/dev/$address'
     | '/docs/ai'
@@ -633,6 +654,7 @@ export interface FileRouteTypes {
     | '/docs/wallets'
     | '/launchkit/ai'
     | '/launchkit/app-builder'
+    | '/launchkit/coding-agent'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/marketplace'
@@ -676,6 +698,7 @@ export interface FileRouteTypes {
     | '/api/github'
     | '/api/publish'
     | '/api/qie-identity'
+    | '/api/repo-agent'
     | '/api/sponsor-topup'
     | '/dev/$address'
     | '/docs/ai'
@@ -693,6 +716,7 @@ export interface FileRouteTypes {
     | '/explorer/$network'
     | '/launchkit/ai'
     | '/launchkit/app-builder'
+    | '/launchkit/coding-agent'
     | '/launchkit/deploy'
     | '/launchkit/editor'
     | '/launchkit/marketplace'
@@ -737,10 +761,12 @@ export interface RootRouteChildren {
   ApiGithubRoute: typeof ApiGithubRouteWithChildren
   ApiPublishRoute: typeof ApiPublishRoute
   ApiQieIdentityRoute: typeof ApiQieIdentityRoute
+  ApiRepoAgentRoute: typeof ApiRepoAgentRoute
   ApiSponsorTopupRoute: typeof ApiSponsorTopupRoute
   DevAddressRoute: typeof DevAddressRoute
   LaunchkitAiRoute: typeof LaunchkitAiRoute
   LaunchkitAppBuilderRoute: typeof LaunchkitAppBuilderRoute
+  LaunchkitCodingAgentRoute: typeof LaunchkitCodingAgentRoute
   LaunchkitDeployRoute: typeof LaunchkitDeployRoute
   LaunchkitEditorRoute: typeof LaunchkitEditorRoute
   LaunchkitMarketplaceRoute: typeof LaunchkitMarketplaceRoute
@@ -876,6 +902,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LaunchkitDeployRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/launchkit/coding-agent': {
+      id: '/launchkit/coding-agent'
+      path: '/launchkit/coding-agent'
+      fullPath: '/launchkit/coding-agent'
+      preLoaderRoute: typeof LaunchkitCodingAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/launchkit/app-builder': {
       id: '/launchkit/app-builder'
       path: '/launchkit/app-builder'
@@ -993,6 +1026,13 @@ declare module '@tanstack/react-router' {
       path: '/api/sponsor-topup'
       fullPath: '/api/sponsor-topup'
       preLoaderRoute: typeof ApiSponsorTopupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/repo-agent': {
+      id: '/api/repo-agent'
+      path: '/api/repo-agent'
+      fullPath: '/api/repo-agent'
+      preLoaderRoute: typeof ApiRepoAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/qie-identity': {
@@ -1274,10 +1314,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGithubRoute: ApiGithubRouteWithChildren,
   ApiPublishRoute: ApiPublishRoute,
   ApiQieIdentityRoute: ApiQieIdentityRoute,
+  ApiRepoAgentRoute: ApiRepoAgentRoute,
   ApiSponsorTopupRoute: ApiSponsorTopupRoute,
   DevAddressRoute: DevAddressRoute,
   LaunchkitAiRoute: LaunchkitAiRoute,
   LaunchkitAppBuilderRoute: LaunchkitAppBuilderRoute,
+  LaunchkitCodingAgentRoute: LaunchkitCodingAgentRoute,
   LaunchkitDeployRoute: LaunchkitDeployRoute,
   LaunchkitEditorRoute: LaunchkitEditorRoute,
   LaunchkitMarketplaceRoute: LaunchkitMarketplaceRoute,
