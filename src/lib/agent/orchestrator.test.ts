@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MockProvider } from "./providers";
-import { Orchestrator, costOf, type AgentEvent } from "./orchestrator";
+import { Orchestrator, costOf, partialTurn, type AgentEvent } from "./orchestrator";
 import { Workspace } from "./workspace";
 import { EMPTY_USAGE } from "./providers";
 
@@ -239,5 +239,81 @@ describe("checkpoints during a run", () => {
     const events: AgentEvent[] = [];
     await new Orchestrator({ provider, workspace, onEvent: (e) => events.push(e) }).run("add b.js");
     expect(events.some((e) => e.kind === "checkpoint")).toBe(false);
+  });
+});
+
+describe("a turn that only half happened", () => {
+  it("says so, in the transcript and to the model", async () => {
+    // A turn asking for three tools is one unit of work to the model and three
+    // to the workspace. When the third fails after the first two have written,
+    // nothing rolls back, and without this the run carries on as though the
+    // turn either fully happened or fully did not.
+    const workspace = ws({ "a.js": "1\n" });
+    const provider = new MockProvider([
+      {
+        toolCalls: [
+          { id: "1", name: "write_file", input: { path: "b.js", content: "2\n" } },
+          { id: "2", name: "write_file", input: { path: "c.js", content: "3\n" } },
+          { id: "3", name: "read_file", input: { path: "missing.js" } },
+        ],
+      },
+      { text: "I see." },
+    ]);
+
+    const events: AgentEvent[] = [];
+    const result = await new Orchestrator({
+      provider,
+      workspace,
+      onEvent: (e) => events.push(e),
+    }).run("write two files and read a third");
+
+    const partial = events.find((e) => e.kind === "turn.partial");
+    expect(partial).toBeDefined();
+    expect(partial?.message).toContain("2 of 3");
+    expect(partial?.message).toContain("half-applied");
+
+    // And the model was told, not just the log.
+    const told = provider.calls[1].messages.find(
+      (m) => m.role === "user" && String(m.content).includes("half-applied"),
+    );
+    expect(told).toBeDefined();
+    // The files that did land are still there: nothing is rolled back.
+    expect(readFileSync(join(workspace.root, "b.js"), "utf8")).toBe("2\n");
+    expect(result.ok).toBe(true);
+  });
+
+  it("stays quiet when every call in the turn worked", async () => {
+    const workspace = ws({ "a.js": "1\n" });
+    const provider = new MockProvider([
+      {
+        toolCalls: [
+          { id: "1", name: "write_file", input: { path: "b.js", content: "2\n" } },
+          { id: "2", name: "write_file", input: { path: "c.js", content: "3\n" } },
+        ],
+      },
+      { text: "done" },
+    ]);
+    const events: AgentEvent[] = [];
+    await new Orchestrator({ provider, workspace, onEvent: (e) => events.push(e) }).run(
+      "two files",
+    );
+    expect(events.some((e) => e.kind === "turn.partial")).toBe(false);
+  });
+
+  it("stays quiet when every call failed, which needs no special warning", () => {
+    expect(partialTurn({ applied: [], failed: ["a", "b"] }, 2)).toBeNull();
+    expect(partialTurn({ applied: ["a", "b"], failed: [] }, 2)).toBeNull();
+  });
+
+  it("says nothing about a turn with one tool in it", () => {
+    // One call that failed is just a failed call, and it already said so.
+    expect(partialTurn({ applied: [], failed: ["read_file"] }, 1)).toBeNull();
+    expect(partialTurn({ applied: ["write_file"], failed: [] }, 1)).toBeNull();
+  });
+
+  it("names which tools landed and which did not", () => {
+    const message = partialTurn({ applied: ["write_file"], failed: ["run_tests"] }, 2);
+    expect(message).toContain("write_file");
+    expect(message).toContain("run_tests");
   });
 });

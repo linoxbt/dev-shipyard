@@ -26,7 +26,15 @@ export type CommandRisk = "safe" | "writes" | "destructive";
 
 /** Commands that only read. The first word of the command has to be one of
  *  these AND the whole command has to be free of the shell metacharacters that
- *  would let something else ride along. */
+ *  would let something else ride along.
+ *
+ *  Interpreters are deliberately NOT here. `node`, `bun`, `python`, `go` and
+ *  `cargo` were, and that made the whole gate optional: write a script, run it
+ *  with node, and nothing asks. The module comment above is right that a
+ *  deny-list is not the security boundary, but an allow-list that includes
+ *  "run arbitrary code" is not even a speed bump. Running the project's tests
+ *  does not go through here anyway: run_tests is its own tool and its own
+ *  operation. */
 const READ_ONLY = new Set([
   "ls",
   "pwd",
@@ -51,13 +59,6 @@ const READ_ONLY = new Set([
   "uniq",
   "diff",
   "tree",
-  "node",
-  "bun",
-  "python",
-  "python3",
-  "go",
-  "cargo",
-  "tsc",
 ]);
 
 /** Read-only subcommands of tools whose other subcommands are not. */
@@ -111,8 +112,27 @@ const DESTRUCTIVE_WINDOWS: RegExp[] = [
  *  first word no longer tells you what the command does. */
 const CHAINING = /[;&|`$><]|\$\(|&&|\|\|/;
 
+/**
+ * Both sets, on every platform, whatever `platform` says.
+ *
+ * The parameter stays because callers pass it and because the ORDER matters
+ * for nothing else here, but the choice it used to make was wrong. PowerShell
+ * runs on Linux and macOS, and `pwsh` is one apt-get away; a Linux host with it
+ * installed was classifying `Remove-Item -Recurse -Force /` as an ordinary
+ * write, which under `--autonomy autonomous` runs without asking. Deciding
+ * which commands are dangerous from the operating system of the machine rather
+ * than from the command itself is the mistake.
+ *
+ * The cost of always checking both is false positives on POSIX, and there are
+ * none worth having: no benign shell command contains `Format-Volume` or
+ * `Stop-Computer`.
+ */
 export function destructivePatterns(platform: NodeJS.Platform = process.platform): RegExp[] {
-  return platform === "win32" ? [...DESTRUCTIVE_WINDOWS, ...DESTRUCTIVE_POSIX] : DESTRUCTIVE_POSIX;
+  // Windows patterns first on Windows, purely so the common case matches
+  // sooner. Every pattern is checked either way.
+  return platform === "win32"
+    ? [...DESTRUCTIVE_WINDOWS, ...DESTRUCTIVE_POSIX]
+    : [...DESTRUCTIVE_POSIX, ...DESTRUCTIVE_WINDOWS];
 }
 
 export function classifyCommand(

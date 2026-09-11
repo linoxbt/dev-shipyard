@@ -57,6 +57,7 @@ export type AgentEventKind =
   | "approval.denied"
   | "verification"
   | "checkpoint"
+  | "turn.partial"
   | "handoff"
   | "usage"
   | "task.completed"
@@ -294,9 +295,18 @@ export class Orchestrator {
       messages.push({ role: "assistant", content: result.text, toolCalls: result.toolCalls });
       this.progress(steps, summary, messages);
 
+      // A turn can ask for several tools at once, and the model treats them as
+      // one unit of work. They are not: the third can fail after the first two
+      // have already written to disk. Nothing rolls back, and nothing should,
+      // because a partial edit is often the right thing to keep and build on.
+      // What must not happen is the run carrying on as though the turn either
+      // fully happened or fully did not, so a half-applied turn is said out
+      // loud, in the transcript and to the model.
+      const turn: TurnOutcome = { applied: [], failed: [] };
       for (const call of result.toolCalls) {
         steps++;
         const outcome = await this.runOne(call);
+        (outcome.ok ? turn.applied : turn.failed).push(call.name);
         messages.push({
           role: "tool",
           toolCallId: call.id,
@@ -304,6 +314,14 @@ export class Orchestrator {
           isError: !outcome.ok,
         });
         this.progress(steps, summary, messages);
+      }
+
+      const partial = partialTurn(turn, result.toolCalls.length);
+      if (partial) {
+        this.emit("turn.partial", partial, { detail: { ...turn } });
+        // Told to the model as well, because otherwise its next move is built
+        // on the assumption that the turn either worked or did not.
+        messages.push({ role: "user", content: partial });
       }
 
       // Checkpoint after a turn that actually changed something, so undo has
@@ -587,6 +605,29 @@ function formatShell(result: {
   // needs in order to fix it.
   if (result.stderr.trim()) parts.push(`stderr:\n${result.stderr.trimEnd()}`);
   return parts.join("\n");
+}
+
+interface TurnOutcome {
+  applied: string[];
+  failed: string[];
+}
+
+/**
+ * What to say when a turn asked for several things and only some happened.
+ *
+ * Null when there is nothing to report: one tool, or all of them worked, or
+ * none did. The middle case is the one with no natural signal, and it is the
+ * one where the workspace is in a state nobody asked for.
+ */
+export function partialTurn(turn: TurnOutcome, total: number): string | null {
+  if (total < 2) return null;
+  if (turn.failed.length === 0 || turn.applied.length === 0) return null;
+  return (
+    `Only part of that turn happened. ${turn.applied.length} of ${total} tool calls ` +
+    `took effect (${turn.applied.join(", ")}), and ${turn.failed.length} did not ` +
+    `(${turn.failed.join(", ")}). The workspace is in a half-applied state. ` +
+    "Check what is actually there before continuing, rather than assuming either outcome."
+  );
 }
 
 function present(result: { ok: boolean } & Parameters<typeof formatShell>[0]) {
