@@ -8,10 +8,11 @@ import { COMING_SOON, comingSoon, isComingSoon } from "./coming-soon";
 // promising "Soon" over a working page, or a nav item landing on a placeholder.
 
 describe("the map", () => {
-  it("covers exactly the four pages held back", () => {
+  it("covers exactly the pages held back", () => {
+    // App Builder left this list by being merged into the Coding Agent rather
+    // than by shipping on its own.
     expect(Object.keys(COMING_SOON).sort()).toEqual([
       "/activity",
-      "/launchkit/app-builder",
       "/launchkit/marketplace",
       "/leaderboard",
     ]);
@@ -59,7 +60,6 @@ describe("one source of truth", () => {
       "/activity": "src/routes/activity.tsx",
       "/leaderboard": "src/routes/leaderboard.tsx",
       "/launchkit/marketplace": "src/routes/launchkit.marketplace.tsx",
-      "/launchkit/app-builder": "src/routes/launchkit.app-builder.tsx",
     };
     for (const path of Object.keys(COMING_SOON)) {
       const file = routes[path];
@@ -73,10 +73,17 @@ describe("one source of truth", () => {
   it("keeps the real page referenced, so it is one line to bring back", () => {
     // Deleting or commenting out the implementation would make re-enabling a
     // page an archaeology exercise. Both branches stay live.
-    const builder = read("src/routes/launchkit.app-builder.tsx");
-    expect(builder).toContain("<AppBuilderPage />");
     expect(read("src/routes/activity.tsx")).toContain("<DashboardPage />");
     expect(read("src/routes/leaderboard.tsx")).toContain("<LeaderboardPage />");
     expect(read("src/routes/launchkit.marketplace.tsx")).toContain("<Marketplace />");
+  });
+
+  it("sends the old App Builder route to the page that replaced it", () => {
+    // The page was linked to for months. A redirect is the difference between
+    // a moved page and a broken bookmark.
+    const source = read("src/routes/launchkit.app-builder.tsx");
+    expect(source).toContain("redirect");
+    expect(source).toContain("/launchkit/coding-agent");
+    expect(isComingSoon("/launchkit/app-builder")).toBe(false);
   });
 });
