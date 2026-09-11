@@ -8,6 +8,8 @@ import {
   changedFiles,
   checkpoint,
   headIsCheckpoint,
+  agentDiff,
+  agentStatus,
   isRepo,
   listCheckpoints,
   undoCheckpoint,
@@ -107,5 +109,60 @@ describe("undo", () => {
     const list = await listCheckpoints(root);
     expect(list).toHaveLength(1);
     expect(list[0]).toContain("first");
+  }, 30_000);
+});
+
+describe("git as the agent reads it", () => {
+  /** A repository with one committed file, the state a run starts from. */
+  async function seeded(): Promise<string> {
+    const root = await repo();
+    writeFileSync(join(root, "a.txt"), "original\n");
+    await runShell("git add -A && git commit -qm seed", { cwd: root });
+    return root;
+  }
+
+  it("shows work the run has already checkpointed, not an empty diff", async () => {
+    // The bug: the orchestrator checkpoints after each changed turn, so a plain
+    // `git diff` right after an edit shows nothing. On a live run the agent read
+    // that as its edit having vanished and spent fifteen steps looking for it.
+    const root = await seeded();
+    writeFileSync(join(root, "a.txt"), "changed\n");
+    await checkpoint(root, "the change");
+
+    const plain = await runShell("git diff", { cwd: root });
+    expect(plain.stdout.trim()).toBe("");
+
+    const asAgent = await agentDiff(root);
+    expect(asAgent.stdout).toContain("-original");
+    expect(asAgent.stdout).toContain("+changed");
+  }, 30_000);
+
+  it("includes uncommitted work as well as checkpointed work", async () => {
+    const root = await seeded();
+    writeFileSync(join(root, "a.txt"), "checkpointed\n");
+    await checkpoint(root, "one");
+    writeFileSync(join(root, "b.txt"), "not yet committed\n");
+
+    const diff = await agentDiff(root);
+    expect(diff.stdout).toContain("checkpointed");
+    expect(diff.stdout).toContain("b.txt");
+  }, 30_000);
+
+  it("says what changed in the run even when the tree is clean", async () => {
+    const root = await seeded();
+    writeFileSync(join(root, "a.txt"), "changed\n");
+    await checkpoint(root, "the change");
+
+    const status = await agentStatus(root);
+    expect(status.stdout).toContain("Nothing uncommitted");
+    expect(status.stdout).toContain("already checkpointed");
+    expect(status.stdout).toContain("a.txt");
+  }, 30_000);
+
+  it("behaves like plain git before the run has changed anything", async () => {
+    const root = await seeded();
+    const status = await agentStatus(root);
+    expect(status.stdout).not.toContain("already checkpointed");
+    expect((await agentDiff(root)).stdout.trim()).toBe("");
   }, 30_000);
 });

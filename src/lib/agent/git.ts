@@ -150,6 +150,62 @@ export async function checkpointBase(root: string): Promise<string | null> {
   return null;
 }
 
+/**
+ * `diff` and `status` as the agent needs to read them.
+ *
+ * The orchestrator commits a checkpoint after every turn that changes a file.
+ * That is what makes undo work, and it also means a plain `git diff` right
+ * after an edit shows nothing and `git status` reports a clean tree. An agent
+ * that trusts those concludes its edit did not take, and goes round again.
+ * Seen on a live run: fifteen steps and a dollar spent re-reading a file it had
+ * already changed correctly.
+ *
+ * So both are answered against the last commit the agent did not make, which
+ * is what "what have I changed" actually means here. Uncommitted work still
+ * shows, because the range ends at the working tree.
+ */
+export async function agentDiff(root: string, extra: string[] = []): Promise<ShellResult> {
+  const base = await checkpointBase(root);
+  const args = extra.length > 0 ? ` ${extra.join(" ")}` : "";
+  const diff = await runShell(base ? `git diff ${base}${args}` : `git diff HEAD${args}`, {
+    cwd: root,
+    timeoutMs: 60_000,
+  });
+
+  // A file the agent has just created is untracked, and `git diff` says
+  // nothing about untracked files. Leaving them out would reproduce the exact
+  // confusion this function exists to prevent, one turn earlier.
+  const untracked = await runShell("git ls-files --others --exclude-standard", {
+    cwd: root,
+    timeoutMs: 30_000,
+  });
+  const created = untracked.stdout.trim();
+  if (!created) return diff;
+
+  return {
+    ...diff,
+    stdout: `${diff.stdout}${diff.stdout.endsWith("\n") || !diff.stdout ? "" : "\n"}\nNew files, not yet committed:\n${created}`,
+  };
+}
+
+export async function agentStatus(root: string): Promise<ShellResult> {
+  const status = await runShell("git status --short", { cwd: root, timeoutMs: 30_000 });
+  const base = await checkpointBase(root);
+  if (!base) return status;
+
+  const since = await runShell(`git diff --name-status ${base}`, { cwd: root, timeoutMs: 30_000 });
+  const changed = since.stdout.trim();
+  if (!changed) return status;
+
+  return {
+    ...status,
+    stdout:
+      `${status.stdout.trim() || "Nothing uncommitted."}\n\n` +
+      "Changed so far in this run, and already checkpointed:\n" +
+      changed,
+  };
+}
+
 /** The agent's checkpoints, newest first. */
 export async function listCheckpoints(root: string, limit = 20): Promise<string[]> {
   if (!isRepo(root)) return [];

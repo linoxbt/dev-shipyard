@@ -111,6 +111,14 @@ const GATED: Array<{ prefix: string; risk: Exclude<RiskLevel, "low">; why: strin
     risk: "high",
     why: "This puts the code in a repository under your account, where it can be seen and cloned by anyone who can reach it.",
   },
+  {
+    // A pull request is not a push to a branch anyone is working on, but it is
+    // still a change that appears in someone's repository under their name,
+    // and it notifies everyone watching. It asks.
+    prefix: "vcs.pull_request",
+    risk: "high",
+    why: "This opens a pull request in your repository, visible to everyone who can see it.",
+  },
   { prefix: "shell.exec", risk: "critical", why: "This runs an arbitrary command on the host." },
   {
     // The middle tier. A command that is not recognisably read-only, but is

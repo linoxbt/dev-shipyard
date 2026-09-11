@@ -27,7 +27,7 @@ import {
   type ProviderToolCall,
   type ProviderUsage,
 } from "./providers";
-import { git as gitOp, type GitOp } from "./git";
+import { agentDiff, agentStatus, git as gitOp, type GitOp } from "./git";
 import { CODING_AGENT_SYSTEM, GIT_ADDENDUM } from "./system-prompt";
 
 // The loop: propose, gate, execute, observe, repeat.
@@ -53,6 +53,7 @@ export type AgentEventKind =
   | "approval.denied"
   | "verification"
   | "checkpoint"
+  | "handoff"
   | "usage"
   | "task.completed"
   | "task.aborted";
@@ -92,6 +93,24 @@ export interface OrchestratorOptions {
   taskId?: string;
   userId?: string;
   projectId?: string;
+  /** Person-performed tools this host can actually carry out, so the agent may
+   *  propose them.
+   *
+   *  Normally these are hidden: offering a tool nobody can execute is worse
+   *  than not offering it. A host that has a person at the other end is
+   *  different. Calling one records a proposal and executes nothing, so there
+   *  is no gate here: the decision is made afterwards, by the person, looking
+   *  at what actually changed rather than at what the agent intends. */
+  offerPersonTools?: string[];
+  /** Appended to the system prompt, for a host with something extra to say
+   *  about this particular run. */
+  systemAddendum?: string;
+}
+
+export interface Handoff {
+  tool: string;
+  args: Record<string, unknown>;
+  at: string;
 }
 
 export interface RunSnapshot {
@@ -112,6 +131,8 @@ export interface RunResult {
   costUsd: number;
   messages: ProviderMessage[];
   stoppedBecause: string;
+  /** What the agent asked a person to do. Nothing here has happened. */
+  handoffs: Handoff[];
 }
 
 /** Per-million-token rates, so a budget can be expressed in money rather than
@@ -132,9 +153,9 @@ export function costOf(usage: ProviderUsage): number {
 /** Tools the agent may use. The outward ones are left out here: the CLI has no
  *  browser session to carry them out, and offering a tool that cannot run is
  *  worse than not offering it. */
-function availableTools() {
+function availableTools(offered: string[] = []) {
   return toolCatalogue()
-    .filter((t) => !requiresPerson(t.name))
+    .filter((t) => !requiresPerson(t.name) || offered.includes(t.name))
     .map((t) => {
       const def = TOOLS[t.name] as ToolDefinition;
       return {
@@ -173,6 +194,7 @@ export class Orchestrator {
     OrchestratorOptions;
   private usage: ProviderUsage = { ...EMPTY_USAGE };
   private readonly changed = new Set<string>();
+  private readonly handoffs: Handoff[] = [];
 
   constructor(options: OrchestratorOptions) {
     this.opts = {
@@ -201,8 +223,11 @@ export class Orchestrator {
   async run(goal: string, prior: ProviderMessage[] = []): Promise<RunResult> {
     const started = Date.now();
     const messages: ProviderMessage[] = [...prior, { role: "user", content: goal }];
-    const system = CODING_AGENT_SYSTEM + (isRepo(this.opts.workspace.root) ? GIT_ADDENDUM : "");
-    const tools = availableTools();
+    const system =
+      CODING_AGENT_SYSTEM +
+      (isRepo(this.opts.workspace.root) ? GIT_ADDENDUM : "") +
+      (this.opts.systemAddendum ?? "");
+    const tools = availableTools(this.opts.offerPersonTools);
 
     let steps = 0;
     let summary = "";
@@ -280,6 +305,7 @@ export class Orchestrator {
       costUsd: Number(costOf(this.usage).toFixed(4)),
       messages,
       stoppedBecause,
+      handoffs: [...this.handoffs],
     };
   }
 
@@ -296,6 +322,23 @@ export class Orchestrator {
   }
 
   private async runOne(call: ProviderToolCall): Promise<{ ok: boolean; output: string }> {
+    // A proposal, not an action. Recorded and handed back; the person decides
+    // later, with the finished change in front of them.
+    if (this.opts.offerPersonTools?.includes(call.name) && requiresPerson(call.name)) {
+      this.handoffs.push({
+        tool: call.name,
+        args: call.input,
+        at: new Date().toISOString(),
+      });
+      this.emit("handoff", `Proposed ${call.name}.`, { tool: call.name, detail: call.input });
+      return {
+        ok: true,
+        output:
+          `Recorded. ${call.name} has been put to the user, who will decide once you are finished. ` +
+          "It has not happened yet, so do not describe it as done. Carry on with the work.",
+      };
+    }
+
     const gate = preflight(
       { id: call.id, name: call.name, args: call.input },
       {
@@ -378,12 +421,14 @@ export class Orchestrator {
       }
 
       case "git": {
-        const result = await gitOp(
-          workspace.root,
-          String(args.op ?? "status") as GitOp,
-          (args.args as string[]) ?? [],
-        );
-        return { ok: result.ok, output: formatShell(result) };
+        const op = String(args.op ?? "status") as GitOp;
+        const extra = (args.args as string[]) ?? [];
+        // diff and status are answered against the last commit this run did
+        // not make, because the run's own checkpoints would otherwise hide the
+        // agent's work from it. See agentDiff in git.ts.
+        if (op === "diff") return present(await agentDiff(workspace.root, extra));
+        if (op === "status") return present(await agentStatus(workspace.root));
+        return present(await gitOp(workspace.root, op, extra));
       }
 
       case "run_tests":
@@ -466,6 +511,10 @@ function formatShell(result: {
   // needs in order to fix it.
   if (result.stderr.trim()) parts.push(`stderr:\n${result.stderr.trimEnd()}`);
   return parts.join("\n");
+}
+
+function present(result: { ok: boolean } & Parameters<typeof formatShell>[0]) {
+  return { ok: result.ok, output: formatShell(result) };
 }
 
 function describe(call: ProviderToolCall): string {

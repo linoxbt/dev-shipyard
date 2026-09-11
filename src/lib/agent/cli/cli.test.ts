@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MockProvider, configuredProviderName } from "../providers";
 import { SessionStore } from "../session-store";
-import { CLI_NAME, HELP, SESSION_HELP, parseArgs } from "./args";
+import { CLI_NAME, COMMANDS, HELP, SESSION_HELP, parseArgs } from "./args";
 import { renderEvent, renderSessions, renderUsage } from "./render";
 import { chatCommand, handleSlash } from "./interactive";
 import { lineReader } from "./line-reader";
@@ -99,22 +99,9 @@ describe("argument parsing", () => {
   it("knows every command it advertises", () => {
     // The help text and the parser drifting apart is the usual way a CLI
     // grows a command nobody can actually type.
-    for (const command of [
-      "chat",
-      "run",
-      "status",
-      "sessions",
-      "resume",
-      "undo",
-      "checkpoints",
-      "diff",
-      "tools",
-      "config",
-      "doctor",
-      "version",
-      "help",
-    ]) {
-      expect(parseArgs([command]).command).toBe(command as never);
+    for (const command of COMMANDS) {
+      expect(parseArgs([command]).command).toBe(command);
+      // chat is what you get by typing nothing, so it has no line of its own.
       if (command !== "chat") expect(HELP).toContain(`${CLI_NAME} ${command}`);
     }
   });

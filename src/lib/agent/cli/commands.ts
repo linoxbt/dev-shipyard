@@ -4,7 +4,12 @@ import { evaluate } from "../policy";
 import { runShell } from "../shell";
 import { requiresPerson, toolCatalogue, TOOLS, type ToolDefinition } from "../tools";
 import { configuredProviderName } from "../providers";
-import { Orchestrator, type AgentEvent, type ApprovalRequest } from "../orchestrator";
+import {
+  Orchestrator,
+  type AgentEvent,
+  type ApprovalRequest,
+  type RunResult,
+} from "../orchestrator";
 import { SessionStore, type SessionRecord } from "../session-store";
 import { Workspace } from "../workspace";
 import type { ModelProvider, ProviderMessage } from "../providers";
@@ -52,11 +57,19 @@ function approver(context: CommandContext) {
   };
 }
 
+export interface RunOutcome {
+  code: number;
+  session: SessionRecord;
+  /** The full result, when the run got far enough to produce one. Absent when
+   *  the provider threw, which is the case `resume` exists for. */
+  result?: RunResult;
+}
+
 export async function runCommand(
   context: CommandContext,
   goal: string,
-  options: { resume?: SessionRecord } = {},
-): Promise<{ code: number; session: SessionRecord }> {
+  options: { resume?: SessionRecord; offerPersonTools?: string[]; systemAddendum?: string } = {},
+): Promise<RunOutcome> {
   const { terminal } = context;
   const workspace = new Workspace(context.root);
   const store = new SessionStore(context.root);
@@ -87,6 +100,8 @@ export async function runCommand(
     taskId: session.id,
     projectId: context.root,
     requestApproval: approver(context),
+    offerPersonTools: options.offerPersonTools,
+    systemAddendum: options.systemAddendum,
     onEvent: (event: AgentEvent) => {
       // The log is written before the line is printed: what a watching
       // terminal sees should never lag behind what this one shows.
@@ -121,7 +136,7 @@ export async function runCommand(
     terminal.out(result.summary);
     terminal.out(renderUsage(result.costUsd, result.steps, result.filesChanged));
     if (!result.ok) terminal.err(result.stoppedBecause);
-    return { code: result.ok ? 0 : 1, session };
+    return { code: result.ok ? 0 : 1, session, result };
   } catch (error) {
     // A crash still leaves a session on disk that `resume` can pick up; the
     // point of persisting after every message is that this case is survivable.

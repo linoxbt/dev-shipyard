@@ -18,6 +18,7 @@ import {
   type Terminal,
 } from "./commands";
 import { chatCommand } from "./interactive";
+import { repoCommand } from "./repo-command";
 import { colourEnabled } from "./render";
 import { lineReader } from "./line-reader";
 import { configuredProviderName, providerFromEnv } from "../providers";
@@ -104,6 +105,19 @@ export async function main(argv: string[]): Promise<number> {
     const ctx = context(root, terminal, parsed, provider);
     ctx.signal = controller.signal;
 
+    if (parsed.command === "repo") {
+      const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+      if (!token) {
+        terminal.err(
+          "Set GITHUB_TOKEN to a token that can push to that repository, then try again.",
+        );
+        return 2;
+      }
+      // The first word is the repository, the rest is the goal.
+      const [target, ...words] = parsed.rest.split(/\s+/);
+      const { code } = await repoCommand(ctx, target ?? "", words.join(" "), { token });
+      return code;
+    }
     if (parsed.command === "resume") {
       return await resumeCommand(ctx, parsed.id, parsed.rest);
     }

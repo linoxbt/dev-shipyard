@@ -264,6 +264,34 @@ export const TOOLS: Record<string, ToolDefinition> = {
     returnsUntrustedContent: false,
     performedBy: "person",
   },
+  open_pull_request: {
+    name: "open_pull_request",
+    usage: 'open_pull_request {"title", "body", "branch?"}',
+    description:
+      "Propose the changes you have made as a pull request against the repository you are working in. You cannot open it yourself: the signed-in user does that from their own session.",
+    operation: "vcs.pull_request",
+    schema: z.object({
+      title: z.string().min(1).max(120),
+      body: z.string().max(4000).default(""),
+      // Defaulted at the point of execution rather than here: the agent
+      // proposing a branch name it cannot guarantee is free would make the
+      // approval cover something that might not happen.
+      branch: z
+        .string()
+        .max(200)
+        .regex(/^[A-Za-z0-9._/-]*$/, "not a branch name")
+        .optional(),
+    }),
+    // Scoped to the repository the run is against, which the caller supplies:
+    // the agent never names the repository, so it cannot redirect the pull
+    // request somewhere else.
+    resourcesFrom: () => ["repository"],
+    // The title and body are what a reviewer reads, so a change to either is a
+    // materially different thing to approve.
+    materialArgs: ["title", "body", "branch"],
+    returnsUntrustedContent: false,
+    performedBy: "person",
+  },
   publish_app: {
     name: "publish_app",
     usage: 'publish_app {"slug"}',

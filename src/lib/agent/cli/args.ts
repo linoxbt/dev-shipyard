@@ -11,6 +11,7 @@ export const VERSION = "0.1.0";
 export type Command =
   | "chat"
   | "run"
+  | "repo"
   | "status"
   | "sessions"
   | "resume"
@@ -39,9 +40,12 @@ export interface ParsedArgs {
   error?: string;
 }
 
-const COMMANDS = new Set<Command>([
+/** Every command the parser accepts. Exported so the help text can be checked
+ *  against it rather than against a second list that can drift. */
+export const COMMANDS = new Set<Command>([
   "chat",
   "run",
+  "repo",
   "status",
   "sessions",
   "resume",
@@ -180,6 +184,8 @@ export const HELP = `DevStation, the coding agent.
 
   ${CLI_NAME}                      start a session and talk to it
   ${CLI_NAME} run <goal>           do one thing and stop
+  ${CLI_NAME} repo <owner/name> <goal>
+                               work on a GitHub repository and propose a pull request
   ${CLI_NAME} resume [id] [note]   carry on from a stopped or crashed run
   ${CLI_NAME} status [id] [-f]     show what a run is doing (-f to follow)
   ${CLI_NAME} sessions             list runs in this workspace
@@ -205,6 +211,8 @@ Options
   --json              machine-readable output where it makes sense
   -h, --help          this
   -v, --version       the version
+
+The repo command also needs GITHUB_TOKEN, with permission to push to that repository.
 
 Set ANTHROPIC_API_KEY, or OPENROUTER_API_KEY, before running.
 `;

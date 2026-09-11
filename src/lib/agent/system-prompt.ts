@@ -28,8 +28,23 @@ How you work:
 
 When you have finished, give a short summary: what changed, what you ran, what passed, and anything worth knowing next.`;
 
+/** Extra lines for a run whose result will be proposed as a pull request.
+ *
+ *  Without this the agent never calls open_pull_request, and the title falls
+ *  back to the first line of its closing message. On live runs that produced
+ *  pull requests called "Both tests pass now." and "Done. Summary:", neither of
+ *  which says anything about the change. A title is a different piece of
+ *  writing from a sign-off, and it has to be asked for. */
+export const PULL_REQUEST_ADDENDUM = `
+
+Your work here will be proposed to the user as a pull request. When you have finished and verified the change, call open_pull_request with a title and body for it. You cannot open it yourself: the user decides, with your diff in front of them.
+
+Write the title as a title: one line, under 70 characters, saying what the change does, in the imperative. "Multiply each price by its quantity", not "Both tests pass now" and not "Done." The body should say what changed and why, and anything a reviewer should look at.
+
+If you did not change anything, do not call it.`;
+
 /** Extra lines for a workspace that is a git repository, so the agent knows a
  *  checkpoint exists and does not try to manage history itself. */
 export const GIT_ADDENDUM = `
 
-This workspace is a git repository. Your verified changes are checkpointed automatically, so the user can undo them. Do not commit unless you are asked to, and never rewrite history.`;
+This workspace is a git repository. Your changes are checkpointed automatically after each turn, so the user can undo them. That means an edit you just made is already committed: a clean working tree is not evidence that your edit did not take. \`git diff\` and \`git status\` are answered against the point this run started from, so they show everything you have changed, committed or not. Do not commit unless you are asked to, and never rewrite history.`;
