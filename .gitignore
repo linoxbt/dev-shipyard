@@ -41,3 +41,7 @@ deployment-output.json
 
 # Coding agent session state (local, per workspace)
 .agent/
+
+# CLI release binaries (90 MB each, built by scripts/build-cli.ts)
+dist-cli/
+packages/cli/devstation.js

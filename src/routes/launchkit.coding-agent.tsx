@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   Check,
+  Copy,
   ExternalLink,
   GitBranch,
   GitPullRequest,
@@ -11,6 +12,7 @@ import {
   Lock,
   Sparkles,
   Square,
+  Terminal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -115,6 +117,69 @@ function CodingAgent() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         {mode === "new" ? <AppBuilderPage /> : <RepoAgentPanel />}
       </div>
+      <TerminalHint />
+    </div>
+  );
+}
+
+/** The same agent runs locally, and people who want that will not find out by
+ *  reading the repository. One line, at the bottom, out of the way. */
+function TerminalHint() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="shrink-0 border-t border-border px-3 py-2">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 font-mono text-[10px] text-meta hover:text-muted-foreground"
+      >
+        <Terminal className="h-3 w-3" />
+        Run this in your own terminal
+      </button>
+      {open ? (
+        <div className="mt-2 space-y-2">
+          <Command label="Install (needs nothing else)">
+            curl -fsSL https://devstation.online/install.sh | sh
+          </Command>
+          <Command label="Or with npm, if you have Bun">npm install -g devstation</Command>
+          <Command label="Then, in any project">devstation</Command>
+          <p className="font-mono text-[10px] leading-relaxed text-meta">
+            It needs ANTHROPIC_API_KEY or OPENROUTER_API_KEY. Run{" "}
+            <span className="text-muted-foreground">devstation doctor</span> to see what is missing.
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Command({ label, children }: { label: string; children: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard
+      ?.writeText(children)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      // A clipboard the browser will not give us is not worth an error toast:
+      // the command is on screen and can be selected.
+      .catch(() => undefined);
+  };
+  return (
+    <div>
+      <p className="font-mono text-[10px] text-meta">{label}</p>
+      <button
+        onClick={copy}
+        title="Copy"
+        className="mt-0.5 flex w-full items-center justify-between gap-2 rounded border border-border bg-background px-2 py-1.5 text-left font-mono text-[11px] text-muted-foreground hover:border-primary"
+      >
+        <span className="min-w-0 break-all">{children}</span>
+        {copied ? (
+          <Check className="h-3 w-3 shrink-0 text-emerald-500" />
+        ) : (
+          <Copy className="h-3 w-3 shrink-0 text-meta" />
+        )}
+      </button>
     </div>
   );
 }

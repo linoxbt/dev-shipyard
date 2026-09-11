@@ -10,7 +10,22 @@ export default tseslint.config(
   // linting them is meaningless as well as slow: `.vercel` alone holds 12MB
   // of bundled code, which took `bun run lint` from about ninety seconds to
   // longer than anyone waits.
-  { ignores: ["dist", "dist-ssr", ".output", ".vercel", ".netlify", ".vinxi", ".tanstack"] },
+  {
+    ignores: [
+      "dist",
+      "dist-ssr",
+      ".output",
+      ".vercel",
+      ".netlify",
+      ".vinxi",
+      ".tanstack",
+      // Build output of scripts/build-cli.ts. Linting a bundler's own
+      // helpers produces thousands of formatting complaints about code
+      // nobody wrote.
+      "dist-cli",
+      "packages/cli/devstation.js",
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

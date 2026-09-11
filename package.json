@@ -17,6 +17,8 @@
     "test": "bun test ./src",
     "test:runner": "bun test ./services/runner/src",
     "devstation": "bun run src/lib/agent/cli/index.ts",
+    "cli:build": "bun run scripts/build-cli.ts",
+    "cli:bundle": "bun run scripts/build-cli.ts --bundle",
     "contracts:compile": "bun run scripts/compile.ts",
     "contracts:deploy": "bun run scripts/deploy.ts",
     "contracts:verify": "bun run scripts/verify.ts"
