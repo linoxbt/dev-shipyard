@@ -1,6 +1,10 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { runShell, type ShellResult } from "./shell";
+import type { GitOp } from "./git-ops";
+
+// Re-exported so callers that already import them from here keep working.
+export { READ_ONLY_OPS, type GitOp } from "./git-ops";
 
 // Git, and the checkpoints that make `undo` possible.
 //
@@ -17,21 +21,6 @@ import { runShell, type ShellResult } from "./shell";
 /** Prefix on every commit the agent makes on its own behalf. Anything without
  *  it is somebody else's work and is never rewound. */
 export const CHECKPOINT_PREFIX = "agent checkpoint:";
-
-export type GitOp =
-  | "status"
-  | "log"
-  | "diff"
-  | "show"
-  | "branch"
-  | "add"
-  | "commit"
-  | "init"
-  | "checkout"
-  | "rev-parse";
-
-/** Read-only operations, so the gate can let them through without asking. */
-export const READ_ONLY_OPS = new Set<GitOp>(["status", "log", "diff", "show", "rev-parse"]);
 
 export function isRepo(root: string): boolean {
   return existsSync(join(root, ".git"));

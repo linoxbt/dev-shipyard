@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { evaluate, type Verdict } from "./policy";
 import { asUntrusted, redact } from "./secrets";
-import { operationForCommand } from "./shell";
-import { READ_ONLY_OPS } from "./git";
+import { operationForCommand } from "./command-class";
+import { READ_ONLY_OPS } from "./git-ops";
 import type { ProtectedAction } from "./authorization";
 
 // The tool boundary.

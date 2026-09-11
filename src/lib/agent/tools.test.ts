@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
 import { preflight, presentResult, toolCatalogue, TOOLS } from "./tools";
 
 const ctx = { taskId: "t1", userId: "u1", projectId: "p1" };
@@ -106,5 +107,33 @@ describe("the catalogue", () => {
     expect(names).toContain("read_file");
     expect(names).toContain("run_build");
     expect(names.length).toBe(Object.keys(TOOLS).length);
+  });
+});
+
+describe("what the registry drags into a browser bundle", () => {
+  it("imports the command classifier, not the thing that runs commands", () => {
+    // The App Builder page imports this registry. When tools.ts imported
+    // shell.ts for one pure function, `node:child_process` went into the client
+    // bundle, Vite externalised it, and the page died the moment the module was
+    // evaluated. Nobody noticed for a while because the page was behind a
+    // "coming soon" gate.
+    const source = readFileSync(new URL("./tools.ts", import.meta.url), "utf8");
+    const runtimeImports = [
+      ...source.matchAll(/^import\s+(?!type\b)[^;]*?from\s+"(\.[^"]+)"/gm),
+    ].map((m) => m[1]);
+    expect(runtimeImports).toContain("./command-class");
+    expect(runtimeImports).toContain("./git-ops");
+    expect(runtimeImports).not.toContain("./shell");
+    expect(runtimeImports).not.toContain("./git");
+  });
+
+  it("keeps the classifier itself free of anything that can run a command", () => {
+    // Imports, not prose: the file explains the bug it exists to prevent, and
+    // that explanation names the module it must not import.
+    for (const name of ["./command-class.ts", "./git-ops.ts"]) {
+      const source = readFileSync(new URL(name, import.meta.url), "utf8");
+      const imports = [...source.matchAll(/^import\s[^;]*?from\s+"([^"]+)"/gm)].map((m) => m[1]);
+      expect(imports.filter((i) => i.startsWith("node:"))).toEqual([]);
+    }
   });
 });
