@@ -115,6 +115,23 @@ export const TOOLS: Record<string, ToolDefinition> = {
     resourcesFrom: (a) => [(a as { path: string }).path],
     returnsUntrustedContent: false,
   },
+  edit_file: {
+    name: "edit_file",
+    usage: 'edit_file {"path", "patch"}',
+    description:
+      "Apply a unified diff to an existing file. Fails atomically: if any hunk does not apply, the file is left exactly as it was.",
+    operation: "file.write",
+    schema: z.object({
+      path: filePath,
+      // The diff itself, not a description of one. Line numbers are treated as
+      // a hint, so a diff that is a few lines out still applies.
+      patch: z.string().min(1).max(200_000),
+    }),
+    resourcesFrom: (a) => [(a as { path: string }).path],
+    returnsUntrustedContent: false,
+    // The patch text is the edit. A different patch to the same file is a
+    // different action, so it stays in the fingerprint.
+  },
   delete_file: {
     name: "delete_file",
     usage: 'delete_file {"path"}',
