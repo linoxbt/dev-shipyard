@@ -7,6 +7,7 @@ import { configuredProviderName } from "../providers";
 import { embeddingsFromEnv } from "../memory/embeddings";
 import { indexWorkspace, openStore } from "../memory/workspace-index";
 import { formatEntry, memoryPath, readMemory } from "../memory/project-memory";
+import { McpHub, configPaths, loadConfig } from "../mcp";
 import {
   Orchestrator,
   type AgentEvent,
@@ -27,6 +28,10 @@ export interface Terminal {
   out(text: string): void;
   err(text: string): void;
   ask(question: string): Promise<string>;
+  /** Write without a newline, for text arriving a piece at a time. Absent on a
+   *  terminal that cannot usefully stream, such as a pipe, and the caller then
+   *  prints the finished text once instead. */
+  write?(text: string): void;
   colour: boolean;
 }
 
@@ -71,7 +76,14 @@ export interface RunOutcome {
 export async function runCommand(
   context: CommandContext,
   goal: string,
-  options: { resume?: SessionRecord; offerPersonTools?: string[]; systemAddendum?: string } = {},
+  options: {
+    resume?: SessionRecord;
+    offerPersonTools?: string[];
+    systemAddendum?: string;
+    /** Leave out the session header. The second turn of a conversation does
+     *  not need to be told which session it is in. */
+    quiet?: boolean;
+  } = {},
 ): Promise<RunOutcome> {
   const { terminal } = context;
   const workspace = new Workspace(context.root);
@@ -88,6 +100,16 @@ export async function runCommand(
     // The agent works without an index. It reads and lists files instead.
   }
 
+  // MCP servers, if any are configured. Started per run rather than kept alive
+  // across the session: a server that died between turns would otherwise stay
+  // in the tool list, and offering a tool that cannot run is worse than not
+  // offering it.
+  const mcp = await McpHub.start(loadConfig(context.root));
+  for (const status of mcp.status) {
+    if (status.ok) terminal.out(`mcp ${status.server}: ${status.tools} tool(s)`);
+    else terminal.err(`mcp ${status.server}: ${status.error}`);
+  }
+
   const session =
     options.resume ??
     store.create(goal, { provider: context.provider.name, model: context.provider.model });
@@ -98,15 +120,35 @@ export async function runCommand(
     store.save(session);
   }
 
-  terminal.out(`session ${session.id}  ${context.provider.name}/${context.provider.model}`);
-  terminal.out(`goal: ${goal}`);
+  if (!options.quiet) {
+    terminal.out(`session ${session.id}  ${context.provider.name}/${context.provider.model}`);
+    terminal.out(`goal: ${goal}`);
+  }
   terminal.out("");
 
   const prior: ProviderMessage[] = options.resume ? options.resume.messages : [];
 
+  // Streaming, when there is somebody watching. The model's prose arrives a
+  // token at a time and a run takes minutes; printing it as it comes is the
+  // difference between watching something work and staring at nothing. Off
+  // when the output is a pipe, where a half-written line is just a broken log.
+  const streaming = typeof terminal.write === "function";
+  let midStream = false;
+  const endStream = () => {
+    if (!midStream) return;
+    terminal.write?.("\n");
+    midStream = false;
+  };
+
   const orchestrator = new Orchestrator({
     provider: context.provider,
     workspace,
+    onDelta: streaming
+      ? (chunk) => {
+          midStream = true;
+          terminal.write?.(chunk);
+        }
+      : undefined,
     autonomy: context.autonomy,
     maxSteps: context.maxSteps,
     maxCostUsd: context.maxCostUsd,
@@ -116,6 +158,7 @@ export async function runCommand(
     requestApproval: approver(context),
     memory,
     embeddings,
+    mcp,
     offerPersonTools: options.offerPersonTools,
     systemAddendum: options.systemAddendum,
     onEvent: (event: AgentEvent) => {
@@ -123,7 +166,11 @@ export async function runCommand(
       // terminal sees should never lag behind what this one shows.
       store.appendEvent(session.id, event);
       const line = renderEvent(event, terminal.colour);
-      if (line) terminal.out(line);
+      if (!line) return;
+      // A step line landing in the middle of a half-written sentence is how
+      // streaming output turns into soup.
+      endStream();
+      terminal.out(line);
     },
     onProgress: (snapshot) => {
       session.steps = snapshot.steps;
@@ -148,12 +195,16 @@ export async function runCommand(
     session.messages = result.messages;
     store.save(session);
 
+    endStream();
     terminal.out("");
-    terminal.out(result.summary);
+    // Already on screen if it was streamed. Printing it twice is the most
+    // obvious way to make streaming look broken.
+    if (!streaming) terminal.out(result.summary);
     terminal.out(renderUsage(result.costUsd, result.steps, result.filesChanged));
     if (!result.ok) terminal.err(result.stoppedBecause);
     return { code: result.ok ? 0 : 1, session, result };
   } catch (error) {
+    endStream();
     // A crash still leaves a session on disk that `resume` can pick up; the
     // point of persisting after every message is that this case is survivable.
     session.status = "failed";
@@ -164,6 +215,7 @@ export async function runCommand(
     return { code: 1, session };
   } finally {
     memory.close();
+    mcp.stop();
   }
 }
 
@@ -454,4 +506,39 @@ export function memoryCommand(context: CommandContext): number {
   context.terminal.out("");
   context.terminal.out(memoryPath(context.root));
   return 0;
+}
+
+export async function mcpCommand(context: CommandContext): Promise<number> {
+  const config = loadConfig(context.root);
+  const names = Object.keys(config.mcpServers);
+
+  if (names.length === 0) {
+    context.terminal.out("No MCP servers configured. Looked in:");
+    for (const path of configPaths(context.root)) context.terminal.out(`  ${path}`);
+    context.terminal.out("");
+    context.terminal.out('A file holding {"mcpServers": {"name": {"command": "...", "args": []}}}');
+    context.terminal.out("adds that server's tools to every run in this project.");
+    return 0;
+  }
+
+  // Actually started, not just listed. A server that is configured and broken
+  // looks identical to one that works until something tries it.
+  const hub = await McpHub.start(config);
+  try {
+    for (const status of hub.status) {
+      context.terminal.out(
+        status.ok
+          ? `ok  ${status.server.padEnd(16)} ${status.tools} tool(s)`
+          : `no  ${status.server.padEnd(16)} ${status.error}`,
+      );
+    }
+    for (const tool of hub.tools) {
+      context.terminal.out(`      ${tool.name.padEnd(28)} ${tool.description.slice(0, 60)}`);
+    }
+    const disabled = names.filter((n) => config.mcpServers[n].disabled);
+    for (const name of disabled) context.terminal.out(`--  ${name.padEnd(16)} disabled`);
+    return hub.status.every((s) => s.ok) ? 0 : 1;
+  } finally {
+    hub.stop();
+  }
 }

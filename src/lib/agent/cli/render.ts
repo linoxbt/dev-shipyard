@@ -16,6 +16,10 @@ const CODES = {
   yellow: `${ESC}[33m`,
   blue: `${ESC}[34m`,
   grey: `${ESC}[90m`,
+  // DevStation's orange, in 256-colour. Terminals that only do 16 colours
+  // render this as their nearest, which is close enough and better than
+  // picking a duller colour that is exactly right nowhere.
+  brand: `${ESC}[38;5;208m`,
 } as const;
 
 export function colourEnabled(env: NodeJS.ProcessEnv = process.env, tty = process.stdout.isTTY) {

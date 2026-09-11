@@ -9,6 +9,7 @@ import {
   diffCommand,
   doctorCommand,
   indexCommand,
+  mcpCommand,
   memoryCommand,
   resumeCommand,
   runCommand,
@@ -58,6 +59,9 @@ export async function main(argv: string[]): Promise<number> {
     out: (text) => process.stdout.write(`${text}\n`),
     err: (text) => process.stderr.write(`${text}\n`),
     ask: (question) => input.ask(question),
+    // Only when somebody is actually watching. Into a pipe, a half-written
+    // line is a broken log rather than a live one.
+    write: process.stdout.isTTY ? (text) => process.stdout.write(text) : undefined,
     colour: colourEnabled(),
   };
 
@@ -95,6 +99,8 @@ export async function main(argv: string[]): Promise<number> {
         return await indexCommand(offline);
       case "memory":
         return memoryCommand(offline);
+      case "mcp":
+        return await mcpCommand(offline);
       default:
         break;
     }

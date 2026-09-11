@@ -35,6 +35,10 @@ const SAFE = [
   // the agent's own memory file, which is append-only and which a person can
   // read and delete.
   "memory.write",
+  // Reading a public page changes nothing and is refused for private address
+  // space before it gets here. Asking about every documentation lookup would
+  // make the feature unusable, which is how a gate ends up switched off.
+  "web.fetch",
 ];
 
 /** Operations that need a person, with the reason stated in their terms. */

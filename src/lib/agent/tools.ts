@@ -264,6 +264,19 @@ export const TOOLS: Record<string, ToolDefinition> = {
     returnsUntrustedContent: false,
     performedBy: "person",
   },
+  fetch_url: {
+    name: "fetch_url",
+    usage: 'fetch_url {"url"}',
+    description:
+      "Read a web page as text. Use it for documentation, an API reference, a changelog, or anything else you need to get right rather than remember. Private addresses are refused.",
+    operation: "web.fetch",
+    schema: z.object({
+      url: z.string().min(1).max(2000),
+    }),
+    resourcesFrom: (a) => [`url:${(a as { url: string }).url}`],
+    // Somebody else's page. It is data, never instructions.
+    returnsUntrustedContent: true,
+  },
   remember: {
     name: "remember",
     usage: 'remember {"note", "tag?"}',

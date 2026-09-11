@@ -14,6 +14,7 @@ export type Command =
   | "repo"
   | "index"
   | "memory"
+  | "mcp"
   | "status"
   | "sessions"
   | "resume"
@@ -50,6 +51,7 @@ export const COMMANDS = new Set<Command>([
   "repo",
   "index",
   "memory",
+  "mcp",
   "status",
   "sessions",
   "resume",
@@ -77,6 +79,7 @@ export const OFFLINE_COMMANDS = new Set<Command>([
   "help",
   "index",
   "memory",
+  "mcp",
 ]);
 
 export function parseArgs(argv: string[], cwd = process.cwd()): ParsedArgs {
@@ -200,6 +203,7 @@ export const HELP = `DevStation, the coding agent.
   ${CLI_NAME} diff                 show what the agent has changed
   ${CLI_NAME} index                index this project so the agent can search it
   ${CLI_NAME} memory               show what it has been told about this project
+  ${CLI_NAME} mcp                  the MCP servers configured here, and their tools
   ${CLI_NAME} tools                list the tools it can use, and which ones ask first
   ${CLI_NAME} config               show the settings this run would use
   ${CLI_NAME} doctor               check this machine is set up to run it
@@ -232,6 +236,7 @@ export const SESSION_HELP = `  /undo          rewind the last checkpoint
   /diff          what has changed on disk
   /tools         the tools it can use
   /memory        what it has been told about this project
+  /mcp           the MCP servers attached to this project
   /cost          what this session has spent
   /config        the settings in force
   /clear         start a fresh transcript, keeping the same workspace

@@ -4,6 +4,7 @@ import {
   configCommand,
   diffCommand,
   indexCommand,
+  mcpCommand,
   memoryCommand,
   runCommand,
   sessionsCommand,
@@ -13,6 +14,9 @@ import {
   type CommandContext,
 } from "./commands";
 import { renderUsage } from "./render";
+import { banner, openingHelp } from "./banner";
+import { readMemory } from "../memory/project-memory";
+import { openStore } from "../memory/workspace-index";
 import type { SessionRecord } from "./../session-store";
 
 // A session, rather than one command and out.
@@ -23,6 +27,19 @@ import type { SessionRecord } from "./../session-store";
 // answered from memory instead of from disk.
 
 export type SlashOutcome = "handled" | "exit" | "clear" | "not-a-command";
+
+/** How much of this project is indexed, for the banner. Opening the store is
+ *  cheap and a missing one is the ordinary first-run case, not an error. */
+function indexedCount(root: string): number | null {
+  try {
+    const store = openStore(root);
+    const count = store.chunkCount;
+    store.close();
+    return count || null;
+  } catch {
+    return null;
+  }
+}
 
 export async function handleSlash(
   context: CommandContext,
@@ -65,6 +82,9 @@ export async function handleSlash(
     case "memory":
       memoryCommand(context);
       return "handled";
+    case "mcp":
+      await mcpCommand(context);
+      return "handled";
     case "index":
       await indexCommand(context);
       return "handled";
@@ -83,13 +103,23 @@ export async function handleSlash(
 
 export async function chatCommand(context: CommandContext, opening = ""): Promise<number> {
   const { terminal } = context;
-  terminal.out(`DevStation  ${context.provider.name}/${context.provider.model}`);
-  terminal.out(`workspace ${context.root}`);
-  terminal.out("Type what you want done. /help for commands, /exit to leave.");
-  terminal.out("");
+
+  terminal.out(
+    banner(
+      {
+        model: `${context.provider.name}/${context.provider.model}`,
+        workspace: context.root,
+        indexed: indexedCount(context.root),
+        memory: readMemory(context.root).length,
+      },
+      { colour: terminal.colour },
+    ),
+  );
+  terminal.out(openingHelp(terminal.colour));
 
   let session: SessionRecord | null = null;
   let pending = opening.trim();
+  let turns = 0;
 
   for (;;) {
     const line = pending || (await terminal.ask("> "));
@@ -112,7 +142,13 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
 
     // Each turn continues the same session rather than starting a new one, so
     // the agent still knows what it just did.
-    const result = await runCommand(context, text, session ? { resume: session } : {});
+    turns++;
+    const result = await runCommand(context, text, {
+      ...(session ? { resume: session } : {}),
+      // The first turn prints the session id and the goal; after that it is
+      // the same session and the same goal is on screen two lines up.
+      quiet: turns > 1,
+    });
     session = result.session;
     terminal.out("");
   }

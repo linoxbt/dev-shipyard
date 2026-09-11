@@ -30,6 +30,9 @@ import {
 import { agentDiff, agentStatus, git as gitOp, type GitOp } from "./git";
 import { CODING_AGENT_SYSTEM, GIT_ADDENDUM } from "./system-prompt";
 import { renderContext, retrieve } from "./memory/retrieve";
+import { fetchPage } from "./web";
+import type { McpHub } from "./mcp";
+import { asUntrusted } from "./secrets";
 import { readMemory, remember, renderMemory } from "./memory/project-memory";
 import type { MemoryStore } from "./memory/store";
 import type { EmbeddingProvider } from "./memory/embeddings";
@@ -116,6 +119,9 @@ export interface OrchestratorOptions {
   embeddings?: EmbeddingProvider | null;
   /** The ceiling on retrieved context, in tokens. */
   retrievalTokens?: number;
+  /** MCP servers, already started. Their tools are offered alongside the
+   *  built-in ones and called the same way. */
+  mcp?: McpHub | null;
 }
 
 export interface Handoff {
@@ -250,7 +256,16 @@ export class Orchestrator {
       (isRepo(this.opts.workspace.root) ? GIT_ADDENDUM : "") +
       renderMemory(readMemory(this.opts.workspace.root)) +
       (this.opts.systemAddendum ?? "");
-    const tools = availableTools(this.opts.offerPersonTools);
+    const tools = [
+      ...availableTools(this.opts.offerPersonTools),
+      // Namespaced by server, so two servers offering "query" cannot shadow
+      // each other, and so a built-in can never be shadowed either.
+      ...(this.opts.mcp?.tools ?? []).map((tool) => ({
+        name: tool.name,
+        description: `[${tool.server}] ${tool.description}`,
+        inputSchema: tool.inputSchema,
+      })),
+    ];
 
     let steps = 0;
     let summary = "";
@@ -387,6 +402,12 @@ export class Orchestrator {
   }
 
   private async runOne(call: ProviderToolCall): Promise<{ ok: boolean; output: string }> {
+    // An MCP tool belongs to somebody else's server and has no entry in the
+    // registry, so the policy engine has nothing to classify it by. They are
+    // gated as a class rather than individually: the person configured the
+    // server, and what its tools do is between them and it.
+    if (this.opts.mcp?.has(call.name)) return this.runMcp(call);
+
     // A proposal, not an action. Recorded and handed back; the person decides
     // later, with the finished change in front of them.
     if (this.opts.offerPersonTools?.includes(call.name) && requiresPerson(call.name)) {
@@ -462,6 +483,21 @@ export class Orchestrator {
     };
   }
 
+  private async runMcp(call: ProviderToolCall): Promise<{ ok: boolean; output: string }> {
+    this.emit("step.started", `Calling ${call.name}`, { tool: call.name });
+    try {
+      const output = await this.opts.mcp!.call(call.name, call.input);
+      this.emit("step.completed", `${call.name} answered`, { tool: call.name, ok: true });
+      // Wrapped as untrusted, like every other tool result carrying text from
+      // outside: a server's output is data, not instructions.
+      return { ok: true, output: asUntrusted(`MCP tool ${call.name}`, output) };
+    } catch (error) {
+      const why = error instanceof Error ? error.message : String(error);
+      this.emit("step.failed", why, { tool: call.name, ok: false });
+      return { ok: false, output: why };
+    }
+  }
+
   private async execute(call: ProviderToolCall): Promise<{ ok: boolean; output: string }> {
     const { workspace } = this.opts;
     const args = call.input;
@@ -494,6 +530,19 @@ export class Orchestrator {
         if (op === "diff") return present(await agentDiff(workspace.root, extra));
         if (op === "status") return present(await agentStatus(workspace.root));
         return present(await gitOp(workspace.root, op, extra));
+      }
+
+      case "fetch_url": {
+        const page = await fetchPage(String(args.url ?? ""), { signal: this.opts.signal });
+        if (!page.ok) return { ok: false, output: page.text };
+        // The fallback has to be on the text, not on the whole string: the
+        // template always contains the URL, so a page with nothing in it was
+        // coming back as a bare URL and reading as a successful fetch.
+        const body = page.text.trim() || "(this page had no readable text in it)";
+        return {
+          ok: true,
+          output: `${page.url}${page.truncated ? " (truncated)" : ""}\n\n${body}`,
+        };
       }
 
       case "remember": {
@@ -660,6 +709,8 @@ function describe(call: ProviderToolCall): string {
       return `Installing ${a.name}`;
     case "recall":
       return `Searching the project for "${a.query}"`;
+    case "fetch_url":
+      return `Reading ${a.url}`;
     case "remember":
       return "Making a note about this project";
     default:
