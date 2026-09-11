@@ -1,13 +1,13 @@
 // Applying a unified diff to a file.
 //
 // Whole-file rewrites are what this replaces. They cost a full file of output
-// tokens per edit, and they lose anything the model forgot to re-emit — which
+// tokens per edit, and they lose anything the model forgot to re-emit, which
 // is how "it deleted my imports" happens. A patch says only what changed.
 //
 // Two properties matter more than completeness here:
 //
 //   FUZZY. A diff's line numbers are a hint, not an address. The file has
-//   usually moved since the model read it — an earlier hunk in the same turn,
+//   usually moved since the model read it: an earlier hunk in the same turn,
 //   a formatter, a concurrent edit. Insisting on the exact offset fails
 //   patches that are perfectly applicable a few lines away.
 //
@@ -28,7 +28,9 @@ export interface Hunk {
   lines: Array<{ kind: " " | "-" | "+"; text: string }>;
 }
 
-export type PatchResult = { ok: true; content: string } | { ok: false; reason: string };
+export type PatchResult =
+  | { ok: true; content: string; added: number; removed: number }
+  | { ok: false; reason: string };
 
 const HEADER = /^@@\s*-(\d+)(?:,(\d+))?\s*\+(\d+)(?:,(\d+))?\s*@@/;
 
@@ -38,7 +40,13 @@ const HEADER = /^@@\s*-(\d+)(?:,(\d+))?\s*\+(\d+)(?:,(\d+))?\s*@@/;
 export function parsePatch(
   patch: string,
 ): { ok: true; hunks: Hunk[] } | { ok: false; reason: string } {
-  const lines = patch.replace(/\r\n/g, "\n").split("\n");
+  // The final newline terminates the last line, it is not a line of its own.
+  // Splitting without removing it invents an empty context line at the end of
+  // the last hunk, and since an empty line is read as context below, every
+  // patch in the normal shape (git diff output ends with a newline) then fails
+  // to match. Found when a one-line swap would not apply.
+  const normalised = patch.replace(/\r\n/g, "\n").replace(/\n$/, "");
+  const lines = normalised.split("\n");
   const hunks: Hunk[] = [];
   let current: Hunk | null = null;
 
@@ -102,6 +110,11 @@ export function applyPatch(original: string, patch: string): PatchResult {
   let working = [...fileLines];
   // Earlier hunks change the line count, so later hints shift with them.
   let drift = 0;
+  // Counted, not inferred from the file length: a patch that swaps one line
+  // for another nets to zero, and reporting "+0 lines" reads as "nothing
+  // happened" when something did.
+  let added = 0;
+  let removed = 0;
 
   for (const [index, hunk] of parsed.hunks.entries()) {
     const expected = hunk.lines.filter((l) => l.kind !== "+").map((l) => l.text);
@@ -120,8 +133,10 @@ export function applyPatch(original: string, patch: string): PatchResult {
 
     working = [...working.slice(0, at), ...replacement, ...working.slice(at + expected.length)];
     drift += replacement.length - expected.length;
+    added += hunk.lines.filter((l) => l.kind === "+").length;
+    removed += hunk.lines.filter((l) => l.kind === "-").length;
   }
 
   const joined = working.join("\n");
-  return { ok: true, content: endsWithNewline ? `${joined}\n` : joined };
+  return { ok: true, content: endsWithNewline ? `${joined}\n` : joined, added, removed };
 }

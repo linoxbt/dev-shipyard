@@ -8,8 +8,8 @@ import {
 
 // A provider that answers from a script instead of a model.
 //
-// This is what makes the rest of the agent testable. Every other component —
-// the loop, the policy gate, the approval pause, the audit trail — can be
+// This is what makes the rest of the agent testable. Every other component,
+// the loop, the policy gate, the approval pause and the audit trail, can be
 // exercised deterministically and offline, with no key and no spend, because
 // the only non-deterministic part of the system has been replaced by a list.
 //
@@ -39,7 +39,11 @@ export class MockProvider implements ModelProvider {
   }
 
   async generate(input: GenerateInput): Promise<ProviderResult> {
-    this.calls.push(input);
+    // Recorded as a copy. The orchestrator keeps pushing to the same messages
+    // array as the run goes on, so holding the reference would mean every
+    // recorded call ended up showing the final transcript rather than what was
+    // actually sent at that point.
+    this.calls.push({ ...input, messages: [...input.messages] });
     // Past the end of the script, keep returning the last turn. A loop bug
     // then shows up as "too many turns", not as an exception that could be
     // mistaken for the thing under test.

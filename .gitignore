@@ -38,3 +38,6 @@ deployment-output.json
 *.njsproj
 *.sln
 *.sw?
+
+# Coding agent session state (local, per workspace)
+.agent/

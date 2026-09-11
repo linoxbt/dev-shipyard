@@ -63,12 +63,9 @@ export function executeFileTool(
       const written = workspace.write(path, patched.content);
       if (!written.ok) return fail(written.reason);
 
-      const before = current.content.split("\n").length;
-      const after = patched.content.split("\n").length;
-      const delta = after - before;
       return {
         ok: true,
-        output: `Patched ${path} (${delta >= 0 ? "+" : ""}${delta} lines).`,
+        output: `Patched ${path} (+${patched.added} / -${patched.removed} lines).`,
       };
     }
 

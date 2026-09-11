@@ -69,7 +69,7 @@ function toOpenAiMessages(system: string, messages: ProviderMessage[]) {
 
 /** Arguments arrive as a string and models vary their escaping, so this parses
  *  rather than pattern-matches, and treats unparseable arguments as empty
- *  instead of throwing — the schema check downstream gives the model a usable
+ *  instead of throwing. The schema check downstream gives the model a usable
  *  error, where an exception here would just end the turn. */
 function parseArguments(raw: string): Record<string, unknown> {
   if (!raw.trim()) return {};

@@ -3,8 +3,8 @@ import { spawn } from "node:child_process";
 // Running a command, and deciding how dangerous it is first.
 //
 // The classification below is NOT the security boundary. A deny-list of
-// dangerous commands can always be worked around — base64, a shell variable, a
-// script that writes another script — and treating it as the thing keeping the
+// dangerous commands can always be worked around (base64, a shell variable, a
+// script that writes another script), and treating it as the thing keeping the
 // host safe is how people end up surprised. The boundary is the sandbox: a
 // scoped workspace, and in hardened mode a container with no network and a
 // read-only root. What this does is decide when to ASK, which is a different
@@ -63,7 +63,7 @@ const READ_ONLY_SUBCOMMANDS: Record<string, Set<string>> = {
 
 /** Anything that can destroy work or reach past the workspace. Kept per
  *  platform: `rm -rf` is not a real command on Windows, so a POSIX-only list
- *  would wave through the PowerShell equivalent — a safety gap, not merely a
+ *  would wave through the PowerShell equivalent: a safety gap, not merely a
  *  portability one. */
 const DESTRUCTIVE_POSIX: RegExp[] = [
   /\brm\s+(-[a-z]*[rf][a-z]*\s+)+/i,

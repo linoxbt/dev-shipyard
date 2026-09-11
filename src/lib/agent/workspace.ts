@@ -15,7 +15,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 // The check resolves symlinks on BOTH sides before comparing. Comparing a
 // resolved root against an unresolved target is the usual mistake: a symlink
 // inside the workspace pointing at /etc passes a string-prefix test and fails
-// this one. Rejecting "../" is not a boundary — it is a spelling rule.
+// this one. Rejecting "../" is not a boundary, it is a spelling rule.
 //
 // Two refusals live here rather than in the individual tools, because a guard
 // each tool has to remember is a guard that one of them will forget.
@@ -58,7 +58,7 @@ export function looksBinary(buffer: Buffer): boolean {
  *
  * `realpath` throws on a missing file, but a write to a new file still has to
  * be bounds-checked. So this walks up to the nearest ancestor that does exist,
- * resolves THAT, and re-appends the rest — which keeps the symlink resolution
+ * resolves THAT, and re-appends the rest, which keeps the symlink resolution
  * honest for the part of the path that is real.
  */
 function realpathAllowingMissing(target: string): string {

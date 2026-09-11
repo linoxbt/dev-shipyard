@@ -41,7 +41,7 @@ describe("the file tools against a real directory", () => {
    return "Hello, " + name + "!";`,
     })!;
     expect(result.ok).toBe(true);
-    expect(result.output).toContain("+1 lines");
+    expect(result.output).toContain("+1 / -0 lines");
     expect(w.read("greet.js").ok && (w.read("greet.js") as { content: string }).content).toContain(
       "name is required",
     );

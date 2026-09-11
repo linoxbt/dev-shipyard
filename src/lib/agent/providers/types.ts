@@ -2,7 +2,7 @@
 //
 // The shapes here are deliberately neutral rather than Anthropic's own types.
 // Anthropic's SDK types are the right thing to use *inside* AnthropicProvider,
-// and that is what it does — but the boundary has to be something OpenRouter
+// and that is what it does, but the boundary has to be something OpenRouter
 // and a scripted test double can also satisfy, and a boundary typed in one
 // vendor's shapes is not an abstraction.
 

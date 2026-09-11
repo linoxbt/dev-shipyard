@@ -134,3 +134,47 @@ describe("applying a patch", () => {
     if (result.ok) expect(result.content).not.toContain("Hello, ");
   });
 });
+
+describe("counting the change", () => {
+  it("reports a one-for-one swap as an addition and a removal, not as nothing", () => {
+    // A net-lines count calls this "+0", which reads as "the patch did nothing".
+    const result = applyPatch("a\nb\nc\n", "@@ -1,3 +1,3 @@\n a\n-b\n+B\n c\n");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.added).toBe(1);
+    expect(result.removed).toBe(1);
+    expect(result.content).toBe("a\nB\nc\n");
+  });
+
+  it("counts across several hunks", () => {
+    const original = "1\n2\n3\n4\n5\n6\n7\n8\n";
+    const result = applyPatch(
+      original,
+      "@@ -1,3 +1,4 @@\n 1\n+1.5\n 2\n 3\n@@ -6,3 +7,2 @@\n 6\n-7\n 8\n",
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.added).toBe(1);
+    expect(result.removed).toBe(1);
+  });
+});
+
+describe("the trailing newline", () => {
+  it("applies a patch in the shape git actually emits", () => {
+    // `git diff` output ends with a newline. Treating that terminator as a
+    // line made the last hunk expect an empty line that is not in the file.
+    const withNewline = applyPatch("a\nb\nc\n", "@@ -1,3 +1,3 @@\n a\n-b\n+B\n c\n");
+    const without = applyPatch("a\nb\nc\n", "@@ -1,3 +1,3 @@\n a\n-b\n+B\n c");
+    expect(withNewline.ok).toBe(true);
+    expect(without.ok).toBe(true);
+    if (!withNewline.ok || !without.ok) return;
+    expect(withNewline.content).toBe(without.content);
+  });
+
+  it("still reads an interior blank line as context", () => {
+    const result = applyPatch("a\n\nb\n", "@@ -1,3 +1,3 @@\n a\n\n-b\n+B\n");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.content).toBe("a\n\nB\n");
+  });
+});

@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "test": "bun test ./src",
     "test:runner": "bun test ./services/runner/src",
+    "agent": "bun run src/lib/agent/cli/index.ts",
     "contracts:compile": "bun run scripts/compile.ts",
     "contracts:deploy": "bun run scripts/deploy.ts",
     "contracts:verify": "bun run scripts/verify.ts"
