@@ -18,6 +18,7 @@
     "contracts:verify": "bun run scripts/verify.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
     "@ethereumjs/common": "^4",
     "@ethereumjs/evm": "^3",
     "@ethereumjs/util": "^9",
