@@ -29,6 +29,10 @@ import {
 } from "./providers";
 import { agentDiff, agentStatus, git as gitOp, type GitOp } from "./git";
 import { CODING_AGENT_SYSTEM, GIT_ADDENDUM } from "./system-prompt";
+import { renderContext, retrieve } from "./memory/retrieve";
+import { readMemory, remember, renderMemory } from "./memory/project-memory";
+import type { MemoryStore } from "./memory/store";
+import type { EmbeddingProvider } from "./memory/embeddings";
 
 // The loop: propose, gate, execute, observe, repeat.
 //
@@ -105,6 +109,12 @@ export interface OrchestratorOptions {
   /** Appended to the system prompt, for a host with something extra to say
    *  about this particular run. */
   systemAddendum?: string;
+  /** The project index, when the host has built one. Absent means the agent
+   *  works the way it did before: by listing and reading files. */
+  memory?: MemoryStore | null;
+  embeddings?: EmbeddingProvider | null;
+  /** The ceiling on retrieved context, in tokens. */
+  retrievalTokens?: number;
 }
 
 export interface Handoff {
@@ -222,10 +232,22 @@ export class Orchestrator {
 
   async run(goal: string, prior: ProviderMessage[] = []): Promise<RunResult> {
     const started = Date.now();
-    const messages: ProviderMessage[] = [...prior, { role: "user", content: goal }];
+
+    // Retrieval happens once, here, rather than on every turn. What the agent
+    // needs after three tool calls is what those calls returned, not another
+    // copy of the same excerpts, and re-retrieving each turn spends the
+    // context budget on the same text repeatedly. `recall` is there for when
+    // it genuinely needs to look again.
+    const opening = await this.openingContext(goal);
+    const messages: ProviderMessage[] = [
+      ...prior,
+      { role: "user", content: opening ? `${opening}\n\n${goal}` : goal },
+    ];
+
     const system =
       CODING_AGENT_SYSTEM +
       (isRepo(this.opts.workspace.root) ? GIT_ADDENDUM : "") +
+      renderMemory(readMemory(this.opts.workspace.root)) +
       (this.opts.systemAddendum ?? "");
     const tools = availableTools(this.opts.offerPersonTools);
 
@@ -307,6 +329,31 @@ export class Orchestrator {
       stoppedBecause,
       handoffs: [...this.handoffs],
     };
+  }
+
+  /** The excerpts worth having in front of the agent before it starts.
+   *
+   *  Prepended to the goal rather than added to the system prompt: the system
+   *  prompt is cached across turns and is the wrong place for something that
+   *  changes with every goal. */
+  private async openingContext(goal: string): Promise<string> {
+    const store = this.opts.memory;
+    if (!store) return "";
+    try {
+      const hits = await retrieve(store, goal, {
+        embeddings: this.opts.embeddings,
+        maxTokens: this.opts.retrievalTokens,
+        signal: this.opts.signal,
+      });
+      if (hits.length === 0) return "";
+      this.emit("plan", `Found ${hits.length} relevant place(s) in the project.`, {
+        detail: { paths: [...new Set(hits.map((h) => h.path))] },
+      });
+      return renderContext(hits);
+    } catch {
+      // Retrieval is an accelerator. A broken index must not stop the run.
+      return "";
+    }
   }
 
   /** Checked before each turn, never asked of the model: something that is
@@ -431,6 +478,35 @@ export class Orchestrator {
         return present(await gitOp(workspace.root, op, extra));
       }
 
+      case "remember": {
+        const result = remember(
+          workspace.root,
+          String(args.note ?? ""),
+          args.tag ? String(args.tag) : null,
+        );
+        return { ok: result.ok, output: result.message };
+      }
+
+      case "recall": {
+        const store = this.opts.memory;
+        if (!store) {
+          return {
+            ok: false,
+            output:
+              "This project has not been indexed, so there is nothing to search. Use search_files and list_files instead.",
+          };
+        }
+        const hits = await retrieve(store, String(args.query ?? ""), {
+          embeddings: this.opts.embeddings,
+          maxTokens: this.opts.retrievalTokens,
+          signal: this.opts.signal,
+        });
+        if (hits.length === 0) {
+          return { ok: true, output: "Nothing in this project matched that." };
+        }
+        return { ok: true, output: renderContext(hits) };
+      }
+
       case "run_tests":
       case "run_build":
         return this.runProjectCommand("test");
@@ -541,6 +617,10 @@ function describe(call: ProviderToolCall): string {
       return "Linting and type-checking";
     case "install_dependency":
       return `Installing ${a.name}`;
+    case "recall":
+      return `Searching the project for "${a.query}"`;
+    case "remember":
+      return "Making a note about this project";
     default:
       return call.name;
   }

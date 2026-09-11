@@ -12,6 +12,8 @@ export type Command =
   | "chat"
   | "run"
   | "repo"
+  | "index"
+  | "memory"
   | "status"
   | "sessions"
   | "resume"
@@ -46,6 +48,8 @@ export const COMMANDS = new Set<Command>([
   "chat",
   "run",
   "repo",
+  "index",
+  "memory",
   "status",
   "sessions",
   "resume",
@@ -71,6 +75,8 @@ export const OFFLINE_COMMANDS = new Set<Command>([
   "doctor",
   "version",
   "help",
+  "index",
+  "memory",
 ]);
 
 export function parseArgs(argv: string[], cwd = process.cwd()): ParsedArgs {
@@ -192,6 +198,8 @@ export const HELP = `DevStation, the coding agent.
   ${CLI_NAME} undo                 rewind the last agent checkpoint
   ${CLI_NAME} checkpoints          list the checkpoints it can rewind to
   ${CLI_NAME} diff                 show what the agent has changed
+  ${CLI_NAME} index                index this project so the agent can search it
+  ${CLI_NAME} memory               show what it has been told about this project
   ${CLI_NAME} tools                list the tools it can use, and which ones ask first
   ${CLI_NAME} config               show the settings this run would use
   ${CLI_NAME} doctor               check this machine is set up to run it
@@ -223,6 +231,7 @@ export const SESSION_HELP = `  /undo          rewind the last checkpoint
   /checkpoints   the checkpoints it can rewind to
   /diff          what has changed on disk
   /tools         the tools it can use
+  /memory        what it has been told about this project
   /cost          what this session has spent
   /config        the settings in force
   /clear         start a fresh transcript, keeping the same workspace

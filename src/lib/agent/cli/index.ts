@@ -8,6 +8,8 @@ import {
   configCommand,
   diffCommand,
   doctorCommand,
+  indexCommand,
+  memoryCommand,
   resumeCommand,
   runCommand,
   sessionsCommand,
@@ -89,6 +91,10 @@ export async function main(argv: string[]): Promise<number> {
         return configCommand(offline);
       case "doctor":
         return await doctorCommand(offline);
+      case "index":
+        return await indexCommand(offline);
+      case "memory":
+        return memoryCommand(offline);
       default:
         break;
     }

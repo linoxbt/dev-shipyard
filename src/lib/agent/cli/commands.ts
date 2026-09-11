@@ -4,6 +4,9 @@ import { evaluate } from "../policy";
 import { runShell } from "../shell";
 import { requiresPerson, toolCatalogue, TOOLS, type ToolDefinition } from "../tools";
 import { configuredProviderName } from "../providers";
+import { embeddingsFromEnv } from "../memory/embeddings";
+import { indexWorkspace, openStore } from "../memory/workspace-index";
+import { formatEntry, memoryPath, readMemory } from "../memory/project-memory";
 import {
   Orchestrator,
   type AgentEvent,
@@ -74,6 +77,17 @@ export async function runCommand(
   const workspace = new Workspace(context.root);
   const store = new SessionStore(context.root);
 
+  // Refreshed at the start of every run, incrementally. A first run in a large
+  // repository pays for the walk; every one after it re-chunks only what
+  // changed, which is usually nothing or one file.
+  const embeddings = embeddingsFromEnv();
+  const memory = openStore(context.root);
+  try {
+    await indexWorkspace(context.root, { store: memory, embeddings });
+  } catch {
+    // The agent works without an index. It reads and lists files instead.
+  }
+
   const session =
     options.resume ??
     store.create(goal, { provider: context.provider.name, model: context.provider.model });
@@ -100,6 +114,8 @@ export async function runCommand(
     taskId: session.id,
     projectId: context.root,
     requestApproval: approver(context),
+    memory,
+    embeddings,
     offerPersonTools: options.offerPersonTools,
     systemAddendum: options.systemAddendum,
     onEvent: (event: AgentEvent) => {
@@ -146,6 +162,8 @@ export async function runCommand(
     terminal.err(`Run failed: ${session.stoppedBecause}`);
     terminal.err(`Resume it with: ${CLI_NAME} resume ${session.id}`);
     return { code: 1, session };
+  } finally {
+    memory.close();
   }
 }
 
@@ -392,5 +410,48 @@ export async function doctorCommand(context: CommandContext): Promise<number> {
     context.terminal.err(`${failed.length} thing(s) need attention before a run will work.`);
     return 1;
   }
+  return 0;
+}
+
+// --- memory --------------------------------------------------------------
+
+export async function indexCommand(context: CommandContext): Promise<number> {
+  const embeddings = embeddingsFromEnv();
+  const store = openStore(context.root);
+  try {
+    const result = await indexWorkspace(context.root, { store, embeddings });
+    context.terminal.out(
+      `${result.scanned} file(s) scanned, ${result.reindexed} indexed, ${result.removed} removed. ` +
+        `${store.chunkCount} chunk(s) in the index.`,
+    );
+    if (embeddings) {
+      context.terminal.out(
+        result.embedded > 0
+          ? `${result.embedded} chunk(s) embedded with ${embeddings.model}.`
+          : `Nothing new to embed with ${embeddings.model}.`,
+      );
+    } else {
+      // Said rather than left as a silent difference in quality.
+      context.terminal.out(
+        "Searching by word only. Set VOYAGE_API_KEY or OPENAI_API_KEY to also search by meaning.",
+      );
+    }
+    return 0;
+  } finally {
+    store.close();
+  }
+}
+
+export function memoryCommand(context: CommandContext): number {
+  const entries = readMemory(context.root);
+  if (entries.length === 0) {
+    context.terminal.out(
+      "Nothing remembered about this project yet. The agent adds to this as it learns.",
+    );
+    return 0;
+  }
+  for (const entry of entries) context.terminal.out(formatEntry(entry));
+  context.terminal.out("");
+  context.terminal.out(memoryPath(context.root));
   return 0;
 }

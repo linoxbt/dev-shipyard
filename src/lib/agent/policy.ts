@@ -31,6 +31,10 @@ const SAFE = [
   "dependency.audit",
   "code.refactor",
   "code.analyze",
+  // Writing a note about the project is not writing to the project. It goes to
+  // the agent's own memory file, which is append-only and which a person can
+  // read and delete.
+  "memory.write",
 ];
 
 /** Operations that need a person, with the reason stated in their terms. */

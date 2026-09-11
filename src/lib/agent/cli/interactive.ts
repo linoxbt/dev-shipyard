@@ -3,6 +3,8 @@ import {
   checkpointsCommand,
   configCommand,
   diffCommand,
+  indexCommand,
+  memoryCommand,
   runCommand,
   sessionsCommand,
   statusCommand,
@@ -59,6 +61,12 @@ export async function handleSlash(
       return "handled";
     case "config":
       configCommand(context);
+      return "handled";
+    case "memory":
+      memoryCommand(context);
+      return "handled";
+    case "index":
+      await indexCommand(context);
       return "handled";
     case "cost":
       context.terminal.out(

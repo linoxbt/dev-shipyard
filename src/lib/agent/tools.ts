@@ -264,6 +264,32 @@ export const TOOLS: Record<string, ToolDefinition> = {
     returnsUntrustedContent: false,
     performedBy: "person",
   },
+  remember: {
+    name: "remember",
+    usage: 'remember {"note", "tag?"}',
+    description:
+      "Keep one thing about this project that is worth knowing next time and is not derivable from the code: a decision, a constraint, how something is deployed, or an approach that was tried and did not work. Not for what a file contains.",
+    operation: "memory.write",
+    schema: z.object({
+      note: z.string().min(1).max(500),
+      tag: z.string().max(40).optional(),
+    }),
+    resourcesFrom: () => ["project-memory"],
+    returnsUntrustedContent: false,
+  },
+  recall: {
+    name: "recall",
+    usage: 'recall {"query"}',
+    description:
+      "Search this project for whatever is relevant to a question, by meaning as well as by word. Use it to find where something lives before reading files one at a time.",
+    operation: "project.inspect",
+    schema: z.object({
+      query: z.string().min(1).max(400),
+    }),
+    resourcesFrom: () => ["project"],
+    // Search results are file contents, which are not instructions.
+    returnsUntrustedContent: true,
+  },
   open_pull_request: {
     name: "open_pull_request",
     usage: 'open_pull_request {"title", "body", "branch?"}',
