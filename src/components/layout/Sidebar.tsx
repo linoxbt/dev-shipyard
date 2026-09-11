@@ -18,7 +18,6 @@ import {
   Sparkles,
   Sun,
   Tags,
-  Wand2,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -44,7 +43,6 @@ const NAV = [
       { to: "/launchkit/editor", label: "Contract Editor", icon: Code2 },
       { to: "/launchkit/ai", label: "Code with AI", icon: Sparkles },
       { to: "/launchkit/deploy", label: "Deploy", icon: Rocket },
-      { to: "/launchkit/app-builder", label: "App Builder", icon: Wand2 },
       { to: "/launchkit/coding-agent", label: "Coding Agent", icon: Bot },
       // My Apps and Projects are reached from the dashboard, not from here.
       // They are personal views of your own work rather than tools, so they

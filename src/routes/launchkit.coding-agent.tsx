@@ -4,14 +4,17 @@ import {
   AlertTriangle,
   Check,
   ExternalLink,
+  GitBranch,
   GitPullRequest,
   Github,
   Loader2,
   Lock,
+  Sparkles,
   Square,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { AppBuilderPage } from "@/components/appbuilder/AppBuilderPage";
 import { cn } from "@/lib/utils";
 
 // Pointing the coding agent at a repository you already have.
@@ -60,8 +63,88 @@ interface Job {
 
 export const Route = createFileRoute("/launchkit/coding-agent")({
   head: () => ({ meta: [{ title: "Coding Agent: DevStation" }] }),
-  component: CodingAgentPage,
+  component: CodingAgent,
 });
+
+type Mode = "new" | "repo";
+
+const MODE_KEY = "devstation.coding-agent.mode";
+
+/**
+ * One agent, two starting points.
+ *
+ * These were two pages, App Builder and Coding Agent, and they were the same
+ * product: describe what you want, watch it get made, decide what happens to
+ * the result. The only real difference is whether there is already a codebase.
+ * Splitting that into two nav items made people choose a tool before they had
+ * a problem, so it is one page with one choice at the top.
+ */
+function CodingAgent() {
+  const [mode, setMode] = useState<Mode>("new");
+
+  // Remembered, because people work one way for weeks at a time and being put
+  // back on the other tab every visit is a small daily irritation.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(MODE_KEY);
+      if (saved === "new" || saved === "repo") setMode(saved);
+    } catch {
+      /* storage disabled; the default is fine */
+    }
+  }, []);
+
+  const choose = (next: Mode) => {
+    setMode(next);
+    try {
+      localStorage.setItem(MODE_KEY, next);
+    } catch {
+      /* as above */
+    }
+  };
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex shrink-0 gap-1 border-b border-border px-3 py-2">
+        <ModeTab active={mode === "new"} onClick={() => choose("new")} icon={Sparkles}>
+          Build something new
+        </ModeTab>
+        <ModeTab active={mode === "repo"} onClick={() => choose("repo")} icon={GitBranch}>
+          Work on a repository
+        </ModeTab>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {mode === "new" ? <AppBuilderPage /> : <RepoAgentPanel />}
+      </div>
+    </div>
+  );
+}
+
+function ModeTab({
+  active,
+  onClick,
+  icon: Icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 rounded px-3 py-1.5 font-mono text-[11px]",
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-meta hover:bg-muted/40 hover:text-muted-foreground",
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {children}
+    </button>
+  );
+}
 
 /** Events worth showing. Token counts are tracked on every turn and are noise
  *  in a transcript; the cost is shown once, at the end, where it means
@@ -81,7 +164,7 @@ const MARK: Record<string, { mark: string; className: string }> = {
   "task.aborted": { mark: "!", className: "text-destructive" },
 };
 
-function CodingAgentPage() {
+function RepoAgentPanel() {
   const [gh, setGh] = useState<{ configured: boolean; user: { login: string } | null } | null>(
     null,
   );

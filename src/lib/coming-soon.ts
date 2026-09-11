@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { LayoutDashboard, Store, Trophy, Wand2 } from "lucide-react";
+import { LayoutDashboard, Store, Trophy } from "lucide-react";
 
 // Pages that are built but not yet shown.
 //
@@ -44,13 +44,6 @@ export const COMING_SOON: Record<string, ComingSoonPage> = {
       "Community contract templates published on-chain, with their source free to read before you use one.",
     icon: Store,
     instead: { label: "Browse templates", to: "/launchkit/templates" },
-  },
-  "/launchkit/app-builder": {
-    label: "App Builder",
-    statement:
-      "Describe an app in plain language, watch it get built and previewed as you talk, then publish it to a live URL.",
-    icon: Wand2,
-    instead: { label: "Write a contract", to: "/launchkit/editor" },
   },
 };
 
