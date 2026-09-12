@@ -38,7 +38,7 @@ describe("what a run is charged", () => {
     // holding. Guessing high only ends a run early, with a reason.
     const usage = { ...EMPTY_USAGE, outputTokens: 1_000_000 };
     expect(costOfUsage(usage, ratesFor("who-knows-3"))).toBe(
-      costOfUsage(usage, ratesFor("claude-opus-5")),
+      costOfUsage(usage, ratesFor("claude-fable-5.1")),
     );
   });
 

@@ -342,6 +342,10 @@ export class Orchestrator {
     let stoppedBecause = "finished";
 
     const usesGit = isRepo(this.opts.workspace.root);
+    // Set once a snapshot is refused, so a workspace too large to copy is
+    // walked once per run and said once, not re-walked and re-announced on
+    // every turn.
+    let snapshotSkip: string | null = null;
 
     for (;;) {
       const budget = this.budgetCheck(steps, started);
@@ -395,7 +399,15 @@ export class Orchestrator {
       // a run is usually the model writing its summary with no tools at all.
       // Capturing there produced a post-change snapshot, newer than the good
       // one, and undo restored the change it was asked to remove.
-      const pending = usesGit ? null : takeSnapshot(this.opts.workspace.root, goal.slice(0, 80));
+      let pending: ReturnType<typeof takeSnapshot> = null;
+      if (!usesGit && snapshotSkip === null) {
+        pending = takeSnapshot(this.opts.workspace.root, goal.slice(0, 80), {
+          onSkip: (reason) => {
+            snapshotSkip = reason;
+            this.emit("plan", `No undo for this run: ${reason}`);
+          },
+        });
+      }
 
       // A turn can ask for several tools at once, and the model treats them as
       // one unit of work. They are not: the third can fail after the first two

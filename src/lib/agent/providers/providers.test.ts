@@ -9,6 +9,7 @@ import {
   OpenRouterProvider,
 } from "./index";
 import type { ProviderMessage } from "./types";
+import { affordableTokens, describeFailure } from "./openrouter";
 
 // The mapping from our message list to Anthropic's is where ports of this
 // normally break, so it is tested directly rather than only through a live
@@ -231,5 +232,105 @@ describe("an OpenAI-compatible endpoint", () => {
     } finally {
       globalThis.fetch = realFetch;
     }
+  });
+});
+
+describe("when OpenRouter credit is short", () => {
+  const realFetch = globalThis.fetch;
+  const ok = () =>
+    new Response(
+      new ReadableStream({
+        start(c) {
+          c.enqueue(
+            new TextEncoder().encode(
+              'data: {"choices":[{"delta":{"content":"hi"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
+            ),
+          );
+          c.close();
+        },
+      }),
+      { status: 200 },
+    );
+  const refusal = (afford: number) =>
+    new Response(
+      JSON.stringify({
+        error: {
+          code: 402,
+          message: `This request requires more credits, or fewer max_tokens. You requested up to 16000 tokens, but can only afford ${afford}. To increase, visit https://openrouter.ai/settings/credits and add more credits`,
+        },
+      }),
+      { status: 402 },
+    );
+
+  function stub(responses: Response[]) {
+    const bodies: Record<string, unknown>[] = [];
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body ?? "{}")));
+      return responses.shift() ?? ok();
+    }) as unknown as typeof fetch;
+    return bodies;
+  }
+
+  it("asks for a sane ceiling by default, not 64,000", async () => {
+    const bodies = stub([ok()]);
+    try {
+      await new OpenRouterProvider("k", "a/b").generate({
+        system: "s",
+        messages: [{ role: "user", content: "q" }],
+      });
+      expect(bodies[0].max_tokens).toBeLessThanOrEqual(16_000);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("retries once inside what the balance can afford", async () => {
+    // The real refusal: $0.90 could not cover a 64,000-token hold at Opus 5
+    // prices, while the reply itself needed a fraction of that.
+    const bodies = stub([refusal(12_000), ok()]);
+    try {
+      const result = await new OpenRouterProvider("k", "a/b").generate({
+        system: "s",
+        messages: [{ role: "user", content: "q" }],
+      });
+      expect(result.text).toBe("hi");
+      expect(bodies).toHaveLength(2);
+      expect(bodies[1].max_tokens).toBe(Math.floor(12_000 * 0.95));
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("says plainly what to do when even a short reply is unaffordable", async () => {
+    stub([refusal(200)]);
+    try {
+      await expect(
+        new OpenRouterProvider("k", "a/b").generate({
+          system: "s",
+          messages: [{ role: "user", content: "q" }],
+        }),
+      ).rejects.toThrow(/out of credit.*openrouter\.ai\/settings\/credits/);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("reads the affordable amount out of OpenRouter's wording", () => {
+    expect(
+      affordableTokens(
+        "…You requested up to 64000 tokens, but can only afford 44192. To increase…",
+      ),
+    ).toBe(44192);
+    expect(affordableTokens("something else")).toBeNull();
+  });
+
+  it("never shows raw JSON for a failure", () => {
+    const text = describeFailure(
+      "OpenRouter",
+      500,
+      JSON.stringify({ error: { message: "upstream exploded" } }),
+    );
+    expect(text).toContain("upstream exploded");
+    expect(text).not.toContain("{");
   });
 });

@@ -193,6 +193,78 @@ export function readWorkspaceBounded(
   return { files, stopped };
 }
 
+/** What Workspace.list has always skipped, for walks that must match it. */
+const SNAPSHOT_SKIP_DIRS = new Set([...SKIP_DIRS, ".output", ".venv"]);
+
+export interface BoundedList {
+  paths: string[];
+  bytes: number;
+  stopped: null | "max-files" | "max-bytes" | "deadline";
+}
+
+/**
+ * Paths and total size, bounded, without reading any content.
+ *
+ * For undo snapshots, which copy what they list. Their walk was unbounded, and
+ * once /root stopped being mistaken for a git repository, the first turn there
+ * copied the home directory aside -- 3.9GB across two runs, before a single
+ * tool ran. `skipHidden` is false for snapshots, so a project's .vscode or
+ * .husky still gets a way back; the index sets it true to miss tool caches.
+ */
+export function listWorkspaceBounded(
+  root: string,
+  opts: { maxFiles?: number; maxBytes?: number; deadlineMs?: number; skipHidden?: boolean } = {},
+): BoundedList {
+  const maxFiles = opts.maxFiles ?? Number.POSITIVE_INFINITY;
+  const maxBytes = opts.maxBytes ?? Number.POSITIVE_INFINITY;
+  const until = Date.now() + (opts.deadlineMs ?? 10_000);
+  const paths: string[] = [];
+  let bytes = 0;
+  let stopped: BoundedList["stopped"] = null;
+
+  const walk = (dir: string): void => {
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const item of entries) {
+      if (stopped) return;
+      if (item.isSymbolicLink()) continue;
+      const full = join(dir, item.name);
+      if (item.isDirectory()) {
+        if (SNAPSHOT_SKIP_DIRS.has(item.name)) continue;
+        if (opts.skipHidden && item.name.startsWith(".") && !HIDDEN_KEEP.has(item.name)) continue;
+        walk(full);
+        continue;
+      }
+      if (!item.isFile()) continue;
+      if (paths.length >= maxFiles) {
+        stopped = "max-files";
+        return;
+      }
+      if ((paths.length & 63) === 0 && Date.now() > until) {
+        stopped = "deadline";
+        return;
+      }
+      try {
+        bytes += statSync(full).size;
+      } catch {
+        continue;
+      }
+      if (bytes > maxBytes) {
+        stopped = "max-bytes";
+        return;
+      }
+      paths.push(relative(root, full).split(sep).join("/"));
+    }
+  };
+
+  walk(root);
+  return { paths: paths.sort(), bytes, stopped };
+}
+
 export interface Proposal {
   title: string;
   body: string;

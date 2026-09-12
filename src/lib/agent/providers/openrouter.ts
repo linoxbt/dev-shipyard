@@ -20,6 +20,47 @@ import {
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 
+/**
+ * The reply ceiling per request.
+ *
+ * It was 64,000, which is several times what an agent turn writes, and on
+ * OpenRouter it is not free: the whole ceiling is held against the balance
+ * before the request runs. At Opus 5's $25 per million output tokens that is
+ * $1.60 held for a "Hello", which refused an account with $0.90 left. 16,000 is
+ * still far more than a turn needs. DEVSTATION_MAX_TOKENS raises it.
+ */
+const DEFAULT_MAX_TOKENS = Number(process.env.DEVSTATION_MAX_TOKENS) || 16_000;
+
+/** Below this a retry would produce a reply too short to be useful; better to
+ *  say the balance is the problem. */
+const MIN_RETRY_TOKENS = 1024;
+
+/** OpenRouter's 402 says "…but can only afford 44192." Null when it does not. */
+export function affordableTokens(detail: string): number | null {
+  const match = /can only afford (\d+)/i.exec(detail);
+  return match ? Number(match[1]) : null;
+}
+
+/** A failure a person can act on, instead of a truncated JSON dump. */
+export function describeFailure(label: string, status: number, detail: string): string {
+  let message = detail;
+  try {
+    const parsed = JSON.parse(detail) as { error?: { message?: string } };
+    if (parsed.error?.message) message = parsed.error.message;
+  } catch {
+    // Not JSON: use the text as it is.
+  }
+  if (status === 402 && /credit/i.test(message)) {
+    return (
+      `${label} is out of credit for this request. Add credit at https://openrouter.ai/settings/credits, ` +
+      "or use a cheaper model: devstation config set model anthropic/claude-sonnet-5"
+    );
+  }
+  if (status === 401)
+    return `${label} rejected the API key. Run \`devstation login\` to store a new one.`;
+  return `${label} request failed (${status}). ${message.slice(0, 300)}`;
+}
+
 export interface OpenAiCompatibleOptions {
   /** "openrouter" (the default) or "openai" for any other compatible server:
    *  OpenAI itself, Ollama, LM Studio, Groq, Together. Only OpenRouter gets its
@@ -119,47 +160,65 @@ export class OpenRouterProvider implements ModelProvider {
 
   async generate(input: GenerateInput): Promise<ProviderResult> {
     const openRouter = this.name === "openrouter";
-    const res = await fetch(this.endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        // A local server needs no key, and some reject an empty bearer.
-        ...(this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}),
-        ...(openRouter
-          ? { "HTTP-Referer": "https://devstation.online", "X-Title": "DevStation" }
-          : {}),
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: toOpenAiMessages(input.system, input.messages),
-        stream: true,
-        max_tokens: input.maxTokens ?? 64_000,
-        temperature: 0.2,
-        ...(input.tools?.length
-          ? {
-              tools: input.tools.map((t) => ({
-                type: "function",
-                function: {
-                  name: t.name,
-                  description: t.description,
-                  parameters: t.inputSchema,
-                },
-              })),
-            }
-          : {}),
-        // Reasoning deltas carry no content, and a long reasoning burst looks
-        // exactly like a hang.
-        ...(openRouter && process.env.AI_REASONING !== "on"
-          ? { reasoning: { enabled: false } }
-          : {}),
-      }),
-      signal: input.signal,
-    });
+    const send = (maxTokens: number) =>
+      fetch(this.endpoint, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          // A local server needs no key, and some reject an empty bearer.
+          ...(this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}),
+          ...(openRouter
+            ? { "HTTP-Referer": "https://devstation.online", "X-Title": "DevStation" }
+            : {}),
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: toOpenAiMessages(input.system, input.messages),
+          stream: true,
+          max_tokens: maxTokens,
+          temperature: 0.2,
+          ...(input.tools?.length
+            ? {
+                tools: input.tools.map((t) => ({
+                  type: "function",
+                  function: {
+                    name: t.name,
+                    description: t.description,
+                    parameters: t.inputSchema,
+                  },
+                })),
+              }
+            : {}),
+          // Reasoning deltas carry no content, and a long reasoning burst looks
+          // exactly like a hang.
+          ...(openRouter && process.env.AI_REASONING !== "on"
+            ? { reasoning: { enabled: false } }
+            : {}),
+        }),
+        signal: input.signal,
+      });
+
+    const label = openRouter ? "OpenRouter" : `The endpoint ${this.endpoint}`;
+    const requested = input.maxTokens ?? DEFAULT_MAX_TOKENS;
+    let res = await send(requested);
+
+    // OpenRouter holds credit for the whole max_tokens before it answers. A
+    // balance that easily covers the real reply can still be refused because it
+    // does not cover the ceiling -- and the refusal says exactly what does fit.
+    // One retry inside that, never a loop.
+    if (res.status === 402 && openRouter) {
+      const detail = await res.text().catch(() => "");
+      const afford = affordableTokens(detail);
+      if (afford !== null && afford >= MIN_RETRY_TOKENS && afford < requested) {
+        res = await send(Math.floor(afford * 0.95));
+      } else {
+        throw new Error(describeFailure(label, res.status, detail));
+      }
+    }
 
     if (!res.ok || !res.body) {
       const detail = await res.text().catch(() => "");
-      const label = openRouter ? "OpenRouter" : `The endpoint ${this.endpoint}`;
-      throw new Error(`${label} request failed (${res.status}). ${detail.slice(0, 200)}`);
+      throw new Error(describeFailure(label, res.status, detail));
     }
 
     let text = "";

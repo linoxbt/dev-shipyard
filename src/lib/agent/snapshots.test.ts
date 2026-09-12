@@ -166,3 +166,71 @@ describe("the agent's own safety net, with no git", () => {
     expect(hasSnapshots(root)).toBe(false);
   }, 30_000);
 });
+
+describe("snapshots that must not be taken", () => {
+  it("never copies a home directory, and says why", () => {
+    // The bug this holds: once /root stopped counting as a git repository, the
+    // first turn there copied the home directory aside -- 3.9GB in two runs.
+    const root = scratch({ "a.js": "x\n" });
+    const reasons: string[] = [];
+    const snap = takeSnapshot(root, "turn", { home: root, onSkip: (r) => reasons.push(r) });
+    expect(snap).toBeNull();
+    expect(reasons.join(" ")).toContain("home directory");
+    expect(existsSync(join(root, ".devstation", "checkpoints"))).toBe(false);
+  });
+
+  it("refuses a tree over the file limit without copying anything", () => {
+    const files: Record<string, string> = {};
+    for (let i = 0; i < 6; i++) files[`f${i}.js`] = `${i}\n`;
+    const root = scratch(files);
+    const reasons: string[] = [];
+    expect(
+      takeSnapshot(root, "turn", { home: "", maxFiles: 3, onSkip: (r) => reasons.push(r) }),
+    ).toBeNull();
+    expect(reasons.join(" ")).toContain("too large");
+    expect(existsSync(join(root, ".devstation", "checkpoints"))).toBe(false);
+  });
+
+  it("refuses a tree over the size limit", () => {
+    const root = scratch({ "big.txt": "x".repeat(4096) });
+    const reasons: string[] = [];
+    expect(
+      takeSnapshot(root, "turn", { home: "", maxBytes: 1024, onSkip: (r) => reasons.push(r) }),
+    ).toBeNull();
+    expect(reasons.length).toBe(1);
+  });
+
+  it("still gives a hidden project folder a way back", () => {
+    // Snapshots skip build output, not a project's own dot-folders.
+    const root = scratch({ ".vscode/settings.json": "{}\n" });
+    takeSnapshot(root, "before", { home: "" });
+    writeFileSync(join(root, ".vscode/settings.json"), '{"changed":true}\n');
+    expect(undoSnapshot(root).ok).toBe(true);
+    expect(read(root, ".vscode/settings.json")).toBe("{}\n");
+  });
+
+  it("tells the run once, and stops trying, when it refuses", async () => {
+    const root = scratch({ "a.js": "original\n" });
+    const realHome = process.env.HOME;
+    process.env.HOME = root;
+    try {
+      const provider = new MockProvider([
+        { toolCalls: [{ id: "1", name: "write_file", input: { path: "a.js", content: "one\n" } }] },
+        { toolCalls: [{ id: "2", name: "write_file", input: { path: "a.js", content: "two\n" } }] },
+        { text: "Done." },
+      ]);
+      const notices: string[] = [];
+      await new Orchestrator({
+        provider,
+        workspace: new Workspace(root),
+        onEvent: (e) => {
+          if (e.message.startsWith("No undo")) notices.push(e.message);
+        },
+      }).run("edit twice");
+      expect(notices).toHaveLength(1);
+      expect(existsSync(join(root, ".devstation", "checkpoints"))).toBe(false);
+    } finally {
+      process.env.HOME = realHome;
+    }
+  }, 30_000);
+});

@@ -32,9 +32,17 @@ export interface Rates {
  * specific entries come first.
  */
 const TABLE: Array<{ match: RegExp; rates: Rates }> = [
-  { match: /opus/i, rates: { input: 15, output: 75, cacheRead: 1.5, cacheWrite: 18.75 } },
-  { match: /haiku/i, rates: { input: 0.8, output: 4, cacheRead: 0.08, cacheWrite: 1 } },
-  { match: /sonnet/i, rates: { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 } },
+  // Checked against OpenRouter's live model list on 2026-09-13, which matches
+  // Anthropic's list prices. The first version of this table was written from
+  // memory and charged Opus 5 and Sonnet 5 about three times what they cost, so
+  // every displayed cost and every --budget stop was inflated threefold. Prices
+  // change: re-check rather than trusting these, and AGENT_*_COST overrides
+  // them without a code change.
+  { match: /fable-5[.-]1/i, rates: { input: 10, output: 50, cacheRead: 0.25, cacheWrite: 12.5 } },
+  { match: /fable/i, rates: { input: 10, output: 50, cacheRead: 1, cacheWrite: 12.5 } },
+  { match: /opus/i, rates: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 } },
+  { match: /haiku/i, rates: { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 } },
+  { match: /sonnet/i, rates: { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 } },
 ];
 
 /**

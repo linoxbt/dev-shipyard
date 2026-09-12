@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { Workspace } from "./workspace";
+import { listWorkspaceBounded } from "./repo-session";
 
 // Undo for a workspace that is not a git repository.
 //
@@ -92,11 +92,52 @@ function nextId(root: string): string {
  * that, a checkpoint of a project with dependencies installed would copy tens
  * of thousands of files nobody wants back.
  */
-export function takeSnapshot(root: string, message: string): Snapshot | null {
-  const workspace = new Workspace(root);
-  const files = workspace
-    .list(".")
-    .filter((p) => !p.startsWith(`${DIR}/`) && !p.startsWith(".devstation/"));
+export interface SnapshotOptions {
+  /** Defaults to HOME. A home directory is never copied. */
+  home?: string;
+  maxFiles?: number;
+  maxBytes?: number;
+  /** Told why no snapshot was taken, when it was refused rather than empty. */
+  onSkip?: (reason: string) => void;
+}
+
+/** Beyond these a copy-aside checkpoint is the wrong mechanism, not a slow one:
+ *  a tree that size belongs in git, and copying it on every turn fills a disk. */
+const SNAPSHOT_MAX_FILES = 5_000;
+const SNAPSHOT_MAX_BYTES = 50 * 1024 * 1024;
+
+export function takeSnapshot(
+  root: string,
+  message: string,
+  opts: SnapshotOptions = {},
+): Snapshot | null {
+  const home = opts.home ?? process.env.HOME ?? "";
+  const strip = (p: string) => p.replace(/\/+$/, "");
+  if (home && strip(root) === strip(home)) {
+    opts.onSkip?.("a home directory is never copied aside. cd into a project to get undo.");
+    return null;
+  }
+
+  const listed = listWorkspaceBounded(root, {
+    maxFiles: opts.maxFiles ?? SNAPSHOT_MAX_FILES,
+    maxBytes: opts.maxBytes ?? SNAPSHOT_MAX_BYTES,
+  });
+  if (listed.stopped) {
+    const limit =
+      listed.stopped === "max-bytes"
+        ? `${Math.round((opts.maxBytes ?? SNAPSHOT_MAX_BYTES) / 1024 / 1024)}MB`
+        : listed.stopped === "max-files"
+          ? `${(opts.maxFiles ?? SNAPSHOT_MAX_FILES).toLocaleString("en-US")} files`
+          : "the time limit";
+    opts.onSkip?.(
+      `this workspace is larger than ${limit}, too large to copy aside each turn. Put it under git for undo.`,
+    );
+    return null;
+  }
+
+  const files = listed.paths.filter(
+    (p) => !p.startsWith(`${DIR}/`) && !p.startsWith(".devstation/"),
+  );
   if (files.length === 0) return null;
 
   const id = nextId(root);
@@ -153,12 +194,13 @@ export function undoSnapshot(root: string): { ok: boolean; message: string } {
     return { ok: false, message: "There is no checkpoint to undo." };
   }
 
-  const workspace = new Workspace(root);
   const dir = join(storeDir(root), latest.id);
   const kept = new Set(latest.files);
 
   // Anything the agent can see that was not in the snapshot arrived after it.
-  for (const path of workspace.list(".")) {
+  // The same bounded walk the snapshot used, so the two agree on what "the
+  // workspace" is and undo never deletes something the snapshot chose to skip.
+  for (const path of listWorkspaceBounded(root).paths) {
     if (kept.has(path) || path.startsWith(".devstation/")) continue;
     rmSync(join(root, path), { force: true });
   }
