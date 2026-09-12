@@ -165,7 +165,9 @@ export class Workspace {
 
   /** Every text file in the workspace, relative and sorted. Skips the places
    *  that are never the project: dependency trees, build output, git internals. */
-  list(subdir = "."): string[] {
+  /** `limit` stops the walk once that many files are found, so a caller that
+   *  can only use a screenful is not made to wait for half a million. */
+  list(subdir = ".", limit = Number.POSITIVE_INFINITY): string[] {
     // The root itself is a legitimate target, and resolve() rejects an empty
     // path, so it is handled here rather than by loosening that guard.
     const base =
@@ -178,6 +180,7 @@ export class Workspace {
     const out: string[] = [];
     const walk = (dir: string) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (out.length >= limit) return;
         if (entry.name.startsWith(".") && skip.has(entry.name)) continue;
         if (skip.has(entry.name)) continue;
         const full = join(dir, entry.name);

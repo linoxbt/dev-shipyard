@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runShell } from "./shell";
@@ -165,4 +165,31 @@ describe("git as the agent reads it", () => {
     expect(status.stdout).not.toContain("already checkpointed");
     expect((await agentDiff(root)).stdout.trim()).toBe("");
   }, 30_000);
+});
+
+describe("what counts as a repository", () => {
+  it("is not fooled by a stray .git directory with no HEAD", () => {
+    // /root had one holding only info/. Every git command there exits 128.
+    const root = mkdtempSync(join(tmpdir(), "stray-"));
+    try {
+      mkdirSync(join(root, ".git", "info"), { recursive: true });
+      expect(isRepo(root)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("recognises a real repository and a worktree's .git file", async () => {
+    const real = mkdtempSync(join(tmpdir(), "real-"));
+    const worktree = mkdtempSync(join(tmpdir(), "wt-"));
+    try {
+      await runShell("git init -q", { cwd: real });
+      expect(isRepo(real)).toBe(true);
+      writeFileSync(join(worktree, ".git"), "gitdir: /somewhere/.git/worktrees/wt\n");
+      expect(isRepo(worktree)).toBe(true);
+    } finally {
+      rmSync(real, { recursive: true, force: true });
+      rmSync(worktree, { recursive: true, force: true });
+    }
+  });
 });

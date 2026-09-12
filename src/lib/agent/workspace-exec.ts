@@ -32,10 +32,20 @@ export function executeFileTool(
 ): WorkspaceExecResult | null {
   switch (name) {
     case "list_files": {
-      const files = workspace.list(String(args.path ?? "."));
-      return files.length === 0
-        ? { ok: true, output: "The workspace is empty." }
-        : { ok: true, output: files.join("\n") };
+      // One more than shown, so "exactly the limit" and "more than the limit"
+      // can be told apart without walking the rest of a huge tree.
+      const LIMIT = 2000;
+      const files = workspace.list(String(args.path ?? "."), LIMIT + 1);
+      if (files.length === 0) return { ok: true, output: "The workspace is empty." };
+      if (files.length > LIMIT) {
+        return {
+          ok: true,
+          output:
+            `${files.slice(0, LIMIT).join("\n")}\n\n` +
+            `(Stopped at ${LIMIT} files: this directory is very large. List a subdirectory, or search for what you need.)`,
+        };
+      }
+      return { ok: true, output: files.join("\n") };
     }
 
     case "read_file": {
@@ -81,7 +91,12 @@ export function executeFileTool(
       if (!query) return fail("No search query was given.");
       const hits: string[] = [];
       let truncated = false;
-      for (const path of workspace.list()) {
+      // Bounded like list_files, for the same reason: in a home directory the
+      // tree is half a million files, and reading each one looked like a hang.
+      const MAX_SCAN = 20_000;
+      const scanned = workspace.list(".", MAX_SCAN + 1);
+      const scanLimited = scanned.length > MAX_SCAN;
+      for (const path of scanned.slice(0, MAX_SCAN)) {
         const file = workspace.read(path);
         // Skip what cannot be read as text rather than reporting it as a miss.
         if (!file.ok) continue;
@@ -99,10 +114,17 @@ export function executeFileTool(
         }
         if (truncated) break;
       }
-      if (hits.length === 0) return { ok: true, output: `No match for "${args.query}".` };
+      // Said even when nothing matched: "no match" is not true of files that
+      // were never read.
+      const scanNote = scanLimited
+        ? `\n\n(Searched the first ${MAX_SCAN} files only: this workspace is very large. Search a subdirectory.)`
+        : "";
+      if (hits.length === 0) {
+        return { ok: true, output: `No match for "${args.query}".${scanNote}` };
+      }
       return {
         ok: true,
-        output: truncated ? `${hits.join("\n")}\n… more matches not shown` : hits.join("\n"),
+        output: `${truncated ? `${hits.join("\n")}\n… more matches not shown` : hits.join("\n")}${scanNote}`,
       };
     }
 

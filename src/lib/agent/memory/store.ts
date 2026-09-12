@@ -179,7 +179,13 @@ export class MemoryStore {
    * that is easy to leave out and produces an index that confidently returns
    * code which was deleted last week.
    */
-  reindex(files: Record<string, string>): ReindexResult {
+  /**
+   * `partial` means the caller did not see the whole tree. Files it did not
+   * reach are then left in the index rather than deleted as "gone": a walk that
+   * stopped at its limit knows nothing about what lay beyond it, and removing
+   * those entries would empty the index a little more on every bounded pass.
+   */
+  reindex(files: Record<string, string>, options: { partial?: boolean } = {}): ReindexResult {
     const result: ReindexResult = { scanned: 0, reindexed: 0, removed: 0, chunks: 0 };
 
     this.db.run("BEGIN");
@@ -196,9 +202,11 @@ export class MemoryStore {
         result.reindexed++;
       }
 
-      for (const gone of known) {
-        this.removeFile(gone);
-        result.removed++;
+      if (!options.partial) {
+        for (const gone of known) {
+          this.removeFile(gone);
+          result.removed++;
+        }
       }
       this.db.run("COMMIT");
     } catch (error) {

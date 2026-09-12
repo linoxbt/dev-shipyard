@@ -100,6 +100,99 @@ export function readWorkspace(root: string, maxFileBytes = 1024 * 1024): Record<
   return files;
 }
 
+/** Why a bounded read stopped short of the whole tree, or null if it did not. */
+export type ReadStop = null | "max-files" | "deadline";
+
+export interface BoundedRead {
+  files: Record<string, string>;
+  stopped: ReadStop;
+}
+
+/** Build output and caches, beyond what readWorkspace already skips. None of it
+ *  is source anybody wants searched. */
+const INDEX_SKIP_DIRS = new Set([
+  ...SKIP_DIRS,
+  "target",
+  "coverage",
+  "__pycache__",
+  ".venv",
+  "venv",
+  ".gradle",
+  "out",
+]);
+
+/** Hidden directories that are part of a project rather than a tool's cache. */
+const HIDDEN_KEEP = new Set([".github"]);
+
+/**
+ * The index's walk: bounded, and blind to hidden directories except .github.
+ *
+ * readWorkspace reads everything, which is right for building a pull request
+ * and why it is left exactly as it was: a PR that could not see .husky or
+ * .changeset would report them deleted. The index has a different job, and
+ * the unbounded walk is what made `devstation` in /root sit silent for minutes.
+ * There were about 495,000 files under it once build folders were skipped,
+ * roughly 480,000 of them in hidden tool caches -- ~/.bun, ~/.npm, ~/.cache,
+ * ~/.cargo -- all read into memory on the main thread before the first turn.
+ *
+ * Stops at a file count and a deadline and says which, so a huge tree costs a
+ * bounded wait and a sentence instead of an apparent hang.
+ */
+export function readWorkspaceBounded(
+  root: string,
+  opts: { maxFiles?: number; deadlineMs?: number; maxFileBytes?: number } = {},
+): BoundedRead {
+  const maxFiles = opts.maxFiles ?? 20_000;
+  const until = Date.now() + (opts.deadlineMs ?? 10_000);
+  const maxBytes = opts.maxFileBytes ?? 1024 * 1024;
+  const files: Record<string, string> = {};
+  let seen = 0;
+  let stopped: ReadStop = null;
+
+  const walk = (dir: string): void => {
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return; // unreadable directory: skip it, do not fail the index
+    }
+    for (const item of entries) {
+      if (stopped) return;
+      if (item.isSymbolicLink()) continue;
+      const full = join(dir, item.name);
+      if (item.isDirectory()) {
+        if (INDEX_SKIP_DIRS.has(item.name)) continue;
+        if (item.name.startsWith(".") && !HIDDEN_KEEP.has(item.name)) continue;
+        walk(full);
+        continue;
+      }
+      if (!item.isFile()) continue;
+      if (seen >= maxFiles) {
+        stopped = "max-files";
+        return;
+      }
+      // Checked every 64 files rather than every one: Date.now() is cheap, but
+      // not free across hundreds of thousands of entries.
+      if ((seen & 63) === 0 && Date.now() > until) {
+        stopped = "deadline";
+        return;
+      }
+      seen++;
+      try {
+        if (statSync(full).size > maxBytes) continue;
+        const buffer = readFileSync(full);
+        if (looksBinary(buffer)) continue;
+        files[relative(root, full).split(sep).join("/")] = buffer.toString("utf8");
+      } catch {
+        // A file that vanished or cannot be read mid-walk is not an error.
+      }
+    }
+  };
+
+  walk(root);
+  return { files, stopped };
+}
+
 export interface Proposal {
   title: string;
   body: string;

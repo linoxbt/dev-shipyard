@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { readWorkspace } from "../repo-session";
+import { readWorkspaceBounded, type ReadStop } from "../repo-session";
 import { embedMissing, type EmbeddingProvider } from "./embeddings";
 import { MemoryStore, type ReindexResult } from "./store";
 
@@ -22,14 +22,46 @@ export interface IndexResult extends ReindexResult {
   embedded: number;
   /** Null when no embedding key is configured, which is the ordinary case. */
   embeddingModel: string | null;
+  /** Why not everything was indexed, or null when it was. */
+  stopped: ReadStop | "home";
+  ms: number;
 }
 
 export async function indexWorkspace(
   root: string,
-  options: { store?: MemoryStore; embeddings?: EmbeddingProvider | null } = {},
+  options: {
+    store?: MemoryStore;
+    embeddings?: EmbeddingProvider | null;
+    /** Defaults to HOME. A workspace that IS the home directory is not
+     *  indexed at all: everything under it is every repository and cache the
+     *  person has, and indexing that is never what they meant. */
+    home?: string;
+    maxFiles?: number;
+    deadlineMs?: number;
+  } = {},
 ): Promise<IndexResult> {
+  const started = Date.now();
+  const home = options.home ?? process.env.HOME ?? "";
+  const strip = (p: string) => p.replace(/\/+$/, "");
+  if (home && strip(root) === strip(home)) {
+    return {
+      scanned: 0,
+      reindexed: 0,
+      removed: 0,
+      chunks: 0,
+      embedded: 0,
+      embeddingModel: null,
+      stopped: "home",
+      ms: 0,
+    };
+  }
+
   const store = options.store ?? openStore(root);
-  const result = store.reindex(readWorkspace(root));
+  const read = readWorkspaceBounded(root, {
+    maxFiles: options.maxFiles,
+    deadlineMs: options.deadlineMs,
+  });
+  const result = store.reindex(read.files, { partial: read.stopped !== null });
 
   let embedded = 0;
   if (options.embeddings) {
@@ -43,5 +75,11 @@ export async function indexWorkspace(
     }
   }
 
-  return { ...result, embedded, embeddingModel: options.embeddings?.model ?? null };
+  return {
+    ...result,
+    embedded,
+    embeddingModel: options.embeddings?.model ?? null,
+    stopped: read.stopped,
+    ms: Date.now() - started,
+  };
 }

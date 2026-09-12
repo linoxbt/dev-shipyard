@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { runShell, type ShellResult } from "./shell";
 import type { GitOp } from "./git-ops";
@@ -23,7 +23,19 @@ export { READ_ONLY_OPS, type GitOp } from "./git-ops";
 export const CHECKPOINT_PREFIX = "agent checkpoint:";
 
 export function isRepo(root: string): boolean {
-  return existsSync(join(root, ".git"));
+  const dotGit = join(root, ".git");
+  if (!existsSync(dotGit)) return false;
+  try {
+    // A worktree or submodule has a .git FILE pointing elsewhere; git resolves it.
+    if (statSync(dotGit).isFile()) return readFileSync(dotGit, "utf8").startsWith("gitdir:");
+  } catch {
+    return false;
+  }
+  // A real repository has HEAD. A stray .git directory without one is not a
+  // repository: /root had one holding only info/, and treating it as a repo made
+  // doctor call it one, sent checkpoints down the git path, and told the model it
+  // was in a repository while every git command it ran exited 128.
+  return existsSync(join(dotGit, "HEAD"));
 }
 
 /** Shell-quote a single argument. Arguments come from a model, so they are

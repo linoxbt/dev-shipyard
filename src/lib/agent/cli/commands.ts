@@ -21,7 +21,7 @@ import {
   type SettingKey,
 } from "../providers";
 import { embeddingsFromEnv } from "../memory/embeddings";
-import { indexWorkspace, openStore } from "../memory/workspace-index";
+import { storePath, indexWorkspace, openStore } from "../memory/workspace-index";
 import { formatEntry, memoryPath, readMemory } from "../memory/project-memory";
 import { McpHub, configPaths, loadConfig } from "../mcp";
 import { hostExecutor, type Executor } from "../executor";
@@ -182,9 +182,27 @@ export async function runCommand(
   // repository pays for the walk; every one after it re-chunks only what
   // changed, which is usually nothing or one file.
   const embeddings = embeddingsFromEnv();
+  // Said before the walk, not after: the silence while it ran was
+  // indistinguishable from a hang.
+  const firstIndex = !existsSync(storePath(context.root));
+  if (firstIndex && !options.quiet)
+    terminal.out("Indexing the workspace so the agent can search it…");
   const memory = openStore(context.root);
   try {
-    await indexWorkspace(context.root, { store: memory, embeddings });
+    const indexed = await indexWorkspace(context.root, { store: memory, embeddings });
+    if (!options.quiet) {
+      if (indexed.stopped === "home") {
+        terminal.err(
+          "Not indexing your home directory. The agent can still read and list files; cd into a project for a real index.",
+        );
+      } else if (indexed.stopped) {
+        terminal.err(
+          `Indexed ${indexed.scanned} files and stopped at the ${indexed.stopped === "deadline" ? "time" : "file"} limit: this workspace is very large. cd into the project you mean.`,
+        );
+      } else if (firstIndex || indexed.ms > 1500) {
+        terminal.out(`Indexed ${indexed.scanned} files in ${(indexed.ms / 1000).toFixed(1)}s.`);
+      }
+    }
   } catch {
     // The agent works without an index. It reads and lists files instead.
   }
