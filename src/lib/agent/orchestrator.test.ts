@@ -327,3 +327,25 @@ describe("a turn that only half happened", () => {
     expect(message).toContain("run_tests");
   });
 });
+
+describe("answering like an assistant", () => {
+  it("sends the message as it was written, with no project search in front", async () => {
+    // "Hello" used to arrive with retrieved excerpts in front of it and print
+    // "Found 22 relevant place(s) in the project."
+    const workspace = ws({ "a.js": "export const hello = 1;\n" });
+    const provider = new MockProvider([{ text: "Hello! What would you like to do?" }]);
+    const events: AgentEvent[] = [];
+    await new Orchestrator({ provider, workspace, onEvent: (e) => events.push(e) }).run("Hello");
+    const first = provider.calls[0].messages[0] as { content: string };
+    expect(first.content).toBe("Hello");
+    expect(events.some((e) => /relevant place/.test(e.message))).toBe(false);
+  });
+
+  it("offers web_search and fetch_url among its tools", async () => {
+    const provider = new MockProvider([{ text: "ok" }]);
+    await new Orchestrator({ provider, workspace: ws({}) }).run("hi");
+    const names = (provider.calls[0].tools ?? []).map((t) => t.name);
+    expect(names).toContain("web_search");
+    expect(names).toContain("fetch_url");
+  });
+});

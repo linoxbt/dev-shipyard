@@ -118,7 +118,9 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
     return 2;
   }
   const executor = built.executor;
-  const withExecutor: CommandContext = { ...context, executor };
+  // One set for the whole conversation: "always" means for this session, not
+  // for this turn.
+  const withExecutor: CommandContext = { ...context, executor, alwaysAllow: new Set() };
 
   terminal.out(
     banner(

@@ -148,13 +148,37 @@ export function classifyCommand(
     if (pattern.test(trimmed)) return "destructive";
   }
 
-  if (CHAINING.test(trimmed)) return "writes";
+  // Substitution can run anything, whatever the command around it is.
+  if (SUBSTITUTION.test(trimmed)) return "writes";
 
-  const [head, sub] = trimmed.split(/\s+/);
+  if (CHAINING.test(trimmed)) {
+    // A chain of commands that each only read is still only reading. Treating
+    // every `;` or `|` as a write made `ls -a; ls -d */ 2>/dev/null` ask for
+    // permission as a high-risk command, which is how prompts get clicked
+    // through unread. Each part is judged on its own; any part that is not
+    // plainly read-only, or any redirect into a file, keeps the whole chain gated.
+    const segments = trimmed.split(/\s*(?:&&|\|\||;|\|)\s*/).filter(Boolean);
+    return segments.length > 0 && segments.every(segmentReadsOnly) ? "safe" : "writes";
+  }
+
+  return segmentReadsOnly(trimmed) ? "safe" : "writes";
+}
+
+/** `$(…)`, backticks, `${…}` and process substitution. */
+const SUBSTITUTION = /`|\$\(|\$\{|<\(|>\(/;
+
+/** Redirects that discard output rather than write a file. */
+const HARMLESS_REDIRECT = /\s*(?:[12]?>\s*\/dev\/null|2>&1|&>\s*\/dev\/null)/g;
+
+function segmentReadsOnly(segment: string): boolean {
+  const cleaned = segment.replace(HARMLESS_REDIRECT, "").trim();
+  if (!cleaned) return true;
+  // Any remaining output redirect writes to a file.
+  if (/>/.test(cleaned)) return false;
+  const [head, sub] = cleaned.split(/\s+/);
   const subcommands = READ_ONLY_SUBCOMMANDS[head];
-  if (subcommands) return sub && subcommands.has(sub) ? "safe" : "writes";
-  if (READ_ONLY.has(head)) return "safe";
-  return "writes";
+  if (subcommands) return Boolean(sub && subcommands.has(sub));
+  return READ_ONLY.has(head);
 }
 
 /** The policy operation a command maps to, so risk is decided by the same

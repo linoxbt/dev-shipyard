@@ -55,22 +55,18 @@ async function indexed(root: string): Promise<MemoryStore> {
 }
 
 describe("answering about a project it was never fed", () => {
-  it("puts the right file in front of the model before the first turn", async () => {
+  it("does not search the project before the first turn, even with an index", async () => {
+    // The automatic search that used to run here is what printed "Found 22
+    // relevant place(s)" under "Hello". The message goes to the model as written;
+    // the agent searches with recall when a request actually needs it.
     const root = scratch(bigProject());
     const memory = await indexed(root);
     const provider = new MockProvider([{ text: "It rounds down to the nearest cent." }]);
+    const goal = "how is a refund calculated when someone downgrades part way through a month";
 
-    await new Orchestrator({
-      provider,
-      workspace: new Workspace(root),
-      memory,
-    }).run("how is a refund calculated when someone downgrades part way through a month");
+    await new Orchestrator({ provider, workspace: new Workspace(root), memory }).run(goal);
 
-    const firstMessage = String(provider.calls[0].messages[0].content);
-    expect(firstMessage).toContain("src/billing/proration.ts");
-    expect(firstMessage).toContain("Rounded down to the nearest cent");
-    // And it did not drag in a hundred unrelated handlers to do it.
-    expect(firstMessage).not.toContain("handle77");
+    expect(String(provider.calls[0].messages[0].content)).toBe(goal);
   }, 60_000);
 
   it("keeps the goal itself intact", async () => {
@@ -83,23 +79,34 @@ describe("answering about a project it was never fed", () => {
     expect(String(provider.calls[0].messages[0].content)).toContain(goal);
   }, 60_000);
 
-  it("holds the retrieved context to its budget", async () => {
+  it("holds recall's excerpts to the retrieval budget", async () => {
+    // The budget covers what is actually handed back, headers and preamble
+    // included, not just the chunk text inside them.
     const root = scratch(bigProject());
     const memory = await indexed(root);
-    const provider = new MockProvider([{ text: "ok" }]);
+    const provider = new MockProvider([
+      {
+        toolCalls: [
+          {
+            id: "1",
+            name: "recall",
+            input: { query: "refund downgrade proration handler module" },
+          },
+        ],
+      },
+      { text: "ok" },
+    ]);
 
     await new Orchestrator({
       provider,
       workspace: new Workspace(root),
       memory,
       retrievalTokens: 400,
-    }).run("refund downgrade proration handler module");
+    }).run("look it up");
 
-    // The budget covers what is actually sent, headers and preamble included,
-    // not just the chunk text inside them.
-    const firstMessage = String(provider.calls[0].messages[0].content);
-    const context = firstMessage.slice(0, firstMessage.lastIndexOf("\n\n"));
-    expect(approxTokens(context)).toBeLessThanOrEqual(400);
+    const result = provider.calls[1].messages.find((m) => m.role === "tool") as { content: string };
+    const excerpts = result.content.slice(result.content.indexOf("Relevant parts of this project"));
+    expect(approxTokens(excerpts)).toBeLessThanOrEqual(400);
   }, 60_000);
 
   it("works exactly as before when there is no index", async () => {
@@ -109,9 +116,7 @@ describe("answering about a project it was never fed", () => {
     expect(String(provider.calls[0].messages[0].content)).toBe("a question");
   }, 60_000);
 
-  it("retrieves once, not on every turn", async () => {
-    // Re-retrieving each turn spends the context budget on the same excerpts
-    // over and over, crowding out what the tools actually returned.
+  it("puts excerpts in the conversation only when recall is called", async () => {
     const root = scratch(bigProject());
     const memory = await indexed(root);
     const provider = new MockProvider([
@@ -126,7 +131,7 @@ describe("answering about a project it was never fed", () => {
     const contexts = provider.calls[1].messages.filter((m) =>
       String(m.content).includes("Relevant parts of this project"),
     );
-    expect(contexts).toHaveLength(1);
+    expect(contexts).toHaveLength(0);
   }, 60_000);
 
   it("can search again mid-task with recall", async () => {

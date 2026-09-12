@@ -9,6 +9,8 @@ import { renderEvent, renderSessions, renderUsage } from "./render";
 import { chatCommand, handleSlash } from "./interactive";
 import { lineReader } from "./line-reader";
 import {
+  isAlways,
+  approvalKey,
   homeDirectoryWarning,
   configEditCommand,
   loginCommand,
@@ -962,5 +964,27 @@ describe("forgiving input", () => {
     expect(homeDirectoryWarning("/root/", "/root")).toContain("home directory");
     expect(homeDirectoryWarning("/root/project", "/root")).toBeNull();
     expect(homeDirectoryWarning("/root", "")).toBeNull();
+  });
+});
+
+describe("always allowing an action for the session", () => {
+  it("accepts a and always", () => {
+    expect(isAlways("a")).toBe(true);
+    expect(isAlways("Always")).toBe(true);
+    expect(isAlways("y")).toBe(false);
+    expect(isAlways("")).toBe(false);
+  });
+
+  it("remembers the action and what it touches, not the whole operation", () => {
+    // Saying always to one command must not approve every other write.
+    const ls = {
+      tool: "run_shell",
+      operation: "shell.write",
+      resources: ["sh:ls"],
+      riskLevel: "high",
+      why: "",
+    };
+    const npm = { ...ls, resources: ["sh:npm"] };
+    expect(approvalKey(ls)).not.toBe(approvalKey(npm));
   });
 });

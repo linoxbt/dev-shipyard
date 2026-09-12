@@ -119,10 +119,19 @@ describe("the whole loop in a directory with no git repository", () => {
     const system = provider.calls[0].system;
     expect(system).toContain(CODING_AGENT_SYSTEM);
     expect(system).not.toContain(GIT_ADDENDUM);
-    // The wording matters as much as the addendum. "The codebase" and "the
-    // repo" both tell the model something is already there.
-    expect(system.toLowerCase()).not.toContain("codebase");
-    expect(system.toLowerCase()).not.toContain("repository");
+    // The wording matters as much as the addendum. Saying it can "clone
+    // repositories" is a capability; "the codebase" or "this repository" tells
+    // the model something is already there, which is the assumption to avoid.
+    const lower = system.toLowerCase();
+    for (const phrase of [
+      "the codebase",
+      "this codebase",
+      "the repository",
+      "this repository",
+      "the repo ",
+    ]) {
+      expect(lower).not.toContain(phrase);
+    }
   });
 
   it("edits plain unversioned files someone copied in", async () => {

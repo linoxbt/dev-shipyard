@@ -13,6 +13,7 @@ This is the reference. `packages/cli/README.md` is the two-minute version.
 - [Every flag](#every-flag)
 - [What it asks permission for](#what-it-asks-permission-for)
 - [The sandbox](#the-sandbox)
+- [The web](#the-web)
 - [Undo](#undo)
 - [Memory and search](#memory-and-search)
 - [MCP servers](#mcp-servers)
@@ -277,6 +278,12 @@ prompts clicked through without being read, which is worse than not asking.
 It asks before anything that loses data, spends money, changes who can get in,
 or reaches production. A plain Enter means no.
 
+At the prompt, **`y`** allows it once, **`a`** allows that action for the rest of
+the session, and anything else — including Enter — is no. "Always" is remembered
+per action and what it touches, so saying it to `ls` does not approve
+`npm install`. Chains of read-only commands such as `ls -a; cat package.json | grep
+version` do not ask at all.
+
 `--autonomy` moves the line, and there is a floor it cannot move:
 
 | mode                      | what proceeds unattended                                                                                     |
@@ -299,13 +306,13 @@ tool falls on, for the settings you would actually run with.
 
 ## The sandbox
 
-Shell commands run inside a container, not on your machine. On by default.
+Shell commands run inside a container, not directly on your machine. On by
+default.
 
-- The workspace is mounted and writable. **Everything else on the machine is
-  not reachable.**
-- The shell has **no network at all**. `install_dependency` is given one for
-  that single command, and `fetch_url` reads pages. The agent is told this, so
-  it uses those rather than fighting a sealed `curl`.
+- The workspace is mounted and writable. **The rest of your machine is not
+  reachable** from inside the container.
+- **The container has internet access**, so the agent installs packages, clones
+  repositories, runs builds and calls APIs from its shell the way you would.
 - Files it writes come out owned by you, not by root.
 
 It needs Docker, and by default [gVisor](https://gvisor.dev) (`runsc`) as the
@@ -316,22 +323,37 @@ Build the image once:
 bun run sandbox:image        # docker build -t devstation-sandbox:1 -f docker/sandbox.Dockerfile docker
 ```
 
-If Docker, the runtime or the image is missing, the CLI **refuses to start**
-and names the fix. It does not quietly run your commands unsandboxed: someone
-who believes they are sandboxed and is not is worse off than someone who knows
-they are not. `--no-sandbox` is the deliberate way to accept that, and
-`DEVSTATION_SANDBOX=off` is the environment equivalent.
+If Docker, the runtime or the image is missing, the CLI **refuses to start** and
+names the fix, rather than quietly running your commands unsandboxed.
+`--no-sandbox` is the deliberate way past that, and `DEVSTATION_SANDBOX=off` is
+the environment equivalent.
 
-Weaker isolation, if gVisor is not available:
+Cut the container off from the internet:
+
+```sh
+DEVSTATION_SANDBOX_NETWORK=off devstation
+```
+
+Weaker isolation, where gVisor is not available:
 
 ```sh
 DEVSTATION_SANDBOX_RUNTIME=runc devstation
 ```
 
-That still gives a separate filesystem and no network. It does not give you a
-kernel boundary.
+The banner's third line always says which you got — the runtime, the user, and
+whether the container has internet access.
 
-The banner's third line always says which you got, in as many words.
+## The web
+
+Two tools, no key needed:
+
+- **`web_search`** searches the web and returns titles, links and snippets.
+- **`fetch_url`** reads one page, a README or an API reference as text.
+
+The agent uses them on its own when a question needs current information —
+"what is the latest version of Bun?" — instead of answering from memory.
+Private network addresses are refused, and everything fetched is treated as
+data, never as instructions.
 
 ## Undo
 
@@ -457,6 +479,8 @@ thing in a shape a script can read. `status -f` follows a live one.
 
 | variable                            | what it does                                          |
 | ----------------------------------- | ----------------------------------------------------- |
+| `DEVSTATION_SANDBOX_NETWORK=off`    | cut the sandbox container off from the internet       |
+| `DEVSTATION_MAX_TOKENS`             | reply ceiling per request (default 16,000)            |
 | `ANTHROPIC_API_KEY`                 | model provider (preferred)                            |
 | `OPENROUTER_API_KEY`                | model provider                                        |
 | `ANTHROPIC_MODEL` / `AI_MODEL`      | override the model without a flag                     |

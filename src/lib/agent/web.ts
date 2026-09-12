@@ -215,3 +215,112 @@ export async function fetchPage(
 
   return { ok: false, url, text: `Gave up after ${MAX_REDIRECTS} redirects.` };
 }
+
+export interface SearchResult {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+const SEARCH_ENDPOINT = "https://html.duckduckgo.com/html/";
+const SEARCH_TIMEOUT_MS = 15_000;
+
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+}
+
+function cleanText(html: string): string {
+  return decodeEntities(html.replace(/<[^>]+>/g, ""))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** DuckDuckGo wraps each link in a redirect: //duckduckgo.com/l/?uddg=<url>.
+ *  Ads go through y.js and are dropped. */
+export function resolveResultUrl(href: string): string | null {
+  const raw = decodeEntities(href);
+  if (/duckduckgo\.com\/y\.js/.test(raw)) return null;
+  const absolute = raw.startsWith("//") ? `https:${raw}` : raw;
+  try {
+    const url = new URL(absolute);
+    const target = url.searchParams.get("uddg");
+    if (target) return target;
+    return /^https?:$/.test(url.protocol) && !/duckduckgo\.com$/.test(url.hostname)
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Results out of DuckDuckGo's HTML page. Pure, so the markup assumptions are
+ *  held by a test rather than discovered when search quietly returns nothing. */
+export function parseSearchResults(html: string, limit = 8): SearchResult[] {
+  const results: SearchResult[] = [];
+  const anchor = /<a\b([^>]*\bclass="result__a"[^>]*)>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = anchor.exec(html)) && results.length < limit) {
+    const href = /\bhref="([^"]+)"/.exec(match[1])?.[1];
+    const url = href ? resolveResultUrl(href) : null;
+    if (!url || results.some((r) => r.url === url)) continue;
+    // The snippet is the next result__snippet after this title, before the next title.
+    const rest = html.slice(anchor.lastIndex);
+    const nextTitle = rest.search(/class="result__a"/);
+    const scope = nextTitle === -1 ? rest : rest.slice(0, nextTitle);
+    const snippet =
+      /class="result__snippet"[^>]*>([\s\S]*?)<\/(?:a|div|td)>/i.exec(scope)?.[1] ?? "";
+    results.push({ title: cleanText(match[2]), url, snippet: cleanText(snippet) });
+  }
+  return results;
+}
+
+/**
+ * Search the web.
+ *
+ * DuckDuckGo's HTML endpoint, because it needs no key: a search tool that only
+ * works after somebody signs up for an API is a search tool most people never
+ * have. It is a fixed public host, so the private-address checks fetchPage
+ * applies to arbitrary URLs are not needed here.
+ */
+export async function webSearch(
+  query: string,
+  options: { signal?: AbortSignal; limit?: number; fetchImpl?: typeof fetch } = {},
+): Promise<{ ok: true; results: SearchResult[] } | { ok: false; error: string }> {
+  const q = query.trim();
+  if (!q) return { ok: false, error: "A web search needs a query." };
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS);
+  options.signal?.addEventListener("abort", () => controller.abort(), { once: true });
+  try {
+    const res = await (options.fetchImpl ?? fetch)(
+      `${SEARCH_ENDPOINT}?q=${encodeURIComponent(q)}`,
+      {
+        signal: controller.signal,
+        headers: {
+          "user-agent": "Mozilla/5.0 (X11; Linux x86_64) DevStation-Agent",
+          accept: "text/html",
+        },
+      },
+    );
+    // 202 is DuckDuckGo's "slow down" page, which has no results in it.
+    if (res.status !== 200) {
+      return {
+        ok: false,
+        error: `Web search is unavailable right now (status ${res.status}). Try again shortly, or fetch_url a known page.`,
+      };
+    }
+    return { ok: true, results: parseSearchResults(await res.text(), options.limit ?? 8) };
+  } catch (error) {
+    const why = error instanceof Error ? error.message : String(error);
+    return { ok: false, error: `Web search failed: ${why}` };
+  } finally {
+    clearTimeout(timer);
+  }
+}

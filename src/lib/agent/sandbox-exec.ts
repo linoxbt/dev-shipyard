@@ -49,6 +49,14 @@ const LABEL = "devstation.agent";
 
 export interface SandboxOptions {
   workspace: string;
+  /**
+   * Give the session container internet access. The CLI turns it on, because
+   * a coding agent that cannot install a package, clone a repository or call an
+   * API from its shell is not much of one, and the workspace boundary is what
+   * the container is for. The runner leaves it off: its goals arrive from the
+   * internet with nobody watching.
+   */
+  network?: boolean;
   image?: string;
   runtime?: string;
   lifetimeMs?: number;
@@ -399,6 +407,12 @@ export async function sweepStale(cwd = process.cwd()): Promise<number> {
   return ids.length;
 }
 
+/** Whether the CLI's sandbox should have internet access.
+ *  DEVSTATION_SANDBOX_NETWORK=off seals it. */
+export function sandboxNetworkEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return (env.DEVSTATION_SANDBOX_NETWORK ?? "on").toLowerCase() !== "off";
+}
+
 export function sandboxExecutor(options: SandboxOptions): Executor {
   const image = options.image ?? imageFor();
   const runtime = options.runtime ?? runtimeFor();
@@ -504,7 +518,8 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
     kind: "sandbox",
     describe:
       `in a ${runtime} container (${image}) as ${user}` +
-      (user.startsWith("0:") ? ", which is root inside it" : ""),
+      (user.startsWith("0:") ? ", which is root inside it" : "") +
+      (options.network ? ", with internet access" : ", with no network"),
 
     async run(command: string, opts: ExecOptions): Promise<ShellResult> {
       if (disposed) return failedResult("The sandbox has already been shut down.");
@@ -532,7 +547,8 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
       // around it. Under gVisor a container created without a network can never
       // be given one, so the only way to have both is to have two, and the bind
       // mount means the sibling is not a fresh start: it sees the same /work.
-      if (opts.network) {
+      // A session container that already has a network needs no sibling.
+      if (opts.network && !options.network) {
         const name = `${sealedName}-net-${randomBytes(3).toString("hex")}`;
         const started = await create(name, true);
         if (!started) return failedResult(`Could not start a networked sandbox from ${image}.`);
@@ -551,7 +567,7 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
       }
 
       if (!sealed) {
-        sealed = await create(sealedName, false);
+        sealed = await create(sealedName, options.network ?? false);
         if (!sealed) return failedResult(`Could not start the sandbox from ${image}.`);
         const wrong = await verifyOwnership(sealed);
         if (wrong) {

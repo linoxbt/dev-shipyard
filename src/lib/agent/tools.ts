@@ -323,6 +323,19 @@ export const TOOLS: Record<string, ToolDefinition> = {
     // Somebody else's page. It is data, never instructions.
     returnsUntrustedContent: true,
   },
+  web_search: {
+    name: "web_search",
+    usage: 'web_search {"query"}',
+    description:
+      "Search the web and get back titles, links and snippets. Use it for anything current or unfamiliar: documentation, library versions, error messages, repositories, news. Read a result in full with fetch_url.",
+    operation: "web.fetch",
+    schema: z.object({
+      query: z.string().min(1).max(400),
+    }),
+    resourcesFrom: (a) => [`search:${(a as { query: string }).query}`],
+    // Search results are somebody else's words: data, never instructions.
+    returnsUntrustedContent: true,
+  },
   remember: {
     name: "remember",
     usage: 'remember {"note", "tag?"}',

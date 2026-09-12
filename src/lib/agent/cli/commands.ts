@@ -1,4 +1,5 @@
 import { accessSync, constants, existsSync } from "node:fs";
+import { LiveView } from "./live";
 import { checkpointBase, isRepo, listCheckpoints, undoCheckpoint } from "../git";
 import { listSnapshots, undoSnapshot } from "../snapshots";
 import { evaluate } from "../policy";
@@ -26,6 +27,7 @@ import { formatEntry, memoryPath, readMemory } from "../memory/project-memory";
 import { McpHub, configPaths, loadConfig } from "../mcp";
 import { hostExecutor, type Executor } from "../executor";
 import {
+  sandboxNetworkEnabled,
   probeImage,
   probeProblem,
   readinessProblem,
@@ -33,7 +35,7 @@ import {
   sandboxReadiness,
   userFlag,
 } from "../sandbox-exec";
-import { SANDBOX_ADDENDUM } from "../system-prompt";
+import { SANDBOX_ADDENDUM, SANDBOX_NETWORK_ADDENDUM } from "../system-prompt";
 import {
   Orchestrator,
   type AgentEvent,
@@ -80,6 +82,8 @@ export interface CommandContext {
    *  advertised in --help for a while and read by nothing, so `--json` printed
    *  the same prose and a script parsing it got a surprise. */
   json?: boolean;
+  /** Actions the person said "always" to, for the rest of the session. */
+  alwaysAllow?: Set<string>;
   /** An executor built once for a whole session. When absent, a run builds its
    *  own and disposes it. */
   executor?: Executor;
@@ -112,7 +116,7 @@ export async function buildExecutor(
   // not the session. See probeProblem.
   if (mismatch) warn(mismatch);
 
-  return { executor: sandboxExecutor({ workspace: root }) };
+  return { executor: sandboxExecutor({ workspace: root, network: sandboxNetworkEnabled() }) };
 }
 
 /** Reads one answer and treats anything that is not a clear yes as a no.
@@ -122,15 +126,40 @@ export function isYes(answer: string): boolean {
   return /^(y|yes)$/i.test(answer.trim());
 }
 
-function approver(context: CommandContext) {
+/** "a" or "always": allow this kind of action for the rest of the session. */
+export function isAlways(answer: string): boolean {
+  return /^(a|always)$/i.test(answer.trim());
+}
+
+/** What "always" remembers: the operation and what it touches, so saying
+ *  always to `ls` does not quietly approve `npm install`. */
+export function approvalKey(request: ApprovalRequest): string {
+  return `${request.operation}|${request.resources.join(",")}`;
+}
+
+function approver(context: CommandContext, live: LiveView | null = null) {
   return async (request: ApprovalRequest): Promise<boolean> => {
     if (context.yes) {
       context.terminal.out(`Auto-approved ${request.operation} (--yes).`);
       return true;
     }
-    context.terminal.out(renderApproval(request, context.terminal.colour));
-    const answer = await context.terminal.ask("Allow this? [y/N] ");
-    return isYes(answer);
+    const key = approvalKey(request);
+    if (context.alwaysAllow?.has(key)) return true;
+
+    live?.suspend();
+    try {
+      context.terminal.out(renderApproval(request, context.terminal.colour));
+      const answer = await context.terminal.ask(
+        "Allow this? [y]es / [a]lways this session / [N]o ",
+      );
+      if (isAlways(answer)) {
+        (context.alwaysAllow ??= new Set()).add(key);
+        return true;
+      }
+      return isYes(answer);
+    } finally {
+      live?.resume();
+    }
   };
 }
 
@@ -227,12 +256,16 @@ export async function runCommand(
     store.save(session);
   }
 
-  if (!options.quiet) {
+  // A live terminal already shows the model and the sandbox in the banner, and
+  // a greeting does not need a session id and its own goal read back to it.
+  // Pipes and logs keep the header, where it is what makes the log readable.
+  const streaming = typeof terminal.write === "function";
+  if (!options.quiet && !streaming) {
     terminal.out(`session ${session.id}  ${context.provider.name}/${context.provider.model}`);
     terminal.out(`commands run ${executor.describe}`);
     terminal.out(`goal: ${goal}`);
   }
-  terminal.out("");
+  if (!streaming) terminal.out("");
 
   const prior: ProviderMessage[] = options.resume ? options.resume.messages : [];
 
@@ -240,19 +273,22 @@ export async function runCommand(
   // token at a time and a run takes minutes; printing it as it comes is the
   // difference between watching something work and staring at nothing. Off
   // when the output is a pipe, where a half-written line is just a broken log.
-  const streaming = typeof terminal.write === "function";
   let midStream = false;
   const endStream = () => {
     if (!midStream) return;
     terminal.write?.("\n");
     midStream = false;
   };
+  const live = streaming
+    ? new LiveView((text) => terminal.write?.(text), { colour: terminal.colour })
+    : null;
 
   const orchestrator = new Orchestrator({
     provider: context.provider,
     workspace,
     onDelta: streaming
       ? (chunk) => {
+          if (live) return live.delta(chunk);
           midStream = true;
           terminal.write?.(chunk);
         }
@@ -263,20 +299,25 @@ export async function runCommand(
     signal: context.signal,
     taskId: session.id,
     projectId: context.root,
-    requestApproval: approver(context),
+    requestApproval: approver(context, live),
     executor,
     memory,
     embeddings,
     mcp,
     offerPersonTools: options.offerPersonTools,
-    // The agent has to know its shell has no network, or it will try to reach
-    // it and read the failure as its own mistake.
+    // The agent has to know what its shell can reach, or it will either not try
+    // the network it has or keep trying the network it does not.
     systemAddendum:
-      (executor.kind === "sandbox" ? SANDBOX_ADDENDUM : "") + (options.systemAddendum ?? ""),
+      (executor.kind === "sandbox"
+        ? sandboxNetworkEnabled()
+          ? SANDBOX_NETWORK_ADDENDUM
+          : SANDBOX_ADDENDUM
+        : "") + (options.systemAddendum ?? ""),
     onEvent: (event: AgentEvent) => {
       // The log is written before the line is printed: what a watching
       // terminal sees should never lag behind what this one shows.
       store.appendEvent(session.id, event);
+      if (live) return live.event(event);
       const line = renderEvent(event, terminal.colour);
       if (!line) return;
       // A step line landing in the middle of a half-written sentence is how
@@ -296,7 +337,7 @@ export async function runCommand(
   });
 
   try {
-    const result = await orchestrator.run(goal, prior);
+    const result = await orchestrator.run(goal, prior).finally(() => live?.stop());
     session.status = result.ok ? "finished" : "stopped";
     session.steps = result.steps;
     session.filesChanged = result.filesChanged;
@@ -312,7 +353,11 @@ export async function runCommand(
     // Already on screen if it was streamed. Printing it twice is the most
     // obvious way to make streaming look broken.
     if (!streaming) terminal.out(result.summary);
-    terminal.out(renderUsage(result.costUsd, result.steps, result.filesChanged));
+    // A plain answer in a live terminal needs no receipt: Claude Code does not
+    // print "0 step(s), no files changed" under "Hello". Work still gets one.
+    if (!(streaming && result.steps === 0 && result.filesChanged.length === 0)) {
+      terminal.out(renderUsage(result.costUsd, result.steps, result.filesChanged));
+    }
     if (!result.ok) terminal.err(result.stoppedBecause);
     return { code: result.ok ? 0 : 1, session, result };
   } catch (error) {

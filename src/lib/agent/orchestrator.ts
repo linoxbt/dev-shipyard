@@ -35,7 +35,7 @@ import { agentDiff, agentStatus, git as gitOp, type GitOp } from "./git";
 import { cloneDirName, cloneUrlProblem } from "./git-ops";
 import { CODING_AGENT_SYSTEM, GIT_ADDENDUM } from "./system-prompt";
 import { renderContext, retrieve } from "./memory/retrieve";
-import { fetchPage } from "./web";
+import { webSearch, fetchPage } from "./web";
 import type { McpHub } from "./mcp";
 import { asUntrusted } from "./secrets";
 import { readMemory, remember, renderMemory } from "./memory/project-memory";
@@ -310,16 +310,11 @@ export class Orchestrator {
   async run(goal: string, prior: ProviderMessage[] = []): Promise<RunResult> {
     const started = Date.now();
 
-    // Retrieval happens once, here, rather than on every turn. What the agent
-    // needs after three tool calls is what those calls returned, not another
-    // copy of the same excerpts, and re-retrieving each turn spends the
-    // context budget on the same text repeatedly. `recall` is there for when
-    // it genuinely needs to look again.
-    const opening = await this.openingContext(goal);
-    const messages: ProviderMessage[] = [
-      ...prior,
-      { role: "user", content: opening ? `${opening}\n\n${goal}` : goal },
-    ];
+    // No automatic project search in front of the message. It turned "Hello"
+    // into "Found 22 relevant place(s)" and answered a greeting with a tour of
+    // the files, which is not what an assistant does. The agent searches when a
+    // request needs it, through recall, search_files or web_search.
+    const messages: ProviderMessage[] = [...prior, { role: "user", content: goal }];
 
     const system =
       CODING_AGENT_SYSTEM +
@@ -488,25 +483,6 @@ export class Orchestrator {
    *  Prepended to the goal rather than added to the system prompt: the system
    *  prompt is cached across turns and is the wrong place for something that
    *  changes with every goal. */
-  private async openingContext(goal: string): Promise<string> {
-    const store = this.opts.memory;
-    if (!store) return "";
-    try {
-      const hits = await retrieve(store, goal, {
-        embeddings: this.opts.embeddings,
-        maxTokens: this.opts.retrievalTokens,
-        signal: this.opts.signal,
-      });
-      if (hits.length === 0) return "";
-      this.emit("plan", `Found ${hits.length} relevant place(s) in the project.`, {
-        detail: { paths: [...new Set(hits.map((h) => h.path))] },
-      });
-      return renderContext(hits);
-    } catch {
-      // Retrieval is an accelerator. A broken index must not stop the run.
-      return "";
-    }
-  }
 
   /** Checked before each turn, never asked of the model: something that is
    *  looping cannot be relied on to notice. */
@@ -661,6 +637,22 @@ export class Orchestrator {
         if (op === "diff") return present(await agentDiff(workspace.root, extra));
         if (op === "status") return present(await agentStatus(workspace.root));
         return present(await gitOp(workspace.root, op, extra));
+      }
+
+      case "web_search": {
+        const found = await webSearch(String(args.query ?? ""), { signal: this.opts.signal });
+        if (!found.ok) return { ok: false, output: found.error };
+        if (found.results.length === 0) {
+          return { ok: true, output: `No web results for "${args.query}".` };
+        }
+        return {
+          ok: true,
+          output: found.results
+            .map(
+              (r, i) => `${i + 1}. ${r.title}\n   ${r.url}${r.snippet ? `\n   ${r.snippet}` : ""}`,
+            )
+            .join("\n\n"),
+        };
       }
 
       case "fetch_url": {
@@ -846,6 +838,8 @@ function describe(call: ProviderToolCall): string {
       return `Installing ${a.name}`;
     case "recall":
       return `Searching the project for "${a.query}"`;
+    case "web_search":
+      return `Searching the web for "${a.query}"`;
     case "fetch_url":
       return `Reading ${a.url}`;
     case "remember":
@@ -868,6 +862,8 @@ function summarise(call: ProviderToolCall, outcome: { ok: boolean; output: strin
     case "list_files":
     case "search_files":
       return `${lines.filter(Boolean).length} result(s)`;
+    case "web_search":
+      return `${(outcome.output.match(/^\d+\. /gm) ?? []).length} web result(s)`;
     default:
       break;
   }
