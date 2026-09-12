@@ -114,7 +114,8 @@ const REPO = {
 };
 
 function context(root: string, provider: MockProvider, t: Terminal): CommandContext {
-  return { root, terminal: t, provider, maxSteps: 20 };
+  // Host executor: see the note in cli.test.ts.
+  return { root, terminal: t, provider, maxSteps: 20, sandbox: false };
 }
 
 function fixing(): MockProvider {

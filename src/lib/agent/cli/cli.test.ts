@@ -9,6 +9,7 @@ import { renderEvent, renderSessions, renderUsage } from "./render";
 import { chatCommand, handleSlash } from "./interactive";
 import { lineReader } from "./line-reader";
 import {
+  buildExecutor,
   checkpointsCommand,
   configCommand,
   diffCommand,
@@ -51,7 +52,11 @@ function terminal(answers: string[] = []) {
 }
 
 function context(root: string, provider: MockProvider, term: Terminal): CommandContext {
-  return { root, terminal: term, provider, maxSteps: 20 };
+  // The host executor on purpose. These tests are about the CLI, and running
+  // each of them in a container turns a three-second suite into a one-minute
+  // one and makes it need a Docker daemon that CI does not have. The sandbox
+  // has its own tests, which skip cleanly when there is none.
+  return { root, terminal: term, provider, maxSteps: 20, sandbox: false };
 }
 
 describe("argument parsing", () => {
@@ -688,4 +693,63 @@ describe("reading input while a turn is running", () => {
     void reader.ask("> ");
     expect(written).toEqual(["> "]);
   });
+});
+
+describe("choosing where commands run", () => {
+  it("defaults to the sandbox, so the weaker mode is always a choice", () => {
+    expect(parseArgs(["run", "x"]).sandbox).toBe(true);
+    expect(parseArgs(["run", "x", "--no-sandbox"]).sandbox).toBe(false);
+    expect(parseArgs(["run", "x", "--sandbox"]).sandbox).toBe(true);
+  });
+
+  it("uses the host executor when asked to", async () => {
+    const built = await buildExecutor(scratch(), false);
+    expect("executor" in built).toBe(true);
+    if (!("executor" in built)) return;
+    expect(built.executor.kind).toBe("host");
+    expect(built.executor.describe).toContain("unsandboxed");
+  });
+
+  it("says where commands ran in the run header", async () => {
+    const root = scratch();
+    const provider = new MockProvider([{ text: "done" }]);
+    const term = terminal();
+    await runCommand(context(root, provider, term.t), "nothing much");
+    expect(term.text()).toContain("commands run on this machine, unsandboxed");
+  });
+
+  it("refuses rather than silently dropping to the host", async () => {
+    // The whole point of the default. A run that cannot be sandboxed stops and
+    // says so, because somebody who thinks they are protected and is not is
+    // worse off than somebody who knows they are not.
+    const root = scratch();
+    const provider = new MockProvider([{ text: "should not get here" }]);
+    const term = terminal();
+    const { code } = await runCommand(
+      { ...context(root, provider, term.t), sandbox: true },
+      "do something",
+      {},
+    );
+
+    // On a machine with Docker and the image this succeeds; on one without, it
+    // refuses. Either is correct; silently running on the host is not.
+    if (code === 2) {
+      expect(term.errors()).toMatch(/--no-sandbox/);
+      expect(provider.calls).toHaveLength(0);
+    } else {
+      expect(term.text()).toContain("commands run in a");
+    }
+  }, 120_000);
+});
+
+describe("what doctor reports", () => {
+  it("covers the sandbox without needing it", async () => {
+    // This is the command people run when the agent will not start, so it has
+    // to work on the machine where the sandbox cannot.
+    const checks = await runChecks(scratch(), {});
+    const names = checks.map((c) => c.name);
+    expect(names).toContain("docker");
+    expect(names).toContain("isolation");
+    expect(names).toContain("sandbox image");
+  }, 120_000);
 });

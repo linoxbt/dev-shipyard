@@ -28,6 +28,30 @@ How you work:
 
 When you have finished, give a short summary: what changed, what you ran, what passed, and anything worth knowing next.`;
 
+/**
+ * Extra lines for a run whose commands go through a container.
+ *
+ * Not optional. With the shell sealed off from the network, `curl`, `pip
+ * install`, `go mod download` and a hand-typed `npm install` all fail, and an
+ * agent that does not know why will try them again in a different shape. The
+ * difference between "this tool is strict" and "this tool is broken" is
+ * whether it was told.
+ */
+export const SANDBOX_ADDENDUM = `
+
+Your shell commands run inside a container. The workspace is there and is
+yours to edit, but the rest of the machine is not, and the shell has no network
+access at all.
+
+So: to add a package use install_dependency, which is given a network for that
+one command. To read a page or an API reference use fetch_url. Do not try to
+reach the network from run_shell, and do not work around a failure to do so: it
+is deliberate, and the two tools above are the way through.
+
+Anything on this machine outside the workspace is unreachable by design. If you
+genuinely need something from outside it, say so rather than looking for a way
+around.`;
+
 /** Extra lines for a run whose result will be proposed as a pull request.
  *
  *  Without this the agent never calls open_pull_request, and the title falls

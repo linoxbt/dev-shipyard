@@ -35,6 +35,9 @@ export interface ParsedArgs {
   follow: boolean;
   yes: boolean;
   json: boolean;
+  /** Run commands in a container. On unless turned off, so the weaker mode is
+   *  always something somebody chose. */
+  sandbox: boolean;
   root: string;
   autonomy?: "ask_sensitive" | "ask_integrations" | "ask_deploy" | "autonomous";
   model?: string;
@@ -91,6 +94,9 @@ export function parseArgs(argv: string[], cwd = process.cwd()): ParsedArgs {
     follow: false,
     yes: false,
     json: false,
+    // DEVSTATION_SANDBOX=off is the environment equivalent of --no-sandbox,
+    // for a machine where passing the flag every time is not practical.
+    sandbox: (process.env.DEVSTATION_SANDBOX ?? "").toLowerCase() !== "off",
     root: cwd,
   };
 
@@ -109,6 +115,12 @@ export function parseArgs(argv: string[], cwd = process.cwd()): ParsedArgs {
         break;
       case "--json":
         parsed.json = true;
+        break;
+      case "--sandbox":
+        parsed.sandbox = true;
+        break;
+      case "--no-sandbox":
+        parsed.sandbox = false;
         break;
       case "-h":
       case "--help":
@@ -221,6 +233,7 @@ Options
   -y, --yes           approve every gated action without asking
   -f, --follow        keep watching (status only)
   --json              machine-readable output where it makes sense
+  --no-sandbox        run commands on this machine instead of in a container
   -h, --help          this
   -v, --version       the version
 

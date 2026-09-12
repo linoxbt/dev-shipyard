@@ -42,6 +42,9 @@ export const WORDMARK_WIDTH = wordmark()[0].length;
 
 export interface BannerFacts {
   model: string | null;
+  /** How commands will run. The weaker of the two needs saying out loud more
+   *  than the stronger one does. */
+  executor?: string;
   workspace: string;
   /** Null when nothing has been indexed here yet. */
   indexed?: number | null;
@@ -81,6 +84,7 @@ export function banner(facts: BannerFacts, options: { columns?: number; colour?:
     where,
     facts.indexed ? `${facts.indexed} chunks indexed` : null,
     facts.memory ? `${facts.memory} notes` : null,
+    facts.executor ?? null,
   ].filter(Boolean) as string[];
 
   // Wrapped rather than allowed to run off the edge: a details line that the

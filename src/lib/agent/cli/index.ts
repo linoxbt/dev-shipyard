@@ -163,6 +163,7 @@ function context(
     maxSteps: parsed.maxSteps,
     maxCostUsd: parsed.maxCostUsd,
     yes: parsed.yes,
+    sandbox: parsed.sandbox,
   };
 }
 

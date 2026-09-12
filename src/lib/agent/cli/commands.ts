@@ -8,6 +8,16 @@ import { embeddingsFromEnv } from "../memory/embeddings";
 import { indexWorkspace, openStore } from "../memory/workspace-index";
 import { formatEntry, memoryPath, readMemory } from "../memory/project-memory";
 import { McpHub, configPaths, loadConfig } from "../mcp";
+import { hostExecutor, type Executor } from "../executor";
+import {
+  probeImage,
+  probeProblem,
+  readinessProblem,
+  sandboxExecutor,
+  sandboxReadiness,
+  userFlag,
+} from "../sandbox-exec";
+import { SANDBOX_ADDENDUM } from "../system-prompt";
 import {
   Orchestrator,
   type AgentEvent,
@@ -44,6 +54,38 @@ export interface CommandContext {
   maxCostUsd?: number;
   yes?: boolean;
   signal?: AbortSignal;
+  /** Run commands in a container. Default on; see buildExecutor. */
+  sandbox?: boolean;
+  /** An executor built once for a whole session. When absent, a run builds its
+   *  own and disposes it. */
+  executor?: Executor;
+}
+
+/**
+ * The executor for a run, or the reason there cannot be one.
+ *
+ * Refuses rather than quietly falling back to the host. Somebody who believes
+ * they are sandboxed and is not is worse off than somebody who knows they are
+ * not, so the only way to the weaker mode is to ask for it.
+ */
+export async function buildExecutor(
+  root: string,
+  sandbox: boolean,
+): Promise<{ executor: Executor } | { problem: string }> {
+  if (!sandbox) return { executor: hostExecutor() };
+
+  const readiness = await sandboxReadiness();
+  const problem = readinessProblem(readiness);
+  if (problem) return { problem };
+
+  // The image is checked against what this project is actually built with, so
+  // a missing toolchain is named up front rather than arriving as
+  // "cargo: not found" in the middle of a run.
+  const probe = await probeImage(root, readiness.imageName, readiness.runtimeName);
+  const mismatch = probeProblem(probe, readiness.imageName);
+  if (mismatch) return { problem: mismatch };
+
+  return { executor: sandboxExecutor({ workspace: root }) };
 }
 
 /** Reads one answer and treats anything that is not a clear yes as a no.
@@ -89,6 +131,26 @@ export async function runCommand(
   const workspace = new Workspace(context.root);
   const store = new SessionStore(context.root);
 
+  // A session builds one executor and hands it down, so a conversation is not
+  // paying for a new container every turn and losing /tmp between them. A
+  // one-shot run builds its own, and disposes only what it built.
+  let executor = context.executor;
+  const owned = !executor;
+  if (!executor) {
+    const built = await buildExecutor(context.root, context.sandbox ?? true);
+    if ("problem" in built) {
+      terminal.err(built.problem);
+      return {
+        code: 2,
+        session: store.create(goal, {
+          provider: context.provider.name,
+          model: context.provider.model,
+        }),
+      };
+    }
+    executor = built.executor;
+  }
+
   // Refreshed at the start of every run, incrementally. A first run in a large
   // repository pays for the walk; every one after it re-chunks only what
   // changed, which is usually nothing or one file.
@@ -122,6 +184,7 @@ export async function runCommand(
 
   if (!options.quiet) {
     terminal.out(`session ${session.id}  ${context.provider.name}/${context.provider.model}`);
+    terminal.out(`commands run ${executor.describe}`);
     terminal.out(`goal: ${goal}`);
   }
   terminal.out("");
@@ -156,11 +219,15 @@ export async function runCommand(
     taskId: session.id,
     projectId: context.root,
     requestApproval: approver(context),
+    executor,
     memory,
     embeddings,
     mcp,
     offerPersonTools: options.offerPersonTools,
-    systemAddendum: options.systemAddendum,
+    // The agent has to know its shell has no network, or it will try to reach
+    // it and read the failure as its own mistake.
+    systemAddendum:
+      (executor.kind === "sandbox" ? SANDBOX_ADDENDUM : "") + (options.systemAddendum ?? ""),
     onEvent: (event: AgentEvent) => {
       // The log is written before the line is printed: what a watching
       // terminal sees should never lag behind what this one shows.
@@ -216,6 +283,7 @@ export async function runCommand(
   } finally {
     memory.close();
     mcp.stop();
+    if (owned) await executor.dispose();
   }
 }
 
@@ -447,6 +515,31 @@ export async function runChecks(
     name: "runtime",
     ok: true,
     detail: `bun ${typeof Bun === "undefined" ? "not detected" : Bun.version}`,
+  });
+
+  // The sandbox, reported rather than required. This is the command people run
+  // when the agent will not start, so it must work on a machine where the
+  // sandbox cannot.
+  const sandbox = await sandboxReadiness(env);
+  checks.push({
+    name: "docker",
+    ok: sandbox.docker,
+    detail: sandbox.docker ? "reachable" : "not running, so commands cannot be sandboxed",
+  });
+  checks.push({
+    name: "isolation",
+    ok: sandbox.runtime,
+    detail: sandbox.runtime
+      ? `${sandbox.runtimeName}, a user-space kernel between commands and this host`
+      : `${sandbox.runtimeName} is not registered with docker`,
+  });
+  checks.push({
+    name: "sandbox image",
+    ok: sandbox.image,
+    detail: sandbox.image
+      ? `${sandbox.imageName}, running as ${userFlag()}` +
+        (userFlag().startsWith("0:") ? " (root inside the container)" : "")
+      : `${sandbox.imageName} is not built: bun run sandbox:image`,
   });
 
   return checks;

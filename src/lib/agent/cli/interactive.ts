@@ -1,5 +1,6 @@
 import { SESSION_HELP } from "./args";
 import {
+  buildExecutor,
   checkpointsCommand,
   configCommand,
   diffCommand,
@@ -104,6 +105,21 @@ export async function handleSlash(
 export async function chatCommand(context: CommandContext, opening = ""): Promise<number> {
   const { terminal } = context;
 
+  // Built before the banner, because the banner says which mode you are in and
+  // a sandbox that cannot start should say so instead of printing a banner and
+  // then failing.
+  //
+  // One container for the conversation, not one per turn: otherwise every turn
+  // pays to start one and loses /tmp, the package cache and anything running in
+  // the background between them.
+  const built = await buildExecutor(context.root, context.sandbox ?? true);
+  if ("problem" in built) {
+    terminal.err(built.problem);
+    return 2;
+  }
+  const executor = built.executor;
+  const withExecutor: CommandContext = { ...context, executor };
+
   terminal.out(
     banner(
       {
@@ -111,6 +127,7 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
         workspace: context.root,
         indexed: indexedCount(context.root),
         memory: readMemory(context.root).length,
+        executor: executor.describe,
       },
       { colour: terminal.colour },
     ),
@@ -127,12 +144,18 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
     const text = line.trim();
     if (!text) {
       // An empty line at a closed pipe would otherwise spin forever.
-      if (line === "") return 0;
+      if (line === "") {
+        await executor.dispose();
+        return 0;
+      }
       continue;
     }
 
-    const outcome = await handleSlash(context, text, session);
-    if (outcome === "exit") return 0;
+    const outcome = await handleSlash(withExecutor, text, session);
+    if (outcome === "exit") {
+      await executor.dispose();
+      return 0;
+    }
     if (outcome === "clear") {
       session = null;
       terminal.out("Starting a fresh transcript. The workspace is untouched.");
@@ -143,7 +166,7 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
     // Each turn continues the same session rather than starting a new one, so
     // the agent still knows what it just did.
     turns++;
-    const result = await runCommand(context, text, {
+    const result = await runCommand(withExecutor, text, {
       ...(session ? { resume: session } : {}),
       // The first turn prints the session id and the goal; after that it is
       // the same session and the same goal is on screen two lines up.
