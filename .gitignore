@@ -45,3 +45,6 @@ deployment-output.json
 # CLI release binaries (90 MB each, built by scripts/build-cli.ts)
 dist-cli/
 packages/cli/devstation.js
+
+# Benchmark results (timestamped, regenerated)
+bench/results/

@@ -19,6 +19,7 @@
     "devstation": "bun run src/lib/agent/cli/index.ts",
     "cli:build": "bun run scripts/build-cli.ts",
     "cli:bundle": "bun run scripts/build-cli.ts --bundle",
+    "bench": "bun run scripts/bench.ts",
     "sandbox:image": "docker build -t devstation-sandbox:1 -f docker/sandbox.Dockerfile docker",
     "contracts:compile": "bun run scripts/compile.ts",
     "contracts:deploy": "bun run scripts/deploy.ts",
