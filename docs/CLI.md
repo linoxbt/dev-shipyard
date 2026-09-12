@@ -19,6 +19,7 @@ This is the reference. `packages/cli/README.md` is the two-minute version.
 - [Debugging](#debugging)
 - [Environment variables](#environment-variables)
 - [What it writes to disk](#what-it-writes-to-disk)
+- [Upgrading](#upgrading)
 - [Uninstalling](#uninstalling)
 
 ## Installing
@@ -234,6 +235,7 @@ devstation memory               show what it has been told about this project
 devstation mcp                  the MCP servers configured here, and their tools
 devstation tools                list the tools it can use, and which ones ask first
 devstation config               show the settings this run would use
+devstation upgrade [--check]    update to the latest version
 devstation doctor               check this machine is set up to run it
 devstation version              print the version
 devstation help                 the summary
@@ -483,6 +485,31 @@ And in your home directory: `~/.devstation/config.json` and
 `~/.devstation/credentials.json` once you run `login`, `~/.devstation/mcp.json`
 if you use global MCP servers, and `~/.devstation/bin/devstation` if you used
 the shell installer. Nothing else, anywhere.
+
+## Upgrading
+
+```sh
+devstation upgrade            # update to the latest version
+devstation upgrade --check    # only say whether one exists
+```
+
+It knows how it was installed and does the matching thing:
+
+| installed with                       | what `upgrade` does                                                                                       |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `npm install -g @devstationlabs/cli` | runs `npm install -g @devstationlabs/cli@<latest>`                                                        |
+| `install.sh`, or a release binary    | downloads the new binary, checks it against `SHA256SUMS`, and replaces itself; a mismatch changes nothing |
+| a source checkout                    | tells you to `git pull`                                                                                   |
+
+You can always do it by hand instead — `npm update -g @devstationlabs/cli`, or
+re-run the installer.
+
+After an npm upgrade, run `hash -r` if your shell still finds the old version.
+
+Once a day it checks whether a newer version exists and prints one line if so.
+The answer is cached, so there is never a network request in front of your first
+prompt. It is off in CI, and `DEVSTATION_NO_UPDATE_CHECK=1` turns it off
+anywhere.
 
 ## Uninstalling
 

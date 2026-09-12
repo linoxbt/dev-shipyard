@@ -25,6 +25,7 @@ export type Command =
   | "config"
   | "login"
   | "logout"
+  | "upgrade"
   | "doctor"
   | "version"
   | "help";
@@ -43,6 +44,8 @@ export interface ParsedArgs {
   /** `config set --project` writes .devstation/config.json in the workspace
    *  instead of the global file. */
   project: boolean;
+  /** `upgrade --check`: report whether a newer version exists, change nothing. */
+  check: boolean;
   root: string;
   autonomy?: "ask_sensitive" | "ask_integrations" | "ask_deploy" | "autonomous";
   model?: string;
@@ -70,6 +73,7 @@ export const COMMANDS = new Set<Command>([
   "config",
   "login",
   "logout",
+  "upgrade",
   "doctor",
   "version",
   "help",
@@ -86,6 +90,7 @@ export const OFFLINE_COMMANDS = new Set<Command>([
   "config",
   "login",
   "logout",
+  "upgrade",
   "doctor",
   "version",
   "help",
@@ -107,6 +112,7 @@ export function parseArgs(argv: string[], cwd = process.cwd()): ParsedArgs {
     // for a machine where passing the flag every time is not practical.
     sandbox: (process.env.DEVSTATION_SANDBOX ?? "").toLowerCase() !== "off",
     project: false,
+    check: false,
     root: cwd,
   };
 
@@ -134,6 +140,9 @@ export function parseArgs(argv: string[], cwd = process.cwd()): ParsedArgs {
         break;
       case "--project":
         parsed.project = true;
+        break;
+      case "--check":
+        parsed.check = true;
         break;
       case "-h":
       case "--help":
@@ -232,6 +241,7 @@ export const HELP = `DevStation, the coding agent.
   ${CLI_NAME} tools                list the tools it can use, and which ones ask first
   ${CLI_NAME} login [provider]     store an API key and choose a model
   ${CLI_NAME} logout [provider]    remove stored API keys
+  ${CLI_NAME} upgrade [--check]    update to the latest version (--check only reports)
   ${CLI_NAME} config               show the settings a run would use, and where each came from
   ${CLI_NAME} config set <key> <value> [--project]
                                set provider, model or baseUrl
@@ -253,6 +263,7 @@ Options
   --json              JSON from config, sessions, checkpoints and tools
   --no-sandbox        run commands on this machine instead of in a container
   --project           with config set/unset: write this workspace's config, not the global one
+  --check             with upgrade: say whether a newer version exists, change nothing
   -h, --help          this
   -v, --version       the version
 

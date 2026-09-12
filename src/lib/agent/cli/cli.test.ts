@@ -9,6 +9,7 @@ import { renderEvent, renderSessions, renderUsage } from "./render";
 import { chatCommand, handleSlash } from "./interactive";
 import { lineReader } from "./line-reader";
 import {
+  homeDirectoryWarning,
   configEditCommand,
   loginCommand,
   logoutCommand,
@@ -931,4 +932,35 @@ describe("what doctor reports", () => {
     expect(names).toContain("isolation");
     expect(names).toContain("sandbox image");
   }, 120_000);
+});
+
+describe("forgiving input", () => {
+  const realHome = process.env.HOME;
+  afterEach(() => {
+    process.env.HOME = realHome;
+  });
+
+  it("accepts a provider name in any capitalisation", async () => {
+    // Typing "OpenAI" was refused with "Unknown provider", which is the kind of
+    // papercut that makes a first run feel broken.
+    const home = scratch();
+    process.env.HOME = home;
+    const root = scratch();
+    const setTerm = terminal();
+    expect(
+      configEditCommand(context(root, new MockProvider([]), setTerm.t), "set provider OpenRouter"),
+    ).toBe(0);
+    expect(resolveSettings({ root, home, env: {} }).provider).toBe("openrouter");
+
+    const login = terminal(["http://localhost:11434/v1", "", "llama3.3"]);
+    expect(await loginCommand(context(root, new MockProvider([]), login.t), "OpenAI")).toBe(0);
+    expect(resolveSettings({ root, home, env: {} }).provider).toBe("openai");
+  });
+
+  it("warns when started in a home directory, and not elsewhere", () => {
+    expect(homeDirectoryWarning("/root", "/root")).toContain("home directory");
+    expect(homeDirectoryWarning("/root/", "/root")).toContain("home directory");
+    expect(homeDirectoryWarning("/root/project", "/root")).toBeNull();
+    expect(homeDirectoryWarning("/root", "")).toBeNull();
+  });
 });

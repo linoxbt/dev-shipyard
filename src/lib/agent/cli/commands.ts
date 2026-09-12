@@ -95,6 +95,7 @@ export interface CommandContext {
 export async function buildExecutor(
   root: string,
   sandbox: boolean,
+  warn: (message: string) => void = (message) => process.stderr.write(`warning: ${message}\n`),
 ): Promise<{ executor: Executor } | { problem: string }> {
   if (!sandbox) return { executor: hostExecutor() };
 
@@ -107,7 +108,9 @@ export async function buildExecutor(
   // "cargo: not found" in the middle of a run.
   const probe = await probeImage(root, readiness.imageName, readiness.runtimeName);
   const mismatch = probeProblem(probe, readiness.imageName);
-  if (mismatch) return { problem: mismatch };
+  // Said, not enforced: a missing toolchain breaks the commands that need it,
+  // not the session. See probeProblem.
+  if (mismatch) warn(mismatch);
 
   return { executor: sandboxExecutor({ workspace: root }) };
 }
@@ -580,6 +583,27 @@ function home(): string {
   return process.env.HOME ?? "";
 }
 
+/**
+ * Warn when a session starts in a home directory.
+ *
+ * Everything under it becomes one workspace: the agent indexes, searches and
+ * can edit every repository kept there, and the project scan finds all of
+ * their manifests. That is almost never what somebody meant, so it is said up
+ * front -- as a warning, since it is occasionally exactly what they meant.
+ */
+export function homeDirectoryWarning(
+  root: string,
+  homeDir = process.env.HOME ?? "",
+): string | null {
+  if (!homeDir) return null;
+  const strip = (p: string) => p.replace(/\/+$/, "");
+  if (strip(root) !== strip(homeDir)) return null;
+  return (
+    "You are in your home directory, so the agent treats everything under it as one project, " +
+    "every repository inside it included. cd into the project you mean first."
+  );
+}
+
 /** `config set|get|unset <key> [value]` and `config path`. */
 export function configEditCommand(
   context: CommandContext,
@@ -627,7 +651,7 @@ export function configEditCommand(
       context.terminal.err(`Give it a value: devstation config set ${name} <value>`);
       return 2;
     }
-    if (name === "provider" && !(PROVIDER_IDS as readonly string[]).includes(value)) {
+    if (name === "provider" && !(PROVIDER_IDS as readonly string[]).includes(value.toLowerCase())) {
       context.terminal.err(`Unknown provider "${value}". Providers: ${PROVIDER_IDS.join(", ")}.`);
       return 2;
     }
@@ -636,7 +660,11 @@ export function configEditCommand(
       return 2;
     }
     (current as Record<string, string>)[name] =
-      name === "baseUrl" ? value.replace(/\/+$/, "") : value;
+      name === "baseUrl"
+        ? value.replace(/\/+$/, "")
+        : name === "provider"
+          ? value.toLowerCase()
+          : value;
     writeSettingsFile(path, current);
     context.terminal.out(`Set ${name} = ${(current as Record<string, string>)[name]} in ${path}.`);
     return 0;
@@ -661,13 +689,14 @@ export async function loginCommand(context: CommandContext, rest: string): Promi
   const t = context.terminal;
   const secret = t.askSecret ? (q: string) => t.askSecret!(q) : (q: string) => t.ask(q);
 
-  let provider = rest.trim().split(/\s+/)[0] as ProviderId | "";
+  let provider = (rest.trim().split(/\s+/)[0] ?? "").toLowerCase() as ProviderId | "";
   if (!provider) {
     t.out("Which provider?");
     t.out("  anthropic   Claude, directly (prompt caching, native tool use)");
     t.out("  openrouter  one key for Claude, GPT, Gemini, DeepSeek and more");
     t.out("  openai      OpenAI, or any compatible server: Ollama, LM Studio, Groq, Together");
-    provider = ((await t.ask("provider [anthropic]: ")).trim() || "anthropic") as ProviderId;
+    provider = ((await t.ask("provider [anthropic]: ")).trim().toLowerCase() ||
+      "anthropic") as ProviderId;
   }
   if (!(PROVIDER_IDS as readonly string[]).includes(provider)) {
     t.err(`Unknown provider "${provider}". Providers: ${PROVIDER_IDS.join(", ")}.`);
@@ -739,7 +768,7 @@ export async function loginCommand(context: CommandContext, rest: string): Promi
 /** Remove stored keys: one provider's, or all of them. Settings stay. */
 export function logoutCommand(context: CommandContext, rest: string): number {
   const h = home();
-  const target = rest.trim().split(/\s+/)[0] as ProviderId | "";
+  const target = (rest.trim().split(/\s+/)[0] ?? "").toLowerCase() as ProviderId | "";
   if (target && !(PROVIDER_IDS as readonly string[]).includes(target)) {
     context.terminal.err(`Unknown provider "${target}". Providers: ${PROVIDER_IDS.join(", ")}.`);
     return 2;

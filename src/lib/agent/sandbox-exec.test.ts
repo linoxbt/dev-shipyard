@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  gatingEcosystems,
   workdirFor,
   createCommand,
   execCommand,
@@ -370,5 +371,24 @@ when("a real container", () => {
     const exec = sandboxExecutor({ workspace: mkdtempSync(join(tmpdir(), "sbx-d-")) });
     expect(exec.describe).toContain(userFlag());
     expect(exec.kind).toBe("sandbox");
+  });
+});
+
+describe("which toolchains the sandbox must carry", () => {
+  it("counts only the project at the workspace root", () => {
+    // Run from a home directory, the scan found npm, pip and cargo projects
+    // belonging to other repositories, and one Rust folder among them refused
+    // the whole session.
+    expect(
+      gatingEcosystems([
+        { dir: "", ecosystem: "npm" },
+        { dir: "some-other-repo", ecosystem: "cargo" },
+        { dir: "fiscal", ecosystem: "pip" },
+      ]),
+    ).toEqual(["npm"]);
+  });
+
+  it("asks for nothing when there is no project at the root", () => {
+    expect(gatingEcosystems([{ dir: "nested", ecosystem: "cargo" }])).toEqual([]);
   });
 });

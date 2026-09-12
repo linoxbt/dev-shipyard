@@ -46,6 +46,15 @@ devstation config              # what it will use, and where each value came fro
 Exporting `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY` still works, and is what a
 server or CI job should do.
 
+## Upgrade
+
+```sh
+devstation upgrade
+```
+
+It upgrades however it was installed: through npm for an npm install, or by
+downloading and verifying the new binary for the standalone one.
+
 ## Use it
 
 ```sh

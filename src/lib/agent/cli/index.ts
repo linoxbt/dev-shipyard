@@ -10,6 +10,7 @@ import {
   configEditCommand,
   diffCommand,
   doctorCommand,
+  homeDirectoryWarning,
   indexCommand,
   loginCommand,
   logoutCommand,
@@ -29,6 +30,7 @@ import { repoCommand } from "./repo-command";
 import { colourEnabled } from "./render";
 import { lineReader } from "./line-reader";
 import { providerFromSettings, resolveSettings } from "../providers";
+import { notifyIfOutdated, upgradeCommand } from "./upgrade";
 
 // The terminal front end. Everything below the parsing and the readline lives
 // in commands.ts and interactive.ts, which is what makes this a thin third
@@ -126,6 +128,8 @@ export async function main(argv: string[]): Promise<number> {
         return await loginCommand(offline, parsed.rest);
       case "logout":
         return logoutCommand(offline, parsed.rest);
+      case "upgrade":
+        return await upgradeCommand(offline, { check: parsed.check });
       case "doctor":
         return await doctorCommand(offline);
       case "index":
@@ -146,6 +150,12 @@ export async function main(argv: string[]): Promise<number> {
       terminal.err(`Run \`${CLI_NAME} doctor\` to see what else is missing.`);
       return 2;
     }
+
+    const atHome = homeDirectoryWarning(root);
+    if (atHome) terminal.err(`warning: ${atHome}`);
+    // Reads yesterday's answer from a cache and refreshes it in the background:
+    // never a network round trip in front of the first prompt.
+    void notifyIfOutdated(terminal);
 
     const ctx = context(root, terminal, parsed, provider);
     ctx.signal = controller.signal;

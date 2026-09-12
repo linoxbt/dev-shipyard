@@ -170,7 +170,7 @@ export async function probeImage(
   image: string,
   runtime: string,
 ): Promise<ProbeResult> {
-  const ecosystems = [...new Set(detectManifests(workspace).map((m) => m.ecosystem))];
+  const ecosystems = gatingEcosystems(detectManifests(workspace));
   const wanted = [...new Set(ecosystems.flatMap((e) => NEEDS[e]))];
   if (wanted.length === 0) return { ok: true, missing: [], ecosystems };
 
@@ -193,12 +193,30 @@ export async function probeImage(
   return { ok: missing.length === 0, missing, ecosystems };
 }
 
+/**
+ * Which toolchains the image has to carry: only those of the project at the
+ * workspace ROOT.
+ *
+ * The scan goes two directories deep, which is right for finding a monorepo's
+ * packages and wrong for deciding what a session needs. Run from a home
+ * directory it found 68 npm, 2 pip and 4 cargo projects belonging to other
+ * repositories, and one Rust folder among them refused the whole session. A
+ * nested project's toolchain is that project's concern, not a precondition for
+ * starting at all.
+ */
+export function gatingEcosystems(manifests: { dir: string; ecosystem: Ecosystem }[]): Ecosystem[] {
+  return [...new Set(manifests.filter((m) => m.dir === "").map((m) => m.ecosystem))];
+}
+
+/** A warning, not a refusal. Missing cargo means cargo commands fail inside the
+ *  sandbox; it does not mean the agent cannot read, edit and run everything
+ *  else. Stopping the session over it was out of all proportion. */
 export function probeProblem(probe: ProbeResult, image: string): string | null {
   if (probe.ok) return null;
   return (
-    `This is a ${probe.ecosystems.join(" and ")} project, and the sandbox image ${image} has no ` +
-    `${probe.missing.join(", ")}. Build an image that does and set DEVSTATION_SANDBOX_IMAGE, ` +
-    "or run with --no-sandbox."
+    `The sandbox image ${image} has no ${probe.missing.join(", ")}, which this ${probe.ecosystems.join(" and ")} ` +
+    "project uses, so commands that need it will fail inside the sandbox. Build an image that has it " +
+    "and set DEVSTATION_SANDBOX_IMAGE, or run with --no-sandbox."
   );
 }
 

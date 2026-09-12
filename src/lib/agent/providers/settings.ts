@@ -78,7 +78,8 @@ export function readSettingsFile(path: string, problems: string[] = []): Setting
     const raw = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
     const out: Settings = {};
     if (raw.provider !== undefined) {
-      if (isProvider(raw.provider)) out.provider = raw.provider;
+      const named = typeof raw.provider === "string" ? raw.provider.toLowerCase() : raw.provider;
+      if (isProvider(named)) out.provider = named;
       else problems.push(`${path}: unknown provider "${String(raw.provider)}".`);
     }
     if (typeof raw.model === "string" && raw.model.trim()) out.model = raw.model.trim();
@@ -204,8 +205,10 @@ export function resolveSettings(opts: ResolveOptions): Resolved {
   let provider: ProviderId | null = null;
   let providerSource = "not set";
   if (env.DEVSTATION_PROVIDER) {
-    if (isProvider(env.DEVSTATION_PROVIDER)) {
-      provider = env.DEVSTATION_PROVIDER;
+    // "OpenAI" and "openai" are the same answer; refusing one was a papercut.
+    const named = env.DEVSTATION_PROVIDER.toLowerCase();
+    if (isProvider(named)) {
+      provider = named;
       providerSource = "DEVSTATION_PROVIDER";
     } else {
       warnings.push(
