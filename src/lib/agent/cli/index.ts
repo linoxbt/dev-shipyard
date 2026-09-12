@@ -3,7 +3,16 @@ import { createInterface } from "node:readline/promises";
 import { Writable } from "node:stream";
 import { resolve } from "node:path";
 import { existsSync } from "node:fs";
-import { CLI_NAME, HELP, OFFLINE_COMMANDS, VERSION, parseArgs, type ParsedArgs } from "./args";
+import {
+  CLI_NAME,
+  HELP,
+  OFFLINE_COMMANDS,
+  VERSION,
+  completeSlash,
+  parseArgs,
+  type ParsedArgs,
+} from "./args";
+import { listSkills } from "./skills";
 import {
   checkpointsCommand,
   configCommand,
@@ -72,6 +81,8 @@ export async function main(argv: string[]): Promise<number> {
     input: process.stdin,
     output,
     terminal: Boolean(process.stdin.isTTY),
+    // Tab after "/" offers the session commands and the skills found here.
+    completer: (line: string) => completeSlash(line, () => listSkills(root).map((s) => s.name)),
   });
   const input = lineReader(readline, (text) => process.stdout.write(text));
   const terminal: Terminal = {
@@ -92,6 +103,9 @@ export async function main(argv: string[]): Promise<number> {
     // line is a broken log rather than a live one.
     write: process.stdout.isTTY ? (text) => process.stdout.write(text) : undefined,
     colour: colourEnabled(),
+    get columns() {
+      return process.stdout.columns;
+    },
   };
 
   // Ctrl-C stops the run rather than killing the process outright, so the
@@ -140,6 +154,13 @@ export async function main(argv: string[]): Promise<number> {
         return await mcpCommand(offline);
       default:
         break;
+    }
+
+    // A conversation gets a screen of its own, the way claude and codex open:
+    // a clean terminal with the banner at the top, not a banner under whatever
+    // the shell printed last. Scrollback is left alone.
+    if (parsed.command === "chat" && process.stdout.isTTY) {
+      process.stdout.write("\u001b[H\u001b[2J");
     }
 
     const settings = resolveSettings({ root, model: parsed.model });

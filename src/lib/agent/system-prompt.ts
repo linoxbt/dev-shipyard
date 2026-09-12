@@ -93,3 +93,13 @@ If you did not change anything, do not call it.`;
 export const GIT_ADDENDUM = `
 
 This workspace is a git repository. Your changes are checkpointed automatically after each turn, so the user can undo them. That means an edit you just made is already committed: a clean working tree is not evidence that your edit did not take. \`git diff\` and \`git status\` are answered against the point this run started from, so they show everything you have changed, committed or not. Do not commit unless you are asked to, and never rewrite history.`;
+
+/** Added for a turn taken in plan mode. The tools are refused as well; this is
+ *  so the model plans instead of trying them one after another. */
+export const PLAN_MODE_ADDENDUM = `
+
+Plan mode is on. Investigate as much as you need: read files, search, list,
+run read-only commands and look things up on the web. Change nothing: no edits,
+no installs, no commits, no commands with side effects. Those tools are refused.
+Finish with a concrete, numbered plan: what you would change, in which files,
+and how you would verify it worked.`;

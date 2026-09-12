@@ -12,6 +12,7 @@ This is the reference. `packages/cli/README.md` is the two-minute version.
 - [Every command](#every-command)
 - [Every flag](#every-flag)
 - [What it asks permission for](#what-it-asks-permission-for)
+- [In a session](#in-a-session)
 - [The sandbox](#the-sandbox)
 - [The web](#the-web)
 - [Undo](#undo)
@@ -242,12 +243,45 @@ devstation version              print the version
 devstation help                 the summary
 ```
 
-Inside a session, the same things are slash commands: `/undo` `/status`
-`/sessions` `/checkpoints` `/diff` `/tools` `/memory` `/mcp` `/cost` `/config`
-`/clear` `/help` `/exit`. **Ctrl-C** interrupts the turn in progress without
-leaving; **Ctrl-D** leaves.
+## In a session
 
-`/cost` is session-only: it reports what has been spent so far.
+`devstation` clears the terminal and opens its own session, like `claude` and
+`codex`. A rule above each prompt shows the model, the folder and any mode that
+is on. Type `/` and press **Tab** to complete a command. **Ctrl-C** interrupts
+the turn in progress; **Ctrl-D** or `/exit` leaves.
+
+```
+/new                    start a fresh conversation in the same workspace (also /clear)
+/resume [id]            pick up an earlier conversation, from a numbered list
+/rename <title>         name this conversation
+/archive [id]           hide a conversation from the list (/resume <id> still opens it)
+/delete [id]            delete a conversation for good, after asking
+/sessions               list conversations in this workspace
+/model [name]           show the model, or switch it for this session
+/plan [on|off]          plan mode: read, search and propose, change nothing
+/approve [on|off]       run every action without asking, for this session
+/skill [name] [task]    list skills, or run one (also /<name>)
+/usage                  tokens and cost of this conversation (also /cost)
+/status /diff /undo /checkpoints /tools /mcp /memory /index /config
+/doctor /login /logout /upgrade /help /exit
+```
+
+**Plan mode.** With `/plan` on, the agent may read files, search, run read-only
+commands and look things up on the web. Edits, installs, commits and anything
+with side effects are refused. It ends with a numbered plan and asks
+`Carry out this plan?`. Answer `y` and plan mode turns off and the work starts.
+
+**Skills** are Markdown files of instructions you want reused:
+
+```
+.devstation/skills/<name>.md          this project
+.devstation/skills/<name>/SKILL.md    the same, as a folder
+~/.devstation/skills/<name>.md        every project
+```
+
+Skills in `.claude/skills` and `~/.claude/skills` are read too, so skills written
+for Claude Code work unchanged. Optional frontmatter gives a `name` and a
+`description`. Run one with `/<name> what to use it on`.
 
 ## Every flag
 

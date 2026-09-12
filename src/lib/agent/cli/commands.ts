@@ -35,7 +35,7 @@ import {
   sandboxReadiness,
   userFlag,
 } from "../sandbox-exec";
-import { SANDBOX_ADDENDUM, SANDBOX_NETWORK_ADDENDUM } from "../system-prompt";
+import { PLAN_MODE_ADDENDUM, SANDBOX_ADDENDUM, SANDBOX_NETWORK_ADDENDUM } from "../system-prompt";
 import {
   Orchestrator,
   type AgentEvent,
@@ -64,6 +64,8 @@ export interface Terminal {
    *  prints the finished text once instead. */
   write?(text: string): void;
   colour: boolean;
+  /** Width of the terminal, where there is one. */
+  columns?: number;
 }
 
 export interface CommandContext {
@@ -140,7 +142,7 @@ export function approvalKey(request: ApprovalRequest): string {
 function approver(context: CommandContext, live: LiveView | null = null) {
   return async (request: ApprovalRequest): Promise<boolean> => {
     if (context.yes) {
-      context.terminal.out(`Auto-approved ${request.operation} (--yes).`);
+      context.terminal.out(`Auto-approved ${request.operation}.`);
       return true;
     }
     const key = approvalKey(request);
@@ -178,6 +180,8 @@ export async function runCommand(
     resume?: SessionRecord;
     offerPersonTools?: string[];
     systemAddendum?: string;
+    /** Plan mode: look and propose, change nothing. */
+    readOnly?: boolean;
     /** Leave out the session header. The second turn of a conversation does
      *  not need to be told which session it is in. */
     quiet?: boolean;
@@ -305,6 +309,7 @@ export async function runCommand(
     embeddings,
     mcp,
     offerPersonTools: options.offerPersonTools,
+    readOnly: options.readOnly,
     // The agent has to know what its shell can reach, or it will either not try
     // the network it has or keep trying the network it does not.
     systemAddendum:
@@ -312,7 +317,9 @@ export async function runCommand(
         ? sandboxNetworkEnabled()
           ? SANDBOX_NETWORK_ADDENDUM
           : SANDBOX_ADDENDUM
-        : "") + (options.systemAddendum ?? ""),
+        : "") +
+      (options.readOnly ? PLAN_MODE_ADDENDUM : "") +
+      (options.systemAddendum ?? ""),
     onEvent: (event: AgentEvent) => {
       // The log is written before the line is printed: what a watching
       // terminal sees should never lag behind what this one shows.
@@ -634,7 +641,7 @@ export function configCommand(context: CommandContext): number {
     `autonomy    ${context.autonomy ?? "ask_sensitive"}`,
     `max steps   ${context.maxSteps ?? 40}`,
     `budget      ${context.maxCostUsd ? `$${context.maxCostUsd}` : "none set"}`,
-    `approvals   ${context.yes ? "auto-approved (--yes)" : "asked in the terminal"}`,
+    `approvals   ${context.yes ? "auto-approved" : "asked in the terminal"}`,
   ];
   for (const line of lines) context.terminal.out(line);
   if (r.problem && !context.provider) context.terminal.err(`\n${r.problem}`);

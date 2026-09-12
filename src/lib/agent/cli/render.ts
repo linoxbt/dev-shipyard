@@ -81,7 +81,8 @@ export function renderUsage(costUsd: number, steps: number, files: string[]): st
 
 export function renderSessionLine(record: SessionRecord): string {
   const when = record.updatedAt.replace("T", " ").slice(0, 16);
-  const goal = record.goal.length > 56 ? `${record.goal.slice(0, 55)}...` : record.goal;
+  const name = record.title ?? record.goal;
+  const goal = name.length > 56 ? `${name.slice(0, 55)}...` : name;
   return `${record.id}  ${when}  ${record.status.padEnd(8)}  ${goal}`;
 }
 

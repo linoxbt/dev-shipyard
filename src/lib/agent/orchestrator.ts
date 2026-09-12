@@ -88,6 +88,31 @@ export interface ApprovalRequest {
   why: string;
 }
 
+/** Operations plan mode lets through: nothing on this list changes a file, a
+ *  repository, a package set or anything outside the machine. */
+const READ_ONLY_OPERATIONS = new Set(["file.read", "project.inspect", "web.fetch", "code.analyze"]);
+
+/** Whether a call only looks. Decided by the same operation reading the policy
+ *  uses, so `ls` passes and `rm` does not. MCP tools and anything unreadable
+ *  count as changes: plan mode fails closed. */
+export function readsOnly(call: { name: string; input: Record<string, unknown> }): boolean {
+  const definition = TOOLS[call.name];
+  if (!definition) return false;
+  try {
+    const operation = definition.operationFrom
+      ? definition.operationFrom(call.input as never, {
+          taskId: "plan",
+          userId: "",
+          projectId: "plan",
+          populated: () => true,
+        })
+      : definition.operation;
+    return READ_ONLY_OPERATIONS.has(operation);
+  } catch {
+    return false;
+  }
+}
+
 export interface OrchestratorOptions {
   provider: ModelProvider;
   workspace: Workspace;
@@ -118,6 +143,10 @@ export interface OrchestratorOptions {
   /** Appended to the system prompt, for a host with something extra to say
    *  about this particular run. */
   systemAddendum?: string;
+  /** Plan mode: tools that read, search and look things up run; anything that
+   *  would change the workspace or the world is refused before it is asked
+   *  about. The host says so in the system prompt too. */
+  readOnly?: boolean;
   /** The project index, when the host has built one. Absent means the agent
    *  works the way it did before: by listing and reading files. */
   memory?: MemoryStore | null;
@@ -497,6 +526,16 @@ export class Orchestrator {
   }
 
   private async runOne(call: ProviderToolCall): Promise<{ ok: boolean; output: string }> {
+    if (this.opts.readOnly && !readsOnly(call)) {
+      this.emit("plan", `Plan mode: did not run ${call.name}`, { tool: call.name });
+      return {
+        ok: false,
+        output:
+          `Plan mode is on, so ${call.name} was not run: only reading, searching and looking things up are allowed. ` +
+          "Finish investigating and present the plan. The user switches plan mode off to carry it out.",
+      };
+    }
+
     // An MCP tool belongs to somebody else's server and has no entry in the
     // registry, so the policy engine has nothing to classify it by. They are
     // gated as a class rather than individually: the person configured the

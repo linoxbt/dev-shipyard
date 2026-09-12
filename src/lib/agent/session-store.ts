@@ -5,6 +5,7 @@ import {
   readFileSync,
   readdirSync,
   renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -41,6 +42,10 @@ export interface SessionRecord {
   provider: string;
   model: string;
   messages: ProviderMessage[];
+  /** A name given with /rename. */
+  title?: string;
+  /** Hidden from lists by /archive, still resumable by id. */
+  archived?: boolean;
 }
 
 export const SESSIONS_DIR = join(".agent", "sessions");
@@ -117,13 +122,28 @@ export class SessionStore {
     }
   }
 
-  list(): SessionRecord[] {
+  list(options: { includeArchived?: boolean } = {}): SessionRecord[] {
     if (!existsSync(this.dir)) return [];
     return readdirSync(this.dir)
       .filter((name) => name.endsWith(".json"))
       .map((name) => this.load(name.slice(0, -".json".length)))
       .filter((record): record is SessionRecord => record !== null)
+      .filter((record) => options.includeArchived || !record.archived)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  /** Deletes a session's state and its event log. Only ever a session id, so
+   *  a crafted name cannot reach outside the sessions directory. */
+  remove(id: string): boolean {
+    if (!/^[0-9a-f]{8}$/.test(id)) return false;
+    let removed = false;
+    for (const path of [this.jsonPath(id), this.eventPath(id)]) {
+      if (existsSync(path)) {
+        rmSync(path);
+        removed = true;
+      }
+    }
+    return removed;
   }
 
   latest(): SessionRecord | null {

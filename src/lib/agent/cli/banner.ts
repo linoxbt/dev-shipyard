@@ -108,8 +108,23 @@ export function banner(facts: BannerFacts, options: { columns?: number; colour?:
 /** What to say once, under the banner, so a new user knows what to type. */
 export function openingHelp(colour = false): string {
   return [
-    paint("  Type what you want done, and press Enter.", "dim", colour),
-    paint("  /help for commands, Ctrl-C to interrupt, Ctrl-D or /exit to leave.", "dim", colour),
+    paint("  Ask anything, or say what you want built, and press Enter.", "dim", colour),
+    paint(
+      "  /help for commands (Tab completes them), Ctrl-C to interrupt, Ctrl-D or /exit to leave.",
+      "dim",
+      colour,
+    ),
     "",
   ].join("\n");
+}
+
+/** The rule above the input: what the next message goes to, at a glance. */
+export function promptRule(
+  label: string,
+  options: { columns?: number; colour?: boolean } = {},
+): string {
+  const width = Math.max(20, Math.min(options.columns ?? 80, 200));
+  let text = `── ${label} `;
+  if (text.length > width) text = `${text.slice(0, width - 2)}… `;
+  return `${paint(text + "─".repeat(Math.max(0, width - text.length)), "dim", options.colour ?? false)}\n`;
 }
