@@ -65,11 +65,16 @@ JavaScript rather than a self-contained binary:
 npm install -g @devstation/cli
 ```
 
-> **The scope matters.** An unrelated package is published as plain
-> `devstation` — a dashboard for managing dev servers. `npm i -g devstation`
-> installs that, not this, and the symptom is `devstation config` printing a box
-> about `http://localhost:4000`. If you have already done it:
-> `npm uninstall -g devstation`.
+> **Not published yet.** `@devstation/cli` is the name this will take on npm;
+> nothing is on the registry under it today, so the command above returns a 404.
+> Use the installer or the release binaries until it is published. (Plain
+> `devstation` on npm is an unrelated package — a dashboard for managing dev
+> servers — so `npm i -g devstation` installs that, not this.)
+>
+> If you have already run `npm i -g devstation` and got that dashboard, the
+> symptom is `devstation config` printing a box about `http://localhost:4000`.
+> Undo it with `npm uninstall -g devstation`, then `hash -r` so your shell
+> forgets the old path.
 
 ### Check the install
 

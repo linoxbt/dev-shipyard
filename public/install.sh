@@ -34,7 +34,10 @@ detect_target() {
   case "$os" in
     Linux) os_part="linux" ;;
     Darwin) os_part="darwin" ;;
-    MINGW* | MSYS* | CYGWIN*) die "on Windows, use: npm install -g @devstation/cli" ;;
+    MINGW* | MSYS* | CYGWIN*)
+      die "this installer needs a POSIX shell. On Windows, download
+devstation-windows-x64.exe from
+https://github.com/$REPO/releases/latest and put it on your PATH." ;;
     *) die "unsupported system: $os" ;;
   esac
   case "$arch" in
@@ -111,7 +114,7 @@ main() {
     # which is the classic way an installer produces "cannot execute".
     curl -fsSL "$url" -o "$tmp/devstation" ||
       die "could not download $url
-Check that a release exists, or install with: npm install -g @devstation/cli"
+Check that a release exists at https://github.com/$REPO/releases"
 
     verify_checksum "$tmp/devstation" "$target" "${url%/*}/SHA256SUMS"
   fi
