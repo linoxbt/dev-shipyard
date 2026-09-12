@@ -18,6 +18,7 @@ import {
   openClaims,
   withClaim,
 } from "@/lib/agent-access/claims.server";
+import { runnerIsolation } from "@/lib/agent-access/runner-health.server";
 
 // The one place that holds both halves.
 //
@@ -229,6 +230,14 @@ async function start(
 
   if (Object.keys(files).length === 0) {
     return fail("empty", "There is nothing in that repository the agent can read.", 400);
+  }
+
+  // Same refusal as /api/agent, and this path needs it more: the goal comes
+  // from the internet and there is no human in the loop.
+  const { url, token: runnerToken } = runnerConfig();
+  if (url && runnerToken) {
+    const isolation = await runnerIsolation(url, runnerToken);
+    if (!isolation.ok) return fail("not_isolated", isolation.why, 503);
   }
 
   const result = await runner("/agent/repo-jobs", {

@@ -10,6 +10,7 @@ import {
   readCookie,
   withClaim,
 } from "@/lib/agent-access/claims.server";
+import { runnerIsolation } from "@/lib/agent-access/runner-health.server";
 
 // Starts and reads App Builder turns that outlive the page.
 //
@@ -208,6 +209,13 @@ export const Route = createFileRoute("/api/agent")({
         if (!checkRateLimit(`agent:start:${ip}`, PER_IP_START_LIMIT, WINDOW_MS)) {
           return fail("rate_limited", "Too many builds from this client. Try again later.", 429);
         }
+
+        // Refuse rather than feed a runner that would run the agent's commands
+        // unisolated. The runner refuses such jobs itself in current versions;
+        // this is for the case that was actually live, where the deployed
+        // runner was older than that code.
+        const isolation = await runnerIsolation(cfg.url, cfg.token);
+        if (!isolation.ok) return fail("not_isolated", isolation.why, 503);
 
         // Per wallet as well as per IP. IPs are cheap; a wallet is not.
         if (
