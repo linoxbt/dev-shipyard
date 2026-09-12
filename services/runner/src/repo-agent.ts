@@ -24,7 +24,13 @@ import {
 } from "../../../src/lib/agent/repo-session";
 import { changedFiles } from "../../../src/lib/github-repos";
 import { providerFromEnv, type ModelProvider } from "../../../src/lib/agent/providers";
-import { PULL_REQUEST_ADDENDUM } from "../../../src/lib/agent/system-prompt";
+import { PULL_REQUEST_ADDENDUM, SANDBOX_ADDENDUM } from "../../../src/lib/agent/system-prompt";
+import { hostExecutor, type Executor } from "../../../src/lib/agent/executor";
+import {
+  readinessProblem,
+  sandboxExecutor,
+  sandboxReadiness,
+} from "../../../src/lib/agent/sandbox-exec";
 import { embeddingsFromEnv } from "../../../src/lib/agent/memory/embeddings";
 import { indexWorkspace, openStore } from "../../../src/lib/agent/memory/workspace-index";
 import type { MemoryStore } from "../../../src/lib/agent/memory/store";
@@ -143,6 +149,14 @@ export interface StartRepoJobInput {
   provider?: ModelProvider;
   /** Where workspaces go. Defaults to the runner's state directory. */
   stateDir?: string;
+  /**
+   * Run commands in a container. On by default and not reachable from a
+   * request: this path has no person in it, the goals arrive from the
+   * internet, and it runs beside the app pipeline's secrets. Tests pass false
+   * because they are about the job, not the isolation, and the sandbox has its
+   * own tests that skip cleanly without a daemon.
+   */
+  sandbox?: boolean;
 }
 
 export function startRepoJob(input: StartRepoJobInput): RepoJob {
@@ -197,6 +211,10 @@ async function run(job: RepoJob, input: StartRepoJobInput, signal: AbortSignal) 
   const files = input.files;
   const root = job.root;
   let memory: MemoryStore | null = null;
+  // Declared out here so the finally can dispose it whatever happens: a
+  // container left running is the failure mode this whole file's sweeper
+  // exists to clean up after.
+  let executor: Executor | null = null;
 
   const touch = (patch: Partial<RepoJob>) => {
     Object.assign(job, patch, { updatedAt: Date.now() });
@@ -219,6 +237,29 @@ async function run(job: RepoJob, input: StartRepoJobInput, signal: AbortSignal) 
       return;
     }
 
+    // The isolation, before anything of the model's runs.
+    //
+    // Refuses the job rather than falling back to the host, the same way
+    // createContainer in sandbox.ts throws rather than quietly using weaker
+    // isolation. There is nobody here to notice a downgrade: this path has no
+    // requestApproval at all, so everything gated is already refused, and what
+    // is left is exactly what the sandbox is for.
+    const wantSandbox = input.sandbox ?? sandboxEnabled();
+    executor = hostExecutor();
+    if (wantSandbox) {
+      const readiness = await sandboxReadiness();
+      const problem = readinessProblem(readiness);
+      if (problem) {
+        touch({
+          phase: "error",
+          status: "Stopped",
+          error: `This runner cannot isolate the agent, so the job was refused. ${problem}`,
+        });
+        return;
+      }
+      executor = sandboxExecutor({ workspace: root });
+    }
+
     const embeddings = embeddingsFromEnv();
     try {
       memory = openStore(root);
@@ -227,7 +268,10 @@ async function run(job: RepoJob, input: StartRepoJobInput, signal: AbortSignal) 
       memory = null;
     }
 
+    touch({ status: `Working, ${executor.describe}` });
+
     const result = await new Orchestrator({
+      executor,
       provider,
       workspace: new Workspace(root),
       signal,
@@ -237,7 +281,9 @@ async function run(job: RepoJob, input: StartRepoJobInput, signal: AbortSignal) 
       projectId: job.repo,
       memory,
       embeddings,
-      systemAddendum: PULL_REQUEST_ADDENDUM,
+      // The agent has to know the shell has no network, or it will keep trying
+      // and read the failure as its own mistake.
+      systemAddendum: (executor.kind === "sandbox" ? SANDBOX_ADDENDUM : "") + PULL_REQUEST_ADDENDUM,
       offerPersonTools: ["open_pull_request"],
       // No approver. Everything gated is refused, and the agent is told so,
       // because there is nobody at this end of the connection to ask and a
@@ -278,7 +324,14 @@ async function run(job: RepoJob, input: StartRepoJobInput, signal: AbortSignal) 
     });
   } finally {
     memory?.close();
+    await executor?.dispose();
   }
+}
+
+/** Off only for local development. Not reachable from a request: a job cannot
+ *  ask to be run without isolation. */
+export function sandboxEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return (env.DEVSTATION_SANDBOX ?? "").toLowerCase() !== "off";
 }
 
 export function getRepoJob(id: string): RepoJob | null {

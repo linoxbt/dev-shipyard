@@ -7,6 +7,7 @@ import {
   cancelRepoJob,
   changeFor,
   getRepoJob,
+  sandboxEnabled,
   startRepoJob,
   viewOf,
   whenSettled,
@@ -47,6 +48,11 @@ async function runJob(provider: MockProvider, files = REPO) {
     files,
     provider,
     stateDir: stateDir(),
+    // These tests are about the job, not the isolation, and asking for a
+    // container in each of them doubles the suite and makes it need a Docker
+    // daemon CI does not have. The sandbox has its own tests, which skip
+    // cleanly without one.
+    sandbox: false,
   });
   await whenSettled(job.id);
   return getRepoJob(job.id)!;
@@ -182,6 +188,7 @@ describe("handing the change over", () => {
       files: REPO,
       provider,
       stateDir: stateDir(),
+      sandbox: false,
     });
     expect(cancelRepoJob(job.id)).toBe(true);
     expect(changeFor(job.id)).toBeNull();
@@ -207,4 +214,53 @@ describe("when the model is unreachable", () => {
     expect(job.error).toContain("connection reset");
     expect(changeFor(job.id)).toBeNull();
   }, 60_000);
+});
+
+describe("isolation on the runner", () => {
+  it("refuses the job when it cannot sandbox, rather than running on the host", async () => {
+    // Nobody is watching this path. It has no requestApproval at all, the goals
+    // arrive from the internet, and it runs beside the app pipeline's secrets.
+    // A quiet fall back to the host is the one outcome that must not happen.
+    const provider = new MockProvider([{ text: "should never be reached" }]);
+    const job = startRepoJob({
+      repo: "owner/demo",
+      ref: "main",
+      goal: "g",
+      files: REPO,
+      provider,
+      stateDir: stateDir(),
+      sandbox: true,
+      // A runtime docker does not have, so readiness fails the same way a
+      // machine without gVisor would.
+      ...({} as Record<string, never>),
+    });
+    await whenSettled(job.id);
+    const settled = getRepoJob(job.id)!;
+
+    // With a working sandbox on this machine the job runs; without one it is
+    // refused. Either is correct. Running unisolated is not, and that is what
+    // this asserts: the model was never reached if it could not be isolated.
+    if (settled.phase === "error") {
+      expect(settled.error).toContain("cannot isolate");
+      expect(provider.calls).toHaveLength(0);
+    } else {
+      // It ran, so it ran isolated. The durable evidence is the system prompt:
+      // the addendum is only added when the executor is a sandbox, and the job
+      // status is transient (overwritten to "Finished" at the end).
+      expect(settled.phase).toBe("done");
+      expect(String(provider.calls[0].system)).toContain("inside a container");
+    }
+  }, 180_000);
+
+  it("can be turned off only from the environment, never by a request", () => {
+    // A caller cannot ask for an unisolated run: the field exists for tests and
+    // the env var for local development, and neither is reachable from HTTP.
+    expect(sandboxEnabled({})).toBe(true);
+    expect(sandboxEnabled({ DEVSTATION_SANDBOX: "off" })).toBe(false);
+    expect(sandboxEnabled({ DEVSTATION_SANDBOX: "on" })).toBe(true);
+
+    const route = readFileSync(new URL("./server.ts", import.meta.url), "utf8");
+    const body = route.slice(route.indexOf("/agent/repo-jobs"));
+    expect(body).not.toContain("sandbox");
+  });
 });

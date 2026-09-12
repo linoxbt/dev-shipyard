@@ -5,6 +5,8 @@
 // here assumes the code it is given is hostile.
 
 import { createServer } from "node:http";
+import { sandboxEnabled } from "./repo-agent";
+import { readinessProblem, sandboxReadiness } from "../../../src/lib/agent/sandbox-exec";
 import {
   cancelRepoJob,
   changeFor,
@@ -221,6 +223,23 @@ const server = createServer(async (req, res) => {
       image: IMAGE,
       runtime: jobRuntime(),
       runtimeAvailable: await runtimeAvailable(),
+      // The agent's own isolation, which is a different question from the build
+      // pipeline's above: it uses its own image and refuses a job it cannot
+      // contain. An operator needs to be able to see that this runner would
+      // turn repo jobs away before somebody reports it as broken.
+      agentSandbox: await (async () => {
+        const enabled = sandboxEnabled();
+        if (!enabled) return { enabled: false, ready: false, why: "DEVSTATION_SANDBOX=off" };
+        const readiness = await sandboxReadiness();
+        const problem = readinessProblem(readiness);
+        return {
+          enabled: true,
+          ready: problem === null,
+          image: readiness.imageName,
+          runtime: readiness.runtimeName,
+          ...(problem ? { why: problem } : {}),
+        };
+      })(),
       ...queueDepth(),
     });
   }
