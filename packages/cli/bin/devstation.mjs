@@ -42,7 +42,7 @@ process.stderr.write(
     "DevStation could not start: neither the standalone binary nor Bun is here.",
     "",
     target
-      ? "  Reinstall to fetch the binary:  npm install -g @devstation/cli"
+      ? "  Reinstall to fetch the binary:  npm install -g @devstationlabs/cli"
       : `  No prebuilt binary for ${process.platform}-${process.arch}.`,
     "  Or install Bun:                 curl -fsSL https://bun.sh/install | bash",
     "  Or take the binary directly:    https://github.com/linoxbt/dev-shipyard/releases/latest",

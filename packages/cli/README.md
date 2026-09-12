@@ -15,7 +15,7 @@ Or through npm, which needs nothing else either — it fetches the same binary
 and verifies the same checksums:
 
 ```sh
-npm install -g @devstation/cli
+npm install -g @devstationlabs/cli
 ```
 
 > Plain `devstation` on npm is an **unrelated package** — a dashboard for

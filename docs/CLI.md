@@ -59,7 +59,7 @@ install -m755 devstation-linux-x64 ~/.devstation/bin/devstation
 ### Through npm
 
 ```sh
-npm install -g @devstation/cli
+npm install -g @devstationlabs/cli
 ```
 
 Needs nothing else on the machine. The package fetches the standalone binary
@@ -404,7 +404,7 @@ rm -rf ~/.devstation
 sed -i '/\.devstation\/bin/d' ~/.profile     # macOS: sed -i '' '/\.devstation\/bin/d' ~/.profile
 ```
 
-Installed through npm instead: `npm uninstall -g @devstation/cli`.
+Installed through npm instead: `npm uninstall -g @devstationlabs/cli`.
 
 Per-project state, in each project you used it in:
 
