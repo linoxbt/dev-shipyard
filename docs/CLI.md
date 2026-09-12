@@ -165,7 +165,7 @@ leaving; **Ctrl-D** leaves.
     --budget <usd>   stop before a turn that would exceed this
 -y, --yes            approve every gated action without asking
 -f, --follow         keep watching (status only)
-    --json           machine-readable output where it makes sense
+    --json           JSON from config, sessions, checkpoints and tools
     --no-sandbox     run commands on this machine instead of in a container
 -h, --help
 -v, --version
@@ -186,12 +186,12 @@ or reaches production. A plain Enter means no.
 
 `--autonomy` moves the line, and there is a floor it cannot move:
 
-| mode                      | what proceeds unattended                        |
-| ------------------------- | ----------------------------------------------- |
-| `ask_sensitive` (default) | ordinary development only                       |
-| `ask_integrations`        | the same, plus integration-shaped work          |
-| `ask_deploy`              | everything except deploys and anything critical |
-| `autonomous`              | everything except **critical**                  |
+| mode                      | what proceeds unattended                                                                                     |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `ask_sensitive` (default) | ordinary development only; everything gated asks                                                             |
+| `ask_integrations`        | ordinary work, plus medium-risk integration work: adding a dependency, writing config, creating a repository |
+| `ask_deploy`              | everything except deploys and anything critical                                                              |
+| `autonomous`              | everything except **critical**                                                                               |
 
 **Critical always asks, whatever the setting.** That is deleting a project,
 reading stored credentials, running an arbitrary shell command, and rewinding
