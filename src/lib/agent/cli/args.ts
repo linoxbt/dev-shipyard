@@ -23,6 +23,8 @@ export type Command =
   | "diff"
   | "tools"
   | "config"
+  | "login"
+  | "logout"
   | "doctor"
   | "version"
   | "help";
@@ -38,6 +40,9 @@ export interface ParsedArgs {
   /** Run commands in a container. On unless turned off, so the weaker mode is
    *  always something somebody chose. */
   sandbox: boolean;
+  /** `config set --project` writes .devstation/config.json in the workspace
+   *  instead of the global file. */
+  project: boolean;
   root: string;
   autonomy?: "ask_sensitive" | "ask_integrations" | "ask_deploy" | "autonomous";
   model?: string;
@@ -63,6 +68,8 @@ export const COMMANDS = new Set<Command>([
   "diff",
   "tools",
   "config",
+  "login",
+  "logout",
   "doctor",
   "version",
   "help",
@@ -77,6 +84,8 @@ export const OFFLINE_COMMANDS = new Set<Command>([
   "diff",
   "tools",
   "config",
+  "login",
+  "logout",
   "doctor",
   "version",
   "help",
@@ -97,6 +106,7 @@ export function parseArgs(argv: string[], cwd = process.cwd()): ParsedArgs {
     // DEVSTATION_SANDBOX=off is the environment equivalent of --no-sandbox,
     // for a machine where passing the flag every time is not practical.
     sandbox: (process.env.DEVSTATION_SANDBOX ?? "").toLowerCase() !== "off",
+    project: false,
     root: cwd,
   };
 
@@ -121,6 +131,9 @@ export function parseArgs(argv: string[], cwd = process.cwd()): ParsedArgs {
         break;
       case "--no-sandbox":
         parsed.sandbox = false;
+        break;
+      case "--project":
+        parsed.project = true;
         break;
       case "-h":
       case "--help":
@@ -217,7 +230,12 @@ export const HELP = `DevStation, the coding agent.
   ${CLI_NAME} memory               show what it has been told about this project
   ${CLI_NAME} mcp                  the MCP servers configured here, and their tools
   ${CLI_NAME} tools                list the tools it can use, and which ones ask first
-  ${CLI_NAME} config               show the settings this run would use
+  ${CLI_NAME} login [provider]     store an API key and choose a model
+  ${CLI_NAME} logout [provider]    remove stored API keys
+  ${CLI_NAME} config               show the settings a run would use, and where each came from
+  ${CLI_NAME} config set <key> <value> [--project]
+                               set provider, model or baseUrl
+  ${CLI_NAME} config get|unset <key>, config path
   ${CLI_NAME} doctor               check this machine is set up to run it
   ${CLI_NAME} version              print the version
   ${CLI_NAME} help                 this
@@ -234,12 +252,14 @@ Options
   -f, --follow        keep watching (status only)
   --json              JSON from config, sessions, checkpoints and tools
   --no-sandbox        run commands on this machine instead of in a container
+  --project           with config set/unset: write this workspace's config, not the global one
   -h, --help          this
   -v, --version       the version
 
 The repo command also needs GITHUB_TOKEN, with permission to push to that repository.
 
-Set ANTHROPIC_API_KEY, or OPENROUTER_API_KEY, before running.
+Set up a model with \`${CLI_NAME} login\`, or export ANTHROPIC_API_KEY or OPENROUTER_API_KEY.
+Settings live in ~/.devstation/config.json, keys in ~/.devstation/credentials.json.
 `;
 
 export const SESSION_HELP = `  /undo          rewind the last checkpoint

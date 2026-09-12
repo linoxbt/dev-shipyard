@@ -1,14 +1,17 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { MockProvider, configuredProviderName } from "../providers";
+import { MockProvider, resolveSettings } from "../providers";
 import { SessionStore } from "../session-store";
 import { CLI_NAME, COMMANDS, HELP, SESSION_HELP, parseArgs } from "./args";
 import { renderEvent, renderSessions, renderUsage } from "./render";
 import { chatCommand, handleSlash } from "./interactive";
 import { lineReader } from "./line-reader";
 import {
+  configEditCommand,
+  loginCommand,
+  logoutCommand,
   buildExecutor,
   checkpointsCommand,
   undoCommand,
@@ -699,9 +702,113 @@ describe("what config reports", () => {
       .split("\n")
       .find((l) => l.startsWith("provider"));
     expect(line).toBeDefined();
-    const expected = configuredProviderName();
-    if (expected) expect(line).toContain(expected);
-    else expect(line).toContain("ANTHROPIC_API_KEY");
+    // The same resolution a run would do, including where the value came from.
+    const expected = resolveSettings({ root });
+    expect(line).toContain(expected.provider ?? "none");
+    expect(line).toContain(expected.source.provider);
+    if (expected.problem) expect(term.errors()).toContain("devstation login");
+  });
+});
+
+describe("login and config set", () => {
+  const realHome = process.env.HOME;
+  afterEach(() => {
+    process.env.HOME = realHome;
+  });
+
+  function withHome() {
+    const home = scratch();
+    process.env.HOME = home;
+    return home;
+  }
+
+  it("stores a key owner-only and never prints it back", async () => {
+    const home = withHome();
+    const root = scratch();
+    const secret = "sk-or-v1-abcdef0123456789";
+    // Answers in order: key, model. The provider comes from the argument.
+    const term = terminal([secret, "anthropic/claude-sonnet-5"]);
+    const code = await loginCommand(context(root, new MockProvider([]), term.t), "openrouter");
+    expect(code).toBe(0);
+
+    const stored = JSON.parse(readFileSync(join(home, ".devstation", "credentials.json"), "utf8"));
+    expect(stored.openrouter).toBe(secret);
+    expect(statSync(join(home, ".devstation", "credentials.json")).mode & 0o777).toBe(0o600);
+    // Masked in the confirmation, never whole.
+    expect(term.text()).not.toContain(secret);
+    expect(term.text()).toContain("sk-o…6789");
+
+    const settings = resolveSettings({ root, home, env: {} });
+    expect(settings.provider).toBe("openrouter");
+    expect(settings.model).toBe("anthropic/claude-sonnet-5");
+    expect(settings.apiKey).toBe(secret);
+  });
+
+  it("sets up a local OpenAI-compatible server with no key", async () => {
+    const home = withHome();
+    const root = scratch();
+    // endpoint, key (blank), model
+    const term = terminal(["http://localhost:11434/v1", "", "llama3.3"]);
+    expect(await loginCommand(context(root, new MockProvider([]), term.t), "openai")).toBe(0);
+    const r = resolveSettings({ root, home, env: {} });
+    expect(r.provider).toBe("openai");
+    expect(r.baseUrl).toBe("http://localhost:11434/v1");
+    expect(r.problem).toBeNull();
+  });
+
+  it("round-trips a setting, and scopes --project to the workspace", () => {
+    const home = withHome();
+    const root = scratch();
+    const ctx = context(root, new MockProvider([]), terminal().t);
+
+    expect(configEditCommand(ctx, "set model global/model")).toBe(0);
+    expect(configEditCommand(ctx, "set model project/model", { project: true })).toBe(0);
+
+    const get = terminal();
+    configEditCommand(context(root, new MockProvider([]), get.t), "get model");
+    expect(get.text()).toBe("global/model");
+    expect(resolveSettings({ root, home, env: { OPENROUTER_API_KEY: "k" } }).model).toBe(
+      "project/model",
+    );
+
+    expect(configEditCommand(ctx, "unset model", { project: true })).toBe(0);
+    expect(resolveSettings({ root, home, env: { OPENROUTER_API_KEY: "k" } }).model).toBe(
+      "global/model",
+    );
+  });
+
+  it("refuses to put a key in a config file", () => {
+    withHome();
+    const term = terminal();
+    expect(
+      configEditCommand(context(scratch(), new MockProvider([]), term.t), "set apiKey sk-x"),
+    ).toBe(2);
+    expect(term.errors()).toContain("devstation login");
+  });
+
+  it("rejects an unknown provider and a malformed endpoint", () => {
+    withHome();
+    const term = terminal();
+    const ctx = context(scratch(), new MockProvider([]), term.t);
+    expect(configEditCommand(ctx, "set provider gemini")).toBe(2);
+    expect(configEditCommand(ctx, "set baseUrl localhost:11434")).toBe(2);
+  });
+
+  it("removes one stored key on logout and leaves the rest", async () => {
+    const home = withHome();
+    const root = scratch();
+    await loginCommand(
+      context(root, new MockProvider([]), terminal(["sk-ant-111111111", ""]).t),
+      "anthropic",
+    );
+    await loginCommand(
+      context(root, new MockProvider([]), terminal(["sk-or-2222222222", ""]).t),
+      "openrouter",
+    );
+    expect(logoutCommand(context(root, new MockProvider([]), terminal().t), "anthropic")).toBe(0);
+    const stored = JSON.parse(readFileSync(join(home, ".devstation", "credentials.json"), "utf8"));
+    expect(stored.anthropic).toBeUndefined();
+    expect(stored.openrouter).toBe("sk-or-2222222222");
   });
 });
 

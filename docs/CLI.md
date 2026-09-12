@@ -7,7 +7,7 @@ it except the model calls.
 This is the reference. `packages/cli/README.md` is the two-minute version.
 
 - [Installing](#installing)
-- [A model key](#a-model-key)
+- [Setting up a model](#setting-up-a-model)
 - [Using it](#using-it)
 - [Every command](#every-command)
 - [Every flag](#every-flag)
@@ -86,17 +86,104 @@ missing-module trace.
 devstation doctor
 ```
 
-## A model key
+## Setting up a model
 
-The agent needs a model. Set one and `doctor` goes green:
+Once, the way `claude` and `codex` set themselves up:
 
 ```sh
-export ANTHROPIC_API_KEY=...     # preferred: prompt caching and native tool use
-export OPENROUTER_API_KEY=...    # also works, and reaches other vendors
+devstation login
 ```
 
-Put it in your shell profile so a new terminal keeps it. Nothing is stored by
-the CLI itself: it reads the environment each run.
+It asks which provider, then the key (hidden as you type), then the model. After
+that every new terminal just works.
+
+```sh
+devstation login anthropic     # Claude, directly
+devstation login openrouter    # one key for Claude, GPT, Gemini, DeepSeek and more
+devstation login openai        # OpenAI, or any compatible server: Ollama, LM Studio, Groq, Together
+```
+
+Scriptable too — the key comes from standard input:
+
+```sh
+echo "$OPENROUTER_API_KEY" | devstation login openrouter
+```
+
+`devstation logout [provider]` removes stored keys. Check the result any time
+with `devstation config`, which shows each value and where it came from.
+
+### Where settings live
+
+```
+~/.devstation/config.json         provider, model, baseUrl        (global)
+.devstation/config.json           the same, for one project       (overrides global)
+~/.devstation/credentials.json    API keys                        (owner-only, mode 600)
+```
+
+`config.json` never holds a key: it is the file people share and commit, so a
+key there would end up in git. An `apiKey` field in it is ignored with a
+warning. Keys go through `login`, into the credentials file, which is written
+readable by you alone — and `doctor` warns if its permissions are ever loosened.
+
+```json
+{
+  "provider": "openai",
+  "model": "llama3.3",
+  "baseUrl": "http://localhost:11434/v1"
+}
+```
+
+### Changing one setting
+
+```sh
+devstation config set model anthropic/claude-opus-5
+devstation config set provider openrouter
+devstation config set baseUrl https://api.groq.com/openai/v1
+devstation config set model qwen2.5-coder --project    # this workspace only
+devstation config get model
+devstation config unset baseUrl
+devstation config path                                 # where the files are
+```
+
+### Endpoints
+
+| to use                          | provider     | baseUrl                               | key  |
+| ------------------------------- | ------------ | ------------------------------------- | ---- |
+| Anthropic                       | `anthropic`  | default                               | yes  |
+| OpenRouter                      | `openrouter` | default                               | yes  |
+| OpenAI                          | `openai`     | default (`https://api.openai.com/v1`) | yes  |
+| Ollama                          | `openai`     | `http://localhost:11434/v1`           | none |
+| LM Studio                       | `openai`     | `http://localhost:1234/v1`            | none |
+| Groq                            | `openai`     | `https://api.groq.com/openai/v1`      | yes  |
+| Together                        | `openai`     | `https://api.together.xyz/v1`         | yes  |
+| An Anthropic-compatible gateway | `anthropic`  | the gateway's URL                     | yes  |
+
+`baseUrl` is everything up to, not including, `/chat/completions`. The `openai`
+provider always needs a model name, because every compatible server names them
+differently.
+
+### Which value wins
+
+| setting  | first found wins                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------ |
+| provider | `DEVSTATION_PROVIDER` → project config → global config → inferred from whichever key is exported |
+| model    | `--model` → `DEVSTATION_MODEL` → project config → global config → provider default               |
+| baseUrl  | `DEVSTATION_BASE_URL` → project config → global config → provider default                        |
+| key      | the exported variable for that provider → `~/.devstation/credentials.json`                       |
+
+A provider you chose in a config file is never overridden by a key that happens
+to be exported for some other tool. With no settings files at all it behaves
+exactly as it always has: `ANTHROPIC_API_KEY` first, then `OPENROUTER_API_KEY`.
+
+### Or just environment variables
+
+Still supported, and still what a server or CI job should use:
+
+```sh
+export ANTHROPIC_API_KEY=...
+export OPENROUTER_API_KEY=...
+export OPENAI_API_KEY=...
+```
 
 ## Using it
 
@@ -392,8 +479,10 @@ Inside the workspace, and nowhere else:
 .devstation/mcp.json       per-project MCP servers, if you add them
 ```
 
-And in your home directory: `~/.devstation/bin/devstation`, plus
-`~/.devstation/mcp.json` if you use global MCP servers. Nothing else, anywhere.
+And in your home directory: `~/.devstation/config.json` and
+`~/.devstation/credentials.json` once you run `login`, `~/.devstation/mcp.json`
+if you use global MCP servers, and `~/.devstation/bin/devstation` if you used
+the shell installer. Nothing else, anywhere.
 
 ## Uninstalling
 

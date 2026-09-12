@@ -1,14 +1,18 @@
 #!/usr/bin/env bun
 import { createInterface } from "node:readline/promises";
+import { Writable } from "node:stream";
 import { resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { CLI_NAME, HELP, OFFLINE_COMMANDS, VERSION, parseArgs, type ParsedArgs } from "./args";
 import {
   checkpointsCommand,
   configCommand,
+  configEditCommand,
   diffCommand,
   doctorCommand,
   indexCommand,
+  loginCommand,
+  logoutCommand,
   mcpCommand,
   memoryCommand,
   resumeCommand,
@@ -24,7 +28,7 @@ import { chatCommand } from "./interactive";
 import { repoCommand } from "./repo-command";
 import { colourEnabled } from "./render";
 import { lineReader } from "./line-reader";
-import { configuredProviderName, providerFromEnv } from "../providers";
+import { providerFromSettings, resolveSettings } from "../providers";
 
 // The terminal front end. Everything below the parsing and the readline lives
 // in commands.ts and interactive.ts, which is what makes this a thin third
@@ -53,12 +57,35 @@ export async function main(argv: string[]): Promise<number> {
     return 2;
   }
 
-  const readline = createInterface({ input: process.stdin, output: process.stdout });
+  // readline echoes what is typed through its output. Routing that through a
+  // switchable stream is what lets a key be entered without appearing on screen.
+  let muted = false;
+  const output = new Writable({
+    write(chunk, encoding, done) {
+      if (!muted) process.stdout.write(chunk, encoding);
+      done();
+    },
+  });
+  const readline = createInterface({
+    input: process.stdin,
+    output,
+    terminal: Boolean(process.stdin.isTTY),
+  });
   const input = lineReader(readline, (text) => process.stdout.write(text));
   const terminal: Terminal = {
     out: (text) => process.stdout.write(`${text}\n`),
     err: (text) => process.stderr.write(`${text}\n`),
     ask: (question) => input.ask(question),
+    askSecret: async (question) => {
+      process.stdout.write(question);
+      muted = true;
+      try {
+        return await input.ask("");
+      } finally {
+        muted = false;
+        if (process.stdin.isTTY) process.stdout.write("\n");
+      }
+    },
     // Only when somebody is actually watching. Into a pipe, a half-written
     // line is a broken log rather than a live one.
     write: process.stdout.isTTY ? (text) => process.stdout.write(text) : undefined,
@@ -92,7 +119,13 @@ export async function main(argv: string[]): Promise<number> {
       case "tools":
         return toolsCommand(offline);
       case "config":
-        return configCommand(offline);
+        return parsed.rest.trim()
+          ? configEditCommand(offline, parsed.rest, { project: parsed.project })
+          : configCommand(offline);
+      case "login":
+        return await loginCommand(offline, parsed.rest);
+      case "logout":
+        return logoutCommand(offline, parsed.rest);
       case "doctor":
         return await doctorCommand(offline);
       case "index":
@@ -105,11 +138,11 @@ export async function main(argv: string[]): Promise<number> {
         break;
     }
 
-    const provider = providerFromEnv(process.env, parsed.model);
+    const settings = resolveSettings({ root, model: parsed.model });
+    for (const warning of settings.warnings) terminal.err(`warning: ${warning}`);
+    const provider = providerFromSettings(settings);
     if (!provider) {
-      terminal.err(
-        "No model provider is configured. Set ANTHROPIC_API_KEY (or OPENROUTER_API_KEY) and try again.",
-      );
+      terminal.err(settings.problem ?? "No model provider is configured.");
       terminal.err(`Run \`${CLI_NAME} doctor\` to see what else is missing.`);
       return 2;
     }
@@ -140,7 +173,7 @@ export async function main(argv: string[]): Promise<number> {
       terminal.err(`Give it something to do: ${CLI_NAME} run "fix the failing test in src/lib"`);
       return 2;
     }
-    terminal.out(`using ${configuredProviderName()}`);
+    terminal.out(`using ${provider.name}/${provider.model}`);
     const { code } = await runCommand(ctx, parsed.rest);
     return code;
   } finally {

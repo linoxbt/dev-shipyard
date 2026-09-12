@@ -18,7 +18,17 @@ import {
 // Streaming is hand-parsed because there is no vendor SDK to lean on. That is
 // precisely the work the Anthropic implementation avoids by using one.
 
-const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
+
+export interface OpenAiCompatibleOptions {
+  /** "openrouter" (the default) or "openai" for any other compatible server:
+   *  OpenAI itself, Ollama, LM Studio, Groq, Together. Only OpenRouter gets its
+   *  attribution headers and its reasoning switch, which other servers either
+   *  ignore or reject. */
+  name?: "openrouter" | "openai";
+  /** Up to, not including, `/chat/completions`. */
+  baseUrl?: string;
+}
 
 interface OpenAiToolCall {
   id: string;
@@ -84,24 +94,40 @@ function parseArguments(raw: string): Record<string, unknown> {
 }
 
 export class OpenRouterProvider implements ModelProvider {
-  readonly name = "openrouter";
+  readonly name: "openrouter" | "openai";
   readonly model: string;
+  private readonly endpoint: string;
 
+  /**
+   * OpenRouter by default, and any OpenAI-compatible server when given a name
+   * and an endpoint. One class, because the wire format is the same one: what
+   * differs is the URL and two OpenRouter-only extras.
+   */
   constructor(
     private readonly apiKey: string,
     model?: string,
+    opts: OpenAiCompatibleOptions = {},
   ) {
-    this.model = model || process.env.AI_MODEL || "anthropic/claude-sonnet-5";
+    this.name = opts.name ?? "openrouter";
+    const base = (opts.baseUrl || OPENROUTER_BASE).replace(/\/+$/, "");
+    this.endpoint = `${base}/chat/completions`;
+    this.model =
+      model ||
+      process.env.AI_MODEL ||
+      (this.name === "openrouter" ? "anthropic/claude-sonnet-5" : "");
   }
 
   async generate(input: GenerateInput): Promise<ProviderResult> {
-    const res = await fetch(ENDPOINT, {
+    const openRouter = this.name === "openrouter";
+    const res = await fetch(this.endpoint, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${this.apiKey}`,
-        "HTTP-Referer": "https://devstation.online",
-        "X-Title": "DevStation",
+        // A local server needs no key, and some reject an empty bearer.
+        ...(this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}),
+        ...(openRouter
+          ? { "HTTP-Referer": "https://devstation.online", "X-Title": "DevStation" }
+          : {}),
       },
       body: JSON.stringify({
         model: this.model,
@@ -123,14 +149,17 @@ export class OpenRouterProvider implements ModelProvider {
           : {}),
         // Reasoning deltas carry no content, and a long reasoning burst looks
         // exactly like a hang.
-        ...(process.env.AI_REASONING === "on" ? {} : { reasoning: { enabled: false } }),
+        ...(openRouter && process.env.AI_REASONING !== "on"
+          ? { reasoning: { enabled: false } }
+          : {}),
       }),
       signal: input.signal,
     });
 
     if (!res.ok || !res.body) {
       const detail = await res.text().catch(() => "");
-      throw new Error(`OpenRouter request failed (${res.status}). ${detail.slice(0, 200)}`);
+      const label = openRouter ? "OpenRouter" : `The endpoint ${this.endpoint}`;
+      throw new Error(`${label} request failed (${res.status}). ${detail.slice(0, 200)}`);
     }
 
     let text = "";

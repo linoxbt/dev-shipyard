@@ -4,7 +4,22 @@ import { listSnapshots, undoSnapshot } from "../snapshots";
 import { evaluate } from "../policy";
 import { runShell } from "../shell";
 import { requiresPerson, toolCatalogue, TOOLS, type ToolDefinition } from "../tools";
-import { configuredProviderName } from "../providers";
+import {
+  DEFAULT_BASE_URL,
+  PROVIDER_IDS,
+  SETTING_KEYS,
+  credentialsPath,
+  globalConfigPath,
+  maskKey,
+  projectConfigPath,
+  readCredentials,
+  readSettingsFile,
+  resolveSettings,
+  writeCredentials,
+  writeSettingsFile,
+  type ProviderId,
+  type SettingKey,
+} from "../providers";
 import { embeddingsFromEnv } from "../memory/embeddings";
 import { indexWorkspace, openStore } from "../memory/workspace-index";
 import { formatEntry, memoryPath, readMemory } from "../memory/project-memory";
@@ -39,6 +54,9 @@ export interface Terminal {
   out(text: string): void;
   err(text: string): void;
   ask(question: string): Promise<string>;
+  /** Ask without echoing what is typed, for API keys. Absent where there is no
+   *  terminal to mute, and callers fall back to ask(). */
+  askSecret?(question: string): Promise<string>;
   /** Write without a newline, for text arriving a piece at a time. Absent on a
    *  terminal that cannot usefully stream, such as a pipe, and the caller then
    *  prints the finished text once instead. */
@@ -507,7 +525,17 @@ export function configCommand(context: CommandContext): number {
           git: isRepo(context.root),
           provider: context.provider
             ? { name: context.provider.name, model: context.provider.model }
-            : (configuredProviderName() ?? null),
+            : (() => {
+                const r = resolveSettings({ root: context.root });
+                return {
+                  name: r.provider,
+                  model: r.model,
+                  baseUrl: r.baseUrl,
+                  key: maskKey(r.apiKey),
+                  source: r.source,
+                  problem: r.problem,
+                };
+              })(),
           autonomy: context.autonomy ?? "ask_sensitive",
           maxSteps: context.maxSteps ?? 40,
           budgetUsd: context.maxCostUsd ?? null,
@@ -520,19 +548,218 @@ export function configCommand(context: CommandContext): number {
     );
     return 0;
   }
+  // What a run would actually use, not what this command happens to hold:
+  // `config` runs without a provider, so reading it off the context would
+  // always say "none configured". Each value says where it came from, because
+  // "why is it using that model" is the question this command exists for.
+  const r = resolveSettings({ root: context.root });
   const lines = [
     `workspace   ${context.root}`,
     `git         ${isRepo(context.root) ? "yes" : "no, so checkpoints are file snapshots under .devstation/"}`,
-    // What a run would actually use, not what this command happens to hold:
-    // `config` is one of the commands that runs without a provider, so reading
-    // it off the context would always say "none configured".
-    `provider    ${context.provider ? `${context.provider.name}/${context.provider.model}` : (configuredProviderName() ?? "none configured, set ANTHROPIC_API_KEY or OPENROUTER_API_KEY")}`,
+    // Inside a session the provider is already chosen and running, and that is
+    // the true answer. Resolving settings again there could name a different
+    // one than the conversation is actually using.
+    context.provider
+      ? `provider    ${context.provider.name}/${context.provider.model}  (this session)`
+      : `provider    ${r.provider ?? "none"}  (${r.source.provider})`,
+    `model       ${context.provider ? context.provider.model : (r.model ?? "provider default")}  (${context.provider ? "this session" : r.source.model})`,
+    `endpoint    ${r.baseUrl ?? (r.provider ? DEFAULT_BASE_URL[r.provider] : "none")}  (${r.source.baseUrl})`,
+    `api key     ${maskKey(r.apiKey)}  (${r.source.apiKey})`,
     `autonomy    ${context.autonomy ?? "ask_sensitive"}`,
     `max steps   ${context.maxSteps ?? 40}`,
     `budget      ${context.maxCostUsd ? `$${context.maxCostUsd}` : "none set"}`,
     `approvals   ${context.yes ? "auto-approved (--yes)" : "asked in the terminal"}`,
   ];
   for (const line of lines) context.terminal.out(line);
+  if (r.problem && !context.provider) context.terminal.err(`\n${r.problem}`);
+  for (const warning of r.warnings) context.terminal.err(`warning: ${warning}`);
+  return 0;
+}
+
+function home(): string {
+  return process.env.HOME ?? "";
+}
+
+/** `config set|get|unset <key> [value]` and `config path`. */
+export function configEditCommand(
+  context: CommandContext,
+  rest: string,
+  opts: { project?: boolean } = {},
+): number {
+  const [action, key, ...valueWords] = rest.trim().split(/\s+/);
+  const value = valueWords.join(" ").trim();
+  const path = opts.project ? projectConfigPath(context.root) : globalConfigPath(home());
+
+  if (action === "path") {
+    context.terminal.out(`global       ${globalConfigPath(home())}`);
+    context.terminal.out(`project      ${projectConfigPath(context.root)}`);
+    context.terminal.out(`credentials  ${credentialsPath(home())}`);
+    return 0;
+  }
+
+  if (key === "apiKey" || key === "key") {
+    // Keys go through login, into the owner-only credentials file. A key in
+    // config.json is a key in whatever that file gets shared or committed with.
+    context.terminal.err(
+      `API keys are not stored in config. Run \`devstation login\` to store one in ${credentialsPath(home())}.`,
+    );
+    return 2;
+  }
+  if (!key || !(SETTING_KEYS as readonly string[]).includes(key)) {
+    context.terminal.err(`Unknown setting "${key ?? ""}". Settings: ${SETTING_KEYS.join(", ")}.`);
+    return 2;
+  }
+  const name = key as SettingKey;
+  const current = readSettingsFile(path);
+
+  if (action === "get") {
+    context.terminal.out(current[name] ?? "");
+    return 0;
+  }
+  if (action === "unset") {
+    delete current[name];
+    writeSettingsFile(path, current);
+    context.terminal.out(`Removed ${name} from ${path}.`);
+    return 0;
+  }
+  if (action === "set") {
+    if (!value) {
+      context.terminal.err(`Give it a value: devstation config set ${name} <value>`);
+      return 2;
+    }
+    if (name === "provider" && !(PROVIDER_IDS as readonly string[]).includes(value)) {
+      context.terminal.err(`Unknown provider "${value}". Providers: ${PROVIDER_IDS.join(", ")}.`);
+      return 2;
+    }
+    if (name === "baseUrl" && !/^https?:\/\//.test(value)) {
+      context.terminal.err("baseUrl must start with http:// or https://.");
+      return 2;
+    }
+    (current as Record<string, string>)[name] =
+      name === "baseUrl" ? value.replace(/\/+$/, "") : value;
+    writeSettingsFile(path, current);
+    context.terminal.out(`Set ${name} = ${(current as Record<string, string>)[name]} in ${path}.`);
+    return 0;
+  }
+
+  context.terminal.err(
+    "Use: devstation config set <key> <value> | get <key> | unset <key> | path   (add --project for this workspace)",
+  );
+  return 2;
+}
+
+/**
+ * Store a key, and optionally a model and endpoint, the way `claude` and
+ * `codex` set themselves up: once, interactively, and then every new shell just
+ * works.
+ *
+ * The key is read without echo on a terminal and never printed back, not even
+ * in the confirmation, which shows only enough of it to tell two apart. Piped
+ * input works too, so `echo "$KEY" | devstation login openrouter` is scriptable.
+ */
+export async function loginCommand(context: CommandContext, rest: string): Promise<number> {
+  const t = context.terminal;
+  const secret = t.askSecret ? (q: string) => t.askSecret!(q) : (q: string) => t.ask(q);
+
+  let provider = rest.trim().split(/\s+/)[0] as ProviderId | "";
+  if (!provider) {
+    t.out("Which provider?");
+    t.out("  anthropic   Claude, directly (prompt caching, native tool use)");
+    t.out("  openrouter  one key for Claude, GPT, Gemini, DeepSeek and more");
+    t.out("  openai      OpenAI, or any compatible server: Ollama, LM Studio, Groq, Together");
+    provider = ((await t.ask("provider [anthropic]: ")).trim() || "anthropic") as ProviderId;
+  }
+  if (!(PROVIDER_IDS as readonly string[]).includes(provider)) {
+    t.err(`Unknown provider "${provider}". Providers: ${PROVIDER_IDS.join(", ")}.`);
+    return 2;
+  }
+  const id = provider as ProviderId;
+
+  let baseUrl = "";
+  if (id === "openai") {
+    baseUrl = (await t.ask(`endpoint [${DEFAULT_BASE_URL.openai}]: `)).trim();
+    if (baseUrl && !/^https?:\/\//.test(baseUrl)) {
+      t.err("The endpoint must start with http:// or https://.");
+      return 2;
+    }
+  }
+
+  const key = (
+    await secret(id === "openai" ? "API key (blank for a local server): " : "API key: ")
+  ).trim();
+  if (!key && id !== "openai") {
+    t.err("No key entered, so nothing was saved.");
+    return 2;
+  }
+
+  const modelHint =
+    id === "anthropic"
+      ? "claude-sonnet-5"
+      : id === "openrouter"
+        ? "anthropic/claude-sonnet-5"
+        : "required";
+  const model = (await t.ask(`model [${modelHint}]: `)).trim();
+  if (id === "openai" && !model) {
+    t.err(
+      "The openai provider needs a model name, because every compatible server names them differently.",
+    );
+    return 2;
+  }
+
+  const h = home();
+  if (!h) {
+    t.err("HOME is not set, so there is nowhere to store settings.");
+    return 2;
+  }
+
+  if (key) {
+    const credentials = readCredentials(h);
+    credentials[id] = key;
+    writeCredentials(h, credentials);
+  }
+  const settings = readSettingsFile(globalConfigPath(h));
+  settings.provider = id;
+  if (model) settings.model = model;
+  else delete settings.model;
+  if (baseUrl) settings.baseUrl = baseUrl.replace(/\/+$/, "");
+  else if (id !== "openai") delete settings.baseUrl;
+  writeSettingsFile(globalConfigPath(h), settings);
+
+  t.out("");
+  t.out(
+    `Saved. provider ${id}, model ${model || "provider default"}${baseUrl ? `, endpoint ${baseUrl}` : ""}`,
+  );
+  if (key) t.out(`key ${maskKey(key)} in ${credentialsPath(h)} (readable only by you)`);
+  t.out(`settings in ${globalConfigPath(h)}`);
+  t.out("");
+  t.out("Check it with: devstation doctor");
+  return 0;
+}
+
+/** Remove stored keys: one provider's, or all of them. Settings stay. */
+export function logoutCommand(context: CommandContext, rest: string): number {
+  const h = home();
+  const target = rest.trim().split(/\s+/)[0] as ProviderId | "";
+  if (target && !(PROVIDER_IDS as readonly string[]).includes(target)) {
+    context.terminal.err(`Unknown provider "${target}". Providers: ${PROVIDER_IDS.join(", ")}.`);
+    return 2;
+  }
+  const credentials = readCredentials(h);
+  const removed = target
+    ? credentials[target as ProviderId]
+      ? [target]
+      : []
+    : Object.keys(credentials);
+  if (removed.length === 0) {
+    context.terminal.out(target ? `No stored key for ${target}.` : "No stored keys.");
+    return 0;
+  }
+  if (target) delete credentials[target as ProviderId];
+  writeCredentials(h, target ? credentials : {});
+  context.terminal.out(`Removed the stored key for ${removed.join(", ")}.`);
+  context.terminal.out(
+    "Keys exported in your shell (ANTHROPIC_API_KEY, OPENROUTER_API_KEY, OPENAI_API_KEY) are not touched.",
+  );
   return 0;
 }
 
@@ -549,12 +776,17 @@ export async function runChecks(
 ): Promise<Check[]> {
   const checks: Check[] = [];
 
-  const provider = configuredProviderName(env);
+  const settings = resolveSettings({ root, env });
   checks.push({
     name: "model provider",
-    ok: provider !== null,
-    detail: provider ?? "set ANTHROPIC_API_KEY, or OPENROUTER_API_KEY",
+    ok: settings.problem === null,
+    detail:
+      settings.problem ??
+      `${settings.provider}${settings.model ? `/${settings.model}` : ""}, key from ${settings.source.apiKey}`,
   });
+  for (const warning of settings.warnings) {
+    checks.push({ name: "settings", ok: false, detail: warning });
+  }
 
   const git = await runShell("git --version", { cwd: root, timeoutMs: 15_000 });
   checks.push({

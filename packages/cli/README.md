@@ -27,16 +27,24 @@ Either way, check the install:
 devstation doctor
 ```
 
-## A key
-
-The agent needs a model. Set one of these and `doctor` will go green:
+## Set up a model
 
 ```sh
-export ANTHROPIC_API_KEY=...     # preferred: prompt caching, native tool use
-export OPENROUTER_API_KEY=...    # also works
+devstation login
 ```
 
-Put it in your shell profile so it survives a new terminal.
+Pick a provider, paste a key (it is hidden as you type), choose a model. It is
+stored in `~/.devstation/credentials.json`, readable only by you, so every new
+terminal just works. Anthropic, OpenRouter, OpenAI, and any OpenAI-compatible
+server — Ollama, LM Studio, Groq — are supported:
+
+```sh
+devstation login openai        # then give it http://localhost:11434/v1 for Ollama
+devstation config              # what it will use, and where each value came from
+```
+
+Exporting `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY` still works, and is what a
+server or CI job should do.
 
 ## Use it
 

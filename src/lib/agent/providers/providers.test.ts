@@ -1,7 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { toAnthropicMessages } from "./anthropic";
 import { MockProvider } from "./mock";
-import { configuredProviderName, providerFromEnv, addUsage, EMPTY_USAGE } from "./index";
+import {
+  configuredProviderName,
+  providerFromEnv,
+  addUsage,
+  EMPTY_USAGE,
+  OpenRouterProvider,
+} from "./index";
 import type { ProviderMessage } from "./types";
 
 // The mapping from our message list to Anthropic's is where ports of this
@@ -160,5 +166,70 @@ describe("usage accounting", () => {
       cacheReadTokens: 7,
       cacheWriteTokens: 0,
     });
+  });
+});
+
+describe("an OpenAI-compatible endpoint", () => {
+  const realFetch = globalThis.fetch;
+
+  function capture() {
+    const seen: { url: string; headers: Record<string, string>; body: Record<string, unknown> }[] =
+      [];
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      seen.push({
+        url: String(url),
+        headers: (init?.headers ?? {}) as Record<string, string>,
+        body: JSON.parse(String(init?.body ?? "{}")),
+      });
+      const stream = new ReadableStream({
+        start(c) {
+          c.enqueue(
+            new TextEncoder().encode(
+              'data: {"choices":[{"delta":{"content":"hi"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
+            ),
+          );
+          c.close();
+        },
+      });
+      return new Response(stream, { status: 200 });
+    }) as typeof fetch;
+    return seen;
+  }
+
+  it("posts to the endpoint it was given, with no OpenRouter extras", async () => {
+    const seen = capture();
+    try {
+      const provider = new OpenRouterProvider("", "llama3.3", {
+        name: "openai",
+        baseUrl: "http://localhost:11434/v1/",
+      });
+      const result = await provider.generate({
+        system: "s",
+        messages: [{ role: "user", content: "q" }],
+      });
+      expect(result.text).toBe("hi");
+      expect(seen[0].url).toBe("http://localhost:11434/v1/chat/completions");
+      // A local server needs no key, and an empty bearer is rejected by some.
+      expect(seen[0].headers.authorization).toBeUndefined();
+      expect(seen[0].headers["HTTP-Referer"]).toBeUndefined();
+      expect(seen[0].body.reasoning).toBeUndefined();
+      expect(provider.name).toBe("openai");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("keeps OpenRouter exactly as it was by default", async () => {
+    const seen = capture();
+    try {
+      const provider = new OpenRouterProvider("sk-or", "a/b");
+      await provider.generate({ system: "s", messages: [{ role: "user", content: "q" }] });
+      expect(seen[0].url).toBe("https://openrouter.ai/api/v1/chat/completions");
+      expect(seen[0].headers.authorization).toBe("Bearer sk-or");
+      expect(seen[0].headers["X-Title"]).toBe("DevStation");
+      expect(provider.name).toBe("openrouter");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 });

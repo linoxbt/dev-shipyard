@@ -1,11 +1,13 @@
 import { AnthropicProvider } from "./anthropic";
 import { OpenRouterProvider } from "./openrouter";
 import type { ModelProvider } from "./types";
+import type { Resolved } from "./settings";
 
 export * from "./types";
 export { AnthropicProvider } from "./anthropic";
 export { OpenRouterProvider } from "./openrouter";
 export { MockProvider, type MockTurn } from "./mock";
+export * from "./settings";
 
 /**
  * Pick a provider from the environment.
@@ -34,4 +36,29 @@ export function configuredProviderName(env: NodeJS.ProcessEnv = process.env): st
   if (env.ANTHROPIC_API_KEY) return "anthropic";
   if (env.OPENROUTER_API_KEY || env.AI_API_KEY) return "openrouter";
   return null;
+}
+
+/**
+ * Build the provider that resolveSettings chose.
+ *
+ * Kept apart from providerFromEnv on purpose. The runner and the benchmark use
+ * the environment-only path and must keep behaving exactly as they did; only
+ * the CLI reads files, because only a person at a terminal wants a settings
+ * file and a login command.
+ */
+export function providerFromSettings(resolved: Resolved): ModelProvider | null {
+  if (resolved.problem || !resolved.provider) return null;
+  const model = resolved.model ?? undefined;
+  const baseUrl = resolved.baseUrl ?? undefined;
+  switch (resolved.provider) {
+    case "anthropic":
+      return new AnthropicProvider({ apiKey: resolved.apiKey ?? undefined, model, baseUrl });
+    case "openrouter":
+      return new OpenRouterProvider(resolved.apiKey ?? "", model, { name: "openrouter", baseUrl });
+    case "openai":
+      return new OpenRouterProvider(resolved.apiKey ?? "", model, {
+        name: "openai",
+        baseUrl: baseUrl ?? "https://api.openai.com/v1",
+      });
+  }
 }

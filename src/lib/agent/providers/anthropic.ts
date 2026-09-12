@@ -111,10 +111,14 @@ export class AnthropicProvider implements ModelProvider {
   readonly model: string;
   private readonly client: Anthropic;
 
-  constructor(opts: { apiKey?: string; model?: string } = {}) {
+  constructor(opts: { apiKey?: string; model?: string; baseUrl?: string } = {}) {
     // A bare constructor resolves ANTHROPIC_API_KEY, or an `ant auth login`
     // profile, on its own. Passing undefined explicitly keeps that behaviour.
-    this.client = new Anthropic(opts.apiKey ? { apiKey: opts.apiKey } : {});
+    // baseUrl is for a proxy or gateway that speaks the Anthropic API.
+    this.client = new Anthropic({
+      ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
+      ...(opts.baseUrl ? { baseURL: opts.baseUrl } : {}),
+    });
     this.model = opts.model || DEFAULT_MODEL;
   }
 
