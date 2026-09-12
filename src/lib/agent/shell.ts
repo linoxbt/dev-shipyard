@@ -52,7 +52,14 @@ export function runShell(
       cwd: opts.cwd,
       shell: windows ? "powershell.exe" : "/bin/sh",
       detached: !windows,
-      env: { ...process.env, ...opts.env },
+      // Exactly what the caller asked for, when they asked for anything.
+      //
+      // This used to be `{ ...process.env, ...opts.env }`, which meant an
+      // `env` option could only ADD to the parent environment and never remove
+      // from it. The executor's allow-list was therefore silently a no-op: it
+      // handed over a curated environment and the merge put every secret back.
+      // "env" meaning "the environment" is also the less surprising reading.
+      env: opts.env ?? process.env,
       stdio: ["ignore", "pipe", "pipe"],
     });
 

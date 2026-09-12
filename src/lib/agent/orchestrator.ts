@@ -16,8 +16,9 @@ import {
   toolCatalogue,
   type ToolDefinition,
 } from "./tools";
-import { runShell } from "./shell";
 import { Workspace } from "./workspace";
+import { hostExecutor, type ExecOptions, type Executor } from "./executor";
+import type { ShellResult } from "./shell";
 import { executeFileTool } from "./workspace-exec";
 import {
   addUsage,
@@ -122,6 +123,11 @@ export interface OrchestratorOptions {
   /** MCP servers, already started. Their tools are offered alongside the
    *  built-in ones and called the same way. */
   mcp?: McpHub | null;
+  /** Where commands run. Defaults to this machine.
+   *
+   *  The orchestrator never builds one: the host does, so the loop cannot
+   *  quietly choose the weaker of the two. Whoever constructs it, disposes. */
+  executor?: Executor;
 }
 
 export interface Handoff {
@@ -212,6 +218,8 @@ export class Orchestrator {
   private usage: ProviderUsage = { ...EMPTY_USAGE };
   private readonly changed = new Set<string>();
   private readonly handoffs: Handoff[] = [];
+  /** Built once, only when no executor was supplied. */
+  private fallback: Executor | null = null;
 
   constructor(options: OrchestratorOptions) {
     this.opts = {
@@ -220,6 +228,19 @@ export class Orchestrator {
       maxMs: options.maxMs ?? 20 * 60_000,
       ...options,
     };
+  }
+
+  /**
+   * Every command the agent runs goes through here.
+   *
+   * One method rather than four call sites, and the `runShell` import is gone
+   * from this file on purpose: a fifth place to spawn a process cannot appear
+   * without someone re-adding an import that a test forbids. The same reasoning
+   * workspace.ts uses for its own boundary, one level up.
+   */
+  private shell(command: string, opts: Omit<ExecOptions, "signal">): Promise<ShellResult> {
+    const executor = this.opts.executor ?? (this.fallback ??= hostExecutor());
+    return executor.run(command, { ...opts, signal: this.opts.signal });
   }
 
   private emit(kind: AgentEventKind, message: string, extra: Partial<AgentEvent> = {}) {
@@ -513,10 +534,9 @@ export class Orchestrator {
     switch (call.name) {
       case "run_shell": {
         const seconds = Number(args.timeoutSeconds ?? 120);
-        const result = await runShell(String(args.command ?? ""), {
+        const result = await this.shell(String(args.command ?? ""), {
           cwd: workspace.root,
           timeoutMs: seconds * 1000,
-          signal: this.opts.signal,
         });
         return { ok: result.ok, output: formatShell(result) };
       }
@@ -590,17 +610,17 @@ export class Orchestrator {
           version: args.version ? String(args.version) : undefined,
           dev: Boolean(args.dev),
         });
-        const result = await runShell(command, {
+        const result = await this.shell(command, {
           cwd: cwdFor(workspace.root, manifest),
           timeoutMs: 300_000,
+          // Installing is the one thing that genuinely needs the network. A
+          // sandboxed executor gives it one; the host one ignores this.
+          network: true,
         });
         // The manifest and lockfile diff, not just "success": the model needs
         // to see what actually changed.
         const diff = isRepo(workspace.root)
-          ? await runShell(`git diff -- ${lockfilesFor(manifest).join(" ")}`, {
-              cwd: workspace.root,
-              timeoutMs: 30_000,
-            })
+          ? await gitOp(workspace.root, "diff", ["--", ...lockfilesFor(manifest)])
           : null;
         return {
           ok: result.ok,
@@ -631,10 +651,9 @@ export class Orchestrator {
       // different things.
       return { ok: true, output: `This project has no ${kind} command configured.` };
     }
-    const result = await runShell(command, {
+    const result = await this.shell(command, {
       cwd: cwdFor(workspace.root, manifest),
       timeoutMs: 600_000,
-      signal: this.opts.signal,
     });
     return { ok: result.ok, output: `${command}\n${formatShell(result)}` };
   }

