@@ -58,18 +58,22 @@ install -m755 devstation-linux-x64 ~/.devstation/bin/devstation
 
 ### Through npm
 
-Needs [Bun](https://bun.sh) on the machine, because this route ships the
-JavaScript rather than a self-contained binary:
-
 ```sh
 npm install -g @devstation/cli
 ```
 
-> **Not published yet.** `@devstation/cli` is the name this will take on npm;
-> nothing is on the registry under it today, so the command above returns a 404.
-> Use the installer or the release binaries until it is published. (Plain
-> `devstation` on npm is an unrelated package — a dashboard for managing dev
-> servers — so `npm i -g devstation` installs that, not this.)
+Needs nothing else on the machine. The package fetches the standalone binary
+for your platform at install time and verifies it against the same published
+`SHA256SUMS`; if that does not match, nothing is installed.
+
+Two cases fall back to running the bundled JavaScript through
+[Bun](https://bun.sh): installing with `--ignore-scripts`, which skips the
+download, and a platform with no published binary. If neither route is
+available the command says which and what to do, rather than failing with a
+missing-module trace.
+
+> Plain `devstation` on npm is an **unrelated package** — a dashboard for
+> managing dev servers. `npm i -g devstation` installs that, not this.
 >
 > If you have already run `npm i -g devstation` and got that dashboard, the
 > symptom is `devstation config` printing a box about `http://localhost:4000`.

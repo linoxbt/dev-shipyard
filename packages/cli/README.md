@@ -11,17 +11,15 @@ The binary carries its own runtime, so it needs nothing installed first:
 curl -fsSL https://devstation.online/install.sh | sh
 ```
 
-Or through npm, which needs [Bun](https://bun.sh) on the machine:
+Or through npm, which needs nothing else either — it fetches the same binary
+and verifies the same checksums:
 
 ```sh
 npm install -g @devstation/cli
 ```
 
-> **Not published yet.** `@devstation/cli` is the name this will take on npm;
-> nothing is on the registry under it today, so the command above returns a 404.
-> Use the installer or the release binaries until it is published. (Plain
-> `devstation` on npm is an unrelated package — a dashboard for managing dev
-> servers — so `npm i -g devstation` installs that, not this.)
+> Plain `devstation` on npm is an **unrelated package** — a dashboard for
+> managing dev servers. `npm i -g devstation` installs that, not this.
 
 Either way, check the install:
 

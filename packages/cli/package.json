@@ -1,6 +1,6 @@
 {
   "name": "@devstation/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The DevStation coding agent, in your terminal.",
   "license": "MIT",
   "type": "module",
@@ -9,6 +9,7 @@
   },
   "files": [
     "bin/",
+    "scripts/",
     "devstation.js",
     "README.md"
   ],
@@ -28,5 +29,8 @@
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.mjs"
   }
 }
