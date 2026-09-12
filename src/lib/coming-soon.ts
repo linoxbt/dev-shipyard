@@ -1,5 +1,4 @@
 import type { ComponentType } from "react";
-import { LayoutDashboard, Store, Trophy } from "lucide-react";
 
 // Pages that are built but not yet shown.
 //
@@ -23,29 +22,21 @@ export interface ComingSoonPage {
   instead: { label: string; to: string };
 }
 
-export const COMING_SOON: Record<string, ComingSoonPage> = {
-  "/activity": {
-    label: "Dashboard",
-    statement:
-      "Your reputation, your apps, your contracts and your QIE identity, gathered in one place for the connected wallet.",
-    icon: LayoutDashboard,
-    instead: { label: "Browse the explorer", to: "/explorer" },
-  },
-  "/leaderboard": {
-    label: "Leaderboard",
-    statement:
-      "Builders ranked by what they have actually deployed through DevStation, counted on-chain rather than self-reported.",
-    icon: Trophy,
-    instead: { label: "See network analytics", to: "/analytics" },
-  },
-  "/launchkit/marketplace": {
-    label: "Marketplace",
-    statement:
-      "Community contract templates published on-chain, with their source free to read before you use one.",
-    icon: Store,
-    instead: { label: "Browse templates", to: "/launchkit/templates" },
-  },
-};
+/**
+ * Nothing is held back.
+ *
+ * Dashboard, Leaderboard and Marketplace all shipped: each reads real data and
+ * says so honestly when there is none -- the leaderboard reports the explorer
+ * as unreachable rather than inventing rankings, the dashboard derives
+ * reputation only from deployments that cost gas, and QIE Pass reports a wallet
+ * as unverified when no credentials are configured rather than filling anything
+ * in. That was the bar for taking the gate off, not the pages merely rendering.
+ *
+ * The map stays, empty, and so do the branches in the routes. Gating a page
+ * again is one entry here, and nothing else: the sidebar badge and the route
+ * placeholder both read this, which is the whole reason the file exists.
+ */
+export const COMING_SOON: Record<string, ComingSoonPage> = {};
 
 export function isComingSoon(path: string): boolean {
   return path in COMING_SOON;

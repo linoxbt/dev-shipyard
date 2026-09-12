@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { COMING_SOON, comingSoon, isComingSoon } from "./coming-soon";
+import { COMING_SOON, comingSoon, isComingSoon, type ComingSoonPage } from "./coming-soon";
 
 // The property worth protecting here is not what the map contains today: that
 // changes as pages ship, but that ONE map decides both the sidebar badge and
@@ -8,39 +8,52 @@ import { COMING_SOON, comingSoon, isComingSoon } from "./coming-soon";
 // promising "Soon" over a working page, or a nav item landing on a placeholder.
 
 describe("the map", () => {
-  it("covers exactly the pages held back", () => {
-    // App Builder left this list by being merged into the Coding Agent rather
-    // than by shipping on its own.
-    expect(Object.keys(COMING_SOON).sort()).toEqual([
+  it("holds nothing back", () => {
+    // Dashboard, Leaderboard and Marketplace all shipped. App Builder left by
+    // being merged into the Coding Agent rather than by shipping on its own.
+    expect(Object.keys(COMING_SOON)).toEqual([]);
+  });
+
+  it("reports every page as available", () => {
+    for (const path of [
       "/activity",
-      "/launchkit/marketplace",
       "/leaderboard",
-    ]);
+      "/launchkit/marketplace",
+      "/launchkit/coding-agent",
+      "/explorer",
+      "/launchkit/templates",
+    ]) {
+      expect(isComingSoon(path)).toBe(false);
+      expect(comingSoon(path)).toBeNull();
+    }
   });
 
-  it("says what each page will do, not just that it is coming", () => {
-    for (const [path, page] of Object.entries(COMING_SOON)) {
-      expect(page.label.length).toBeGreaterThan(0);
+  // The rules an entry has to satisfy, kept alive against a fixture rather than
+  // against the map. Looping over an empty map would pass without asserting
+  // anything, and the next person to gate a page would inherit checks that had
+  // quietly stopped checking.
+  describe("the rules an entry must satisfy, when there is one", () => {
+    const entry: ComingSoonPage = {
+      label: "Dashboard",
+      statement:
+        "Your reputation, your apps, your contracts and your QIE identity, gathered in one place.",
+      icon: () => null,
+      instead: { label: "Browse the explorer", to: "/explorer" },
+    };
+    const gated: Record<string, ComingSoonPage> = { "/activity": entry };
+
+    it("says what the page will do, not just that it is coming", () => {
+      expect(entry.label.length).toBeGreaterThan(0);
       // A statement short enough to be a label tells the reader nothing.
-      expect(page.statement.length).toBeGreaterThan(40);
-      expect(page.icon).toBeDefined();
-      // And somewhere that works, so the placeholder is not a dead end.
-      expect(page.instead.to.startsWith("/")).toBe(true);
-      expect(isComingSoon(page.instead.to)).toBe(false);
-      expect(path.startsWith("/")).toBe(true);
-    }
-  });
+      expect(entry.statement.length).toBeGreaterThan(40);
+      expect(entry.icon).toBeDefined();
+    });
 
-  it("does not send anyone from one placeholder to another", () => {
-    for (const page of Object.values(COMING_SOON)) {
-      expect(COMING_SOON[page.instead.to]).toBeUndefined();
-    }
-  });
-
-  it("reports a page that is not held back as available", () => {
-    expect(isComingSoon("/explorer")).toBe(false);
-    expect(isComingSoon("/launchkit/templates")).toBe(false);
-    expect(comingSoon("/explorer")).toBeNull();
+    it("offers somewhere that works, so a placeholder is not a dead end", () => {
+      expect(entry.instead.to.startsWith("/")).toBe(true);
+      // And never from one placeholder to another.
+      expect(gated[entry.instead.to]).toBeUndefined();
+    });
   });
 });
 
@@ -55,15 +68,17 @@ describe("one source of truth", () => {
     expect(sidebar).toContain("isComingSoon(to)");
   });
 
-  it("has every held-back route gate on the same map", () => {
+  it("keeps the gate wired in the routes that have ever used it", () => {
+    // The branches stay even with the map empty, so gating one of these again
+    // is a single entry in coming-soon.ts and nothing else. Asserted against
+    // the file list rather than against the map, which is now empty: iterating
+    // the map here would check nothing at all.
     const routes: Record<string, string> = {
       "/activity": "src/routes/activity.tsx",
       "/leaderboard": "src/routes/leaderboard.tsx",
       "/launchkit/marketplace": "src/routes/launchkit.marketplace.tsx",
     };
-    for (const path of Object.keys(COMING_SOON)) {
-      const file = routes[path];
-      expect(file).toBeDefined();
+    for (const [path, file] of Object.entries(routes)) {
       const source = read(file);
       expect(source).toContain(`isComingSoon("${path}")`);
       expect(source).toContain(`<ComingSoon path="${path}" />`);
