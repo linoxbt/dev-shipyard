@@ -32,11 +32,32 @@ export function githubConfig(): GithubConfig {
   return { clientId, clientSecret, configured: !!clientId && !!clientSecret };
 }
 
-/** Signing key for the session cookie and the CSRF state. Falls back to the
- *  client secret so there is one less thing to configure: it is already a
- *  server-only secret of exactly the right shape. */
+/**
+ * Signing key for the session cookie and the CSRF state.
+ *
+ * SESSION_SECRET first: one secret doing one job. The older
+ * GITHUB_SESSION_SECRET is still honoured so existing deployments do not log
+ * everyone out on the next deploy.
+ *
+ * The last fallback is the OAuth client secret. It is the right shape and it
+ * is already server-only, which is why it was chosen, but reusing it means
+ * rotating the OAuth app silently invalidates every session and a leak in
+ * either context compromises both. It stays as a fallback rather than a
+ * default, and says so once when it is used.
+ */
+let warnedAboutKeyReuse = false;
 function signingKey(): string {
-  return process.env.GITHUB_SESSION_SECRET || githubConfig().clientSecret;
+  const dedicated = process.env.SESSION_SECRET || process.env.GITHUB_SESSION_SECRET;
+  if (dedicated) return dedicated;
+
+  if (!warnedAboutKeyReuse) {
+    warnedAboutKeyReuse = true;
+    console.warn(
+      "[devstation] No SESSION_SECRET is set, so GitHub sessions are signed with the OAuth " +
+        "client secret. Set SESSION_SECRET: rotating the OAuth app currently signs everyone out.",
+    );
+  }
+  return githubConfig().clientSecret;
 }
 
 function sign(value: string): string {

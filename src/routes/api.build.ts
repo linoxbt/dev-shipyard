@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
+import { CLAIM_COOKIE, openClaims, ownerOf, readCookie } from "@/lib/agent-access/claims.server";
 
 // Runs a generated project's real toolchain: install, lint, typecheck, build,
 // Playwright, and returns the logs and the built output.
@@ -40,6 +41,19 @@ function fail(reason: string, message: string, status: number) {
   return Response.json({ ok: false, reason, message }, { status });
 }
 
+/** The verified wallet behind this request, or null. One signature at
+ *  /api/access issues the cookie; see api.access.ts for why it is a grant
+ *  rather than a signature per call. */
+function grantedOwner(request: Request): string | null {
+  return ownerOf(openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE)));
+}
+
+const NO_GRANT = [
+  "no_grant",
+  "Connect a wallet and sign once to use this. It costs no gas.",
+  401,
+] as const;
+
 // Server-only, and read per request: some hosts bind env per request, where a
 // module-level read is undefined.
 function serverConfig() {
@@ -62,6 +76,13 @@ export const Route = createFileRoute("/api/build")({
       },
 
       POST: async ({ request }) => {
+        // This spends the operator's build and hosting resources, so it is not
+        // something an anonymous caller gets to do. Before this the only
+        // control was an in-memory IP limit, which rateLimit.server.ts says in
+        // its own header is friction rather than a boundary.
+        const granted = grantedOwner(request);
+        if (!granted) return fail(...NO_GRANT);
+
         const raw = await request.json().catch(() => null);
         const parsed = bodySchema.safeParse(raw);
         if (!parsed.success) return fail("invalid_body", "Malformed build request.", 400);

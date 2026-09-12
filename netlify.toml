@@ -15,6 +15,12 @@
   # /metamask SDKs + monaco) exceeds Node's default ~2 GB old-space during the
   # final Nitro bundling step, causing "JavaScript heap out of memory" (SIGABRT).
   # Raise the heap so the bundle completes on Netlify's build VM.
+  #
+  # Measured after removing sixteen unused dependencies: the build completes
+  # inside 3.2 GB. This stays at 8192 as headroom rather than being trimmed to
+  # the measurement -- a build that OOMs on a dependency bump is a bad trade
+  # for reclaiming memory a build VM is not short of. CI pins 4096, which is
+  # above the measured need and below what a 7 GB GitHub runner can spare.
   NODE_OPTIONS = "--max-old-space-size=8192"
   # Auto-detected anyway, but pin it so a stray host build command can't fall
   # back to the wrong (Cloudflare/Vercel) preset.
@@ -30,3 +36,28 @@
   for = "/assets/*"
   [headers.values]
     cache-control = "public, max-age=31536000, immutable"
+
+# Security headers.
+#
+# Netlify already sends HSTS and X-Content-Type-Options; these are the ones it
+# does not. The Content-Security-Policy here carries ONLY frame-ancestors on
+# purpose: that directive is what closes the clickjacking hole, and it
+# restricts nothing else, so it cannot break a page. A full script-src/
+# connect-src policy is a bigger piece of work for this app -- wallet SDKs
+# reach a dozen RPC hosts, solc and Monaco run from blob: workers, and
+# WebAssembly needs wasm-unsafe-eval -- and shipping a half-guessed one that
+# silently breaks wallet connect in production would be worse than not having
+# it. Tracked as follow-up, deliberately not guessed at here.
+#
+# Clickjacking matters more here than on an ordinary site: every page can
+# prompt a wallet signature, and a transparent iframe over a "Confirm" button
+# is the whole attack.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    content-security-policy = "frame-ancestors 'none'"
+    x-frame-options = "DENY"
+    referrer-policy = "strict-origin-when-cross-origin"
+    # No page here uses a camera, microphone, geolocation or payment handler.
+    permissions-policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+    x-content-type-options = "nosniff"

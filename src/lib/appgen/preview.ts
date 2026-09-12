@@ -44,7 +44,13 @@ const ERROR_REPORTER = `<script>
 (function () {
   var TAG = ${JSON.stringify("devstation-preview-error")};
   function send(payload) {
-    try { parent.postMessage({ tag: TAG, error: payload }, "*"); } catch (e) {}
+    try {
+      parent.postMessage({ tag: TAG, error: payload }, "*");
+    } catch {
+      // Nowhere to report a reporting failure to: this runs inside the preview
+      // iframe, and the only channel out is the one that just failed. Swallowed
+      // deliberately rather than by omission.
+    }
   }
   window.addEventListener("error", function (e) {
     // Failed module/script loads surface as an error event on the element.

@@ -1,4 +1,6 @@
 import { readdirSync } from "node:fs";
+import { costOfUsage, ratesFor } from "./pricing";
+import { discardSnapshot, takeSnapshot } from "./snapshots";
 import { checkpoint, isRepo } from "./git";
 import {
   cwdFor,
@@ -160,19 +162,18 @@ export interface RunResult {
   handoffs: Handoff[];
 }
 
-/** Per-million-token rates, so a budget can be expressed in money rather than
- *  tokens. Overridable because prices change and this should not need a code
- *  edit when they do. */
-const INPUT_PER_MTOK = Number(process.env.AGENT_INPUT_COST ?? 2);
-const OUTPUT_PER_MTOK = Number(process.env.AGENT_OUTPUT_COST ?? 10);
-const CACHE_READ_PER_MTOK = Number(process.env.AGENT_CACHE_READ_COST ?? 0.2);
-
-export function costOf(usage: ProviderUsage): number {
-  return (
-    (usage.inputTokens / 1e6) * INPUT_PER_MTOK +
-    (usage.outputTokens / 1e6) * OUTPUT_PER_MTOK +
-    (usage.cacheReadTokens / 1e6) * CACHE_READ_PER_MTOK
-  );
+/**
+ * What a run has cost so far.
+ *
+ * Rates come from pricing.ts, per model, and include cache WRITES -- which
+ * were collected and then priced at zero, so every budget was understated by
+ * whatever prompt caching cost. The model argument is optional so existing
+ * callers keep working; without one it prices at the dearest known rate, which
+ * is the safe direction for a limit.
+ */
+export function costOf(usage: ProviderUsage, model = ""): number {
+  const rates = ratesFor(model);
+  return costOfUsage(usage, rates);
 }
 
 /** Tools the agent may use. The outward ones are left out here: the CLI has no
@@ -286,6 +287,11 @@ export class Orchestrator {
     };
   }
 
+  /** Spend so far, priced for the model actually answering. */
+  private cost(): number {
+    return costOf(this.usage, this.opts.provider.model);
+  }
+
   private emit(kind: AgentEventKind, message: string, extra: Partial<AgentEvent> = {}) {
     this.opts.onEvent?.({ kind, message, at: new Date().toISOString(), ...extra });
   }
@@ -295,7 +301,7 @@ export class Orchestrator {
       steps,
       filesChanged: [...this.changed],
       usage: this.usage,
-      costUsd: Number(costOf(this.usage).toFixed(4)),
+      costUsd: Number(this.cost().toFixed(4)),
       summary,
       messages,
     });
@@ -335,6 +341,8 @@ export class Orchestrator {
     let summary = "";
     let stoppedBecause = "finished";
 
+    const usesGit = isRepo(this.opts.workspace.root);
+
     for (;;) {
       const budget = this.budgetCheck(steps, started);
       if (budget) {
@@ -342,6 +350,8 @@ export class Orchestrator {
         this.emit("task.aborted", budget);
         break;
       }
+
+      const changedBeforeTurn = this.changed.size;
 
       const result = await this.opts.provider.generate({
         system,
@@ -353,7 +363,7 @@ export class Orchestrator {
 
       this.usage = addUsage(this.usage, result.usage);
       this.emit("usage", `${this.usage.outputTokens} output tokens so far`, {
-        detail: { costUsd: Number(costOf(this.usage).toFixed(4)) },
+        detail: { costUsd: Number(this.cost().toFixed(4)) },
       });
 
       if (result.stopReason === "refusal") {
@@ -373,6 +383,19 @@ export class Orchestrator {
 
       messages.push({ role: "assistant", content: result.text, toolCalls: result.toolCalls });
       this.progress(steps, summary, messages);
+
+      // What this turn is about to change, captured before it changes it.
+      //
+      // The git path can checkpoint afterwards because history accumulates:
+      // `reset --hard HEAD~1` lands on the commit before. A snapshot has no
+      // "before" unless one was taken, so taking it afterwards would restore
+      // exactly the state the user asked to undo.
+      //
+      // Taken here rather than at the top of the turn because the last turn of
+      // a run is usually the model writing its summary with no tools at all.
+      // Capturing there produced a post-change snapshot, newer than the good
+      // one, and undo restored the change it was asked to remove.
+      const pending = usesGit ? null : takeSnapshot(this.opts.workspace.root, goal.slice(0, 80));
 
       // A turn can ask for several tools at once, and the model treats them as
       // one unit of work. They are not: the third can fail after the first two
@@ -405,9 +428,29 @@ export class Orchestrator {
 
       // Checkpoint after a turn that actually changed something, so undo has
       // somewhere to go back to.
-      if (this.changed.size > 0 && isRepo(this.opts.workspace.root)) {
-        const point = await checkpoint(this.opts.workspace.root, goal.slice(0, 80));
-        if (point.sha) this.emit("checkpoint", point.message, { detail: { sha: point.sha } });
+      //
+      // Two paths, never none. Git is the better mechanism and stays the
+      // default where it exists; a workspace without it gets a copy-aside
+      // snapshot instead. Undo used to be a capability that silently depended
+      // on somebody else's choice of version control: an empty folder is a
+      // first-class place to work, so it gets a safety net too.
+      const changedThisTurn = this.changed.size > changedBeforeTurn;
+      if (usesGit) {
+        if (this.changed.size > 0) {
+          const point = await checkpoint(this.opts.workspace.root, goal.slice(0, 80));
+          if (point.sha) this.emit("checkpoint", point.message, { detail: { sha: point.sha } });
+        }
+      } else if (pending) {
+        // A turn that changed nothing needs no way back, and keeping a copy of
+        // the workspace for every question the agent answers would fill a disk
+        // with identical snapshots.
+        if (changedThisTurn) {
+          this.emit("checkpoint", `Checkpoint: ${pending.message}`, {
+            detail: { snapshot: pending.id },
+          });
+        } else {
+          discardSnapshot(this.opts.workspace.root, pending.id);
+        }
       }
     }
 
@@ -421,7 +464,7 @@ export class Orchestrator {
       steps,
       filesChanged: [...this.changed],
       usage: this.usage,
-      costUsd: Number(costOf(this.usage).toFixed(4)),
+      costUsd: Number(this.cost().toFixed(4)),
       messages,
       stoppedBecause,
       handoffs: [...this.handoffs],
@@ -458,7 +501,7 @@ export class Orchestrator {
   private budgetCheck(steps: number, started: number): string | null {
     if (steps >= this.opts.maxSteps) return `Stopped after ${steps} steps, the limit for one run.`;
     if (Date.now() - started >= this.opts.maxMs) return "Stopped: this run hit its time limit.";
-    const cost = costOf(this.usage);
+    const cost = this.cost();
     if (this.opts.maxCostUsd && cost >= this.opts.maxCostUsd) {
       return `Stopped: this run reached its $${this.opts.maxCostUsd} budget (about $${cost.toFixed(2)} spent).`;
     }

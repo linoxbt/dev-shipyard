@@ -6,6 +6,7 @@ import { MockProvider } from "./providers";
 import { Orchestrator, type AgentEvent } from "./orchestrator";
 import { Workspace } from "./workspace";
 import { CODING_AGENT_SYSTEM, GIT_ADDENDUM } from "./system-prompt";
+import { hasSnapshots } from "./snapshots";
 
 // The agent must be exactly as capable pointed at an empty folder as it is
 // pointed at a mature repository.
@@ -97,9 +98,12 @@ describe("the whole loop in a directory with no git repository", () => {
     const tests = events.find((e) => e.kind === "step.completed" && e.tool === "run_tests");
     expect(tests).toBeDefined();
 
-    // Nothing checkpointed, because there is nowhere to check point to, and
-    // that is a quiet absence rather than an error in the middle of the run.
-    expect(events.some((e) => e.kind === "checkpoint")).toBe(false);
+    // Checkpointed, and by the path that does not need git. Undo is not a
+    // capability only version-controlled projects are allowed to have: this
+    // used to assert the opposite, which was the limitation rather than the
+    // behaviour.
+    expect(events.some((e) => e.kind === "checkpoint")).toBe(true);
+    expect(hasSnapshots(root)).toBe(true);
     expect(events.some((e) => e.kind === "task.completed")).toBe(true);
 
     // And the agent did not make the directory into a repository to suit

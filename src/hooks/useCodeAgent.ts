@@ -15,6 +15,7 @@ import { chatStream } from "@/lib/ai";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import type { Abi } from "viem";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
+import { waitUnlessAborted } from "@/lib/wait";
 import { useContractLabels } from "@/hooks/useContractLabels";
 import { normalizeLabelCategory } from "@/lib/labels/categories";
 import { useWorkspaceStore } from "@/lib/workspace-store";
@@ -285,6 +286,13 @@ export function useCodeAgent() {
 
   const stop = () => abortRef.current?.abort();
 
+  // Leaving the page stops the run. Without this the loops above kept going
+  // after the component was gone: the hook's work is held by closures and refs,
+  // not by React, so nothing else was going to end it.
+  useEffect(() => {
+    return () => abortRef.current?.abort();
+  }, []);
+
   const reset = () => {
     abortRef.current?.abort();
     timelineRef.current = [];
@@ -299,6 +307,8 @@ export function useCodeAgent() {
     setRunning(false);
     commitSave();
   };
+
+  const waitUnlessCancelled = (ms: number) => waitUnlessAborted(ms, abortRef.current?.signal);
 
   // Deploy the current artifact with already-typed args, record it, and push the
   // result both to the UI and back to the model conversation.
@@ -441,7 +451,7 @@ export function useCodeAgent() {
         for (let i = 0; i < 15; i++) {
           const { indexed } = await getIsContractIndexed({ data: { chainId, address: addr } });
           if (indexed) break;
-          await new Promise((r) => setTimeout(r, 4000));
+          if (!(await waitUnlessCancelled(4000))) return;
         }
         const res = await submitStandardJsonVerification({
           data: {
@@ -462,7 +472,7 @@ export function useCodeAgent() {
         } else {
           let verified = false;
           for (let i = 0; i < 15; i++) {
-            await new Promise((r) => setTimeout(r, 4000));
+            if (!(await waitUnlessCancelled(4000))) return;
             const s = await getVerificationStatus({ data: { chainId, address: addr } });
             if (s.verified) {
               verified = true;

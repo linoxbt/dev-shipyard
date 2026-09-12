@@ -11,6 +11,13 @@ import {
 } from "@/lib/github-repos";
 import { filesFromArchive, readTarGz } from "@/lib/repo-archive";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
+import {
+  CLAIM_COOKIE,
+  claimCookieHeader,
+  holdsClaim,
+  openClaims,
+  withClaim,
+} from "@/lib/agent-access/claims.server";
 
 // The one place that holds both halves.
 //
@@ -32,6 +39,21 @@ const WINDOW_MS = 60 * 60 * 1000;
 function fail(reason: string, message: string, status: number) {
   return Response.json({ ok: false, reason, message }, { status });
 }
+
+/**
+ * Does this browser hold a claim on this run?
+ *
+ * Being signed in to GitHub was the whole check. That is not the same question
+ * as "is this your run": any signed-in account holding an id could read the
+ * run, cancel it, or -- the one that mattered -- call pull_request with their
+ * OWN repository and have the change opened there, which takes a diff from
+ * somebody else's private repository and puts it in one they control.
+ */
+function ownsRun(request: Request, id: string): boolean {
+  return holdsClaim(openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE)), id);
+}
+
+const NOT_YOURS = ["not_yours", "That run was not started from this browser.", 403] as const;
 
 /** Read per request: some hosts bind env per request, where a module-level
  *  read is undefined. */
@@ -113,6 +135,7 @@ export const Route = createFileRoute("/api/repo-agent")({
           }
         }
 
+        if (!ownsRun(request, id)) return fail(...NOT_YOURS);
         if (
           !checkRateLimit(
             `repo-agent:poll:${clientKeyFromRequest(request)}`,
@@ -135,6 +158,7 @@ export const Route = createFileRoute("/api/repo-agent")({
         if (!parsed.success) return fail("invalid_body", "Malformed request.", 400);
 
         if (parsed.data.action === "cancel") {
+          if (!ownsRun(request, parsed.data.id)) return fail(...NOT_YOURS);
           const result = await runner(
             `/agent/repo-jobs/${encodeURIComponent(parsed.data.id)}/cancel`,
             {
@@ -155,16 +179,31 @@ export const Route = createFileRoute("/api/repo-agent")({
           ) {
             return fail("rate_limited", "Too many runs started. Try again later.", 429);
           }
-          return start(token, parsed.data);
+          // The GitHub login is the identity here: these runs are authorised
+          // by the session that can read the repository, not by a wallet.
+          return start(
+            token,
+            parsed.data,
+            openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE)),
+            "github",
+          );
         }
 
+        // The one that could move a stranger's code into a repository of the
+        // caller's choosing.
+        if (!ownsRun(request, parsed.data.id)) return fail(...NOT_YOURS);
         return pullRequest(token, parsed.data);
       },
     },
   },
 });
 
-async function start(token: string, input: z.infer<typeof startSchema>): Promise<Response> {
+async function start(
+  token: string,
+  input: z.infer<typeof startSchema>,
+  existing: ReturnType<typeof openClaims>,
+  owner: string,
+): Promise<Response> {
   const target = parseRepo(input.repo);
   if (!target) return fail("invalid_repo", "That is not a repository. Use owner/name.", 400);
 
@@ -199,14 +238,21 @@ async function start(token: string, input: z.infer<typeof startSchema>): Promise
   if (!result.ok) return fail("runner", result.message, result.status);
 
   const body = result.body as { job?: { id?: string } };
-  return Response.json({
+  const payload = {
     ok: true,
     job: body.job,
     repo: { fullName: repo.fullName, defaultBranch: repo.defaultBranch, private: repo.private },
     ref,
     fileCount: Object.keys(files).length,
     skipped,
-  });
+  };
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (body.job?.id) {
+    // Records that this browser started this run. Everything afterwards --
+    // reading it, cancelling it, opening its pull request -- checks this.
+    headers["set-cookie"] = claimCookieHeader(withClaim(existing, body.job.id, owner));
+  }
+  return new Response(JSON.stringify(payload), { status: 200, headers });
 }
 
 async function pullRequest(token: string, input: z.infer<typeof pullSchema>): Promise<Response> {

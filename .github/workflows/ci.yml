@@ -2,7 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # app-builder is where the work happens; main is what deploys. Only main
+    # was listed, so twenty-one commits of agent work -- the sandbox, the
+    # benchmark, the repo flow -- were written, merged and never once run
+    # through this file.
+    branches: [main, app-builder]
   pull_request:
 
 jobs:
@@ -34,3 +38,42 @@ jobs:
           # heap for this app's dependency graph (wagmi, WalletConnect,
           # Coinbase/MetaMask SDKs, Monaco): see DEPLOYMENT.md.
           NODE_OPTIONS: --max-old-space-size=4096
+
+  # Everything that needs a container.
+  #
+  # Split out because it is slower, and separate because of how it used to
+  # fail: the sandbox tests skip themselves when the image is missing, so the
+  # fast job above went green while Phase G's central guarantee -- that the
+  # agent's commands run inside a container -- was never executed at all. A
+  # skip that reads as a pass is worse than a missing test.
+  sandbox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the sandbox image
+        run: docker build -f docker/sandbox.Dockerfile -t devstation-sandbox:1 .
+
+      - name: Prove the image is there
+        # The tests skip silently without it, so the skip is made loud here
+        # rather than discovered months later.
+        run: docker image inspect devstation-sandbox:1 >/dev/null
+
+      - name: Sandbox and runner tests
+        # gVisor is not installed on a GitHub runner, so these run under runc.
+        # That exercises the mount namespace, the uid mapping, the in-container
+        # timeout and the sealed network -- everything except the gVisor kernel
+        # itself, which is the part this cannot check here and which the
+        # production runner's /health reports instead.
+        env:
+          DEVSTATION_SANDBOX_RUNTIME: runc
+        run: |
+          bun test ./src/lib/agent/sandbox-exec.test.ts
+          bun test ./services/runner/src

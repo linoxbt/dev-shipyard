@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MockProvider } from "./providers";
@@ -230,7 +230,12 @@ describe("checkpoints during a run", () => {
     expect(events.some((e) => e.kind === "checkpoint")).toBe(true);
   }, 30_000);
 
-  it("does not try to check point outside a repository", async () => {
+  it("never runs git outside a repository, but still leaves a way back", async () => {
+    // This used to assert that nothing was checkpointed at all. That was the
+    // limitation, not the requirement: what must not happen is git being run
+    // where there is no repository. A snapshot checkpoint does the same job
+    // without it, so the assertion is now about the mechanism rather than
+    // about the capability being absent.
     const workspace = ws({ "a.js": "1\n" });
     const provider = new MockProvider([
       { toolCalls: [{ id: "1", name: "write_file", input: { path: "b.js", content: "2\n" } }] },
@@ -238,7 +243,12 @@ describe("checkpoints during a run", () => {
     ]);
     const events: AgentEvent[] = [];
     await new Orchestrator({ provider, workspace, onEvent: (e) => events.push(e) }).run("add b.js");
-    expect(events.some((e) => e.kind === "checkpoint")).toBe(false);
+
+    const checkpoint = events.find((e) => e.kind === "checkpoint");
+    expect(checkpoint).toBeDefined();
+    // A snapshot, not a commit: no sha, and no .git anywhere.
+    expect(checkpoint?.detail).toHaveProperty("snapshot");
+    expect(existsSync(join(workspace.root, ".git"))).toBe(false);
   });
 });
 

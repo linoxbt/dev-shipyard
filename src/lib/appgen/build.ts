@@ -1,4 +1,5 @@
 import type { BuildOutcome } from "./session";
+import { fetchWithGrant } from "@/lib/agent-access/grant";
 
 // Talking to the build runner from the browser.
 //
@@ -72,7 +73,7 @@ export async function runBuildJob(
   }
 
   try {
-    const res = await fetch("/api/build", {
+    const res = await fetchWithGrant("/api/build", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

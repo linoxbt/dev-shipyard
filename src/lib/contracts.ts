@@ -26,6 +26,7 @@ const QIE_TESTNET_PROJECT_REGISTRY = "0x75d7b39bc827367c409e1a2bf805bd5f337ca27b
 const QIE_TESTNET_LABEL_REGISTRY = "0x177294293e6e785a83e036a95de1697e3cc04748";
 const QIE_MAINNET_PROJECT_REGISTRY = "0x673e3d4d7f6043d0384e95ce0c110f09e09ec708";
 const QIE_MAINNET_LABEL_REGISTRY = "0xb6075e4cad1f7e7e779e49dcf7df08949797ed81";
+const QIE_MAINNET_TEMPLATE_REGISTRY = "0xdfe2f883bab871fe128eedc05c954cf069e67302";
 
 function envAddress(value: string | undefined, fallback = ""): `0x${string}` {
   return (value || fallback) as `0x${string}`;
@@ -61,16 +62,23 @@ const LABEL_REGISTRY: Record<number, `0x${string}`> = {
 
 const TEMPLATE_REGISTRY: Record<number, `0x${string}`> = {
   [qieTestnet.id]: envAddress(env.VITE_TEMPLATE_REGISTRY_ADDRESS_TESTNET),
-  [qieMainnet.id]: envAddress(env.VITE_TEMPLATE_REGISTRY_ADDRESS_MAINNET),
+  [qieMainnet.id]: envAddress(
+    env.VITE_TEMPLATE_REGISTRY_ADDRESS_MAINNET,
+    QIE_MAINNET_TEMPLATE_REGISTRY,
+  ),
   [botTestnet.id]: envAddress(env.VITE_TEMPLATE_REGISTRY_ADDRESS_BOT_TESTNET),
   [botMainnet.id]: envAddress(env.VITE_TEMPLATE_REGISTRY_ADDRESS_BOT_MAINNET),
 };
 
 /** TemplateRegistry address for a given chain ("" when not deployed there).
  *
- *  No hardcoded fallback, unlike the two registries above: this one is not
- *  deployed anywhere yet, and baking in an address before it exists would
- *  point the marketplace at nothing and report it as configured. */
+ *  Mainnet has a fallback now, like the two registries above: the contract IS
+ *  deployed at 0xdfe2...7302 (verified against mainnet: 6460 bytes of code,
+ *  totalTemplates() answers). The comment here previously said it was not
+ *  deployed anywhere, which stopped being true without anything noticing --
+ *  and because the address was only ever read from an environment variable
+ *  nobody had set, the marketplace was pointed at nothing while a working
+ *  contract sat on chain. Testnet stays unset: it genuinely is not there. */
 export function templateRegistryAddress(chainId: number): `0x${string}` {
   return TEMPLATE_REGISTRY[chainId] ?? ("" as `0x${string}`);
 }

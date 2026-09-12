@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { WagmiProvider, useAccount, useConnect } from "wagmi";
+import { WagmiProvider, useAccount, useConnect, useSignMessage } from "wagmi";
 import { wagmiConfig } from "@/lib/wagmi";
+import { setGrantSigner } from "@/lib/agent-access/grant";
 import { useBurner } from "@/lib/burner/store";
 import { useNetworkPref } from "@/lib/active-chain";
 import { hasBurnerSession, touchBurnerSession, isBurnerSessionIdle } from "@/lib/burner/session";
@@ -88,10 +89,35 @@ function NetworkPrefHydrator() {
   return null;
 }
 
+// Registers the connected wallet with the access-grant helper.
+//
+// The endpoints that spend the operator's money -- starting an agent run,
+// building, publishing -- ask for one signature and then carry an httpOnly
+// cookie. Several of their callers are plain modules with no React context
+// (appgen/build.ts is the clearest), so the signer is registered here once
+// rather than threaded through them.
+function GrantSigner() {
+  const { address } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+
+  useEffect(() => {
+    setGrantSigner({
+      address: address ?? null,
+      sign: address ? (args) => signMessageAsync(args) : null,
+    });
+    // Disconnecting has to clear it, or a later call would sign with a wallet
+    // the user has already put away.
+    return () => setGrantSigner({ address: null, sign: null });
+  }, [address, signMessageAsync]);
+
+  return null;
+}
+
 export function Web3Provider({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig} reconnectOnMount>
       <NetworkPrefHydrator />
+      <GrantSigner />
       <WalletAutoReconnect />
       <BurnerIdleLock />
       {children}

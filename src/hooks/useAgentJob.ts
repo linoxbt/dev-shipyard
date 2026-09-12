@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/lib/ai";
+import { fetchWithGrant } from "@/lib/agent-access/grant";
 
 // Keeps an App Builder turn alive across a page refresh.
 //
@@ -131,8 +132,10 @@ export interface StartInput {
   context?: unknown;
   dir?: string;
   mode?: "build" | "review";
-  /** The connected wallet, so a grant is bound to a person. */
-  owner?: string;
+  /** The connected wallet. Required: the run is signed for and owned by it.
+   *  Starting one costs model credits and runs commands on the runner, so it
+   *  is not something an anonymous caller gets to do. */
+  owner: string;
 }
 
 export interface UseAgentJob {
@@ -252,7 +255,11 @@ export function useAgentJob(
   }, [projectId, job?.id]);
 
   const start = useCallback(async (input: StartInput): Promise<AgentJob | null> => {
-    const res = await fetch("/api/agent", {
+    if (!input.owner) return null;
+
+    // One signature, once, and only if the server says the grant is
+    // missing: fetchWithGrant asks for it on a 401 and retries.
+    const res = await fetchWithGrant("/api/agent", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(input),

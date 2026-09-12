@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
+import { CLAIM_COOKIE, openClaims, ownerOf, readCookie } from "@/lib/agent-access/claims.server";
 
 // Publishes a built app to <name>.devstation.online.
 //
@@ -34,6 +35,19 @@ const removeSchema = z.object({
 function fail(reason: string, message: string, status: number) {
   return Response.json({ ok: false, reason, message }, { status });
 }
+
+/** The verified wallet behind this request, or null. One signature at
+ *  /api/access issues the cookie; see api.access.ts for why it is a grant
+ *  rather than a signature per call. */
+function grantedOwner(request: Request): string | null {
+  return ownerOf(openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE)));
+}
+
+const NO_GRANT = [
+  "no_grant",
+  "Connect a wallet and sign once to use this. It costs no gas.",
+  401,
+] as const;
 
 function serverConfig() {
   const e = process.env;
@@ -78,10 +92,24 @@ export const Route = createFileRoute("/api/publish")({
       },
 
       POST: async ({ request }) => {
+        // This spends the operator's build and hosting resources, so it is not
+        // something an anonymous caller gets to do. Before this the only
+        // control was an in-memory IP limit, which rateLimit.server.ts says in
+        // its own header is friction rather than a boundary.
+        const granted = grantedOwner(request);
+        if (!granted) return fail(...NO_GRANT);
+
         const raw = await request.json().catch(() => null);
         const parsed = publishSchema.safeParse(raw);
         if (!parsed.success) return fail("invalid_body", "Malformed publish request.", 400);
-        const { owner } = parsed.data;
+        // The owner is the wallet that signed, not the one in the body. A site
+        // is owned by whoever published it, and before the grant existed a
+        // caller could name any wallet and publish under it.
+        const { owner: claimedOwner } = parsed.data;
+        if (claimedOwner.toLowerCase() !== granted.toLowerCase()) {
+          return fail("owner_mismatch", "You can only publish under your own wallet.", 403);
+        }
+        const owner = granted;
 
         const ip = clientKeyFromRequest(request);
         if (!checkRateLimit(`publish:ip:${ip}`, PER_IP_LIMIT, WINDOW_MS)) {
@@ -109,9 +137,19 @@ export const Route = createFileRoute("/api/publish")({
       },
 
       DELETE: async ({ request }) => {
+        // Taking a site down is the owner's decision. The runner enforces the
+        // same rule from the header this sends; both check, because either one
+        // alone is a single point of failure for somebody else's site.
+        const granted = grantedOwner(request);
+        if (!granted) return fail(...NO_GRANT);
+
         const raw = await request.json().catch(() => null);
         const parsed = removeSchema.safeParse(raw);
         if (!parsed.success) return fail("invalid_body", "Malformed request.", 400);
+        if (parsed.data.owner.toLowerCase() !== granted.toLowerCase()) {
+          return fail("owner_mismatch", "You can only remove your own sites.", 403);
+        }
+        const owner = granted;
         const ip = clientKeyFromRequest(request);
         const res = await toRunner(
           "/publish",
@@ -120,7 +158,7 @@ export const Route = createFileRoute("/api/publish")({
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ slug: parsed.data.slug }),
           },
-          parsed.data.owner,
+          owner,
           ip,
         );
         if (!res) return fail("unreachable", "Publishing is unavailable.", 502);

@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { fetchWithGrant } from "@/lib/agent-access/grant";
 import { useAccount } from "wagmi";
 import { toast } from "sonner";
 import { useProjects, type AppProject } from "@/lib/appgen/projects";
@@ -46,7 +47,7 @@ export function usePublishApp() {
         // Prefer a DevStation subdomain: free, instant, and named after the
         // project. Netlify stays as the fallback for when the runner hosting
         // these is unreachable.
-        const own = await fetch("/api/publish", {
+        const own = await fetchWithGrant("/api/publish", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ slug: project.name || "app", files: payload, owner: wallet }),
@@ -72,7 +73,7 @@ export function usePublishApp() {
           }
         }
 
-        const res = await fetch("/api/apps-deploy", {
+        const res = await fetchWithGrant("/api/apps-deploy", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ files: payload, requesterAddress: wallet }),
@@ -101,7 +102,7 @@ export function usePublishApp() {
     async (project: AppProject): Promise<boolean> => {
       if (!wallet || !project.liveUrl) return false;
       const slug = project.liveUrl.replace(/^https?:\/\//, "").split(".")[0];
-      const res = await fetch("/api/publish", {
+      const res = await fetchWithGrant("/api/publish", {
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ slug, owner: wallet }),

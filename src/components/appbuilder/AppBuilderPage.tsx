@@ -6,6 +6,7 @@
 // blank-page half, and it is a component now so the one page can hold both.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fetchWithGrant } from "@/lib/agent-access/grant";
 import {
   ArrowUp,
   Download,
@@ -162,7 +163,7 @@ async function performHandoff(
 
   if (handoff.name === "publish_app") {
     if (!wallet) return { ok: false, message: "Connect a wallet to publish." };
-    const res = await fetch("/api/publish", {
+    const res = await fetchWithGrant("/api/publish", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -508,7 +509,12 @@ export function AppBuilderPage() {
       // Prefer a runner-hosted turn. It survives this page: refresh, close the
       // tab, come back later, and the build is still going. The in-page path
       // below stays for when no runner is configured.
-      if (agent.configured) {
+      // A runner turn spends the operator's model credits and runs commands on
+      // the runner host, so it needs a wallet to own it. Without one this falls
+      // through to the in-page build below, which runs at the user's own cost
+      // with their own key: the same degradation path an unreachable runner
+      // already took, rather than a dead end.
+      if (agent.configured && wallet) {
         const projectId = useProjects.getState().activeId;
         if (projectId) {
           const started = await agent.start({
@@ -517,8 +523,9 @@ export function AppBuilderPage() {
             files: files ?? {},
             history,
             mode,
-            // Binds any grant a decision produces to this wallet. Absent when
-            // no wallet is connected, and left absent rather than faked.
+            // Non-null inside this branch. The server ignores it and uses the
+            // wallet from the signed access cookie instead, because a field in
+            // a request body is whatever the caller typed.
             owner: wallet,
             context: attached
               ? {
@@ -688,7 +695,21 @@ export function AppBuilderPage() {
         abortRef.current = null;
       }
     },
-    [input, busy, files, history, attached, previewErrors, writeFiles, canBuild, target, agent],
+    // `wallet` decides whether the runner path is available at all, so a
+    // stale one here would send a turn to the runner after a disconnect.
+    [
+      input,
+      busy,
+      files,
+      history,
+      attached,
+      previewErrors,
+      writeFiles,
+      canBuild,
+      target,
+      agent,
+      wallet,
+    ],
   );
 
   const publish = useCallback(async () => {
@@ -715,7 +736,7 @@ export function AppBuilderPage() {
       // hosts these is unreachable.
       const slug = (useProjects.getState().projects.find((p) => p.id === activeProjectId)?.name ??
         "app") as string;
-      const own = await fetch("/api/publish", {
+      const own = await fetchWithGrant("/api/publish", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ slug, files: payload, owner: wallet }),
@@ -740,7 +761,7 @@ export function AppBuilderPage() {
         }
       }
 
-      const res = await fetch("/api/apps-deploy", {
+      const res = await fetchWithGrant("/api/apps-deploy", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ files: payload, requesterAddress: wallet }),

@@ -45,6 +45,50 @@ detect_target() {
   printf 'devstation-%s-%s' "$os_part" "$arch_part"
 }
 
+# Whichever of the two standard tools this machine has. Neither is guaranteed:
+# coreutils gives sha256sum, macOS gives shasum.
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d" " -f1
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | cut -d" " -f1
+  else
+    printf ''
+  fi
+}
+
+# Check the download against the published SHA256SUMS.
+#
+# Without this the installer trusts whatever the release endpoint hands back,
+# which is the weakest link in a `curl | sh` install: the build already
+# produces the checksums and nothing was comparing them.
+#
+# A missing SHA256SUMS is fatal rather than a warning. "Could not verify, so I
+# installed it anyway" is a check that exists only to be skipped, and an
+# attacker who can replace the binary can remove the sums file just as easily.
+verify_checksum() {
+  file=$1
+  name=$2
+  sums_url=$3
+
+  actual=$(sha256_of "$file")
+  [ -n "$actual" ] || die "this needs sha256sum or shasum to verify the download."
+
+  curl -fsSL "$sums_url" -o "$tmp/SHA256SUMS" ||
+    die "could not download the checksums from $sums_url, so the binary was not verified."
+
+  expected=$(grep " $name\$" "$tmp/SHA256SUMS" | cut -d" " -f1 | head -n1)
+  [ -n "$expected" ] || die "no checksum published for $name, so it was not installed."
+
+  if [ "$actual" != "$expected" ]; then
+    die "checksum mismatch for $name.
+  expected: $expected
+  actual:   $actual
+The download does not match what was published. Nothing was installed."
+  fi
+  say "Checksum verified"
+}
+
 main() {
   need uname
   target=$(detect_target)
@@ -68,6 +112,8 @@ main() {
     curl -fsSL "$url" -o "$tmp/devstation" ||
       die "could not download $url
 Check that a release exists, or install with: npm install -g devstation"
+
+    verify_checksum "$tmp/devstation" "$target" "${url%/*}/SHA256SUMS"
   fi
 
   chmod +x "$tmp/devstation"

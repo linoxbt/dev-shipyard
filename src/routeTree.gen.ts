@@ -52,6 +52,7 @@ import { Route as ApiBuildRouteImport } from './routes/api.build'
 import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as ApiAgentRouteImport } from './routes/api.agent'
+import { Route as ApiAccessRouteImport } from './routes/api.access'
 import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
 import { Route as LaunchkitAppsIndexRouteImport } from './routes/launchkit.apps.index'
 import { Route as ExplorerNetworkIndexRouteImport } from './routes/explorer.$network.index'
@@ -285,6 +286,11 @@ const ApiAgentRoute = ApiAgentRouteImport.update({
   path: '/api/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAccessRoute = ApiAccessRouteImport.update({
+  id: '/api/access',
+  path: '/api/access',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LaunchkitTemplatesIndexRoute = LaunchkitTemplatesIndexRouteImport.update({
   id: '/launchkit/templates/',
   path: '/launchkit/templates/',
@@ -384,6 +390,7 @@ export interface FileRoutesByFullPath {
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
+  '/api/access': typeof ApiAccessRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
@@ -444,6 +451,7 @@ export interface FileRoutesByTo {
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
+  '/api/access': typeof ApiAccessRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
@@ -506,6 +514,7 @@ export interface FileRoutesById {
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
+  '/api/access': typeof ApiAccessRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
@@ -570,6 +579,7 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/overview'
     | '/settings'
+    | '/api/access'
     | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
@@ -630,6 +640,7 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/overview'
     | '/settings'
+    | '/api/access'
     | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
@@ -691,6 +702,7 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/overview'
     | '/settings'
+    | '/api/access'
     | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
@@ -754,6 +766,7 @@ export interface RootRouteChildren {
   LeaderboardRoute: typeof LeaderboardRoute
   OverviewRoute: typeof OverviewRoute
   SettingsRoute: typeof SettingsRoute
+  ApiAccessRoute: typeof ApiAccessRoute
   ApiAgentRoute: typeof ApiAgentRoute
   ApiAiRoute: typeof ApiAiRoute
   ApiAppsDeployRoute: typeof ApiAppsDeployRoute
@@ -1084,6 +1097,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/access': {
+      id: '/api/access'
+      path: '/api/access'
+      fullPath: '/api/access'
+      preLoaderRoute: typeof ApiAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/launchkit/templates/': {
       id: '/launchkit/templates/'
       path: '/launchkit/templates'
@@ -1307,6 +1327,7 @@ const rootRouteChildren: RootRouteChildren = {
   LeaderboardRoute: LeaderboardRoute,
   OverviewRoute: OverviewRoute,
   SettingsRoute: SettingsRoute,
+  ApiAccessRoute: ApiAccessRoute,
   ApiAgentRoute: ApiAgentRoute,
   ApiAiRoute: ApiAiRoute,
   ApiAppsDeployRoute: ApiAppsDeployRoute,

@@ -1,5 +1,6 @@
 import { accessSync, constants, existsSync } from "node:fs";
 import { checkpointBase, isRepo, listCheckpoints, undoCheckpoint } from "../git";
+import { listSnapshots, undoSnapshot } from "../snapshots";
 import { evaluate } from "../policy";
 import { runShell } from "../shell";
 import { requiresPerson, toolCatalogue, TOOLS, type ToolDefinition } from "../tools";
@@ -340,10 +341,19 @@ export async function statusCommand(
 }
 
 export async function undoCommand(context: CommandContext): Promise<number> {
-  const result = await undoCheckpoint(context.root);
+  // Whichever safety net this workspace has. Git where it exists, snapshots
+  // where it does not: undo is not a feature only version-controlled projects
+  // are allowed to have.
+  const result = isRepo(context.root)
+    ? await undoCheckpoint(context.root)
+    : undoSnapshot(context.root);
   if (!result.ok) {
     context.terminal.err(result.message);
-    const points = await listCheckpoints(context.root, 5);
+    const points = isRepo(context.root)
+      ? await listCheckpoints(context.root, 5)
+      : listSnapshots(context.root)
+          .slice(0, 5)
+          .map((snap) => `${snap.id}\t${snap.message}`);
     if (points.length > 0) {
       context.terminal.err("Recent checkpoints:");
       for (const point of points) context.terminal.err(`  ${point}`);
@@ -413,11 +423,9 @@ function gateFor(definition: ToolDefinition, context: CommandContext): string {
 }
 
 export async function checkpointsCommand(context: CommandContext): Promise<number> {
-  if (!isRepo(context.root)) {
-    context.terminal.err("Not a git repository, so there are no checkpoints.");
-    return 1;
-  }
-  const points = await listCheckpoints(context.root, 50);
+  const points = isRepo(context.root)
+    ? await listCheckpoints(context.root, 50)
+    : listSnapshots(context.root).map((snap) => `${snap.id}\t${snap.message}`);
   if (points.length === 0) {
     context.terminal.out(
       "No checkpoints yet. The agent makes one after a turn that changes a file.",
@@ -430,7 +438,15 @@ export async function checkpointsCommand(context: CommandContext): Promise<numbe
 
 export async function diffCommand(context: CommandContext): Promise<number> {
   if (!isRepo(context.root)) {
-    context.terminal.err("Not a git repository, so there is nothing to diff against.");
+    // Honest rather than approximated. A snapshot restores a whole workspace;
+    // it holds no base to diff against the way a commit does, and printing a
+    // file-by-file comparison here would be a different thing wearing the same
+    // name. `checkpoints` lists what can be undone.
+    context.terminal.err(
+      "This workspace is not a git repository, so there is no commit to diff against. " +
+        "Checkpoints still exist here: run `devstation checkpoints` to see them, " +
+        "or `devstation undo` to go back one turn.",
+    );
     return 1;
   }
   const base = await checkpointBase(context.root);
@@ -449,7 +465,7 @@ export async function diffCommand(context: CommandContext): Promise<number> {
 export function configCommand(context: CommandContext): number {
   const lines = [
     `workspace   ${context.root}`,
-    `git         ${isRepo(context.root) ? "yes" : "no, so there are no checkpoints and no undo"}`,
+    `git         ${isRepo(context.root) ? "yes" : "no, so checkpoints are file snapshots under .devstation/"}`,
     // What a run would actually use, not what this command happens to hold:
     // `config` is one of the commands that runs without a provider, so reading
     // it off the context would always say "none configured".

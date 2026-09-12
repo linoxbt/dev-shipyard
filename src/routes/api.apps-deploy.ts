@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
+import { CLAIM_COOKIE, openClaims, ownerOf, readCookie } from "@/lib/agent-access/claims.server";
 
 // Publishes a generated app to a public URL.
 //
@@ -39,6 +40,17 @@ const bodySchema = z.object({
 function fail(reason: string, message: string, status: number) {
   return Response.json({ ok: false, reason, message }, { status });
 }
+
+/** The verified wallet behind this request, or null. See api.access.ts. */
+function grantedOwner(request: Request): string | null {
+  return ownerOf(openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE)));
+}
+
+const NO_GRANT = [
+  "no_grant",
+  "Connect a wallet and sign once to use this. It costs no gas.",
+  401,
+] as const;
 
 // Server-only. Read inside the handler, never at module scope: some hosts bind
 // env per request, where a module-level read is undefined.
@@ -81,6 +93,16 @@ export const Route = createFileRoute("/api/apps-deploy")({
         const parsed = bodySchema.safeParse(raw);
         if (!parsed.success) return fail("invalid_body", "Malformed deploy request.", 400);
         const { files, requesterAddress, name, ownToken, siteId } = parsed.data;
+
+        // A deploy on the operator's Netlify token spends the operator's
+        // account. Someone bringing their own token is spending their own, so
+        // that path stays open to anyone: the grant exists to protect the
+        // shared resource, not to gate the feature.
+        const granted = grantedOwner(request);
+        if (!ownToken && !granted) return fail(...NO_GRANT);
+        if (granted && requesterAddress.toLowerCase() !== granted.toLowerCase()) {
+          return fail("owner_mismatch", "You can only deploy under your own wallet.", 403);
+        }
 
         const paths = Object.keys(files);
         if (paths.length === 0) return fail("invalid_body", "No files to deploy.", 400);

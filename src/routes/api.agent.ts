@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
+import {
+  CLAIM_COOKIE,
+  claimCookieHeader,
+  holdsClaim,
+  openClaims,
+  ownerOf,
+  readCookie,
+  withClaim,
+} from "@/lib/agent-access/claims.server";
 
 // Starts and reads App Builder turns that outlive the page.
 //
@@ -15,6 +24,8 @@ import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 // same code work on a serverless host and survive a refresh.
 
 const PER_IP_START_LIMIT = 20;
+/** A person starts a handful of runs an hour, not hundreds. */
+const PER_WALLET_START_LIMIT = 40;
 const PER_IP_POLL_LIMIT = 2000;
 const WINDOW_MS = 60 * 60 * 1000;
 
@@ -32,8 +43,10 @@ const startSchema = z.object({
   context: z.unknown().optional(),
   dir: z.string().max(80).optional(),
   mode: z.enum(["build", "review"]).optional(),
-  /** Who this turn is for. Forwarded to the runner so any grant a decision
-   *  produces is bound to a wallet rather than to nobody. */
+  /** Deliberately NOT read from here any more. The owner is whatever wallet
+   *  signed for the access grant in the cookie, because a field in a request
+   *  body is whatever the caller typed. Accepted and ignored so an older page
+   *  still posts successfully. */
   owner: z.string().regex(ADDRESS).optional(),
 });
 
@@ -51,6 +64,25 @@ const answerSchema = z.object({
 function fail(reason: string, message: string, status: number) {
   return Response.json({ ok: false, reason, message }, { status });
 }
+
+/**
+ * Does this browser hold a claim on this job?
+ *
+ * Knowing an id used to be the whole of the authorisation. An agent id is
+ * `agent-<timestamp>-<4 random bytes>`, so the secret part was 32 bits behind a
+ * guessable prefix, and reading, cancelling or ANSWERING an approval prompt on
+ * a stranger's run needed nothing else.
+ */
+function ownsJob(request: Request, id: string): boolean {
+  return holdsClaim(openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE)), id);
+}
+
+const NOT_YOURS = ["not_yours", "That run was not started from this browser.", 403] as const;
+const NO_GRANT = [
+  "no_grant",
+  "Connect a wallet and sign once to use the agent. It costs no gas.",
+  401,
+] as const;
 
 // Read per request: some hosts bind env per request, where a module-level read
 // is undefined.
@@ -80,6 +112,7 @@ export const Route = createFileRoute("/api/agent")({
           return fail("rate_limited", "Too many requests.", 429);
         }
         if (!/^agent-[a-z0-9-]+$/i.test(id)) return fail("bad_id", "Unknown job.", 400);
+        if (!ownsJob(request, id)) return fail(...NOT_YOURS);
         const res = await fetch(`${cfg.url}/agent/jobs/${id}`, {
           headers: { authorization: `Bearer ${cfg.token}` },
         }).catch(() => null);
@@ -98,6 +131,16 @@ export const Route = createFileRoute("/api/agent")({
           return fail("not_configured", "Builds are not configured.", 503);
         const id = new URL(request.url).searchParams.get("id");
         if (!id || !/^agent-[a-z0-9-]+$/i.test(id)) return fail("bad_id", "Unknown job.", 400);
+        if (!ownsJob(request, id)) return fail(...NOT_YOURS);
+        if (
+          !checkRateLimit(
+            `agent:cancel:${clientKeyFromRequest(request)}`,
+            PER_IP_START_LIMIT,
+            WINDOW_MS,
+          )
+        ) {
+          return fail("rate_limited", "Too many requests.", 429);
+        }
         const res = await fetch(`${cfg.url}/agent/jobs/${id}/cancel`, {
           method: "POST",
           headers: { authorization: `Bearer ${cfg.token}` },
@@ -115,6 +158,9 @@ export const Route = createFileRoute("/api/agent")({
         const parsed = answerSchema.safeParse(raw);
         if (!parsed.success) return fail("invalid_body", "Malformed request.", 400);
         if (!/^agent-[a-z0-9-]+$/i.test(parsed.data.id)) return fail("bad_id", "Unknown job.", 400);
+        // The most important of the three. This answers a gated approval: a
+        // third party holding an id could allow an action the owner never saw.
+        if (!ownsJob(request, parsed.data.id)) return fail(...NOT_YOURS);
 
         const ip = clientKeyFromRequest(request);
         if (!checkRateLimit(`agent:answer:${ip}`, PER_IP_START_LIMIT, WINDOW_MS)) {
@@ -146,6 +192,14 @@ export const Route = createFileRoute("/api/agent")({
         const cfg = serverConfig();
         if (!cfg.url || !cfg.token)
           return fail("not_configured", "Builds are not configured.", 503);
+        // A run costs model credits and executes model-chosen commands on the
+        // runner host, so it is not something an anonymous caller gets to
+        // start. The grant is one signature, held in an httpOnly cookie: see
+        // api.access.ts.
+        const claims = openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE));
+        const owner = ownerOf(claims);
+        if (!owner) return fail(...NO_GRANT);
+
         const raw = await request.json().catch(() => null);
         const parsed = startSchema.safeParse(raw);
         if (!parsed.success) return fail("invalid_body", "Malformed request.", 400);
@@ -153,6 +207,13 @@ export const Route = createFileRoute("/api/agent")({
         const ip = clientKeyFromRequest(request);
         if (!checkRateLimit(`agent:start:${ip}`, PER_IP_START_LIMIT, WINDOW_MS)) {
           return fail("rate_limited", "Too many builds from this client. Try again later.", 429);
+        }
+
+        // Per wallet as well as per IP. IPs are cheap; a wallet is not.
+        if (
+          !checkRateLimit(`agent:wallet:${owner.toLowerCase()}`, PER_WALLET_START_LIMIT, WINDOW_MS)
+        ) {
+          return fail("rate_limited", "Too many runs from this wallet. Try again later.", 429);
         }
 
         const res = await fetch(`${cfg.url}/agent/jobs`, {
@@ -163,19 +224,25 @@ export const Route = createFileRoute("/api/agent")({
             // Lets the runner rate-limit per caller rather than treating all of
             // DevStation as one bucket.
             "x-devstation-caller": ip,
-            // The runner has read this header since Phase 1 and nothing sent
-            // it, so every grant was issued to "". The runner re-validates the
-            // shape; an absent wallet stays absent rather than being invented.
-            ...(parsed.data.owner ? { "x-devstation-owner": parsed.data.owner } : {}),
+            // Verified above by signature, not taken on trust from the body.
+            // Before this, a caller could name any wallet and have grants
+            // issued against it.
+            "x-devstation-owner": owner,
           },
           body: JSON.stringify(parsed.data),
         }).catch(() => null);
         if (!res) return fail("unreachable", "The build service is unreachable.", 502);
         const body = await res.text();
-        return new Response(body, {
-          status: res.status,
-          headers: { "content-type": "application/json" },
-        });
+
+        // Record which job this browser may touch from here on. Parsed rather
+        // than assumed: a runner that refused the job hands back no id, and
+        // claiming one that does not exist would be a lie in a cookie.
+        const started = JSON.parse(body || "null") as { id?: string } | null;
+        const headers: Record<string, string> = { "content-type": "application/json" };
+        if (res.ok && started?.id) {
+          headers["set-cookie"] = claimCookieHeader(withClaim(claims, started.id, owner));
+        }
+        return new Response(body, { status: res.status, headers });
       },
     },
   },

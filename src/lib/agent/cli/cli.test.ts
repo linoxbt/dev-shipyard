@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MockProvider, configuredProviderName } from "../providers";
@@ -11,6 +11,7 @@ import { lineReader } from "./line-reader";
 import {
   buildExecutor,
   checkpointsCommand,
+  undoCommand,
   configCommand,
   diffCommand,
   doctorCommand,
@@ -497,13 +498,45 @@ describe("the rest of the command surface", () => {
     expect(term.text()).toContain("+two");
   }, 30_000);
 
-  it("refuses to diff or list checkpoints outside a repository", async () => {
+  it("still lists checkpoints outside a repository, and says why diff cannot", async () => {
+    // Both used to refuse. Only diff has a real reason to: a snapshot restores
+    // a whole workspace and holds no base to compare against the way a commit
+    // does. Checkpoints and undo work here now, so the refusal points at them
+    // rather than being a dead end.
     const root = scratch();
     const term = terminal();
+
     expect(await diffCommand(context(root, new MockProvider([]), term.t))).toBe(1);
-    expect(await checkpointsCommand(context(root, new MockProvider([]), term.t))).toBe(1);
-    expect(term.errors()).toContain("Not a git repository");
+    expect(term.errors()).toContain("not a git repository");
+    expect(term.errors()).toContain("devstation checkpoints");
+
+    const listing = terminal();
+    expect(await checkpointsCommand(context(root, new MockProvider([]), listing.t))).toBe(0);
+    expect(listing.text()).toContain("No checkpoints yet");
   });
+
+  it("undoes a run in a workspace with no git at all", async () => {
+    // End to end through the CLI's own commands, in a plain folder: run the
+    // agent, see it change a file, then take it back. This is the capability
+    // that used to be "no, so there are no checkpoints and no undo".
+    const root = scratch();
+    writeFileSync(join(root, "a.js"), "original\n");
+    const term = terminal();
+
+    const provider = new MockProvider([
+      {
+        toolCalls: [{ id: "1", name: "write_file", input: { path: "a.js", content: "changed\n" } }],
+      },
+      { text: "Changed it." },
+    ]);
+    await runCommand(context(root, provider, term.t), "change a.js");
+    expect(readFileSync(join(root, "a.js"), "utf8")).toBe("changed\n");
+
+    const undo = terminal();
+    expect(await undoCommand(context(root, new MockProvider([]), undo.t))).toBe(0);
+    expect(readFileSync(join(root, "a.js"), "utf8")).toBe("original\n");
+    expect(existsSync(join(root, ".git"))).toBe(false);
+  }, 30_000);
 
   it("shows the settings a run would actually use", () => {
     const root = scratch();
