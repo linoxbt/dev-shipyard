@@ -137,6 +137,19 @@ const GATED: Array<{ prefix: string; risk: Exclude<RiskLevel, "low">; why: strin
     why: "Running a command can change files, install software, or reach the network.",
   },
   {
+    // Listed before the general clone entry below, because the gate matches on
+    // the first prefix that fits and "vcs.clone.into_existing" starts with
+    // "vcs.clone". A test holds this order in place.
+    prefix: "vcs.clone.into_existing",
+    risk: "high",
+    why: "This clones a repository into a directory that already has files in it, which can merge someone else's code into work that is already there.",
+  },
+  {
+    prefix: "vcs.clone",
+    risk: "medium",
+    why: "This downloads a repository from the internet into your workspace.",
+  },
+  {
     prefix: "vcs.commit",
     risk: "medium",
     why: "This records a commit in the repository's history.",

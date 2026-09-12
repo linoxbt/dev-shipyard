@@ -1,3 +1,4 @@
+import { readdirSync } from "node:fs";
 import { checkpoint, isRepo } from "./git";
 import {
   cwdFor,
@@ -29,6 +30,7 @@ import {
   type ProviderUsage,
 } from "./providers";
 import { agentDiff, agentStatus, git as gitOp, type GitOp } from "./git";
+import { cloneDirName, cloneUrlProblem } from "./git-ops";
 import { CODING_AGENT_SYSTEM, GIT_ADDENDUM } from "./system-prompt";
 import { renderContext, retrieve } from "./memory/retrieve";
 import { fetchPage } from "./web";
@@ -243,6 +245,47 @@ export class Orchestrator {
     return executor.run(command, { ...opts, signal: this.opts.signal });
   }
 
+  /**
+   * Bring a repository into the workspace.
+   *
+   * Three things make this different from the other git ops, and all three are
+   * the reason it is a tool rather than a line in `run_shell`.
+   *
+   * It goes through the executor rather than `git.ts`, which spawns on the
+   * host. Every other op works on a repository that is already here; a clone
+   * takes an address from the model and asks git to connect to it. In a
+   * sandboxed run that belongs inside the container with the rest of the
+   * agent's commands, not beside them on the host.
+   *
+   * It asks for a network, the way install_dependency does, because the sealed
+   * shell has none.
+   *
+   * And it accepts no `args`. Everything in `args` is passed to git, and
+   * `--upload-pack=<command>` is a documented way to make git run something.
+   * The URL is validated against an allow-list of transports before it gets
+   * anywhere near a shell.
+   */
+  private async clone(url: string, targetDir: unknown): Promise<{ ok: boolean; output: string }> {
+    const problem = cloneUrlProblem(url);
+    if (problem) return { ok: false, output: problem };
+
+    const requested = typeof targetDir === "string" ? targetDir.trim() : "";
+    const target = requested || cloneDirName(url);
+    const resolved = this.opts.workspace.resolve(target);
+    if (!resolved.ok) return { ok: false, output: resolved.reason };
+
+    const result = await this.shell(`git clone -- ${quoteArg(url)} ${quoteArg(target)}`, {
+      cwd: this.opts.workspace.root,
+      timeoutMs: 300_000,
+      network: true,
+    });
+    if (!result.ok) return { ok: false, output: formatShell(result) };
+    return {
+      ok: true,
+      output: `Cloned into ${target}/\n${formatShell(result)}`,
+    };
+  }
+
   private emit(kind: AgentEventKind, message: string, extra: Partial<AgentEvent> = {}) {
     this.opts.onEvent?.({ kind, message, at: new Date().toISOString(), ...extra });
   }
@@ -454,6 +497,18 @@ export class Orchestrator {
         projectId: this.opts.projectId ?? "workspace",
         environment: "development",
         autonomy: this.opts.autonomy,
+        // The registry cannot look at a filesystem: it is imported by the
+        // browser. It asks, and this answers for the real workspace.
+        populated: (path) => {
+          const resolved = this.opts.workspace.resolve(path);
+          if (!resolved.ok) return true;
+          try {
+            return readdirSync(resolved.absolute).length > 0;
+          } catch {
+            // Not there at all, so cloning into it creates it.
+            return false;
+          }
+        },
       },
     );
 
@@ -544,6 +599,7 @@ export class Orchestrator {
       case "git": {
         const op = String(args.op ?? "status") as GitOp;
         const extra = (args.args as string[]) ?? [];
+        if (op === "clone") return this.clone(String(args.url ?? ""), args.target_dir);
         // diff and status are answered against the last commit this run did
         // not make, because the run's own checkpoints would otherwise hide the
         // agent's work from it. See agentDiff in git.ts.
@@ -657,6 +713,13 @@ export class Orchestrator {
     });
     return { ok: result.ok, output: `${command}\n${formatShell(result)}` };
   }
+}
+
+/** Shell-quote one argument. The URL is validated before it gets here; this is
+ *  the second of the two, because one of them being enough is how the git tool
+ *  ended up with an injection hole in the first place. */
+function quoteArg(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
 function formatShell(result: {

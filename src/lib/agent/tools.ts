@@ -2,7 +2,7 @@ import { z } from "zod";
 import { evaluate, type Verdict } from "./policy";
 import { asUntrusted, redact } from "./secrets";
 import { operationForCommand } from "./command-class";
-import { READ_ONLY_OPS } from "./git-ops";
+import { cloneDirName, cloneTargetProblem, cloneUrlProblem, READ_ONLY_OPS } from "./git-ops";
 import type { ProtectedAction } from "./authorization";
 
 // The tool boundary.
@@ -40,7 +40,7 @@ export interface ToolDefinition<S extends z.ZodTypeAny = z.ZodTypeAny> {
    *  would mean either asking about every directory listing or waving through
    *  a command that destroys work. The registry's `operation` stays as the
    *  fallback for tools whose risk really is fixed. */
-  operationFrom?: (args: z.infer<S>) => string;
+  operationFrom?: (args: z.infer<S>, ctx: PreflightContext) => string;
   /** The arguments that define WHAT is being authorised, when that is narrower
    *  than every argument.
    *
@@ -189,32 +189,78 @@ export const TOOLS: Record<string, ToolDefinition> = {
     name: "git",
     usage: 'git {"op", "args?"}',
     description:
-      "Run a git operation: status, log, diff, show, branch, add, commit, init, checkout, rev-parse.",
+      "Run a git operation: status, log, diff, show, branch, add, commit, init, checkout, rev-parse, clone. " +
+      'Clone takes {"op":"clone","url":"https://...","target_dir":"optional-folder"} and brings a repository into the workspace.',
     operation: "vcs.commit",
-    schema: z.object({
-      op: z.enum([
-        "status",
-        "log",
-        "diff",
-        "show",
-        "branch",
-        "add",
-        "commit",
-        "init",
-        "checkout",
-        "rev-parse",
-      ]),
-      args: z.array(z.string().max(500)).max(20).optional(),
-    }),
-    operationFrom: (a) => {
-      const op = (a as { op: string }).op;
-      if (READ_ONLY_OPS.has(op as never)) return "project.inspect";
+    schema: z
+      .object({
+        op: z.enum([
+          "status",
+          "log",
+          "diff",
+          "show",
+          "branch",
+          "add",
+          "commit",
+          "init",
+          "checkout",
+          "rev-parse",
+          "clone",
+        ]),
+        args: z.array(z.string().max(500)).max(20).optional(),
+        // Clone only. Kept out of `args` deliberately: everything in `args` is
+        // passed through to git, and a URL that arrived as a positional argument
+        // could just as easily be `--upload-pack=...`.
+        url: z.string().max(2000).optional(),
+        target_dir: z.string().max(200).optional(),
+      })
+      // Checked here rather than at execution time, so a call that can never
+      // run is rejected before a person is asked to approve it. Asking someone
+      // to authorise something and then failing it for a reason that was
+      // knowable beforehand teaches them that the prompt means nothing.
+      .superRefine((value, ctx) => {
+        if (value.op !== "clone") return;
+        const urlProblem = cloneUrlProblem(value.url ?? "");
+        if (urlProblem)
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["url"], message: urlProblem });
+        const targetProblem = cloneTargetProblem(value.target_dir ?? "");
+        if (targetProblem)
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["target_dir"],
+            message: targetProblem,
+          });
+        if (value.args?.length)
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["args"],
+            // --upload-pack=<command> is a documented way to make git run a
+            // program. A clone takes a URL and a directory, nothing else.
+            message: "clone takes url and target_dir, not args.",
+          });
+      }),
+    operationFrom: (a, ctx) => {
+      const args = a as { op: string; url?: string; target_dir?: string };
+      if (READ_ONLY_OPS.has(args.op as never)) return "project.inspect";
       // checkout can discard uncommitted work, so it is not an ordinary write.
-      return op === "checkout" ? "vcs.reset" : "vcs.commit";
+      if (args.op === "checkout") return "vcs.reset";
+      if (args.op !== "clone") return "vcs.commit";
+
+      // Cloning into empty space and cloning on top of somebody's files are
+      // different actions wearing the same name. The second can merge a
+      // stranger's repository into work in progress, so it asks with a
+      // different sentence and at a higher risk.
+      const target = args.target_dir?.trim() || cloneDirName(args.url ?? "");
+      const populated = ctx.populated ? ctx.populated(target) : true;
+      return populated ? "vcs.clone.into_existing" : "vcs.clone";
     },
-    resourcesFrom: (a) => [`git:${(a as { op: string }).op}`],
+    resourcesFrom: (a) => {
+      const args = a as { op: string; url?: string };
+      // The URL is the part a person needs to see before approving a clone.
+      return args.op === "clone" && args.url ? ["git:clone", args.url] : [`git:${args.op}`];
+    },
     returnsUntrustedContent: true,
-    materialArgs: ["op"],
+    materialArgs: ["op", "url", "target_dir"],
   },
   lint_and_typecheck: {
     name: "lint_and_typecheck",
@@ -395,6 +441,16 @@ export interface PreflightContext {
   projectId: string;
   environment?: "development" | "preview" | "production";
   autonomy?: "ask_sensitive" | "ask_integrations" | "ask_deploy" | "autonomous";
+  /**
+   * Whether a path inside the workspace already has files in it.
+   *
+   * Supplied by the caller rather than looked up here, because this module is
+   * imported by the browser and has no filesystem to ask. Absent means "cannot
+   * tell", and a caller that cannot tell gets the higher classification: not
+   * knowing whether a directory is populated is not a reason to treat it as
+   * empty.
+   */
+  populated?: (relativePath: string) => boolean;
 }
 
 /** Validate a proposed call and decide whether it may run.
@@ -432,7 +488,7 @@ export function preflight(call: ToolCall, ctx: PreflightContext): ToolPreflight 
     taskId: ctx.taskId,
     userId: ctx.userId,
     // The tool's own reading of its arguments wins over the static label.
-    operation: tool.operationFrom ? tool.operationFrom(args) : tool.operation,
+    operation: tool.operationFrom ? tool.operationFrom(args, ctx) : tool.operation,
     resources: tool.resourcesFrom(args),
     environment: ctx.environment,
     projectId: ctx.projectId,
