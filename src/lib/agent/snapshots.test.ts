@@ -99,6 +99,24 @@ describe("undoing", () => {
     expect(read(root, "a.js")).toBe("v1\n");
   });
 
+  it("orders by turn, not by the clock", () => {
+    // What CI caught and this machine hid. Three snapshots taken with no delay
+    // land in the same millisecond on a fast machine; ordering them by
+    // timestamp then fell back to a random suffix, so undo rewound to whichever
+    // sorted highest rather than to the most recent.
+    const root = scratch({ "a.js": "v1\n" });
+    takeSnapshot(root, "at v1");
+    writeFileSync(join(root, "a.js"), "v2\n");
+    takeSnapshot(root, "at v2");
+    writeFileSync(join(root, "a.js"), "v3\n");
+    takeSnapshot(root, "at v3");
+
+    expect(listSnapshots(root).map((s) => s.message)).toEqual(["at v3", "at v2", "at v1"]);
+    // And they really were simultaneous, or this proves nothing.
+    const times = listSnapshots(root).map((s) => Number(s.id.split("-")[1]));
+    expect(Math.max(...times) - Math.min(...times)).toBeLessThan(50);
+  });
+
   it("says so when there is nothing to undo", () => {
     const result = undoSnapshot(scratch({ "a.js": "x\n" }));
     expect(result.ok).toBe(false);

@@ -62,6 +62,29 @@ export function listSnapshots(root: string): Snapshot[] {
 }
 
 /**
+ * The next snapshot id: a zero-padded sequence, then the time.
+ *
+ * The sequence is what orders them, and it has to be, because the clock is
+ * not enough. The first version used `Date.now()` with a random suffix and
+ * passed locally for exactly the wrong reason -- this machine was slow enough
+ * that consecutive turns landed in different milliseconds. CI was not: two
+ * snapshots in the same millisecond sorted by their random suffixes, so "undo"
+ * rewound to whichever one happened to sort highest rather than to the most
+ * recent, and the test that goes back two turns failed there and nowhere else.
+ *
+ * Counted from what is on disk rather than from a variable in memory, so it
+ * survives a restart and a second process.
+ */
+function nextId(root: string): string {
+  const highest = listSnapshots(root).reduce((max, snap) => {
+    const seq = Number.parseInt(snap.id.split("-")[0], 10);
+    return Number.isFinite(seq) && seq > max ? seq : max;
+  }, 0);
+  // The timestamp stays, for a human reading the directory.
+  return `${String(highest + 1).padStart(6, "0")}-${Date.now()}`;
+}
+
+/**
  * Copy the current state of the workspace aside.
  *
  * Uses the workspace's own reader, so it captures exactly what the agent can
@@ -76,8 +99,7 @@ export function takeSnapshot(root: string, message: string): Snapshot | null {
     .filter((p) => !p.startsWith(`${DIR}/`) && !p.startsWith(".devstation/"));
   if (files.length === 0) return null;
 
-  // Sortable and unique: listing and rewinding both depend on the order.
-  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const id = nextId(root);
   const dir = join(storeDir(root), id);
   mkdirSync(join(dir, "files"), { recursive: true });
 
