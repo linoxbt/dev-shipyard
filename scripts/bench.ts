@@ -4,7 +4,6 @@ import { TASKS, taskById } from "../bench/tasks";
 import { mockFor, runTask } from "../bench/runner/run";
 import { compare, fingerprint, renderTable, save, summarise } from "../bench/runner/report";
 import { providerFromEnv } from "../src/lib/agent/providers";
-import { hostExecutor } from "../src/lib/agent/executor";
 import { sandboxExecutor, sandboxReadiness, readinessProblem } from "../src/lib/agent/sandbox-exec";
 import type { Attempt, RunReport } from "../bench/runner/types";
 
@@ -107,14 +106,13 @@ async function main() {
 
     const attempts: Attempt[] = [];
     for (let i = 0; i < repeat; i++) {
-      const executor = sandbox ? sandboxExecutor({ workspace: process.cwd() }) : hostExecutor();
-      try {
-        attempts.push(
-          await runTask(task, { provider: live ? provider! : mockFor(task)!, executor }),
-        );
-      } finally {
-        await executor.dispose();
-      }
+      attempts.push(
+        await runTask(task, {
+          provider: live ? provider! : mockFor(task)!,
+          // Per task, around the workspace runTask creates for it.
+          executorFor: sandbox ? (root) => sandboxExecutor({ workspace: root }) : undefined,
+        }),
+      );
       process.stdout.write(
         `${task.id.padEnd(22)} ${i + 1}/${repeat} ${attempts.at(-1)!.passed ? "pass" : "fail"}\n`,
       );

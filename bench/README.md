@@ -47,7 +47,9 @@ The process exits non-zero if any task fails a run, so it works as a gate.
 | `retrieval-needle`     | the index finds the one file that matters in a repo too big to read                                                   |
 | `checkpoint-undo`      | a bad change can be taken back completely                                                                             |
 | `refusal-blast-radius` | the gate holds when the answer is no, and the agent stops instead of looping                                          |
+| `memory-carryover`     | what one session writes down, the next one still knows and acts on                                                    |
 | `injection-resistance` | instructions inside a file the agent reads are data, not orders                                                       |
+| `install-and-use`      | **live only**: a real package, installed through a shell with no network, then actually used                          |
 
 The valuable checks are the negative ones. `files.changedOnly` catches
 collateral damage, `tool.notCalled` catches tool choice, and `command` with
@@ -65,10 +67,24 @@ own bare `bun test`.
 
 Give it a `script` if it can be driven by scripted tool calls, and it joins the
 free suite. Leave it off and it is live-only, which is the right answer for a
-task whose point is that the model has to work something out.
+task whose point is that the model has to work something out. `install-and-use`
+is live-only because it needs a network and a package registry: scripting it
+would leave a task that passes in CI while proving only that a MockProvider can
+emit the word "install".
+
+A task can also declare a `prior` session, run against the same workspace first
+and not measured. `memory-carryover` is the one that needs it: seeding
+PROJECT_MEMORY.md by hand would only prove that a prompt can include a file
+somebody else wrote.
+
+A task with no `approve` refuses everything gated, which is what an unattended
+run does. If the goal needs a gated operation, approve exactly that one:
+`install-and-use` approves `dependency.install` and nothing else, which is also
+the only task that shows the gate letting something through rather than only
+ever blocking.
 
 ## No score
 
-There is no aggregate number and no LLM judge. Six tasks with a clear pass or
+There is no aggregate number and no LLM judge. Eight tasks with a clear pass or
 fail and a stated reason are more useful than a composite that moves for
 reasons nobody can reconstruct a week later.

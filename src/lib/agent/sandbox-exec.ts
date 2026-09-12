@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, statSync, unlinkSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { runShell, type ShellResult } from "./shell";
 import {
   allowedEnv,
@@ -291,6 +291,27 @@ export function createCommand(args: CreateArgs): string {
 }
 
 /**
+ * Where inside the container a command should run.
+ *
+ * The workspace is mounted at /work, so a cwd inside it maps to a path under
+ * /work. Everything used to run at /work regardless of what the caller asked
+ * for, which is wrong in a monorepo: the orchestrator passes the manifest's
+ * directory for `run_tests` and `run_build`, so a project with its package.json
+ * in apps/web had its tests run from the repository root instead.
+ *
+ * A cwd outside the workspace returns null and the command is refused rather
+ * than quietly running somewhere else. That silence is what hid this: the
+ * benchmark harness built a sandbox around the wrong directory and every task
+ * ran its commands against this repository without a word.
+ */
+export function workdirFor(workspace: string, cwd: string): string | null {
+  const rel = relative(resolve(workspace), resolve(cwd));
+  if (rel === "") return "/work";
+  if (rel.startsWith("..") || isAbsolute(rel)) return null;
+  return `/work/${rel.split(sep).join("/")}`;
+}
+
+/**
  * One command, run inside the container under its own deadline.
  *
  * The timeout has to be enforced INSIDE. `runShell` kills by process group, and
@@ -303,10 +324,15 @@ export function createCommand(args: CreateArgs): string {
  * tool ended up with an injection hole, and the whole point of this file is to
  * be the thing that contains a command, not another way to run one.
  */
-export function execCommand(name: string, command: string, timeoutSeconds: number): string {
+export function execCommand(
+  name: string,
+  command: string,
+  timeoutSeconds: number,
+  workdir = "/work",
+): string {
   return [
     "docker exec",
-    "--workdir /work",
+    `--workdir ${quote(workdir)}`,
     `--env ${quote(`DEVSTATION_CMD=${command}`)}`,
     quote(name),
     "sh -c",
@@ -470,6 +496,14 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
       const refusal = refusedForSecret(command);
       if (refusal) return failedResult(refusal);
 
+      const workdir = workdirFor(options.workspace, opts.cwd);
+      if (workdir === null) {
+        return failedResult(
+          `That command asked to run in ${opts.cwd}, which is outside the sandbox's ` +
+            "workspace and is not reachable from inside the container.",
+        );
+      }
+
       const seconds = Math.ceil(((opts.timeoutMs ?? 120_000) / 1000) * scale);
       // The host-side kill is only a backstop: the in-container timeout is what
       // actually stops the process, and this fires well after it.
@@ -486,7 +520,7 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
         if (!started) return failedResult(`Could not start a networked sandbox from ${image}.`);
         try {
           return present(
-            await runShell(execCommand(name, command, seconds), {
+            await runShell(execCommand(name, command, seconds, workdir), {
               cwd: options.workspace,
               timeoutMs: backstopMs,
               signal: opts.signal,
@@ -511,7 +545,7 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
       }
 
       return present(
-        await runShell(execCommand(sealed, command, seconds), {
+        await runShell(execCommand(sealed, command, seconds, workdir), {
           cwd: options.workspace,
           timeoutMs: backstopMs,
           signal: opts.signal,

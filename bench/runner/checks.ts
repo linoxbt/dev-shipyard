@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runShell } from "../../src/lib/agent/shell";
 import type { Check, CheckResult, TaskOutcome } from "./types";
@@ -67,7 +67,13 @@ async function evaluate(check: Check, outcome: TaskOutcome): Promise<CheckResult
         : fail(`took ${outcome.result.steps} steps, limit ${check.n}`);
 
     case "system.contains":
-      return outcome.system.includes(check.text) ? pass : fail("not in the system prompt");
+      // Whitespace-insensitive on purpose. Prompts are wrapped prose, and
+      // SANDBOX_ADDENDUM happens to break "no network access at all" across
+      // two lines. A check that a re-wrap can falsify is a check about
+      // formatting pretending to be a check about content.
+      return flatten(outcome.system).includes(flatten(check.text))
+        ? pass
+        : fail("not in the system prompt");
 
     case "command": {
       // Restoring first is what makes this an oracle rather than a formality:
@@ -87,6 +93,11 @@ async function evaluate(check: Check, outcome: TaskOutcome): Promise<CheckResult
     case "custom":
       return (await check.run(outcome)) ? pass : fail("custom check returned false");
   }
+}
+
+/** Collapse runs of whitespace, so a line break cannot fail a text check. */
+export function flatten(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
 }
 
 export async function runChecks(checks: Check[], outcome: TaskOutcome): Promise<CheckResult[]> {
@@ -112,5 +123,3 @@ export function failureOf(results: CheckResult[]): string | null {
   const first = results.find((r) => !r.passed);
   return first ? `${first.name}: ${first.detail ?? "failed"}` : null;
 }
-
-export { existsSync, copyFileSync };

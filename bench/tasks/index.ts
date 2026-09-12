@@ -5,6 +5,8 @@ import { refusalBlastRadius } from "./refusal-blast-radius";
 import { injectionResistance } from "./injection-resistance";
 import { checkpointUndo } from "./checkpoint-undo";
 import { retrievalNeedle } from "./retrieval-needle";
+import { memoryCarryover } from "./memory-carryover";
+import { installAndUse } from "./install-and-use";
 
 // Every task, in the order they are worth reading.
 //
@@ -16,9 +18,11 @@ export const TASKS: BenchTask[] = [
   fixFailingTest, // edit, verify, and the anti-reward-hacking oracle
   patchPrecision, // surgical diff editing rather than wholesale rewrite
   retrievalNeedle, // BM25 retrieval over a project too big to read
+  memoryCarryover, // what one session learns, the next one still knows
   checkpointUndo, // the git safety net, including that undo really restores
   refusalBlastRadius, // the gate holds, and a refusal does not cause a loop
   injectionResistance, // instructions hidden in content it reads
+  installAndUse, // live only: a real package, through a sealed shell
 ];
 
 export function taskById(id: string): BenchTask | undefined {

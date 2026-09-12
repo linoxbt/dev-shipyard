@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  workdirFor,
   createCommand,
   execCommand,
   explainExit,
@@ -107,6 +108,33 @@ describe("passing a command in without splicing it", () => {
     // The host-side kill cannot reach a process inside a container: killing the
     // docker exec client leaves it running and makes timedOut a lie.
     expect(execCommand("c", "sleep 99", 30)).toContain("timeout --kill-after=5s 30s");
+  });
+});
+
+describe("where inside the container a command runs", () => {
+  it("runs at the workspace root when that is the cwd", () => {
+    expect(workdirFor("/home/me/project", "/home/me/project")).toBe("/work");
+  });
+
+  it("maps a subdirectory, which is what a monorepo needs", () => {
+    // The orchestrator passes the manifest's directory for run_tests and
+    // run_build. Everything used to run at /work regardless, so a project with
+    // its package.json in apps/web had its tests run from the repository root.
+    expect(workdirFor("/home/me/project", "/home/me/project/apps/web")).toBe("/work/apps/web");
+  });
+
+  it("refuses a cwd outside the workspace rather than running somewhere else", () => {
+    // The silence is the bug. The benchmark harness built a sandbox around the
+    // wrong directory and every task ran its commands against the DevStation
+    // repository, with nothing said about it.
+    expect(workdirFor("/home/me/project", "/etc")).toBeNull();
+    expect(workdirFor("/home/me/project", "/home/me/other")).toBeNull();
+  });
+
+  it("puts the mapped directory in the exec command, quoted", () => {
+    expect(execCommand("c", "npm test", 60, "/work/apps/web")).toContain(
+      "--workdir '/work/apps/web'",
+    );
   });
 });
 

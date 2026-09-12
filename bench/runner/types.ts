@@ -48,6 +48,15 @@ export interface BenchTask {
   /** Present means this task can run free and deterministically under the
    *  MockProvider. Absent means it is live-only. */
   script?: MockTurn[];
+  /**
+   * An earlier session against the same workspace, run before the one being
+   * measured and not measured itself.
+   *
+   * It exists for the one question a single session cannot answer: whether
+   * what the agent learns in one sitting reaches the next. Seeding the file by
+   * hand would only prove the prompt can read a file somebody else wrote.
+   */
+  prior?: { goal: string; script?: MockTurn[] };
   checks: Check[];
 }
 
@@ -71,6 +80,10 @@ export interface TaskOutcome {
   root: string;
   /** The system prompt the model was given, for checks about memory. */
   system: string;
+  /** Whether commands ran in a container. A check about the sandbox needs to
+   *  know, so that running the suite unsandboxed reports "not applicable"
+   *  rather than a failure the agent did not cause. */
+  sandbox: boolean;
 }
 
 /**
