@@ -1,5 +1,5 @@
 {
-  "name": "devstation",
+  "name": "@devstation/cli",
   "version": "0.1.0",
   "description": "The DevStation coding agent, in your terminal.",
   "license": "MIT",
@@ -20,5 +20,13 @@
     "url": "git+https://github.com/linoxbt/dev-shipyard.git"
   },
   "homepage": "https://devstation.online",
-  "keywords": ["coding-agent", "cli", "ai", "devstation"]
+  "keywords": [
+    "coding-agent",
+    "cli",
+    "ai",
+    "devstation"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }

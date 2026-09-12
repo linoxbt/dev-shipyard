@@ -34,7 +34,7 @@ detect_target() {
   case "$os" in
     Linux) os_part="linux" ;;
     Darwin) os_part="darwin" ;;
-    MINGW* | MSYS* | CYGWIN*) die "on Windows, use: npm install -g devstation" ;;
+    MINGW* | MSYS* | CYGWIN*) die "on Windows, use: npm install -g @devstation/cli" ;;
     *) die "unsupported system: $os" ;;
   esac
   case "$arch" in
@@ -111,7 +111,7 @@ main() {
     # which is the classic way an installer produces "cannot execute".
     curl -fsSL "$url" -o "$tmp/devstation" ||
       die "could not download $url
-Check that a release exists, or install with: npm install -g devstation"
+Check that a release exists, or install with: npm install -g @devstation/cli"
 
     verify_checksum "$tmp/devstation" "$target" "${url%/*}/SHA256SUMS"
   fi
@@ -129,6 +129,24 @@ Check that a release exists, or install with: npm install -g devstation"
   version=$("$INSTALL_DIR/devstation" --version)
   say ""
   say "Installed $version to $INSTALL_DIR/devstation"
+
+  # Somebody else publishes an unrelated npm package called "devstation" -- a
+  # dashboard for dev servers -- and `npm i -g devstation` installs it at
+  # /usr/local/bin. If one is already on the PATH it will win, and the symptom
+  # is this command printing a box about http://localhost:4000. Said here
+  # because the alternative is discovering it later and assuming the install
+  # was broken.
+  existing=$(command -v devstation 2>/dev/null || true)
+  if [ -n "$existing" ] && [ "$existing" != "$INSTALL_DIR/devstation" ]; then
+    say ""
+    say "Note: a different 'devstation' is already on your PATH:"
+    say ""
+    say "  $existing"
+    say ""
+    say "That is an unrelated package of the same name. It will be found first."
+    say "Remove it with 'npm uninstall -g devstation', or run this one by its"
+    say "full path: $INSTALL_DIR/devstation"
+  fi
 
   case ":$PATH:" in
     *":$INSTALL_DIR:"*)

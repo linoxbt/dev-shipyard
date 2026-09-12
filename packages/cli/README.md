@@ -14,7 +14,7 @@ curl -fsSL https://devstation.online/install.sh | sh
 Or through npm, which needs [Bun](https://bun.sh) on the machine:
 
 ```sh
-npm install -g devstation
+npm install -g @devstation/cli
 ```
 
 Either way, check the install:

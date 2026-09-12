@@ -140,7 +140,7 @@ function TerminalHint() {
           <Command label="Install (needs nothing else)">
             curl -fsSL https://devstation.online/install.sh | sh
           </Command>
-          <Command label="Or with npm, if you have Bun">npm install -g devstation</Command>
+          <Command label="Or with npm, if you have Bun">npm install -g @devstation/cli</Command>
           <Command label="Then, in any project">devstation</Command>
           <p className="font-mono text-[10px] leading-relaxed text-meta">
             It needs ANTHROPIC_API_KEY or OPENROUTER_API_KEY. Run{" "}
