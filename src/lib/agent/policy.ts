@@ -194,10 +194,20 @@ export function evaluate(action: ProtectedAction, opts: PolicyOptions = {}): Ver
 
   // Autonomy can widen what proceeds unattended, but never below the floor:
   // anything critical always asks, whatever the setting says.
+  //
+  // Four rungs, each strictly wider than the last. ask_integrations used to be
+  // offered in --help and then fall through to the same answer as the default,
+  // so a person who chose it got no change and no way to tell. It is the rung
+  // where routine integration work -- adding a dependency, writing a config
+  // file, creating a repository -- stops interrupting, while anything that
+  // publishes, pushes or deletes still asks.
   if (opts.autonomy === "autonomous" && risk !== "critical") {
     return { decision: "allow" };
   }
   if (opts.autonomy === "ask_deploy" && risk !== "critical" && !op.startsWith("deploy.")) {
+    return { decision: "allow" };
+  }
+  if (opts.autonomy === "ask_integrations" && risk === "medium") {
     return { decision: "allow" };
   }
   return { decision: "confirm", riskLevel: risk, why: gate.why };

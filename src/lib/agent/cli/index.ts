@@ -164,6 +164,7 @@ function context(
     maxCostUsd: parsed.maxCostUsd,
     yes: parsed.yes,
     sandbox: parsed.sandbox,
+    json: parsed.json,
   };
 }
 

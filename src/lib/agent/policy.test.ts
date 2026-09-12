@@ -92,3 +92,55 @@ describe("autonomy cannot dissolve the floor", () => {
     expect(v.decision).toBe("confirm");
   });
 });
+
+describe("the four autonomy rungs", () => {
+  // Each is strictly wider than the one before, and none can reach critical.
+  const medium = { operation: "dependency.install", resources: ["npm:left-pad"] };
+  const high = { operation: "vcs.push", resources: ["github:owner/repo"] };
+  const critical = { operation: "shell.exec", resources: ["sh:rm"] };
+  const deploy = { operation: "deploy.publish", resources: ["site:app"] };
+
+  const decide = (
+    action: { operation: string; resources: string[] },
+    autonomy: "ask_sensitive" | "ask_integrations" | "ask_deploy" | "autonomous",
+  ) =>
+    evaluate(
+      {
+        actionId: "a",
+        taskId: "t",
+        userId: "u",
+        projectId: "p",
+        environment: "development",
+        parameters: {},
+        ...action,
+      },
+      { autonomy },
+    ).decision;
+
+  it("asks about everything gated on the default rung", () => {
+    expect(decide(medium, "ask_sensitive")).toBe("confirm");
+    expect(decide(high, "ask_sensitive")).toBe("confirm");
+  });
+
+  it("lets routine integration work through on ask_integrations", () => {
+    // This rung was offered in --help and did nothing at all: it fell through
+    // to the same answer as the default, so choosing it changed nothing and
+    // there was no way to tell.
+    expect(decide(medium, "ask_integrations")).toBe("allow");
+    // And still asks about the things that publish or push.
+    expect(decide(high, "ask_integrations")).toBe("confirm");
+    expect(decide(deploy, "ask_integrations")).toBe("confirm");
+    expect(decide(critical, "ask_integrations")).toBe("confirm");
+  });
+
+  it("lets high risk through on ask_deploy, except deploys", () => {
+    expect(decide(high, "ask_deploy")).toBe("allow");
+    expect(decide(deploy, "ask_deploy")).toBe("confirm");
+  });
+
+  it("never lets critical through, on any rung", () => {
+    for (const mode of ["ask_sensitive", "ask_integrations", "ask_deploy", "autonomous"] as const) {
+      expect(decide(critical, mode)).toBe("confirm");
+    }
+  });
+});

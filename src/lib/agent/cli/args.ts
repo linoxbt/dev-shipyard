@@ -232,7 +232,7 @@ Options
   --budget <dollars>  stop before a turn that would exceed this
   -y, --yes           approve every gated action without asking
   -f, --follow        keep watching (status only)
-  --json              machine-readable output where it makes sense
+  --json              JSON from config, sessions, checkpoints and tools
   --no-sandbox        run commands on this machine instead of in a container
   -h, --help          this
   -v, --version       the version

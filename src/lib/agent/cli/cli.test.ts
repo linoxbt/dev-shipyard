@@ -538,6 +538,45 @@ describe("the rest of the command surface", () => {
     expect(existsSync(join(root, ".git"))).toBe(false);
   }, 30_000);
 
+  it("gives a script JSON rather than the same prose", () => {
+    // --json was advertised in --help and read by nothing: every command
+    // printed its human output and a script parsing it got a surprise. These
+    // four are the ones that report rather than act.
+    const root = scratch();
+
+    const config = terminal();
+    configCommand({
+      ...context(root, new MockProvider([]), config.t),
+      json: true,
+      autonomy: "ask_deploy",
+    });
+    const parsedConfig = JSON.parse(config.text()) as Record<string, unknown>;
+    expect(parsedConfig.workspace).toBe(root);
+    expect(parsedConfig.autonomy).toBe("ask_deploy");
+    expect(parsedConfig.git).toBe(false);
+
+    const tools = terminal();
+    toolsCommand({ ...context(root, new MockProvider([]), tools.t), json: true });
+    const parsedTools = JSON.parse(tools.text()) as { tools: { name: string; gate: string }[] };
+    expect(parsedTools.tools.length).toBeGreaterThan(5);
+    expect(parsedTools.tools.every((t) => typeof t.gate === "string")).toBe(true);
+
+    const sessions = terminal();
+    sessionsCommand({ ...context(root, new MockProvider([]), sessions.t), json: true });
+    expect(JSON.parse(sessions.text())).toEqual({ sessions: [] });
+  });
+
+  it("says which checkpoint mechanism the JSON describes", async () => {
+    // A commit and a snapshot are different things, and flattening them into
+    // one look-alike record would make a script treat them as interchangeable.
+    const root = scratch();
+    const term = terminal();
+    await checkpointsCommand({ ...context(root, new MockProvider([]), term.t), json: true });
+    const parsed = JSON.parse(term.text()) as { kind: string; checkpoints: unknown[] };
+    expect(parsed.kind).toBe("snapshot");
+    expect(parsed.checkpoints).toEqual([]);
+  });
+
   it("shows the settings a run would actually use", () => {
     const root = scratch();
     const term = terminal();

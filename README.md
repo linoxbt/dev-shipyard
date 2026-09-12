@@ -1,5 +1,7 @@
 # DevStation
 
+The terminal agent: **[docs/CLI.md](docs/CLI.md)** — install, use, debug, uninstall.
+
 **The AI Developer OS for QIE and Web3.** Describe it. Build it. Ship it.
 
 DevStation is a complete, onchain developer console for **QIE**, with **BOT Chain** supported alongside it. It brings the everyday work of a smart-contract developer into one place: write and compile Solidity in the browser, deploy audited templates, generate and deploy contracts with an AI agent, decode any transaction, browse the chain with a built-in block explorer, and label contracts onchain. Everything runs against live networks, and the records that matter (your deployments and the contract label registry) live onchain, per chain, not in a private database.
@@ -38,13 +40,13 @@ addresses, see **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
 
 ## What's inside
 
-| Area                   | What it does                                                                                                                                                       |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Area                   | What it does                                                                                                                                                      |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **LaunchKit**          | Deploy audited contract templates, write and compile Solidity in the browser, and generate, audit, and deploy contracts with an AI agent, on any supported chain. |
-| **Routebook**          | Decode any transaction, on any supported chain, into a readable call tree with internal calls, events, and onchain contract labels.                                |
-| **Explorer**           | A native, Etherscan-style block explorer for blocks, transactions, addresses, tokens, and holders, across every supported chain and network.                       |
-| **Onchain registries** | A ProjectRegistry records every deployment, and a ContractLabelRegistry gives contracts human-readable names, per chain.                                           |
-| **Docs**               | A built-in, multi-page documentation section at `/docs`.                                                                                                           |
+| **Routebook**          | Decode any transaction, on any supported chain, into a readable call tree with internal calls, events, and onchain contract labels.                               |
+| **Explorer**           | A native, Etherscan-style block explorer for blocks, transactions, addresses, tokens, and holders, across every supported chain and network.                      |
+| **Onchain registries** | A ProjectRegistry records every deployment, and a ContractLabelRegistry gives contracts human-readable names, per chain.                                          |
+| **Docs**               | A built-in, multi-page documentation section at `/docs`.                                                                                                          |
 
 ---
 
@@ -84,12 +86,12 @@ The Solidity assistant works in two modes, resolved from Settings:
 
 **OpenRouter is the default**, and for most people the only one worth configuring: a single OpenRouter key reaches all 15 models in the picker, so there's no per-vendor account to manage. The picker is grouped by vendor: Anthropic and OpenAI first, then DeepSeek, then Google/xAI/Qwen.
 
-| Provider          | Format            | Models                                                                      |
-| ----------------- | ----------------- | --------------------------------------------------------------------------- |
-| **OpenRouter** ⭐ | OpenAI-compatible | 15 models across Anthropic, OpenAI, DeepSeek, Google, xAI and Qwen.         |
+| Provider          | Format            | Models                                                                     |
+| ----------------- | ----------------- | -------------------------------------------------------------------------- |
+| **OpenRouter** ⭐ | OpenAI-compatible | 15 models across Anthropic, OpenAI, DeepSeek, Google, xAI and Qwen.        |
 | OpenAI direct     | OpenAI            | GPT-5.6 (Sol/Terra/Luna), GPT-5.5, GPT-5.4 Mini, with your OpenAI key.     |
 | Claude direct     | Anthropic native  | Claude Opus 5, Sonnet 5, Fable 5, Opus 4.8, Haiku 4.5: your Anthropic key. |
-| FreeModel         | OpenAI-compatible | FreeModel's GPT-5.x line.                                                   |
+| FreeModel         | OpenAI-compatible | FreeModel's GPT-5.x line.                                                  |
 
 ### Wallets
 
@@ -158,7 +160,7 @@ The AI provider, model, and key are chosen in the app's Settings and stored in t
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `VITE_AI_PROXY`                        | `"true"` to route AI requests through the `/api/ai` server proxy                                                                         |
 | `OPENROUTER_API_KEY`                   | **The recommended one.** A single OpenRouter key serves every model in the picker (no `VITE_` prefix, so it never ships to the browser). |
-| `OPENAI_MODEL`                         | Optional default model, e.g. `anthropic/claude-sonnet-5`, any OpenRouter model id.                                                      |
+| `OPENAI_MODEL`                         | Optional default model, e.g. `anthropic/claude-sonnet-5`, any OpenRouter model id.                                                       |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | Alternatives, if you'd rather the proxy talk to one vendor directly.                                                                     |
 
 ### QIE ecosystem (optional)
@@ -169,11 +171,11 @@ The AI provider, model, and key are chosen in the app's Settings and stored in t
 
 ### Server-only
 
-| Variable                  | Purpose                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PRIVATE_KEY`             | Used **only** by `scripts/deploy.ts` to deploy the registry contracts from your machine. Lives in `.env.local`. **Never** add it to a host: the running app has no use for it.                                                                                                                                                                                                         |
+| Variable                  | Purpose                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PRIVATE_KEY`             | Used **only** by `scripts/deploy.ts` to deploy the registry contracts from your machine. Lives in `.env.local`. **Never** add it to a host: the running app has no use for it.                                                                                                                                                                                                       |
 | `SPONSOR_PRIVATE_KEY`     | Optional. A live, funded QIE mainnet wallet the running app tops visitors' own wallets up from (not a relayer, see [DEPLOYMENT.md](./DEPLOYMENT.md#sponsored-deploys-qie-mainnet--bot-chain-mainnet)). Unlike `PRIVATE_KEY` above, this one _is_ meant to be set on a host, but only if you understand the abuse model, it's closer to an open token faucet than a scoped gas payer. |
-| `SPONSOR_PRIVATE_KEY_BOT` | Optional. Same as `SPONSOR_PRIVATE_KEY` above, but a separate live wallet funded with BOT for BOT Chain mainnet.                                                                                                                                                                                                                                                                       |
+| `SPONSOR_PRIVATE_KEY_BOT` | Optional. Same as `SPONSOR_PRIVATE_KEY` above, but a separate live wallet funded with BOT for BOT Chain mainnet.                                                                                                                                                                                                                                                                     |
 
 Hosting-preset overrides (`NITRO_PRESET`, etc.) are covered in **[DEPLOYMENT.md](./DEPLOYMENT.md#hosting)**.
 
@@ -226,16 +228,16 @@ public/_redirects       Netlify SSR catch-all
 
 ## Scripts
 
-| Command                                           | Description                                                                                     |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `bun run dev`                                     | Dev server (http://localhost:8080)                                                              |
-| `bun run build`                                   | Production build (host-aware preset)                                                            |
-| `bun run preview`                                 | Preview the production build                                                                    |
-| `bun run lint` / `bun run format`                 | ESLint / Prettier                                                                               |
+| Command                                           | Description                                                                                    |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `bun run dev`                                     | Dev server (http://localhost:8080)                                                             |
+| `bun run build`                                   | Production build (host-aware preset)                                                           |
+| `bun run preview`                                 | Preview the production build                                                                   |
+| `bun run lint` / `bun run format`                 | ESLint / Prettier                                                                              |
 | `bun run test`                                    | Unit tests (`bun test`) for pure logic: arg parsing, static analysis, diffing, revert decoding |
-| `bun run contracts:compile`                       | Compile registries to ABIs + artifacts                                                          |
-| `bun run contracts:deploy [mainnet]`              | Deploy registries to QIE (testnet by default)                                                   |
-| `bun run contracts:deploy bot [testnet\|mainnet]` | Deploy registries to BOT Chain (testnet by default)                                             |
+| `bun run contracts:compile`                       | Compile registries to ABIs + artifacts                                                         |
+| `bun run contracts:deploy [mainnet]`              | Deploy registries to QIE (testnet by default)                                                  |
+| `bun run contracts:deploy bot [testnet\|mainnet]` | Deploy registries to BOT Chain (testnet by default)                                            |
 
 ---
 

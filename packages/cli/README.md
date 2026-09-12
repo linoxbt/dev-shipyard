@@ -88,6 +88,9 @@ devstation doctor               check this machine
 
 Inside a session, `/help` lists the same things as slash commands.
 
+**[The full reference](../../docs/CLI.md)** covers every flag, the sandbox, MCP
+servers, troubleshooting, and how to uninstall.
+
 ## Notes
 
 Runs are checkpointed to git as they go, which is what `undo` rewinds. Sessions

@@ -57,6 +57,11 @@ export interface CommandContext {
   signal?: AbortSignal;
   /** Run commands in a container. Default on; see buildExecutor. */
   sandbox?: boolean;
+  /** Print machine-readable output. Honoured by the commands that report
+   *  rather than act: config, sessions, checkpoints and tools. The flag was
+   *  advertised in --help for a while and read by nothing, so `--json` printed
+   *  the same prose and a script parsing it got a surprise. */
+  json?: boolean;
   /** An executor built once for a whole session. When absent, a run builds its
    *  own and disposes it. */
   executor?: Executor;
@@ -290,7 +295,15 @@ export async function runCommand(
 
 export function sessionsCommand(context: CommandContext): number {
   const store = new SessionStore(context.root);
-  context.terminal.out(renderSessions(store.list()));
+  const sessions = store.list();
+  if (context.json) {
+    // The stored records themselves, not a re-description of them: a script
+    // reading this wants the fields, and anything omitted here is a field it
+    // cannot get at all.
+    context.terminal.out(JSON.stringify({ sessions }, null, 2));
+    return 0;
+  }
+  context.terminal.out(renderSessions(sessions));
   return 0;
 }
 
@@ -392,6 +405,10 @@ export function toolsCommand(context: CommandContext): number {
     const gate = gateFor(definition, context);
     return { name: entry.name, gate, description: entry.description };
   });
+  if (context.json) {
+    context.terminal.out(JSON.stringify({ tools: rows }, null, 2));
+    return 0;
+  }
   const nameWidth = Math.max(...rows.map((r) => r.name.length));
   const gateWidth = Math.max(...rows.map((r) => r.gate.length));
   for (const row of rows) {
@@ -423,9 +440,28 @@ function gateFor(definition: ToolDefinition, context: CommandContext): string {
 }
 
 export async function checkpointsCommand(context: CommandContext): Promise<number> {
-  const points = isRepo(context.root)
+  const usesGit = isRepo(context.root);
+  const points = usesGit
     ? await listCheckpoints(context.root, 50)
     : listSnapshots(context.root).map((snap) => `${snap.id}\t${snap.message}`);
+  if (context.json) {
+    // The two paths are different things and the shape says so, rather than
+    // flattening a commit and a snapshot into one look-alike record.
+    context.terminal.out(
+      JSON.stringify(
+        {
+          kind: usesGit ? "git" : "snapshot",
+          checkpoints: points.map((line) => {
+            const [id, ...rest] = line.split("\t");
+            return { id, message: rest.join("\t") };
+          }),
+        },
+        null,
+        2,
+      ),
+    );
+    return 0;
+  }
   if (points.length === 0) {
     context.terminal.out(
       "No checkpoints yet. The agent makes one after a turn that changes a file.",
@@ -463,6 +499,27 @@ export async function diffCommand(context: CommandContext): Promise<number> {
 }
 
 export function configCommand(context: CommandContext): number {
+  if (context.json) {
+    context.terminal.out(
+      JSON.stringify(
+        {
+          workspace: context.root,
+          git: isRepo(context.root),
+          provider: context.provider
+            ? { name: context.provider.name, model: context.provider.model }
+            : (configuredProviderName() ?? null),
+          autonomy: context.autonomy ?? "ask_sensitive",
+          maxSteps: context.maxSteps ?? 40,
+          budgetUsd: context.maxCostUsd ?? null,
+          autoApprove: !!context.yes,
+          sandbox: context.sandbox !== false,
+        },
+        null,
+        2,
+      ),
+    );
+    return 0;
+  }
   const lines = [
     `workspace   ${context.root}`,
     `git         ${isRepo(context.root) ? "yes" : "no, so checkpoints are file snapshots under .devstation/"}`,
