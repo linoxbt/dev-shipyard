@@ -9,8 +9,6 @@ DevStation uses two on-chain contracts:
 
 Both are dependency-free Solidity 0.8.x and already compiled to `contracts/out/`.
 
-> **QIEPassVerifier is intentionally NOT included**: QIE Pass was removed from the app.
-
 ---
 
 ## Security first

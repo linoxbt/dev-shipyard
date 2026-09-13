@@ -5,7 +5,7 @@ This is a large spec. I'll build a **functional MVP frontend** of DevStation wit
 ### Phase 1: Shell & Design System (this build)
 
 - Tailwind v4 tokens in `src/styles.css`: terminal black palette, amber accent, QIE teal, mono fonts (JetBrains Mono + Inter), 4px radius.
-- Fixed left sidebar (240px) with branding, mock wallet chip, QIE Pass status, nav sections (LaunchKit / Routebook / Settings), network indicator.
+- Fixed left sidebar (240px) with branding, mock wallet chip, nav sections (LaunchKit / Routebook / Settings), network indicator.
 - Shared components: `AddressChip`, `TxHashChip`, `StatusBadge`, `CodeBlock`, `TerminalOutput`, `OracleRateBadge`, empty/loading states.
 
 ### Phase 2: Pages (mocked data)
@@ -17,7 +17,7 @@ This is a large spec. I'll build a **functional MVP frontend** of DevStation wit
 5. **Projects** (`/launchkit/projects`): table of deployed contracts with detail side panel.
 6. **Routebook Inspect** (`/routebook` and `/routebook/$txHash`): search bar, 2 example demo tx buttons, overview card, recursive route tree (color-coded by call type, labeled addresses), token movements panel, approval detector, revert decoder, gas breakdown tab.
 7. **Label Registry** (`/routebook/labels`): stats, filter, table with AUTO/COMMUNITY/VERIFIED source badges, submit modal (with mocked QIE Stable fee notice).
-8. **Settings** (`/settings`): network config, oracle settings, display prefs, QIE Pass status, clear data.
+8. **Settings** (`/settings`): network config, oracle settings, display prefs, clear data.
 
 ### Phase 3: Mock data layer
 
@@ -32,7 +32,7 @@ The following need backend infra and real contracts and are **not included** in 
 - Real compile + deploy pipeline (solc-js, ethers tx submission)
 - Real `debug_traceTransaction` decoding via QIE RPC
 - Real ContractLabelRegistry / ProjectRegistry / TemplateRegistry contract reads
-- Real QIE Pass verification and QIE Stable transfers
+- Real QIE Stable transfers
 - Real verification submission to QIE explorer
 
 Each integration point is structured behind a `lib/services/*.ts` module returning typed mock data, so swapping in real implementations later is a localized change.
