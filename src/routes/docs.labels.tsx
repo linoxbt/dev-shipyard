@@ -1,35 +1,60 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Tags } from "lucide-react";
-import { DocPage, P, Table, PageNav } from "@/components/docs/primitives";
-import { docNeighbors } from "@/components/docs/nav";
+import { DocPage, H2, P, Table, Steps, Callout, ConsoleLink } from "@/components/docs/primitives";
 
 export const Route = createFileRoute("/docs/labels")({
-  head: () => ({ meta: [{ title: "Label Registry - DevStation Docs" }] }),
-  component: LabelRegistry,
+  head: () => ({ meta: [{ title: "Label Registry · DevStation Docs" }] }),
+  component: Labels,
 });
 
-function LabelRegistry() {
-  const { prev, next } = docNeighbors("/docs/labels");
+function Labels() {
   return (
     <DocPage
       title="Label Registry"
       icon={Tags}
-      intro="The Label Registry gives contracts human-readable names so the ecosystem reads like English instead of hex. On EVM networks, labels are stored onchain in the ContractLabelRegistry and are visible across Routebook and the rest of the console."
+      intro="Readable names for contracts, stored on chain in the ContractLabelRegistry, so the ecosystem reads like words instead of hex. Routebook and the rest of the console use them."
     >
+      <H2>Where labels come from</H2>
       <Table
         head={["Source", "Meaning"]}
         rows={[
-          ["Auto", "Created automatically when you deploy through DevStation. Pre-approved."],
-          ["Community", "Submitted by a user. Awaits owner approval before it is marked verified."],
+          [
+            "Auto",
+            "Added when you deploy through DevStation with auto-labelling on. Pre-approved.",
+          ],
+          ["Community", "Submitted by a user. Waits for approval."],
           ["Verified", "A community label that has been approved."],
         ]}
       />
+
+      <H2>Submit a label</H2>
+      <Steps
+        steps={[
+          {
+            title: "Open the registry",
+            body: (
+              <P>
+                Go to <ConsoleLink to="/routebook/labels">Label Registry</ConsoleLink> with a wallet
+                connected.
+              </P>
+            ),
+          },
+          { title: "Enter the contract and a name", body: "Use the name people know it by." },
+          {
+            title: "Sign",
+            body: "Submitting writes a transaction to the registry, so you need a little of the network's token for gas.",
+          },
+        ]}
+      />
       <P>
-        Anyone can submit a label for a contract from the Label Registry page. Submitting writes a
-        transaction to the registry, so you need a connected wallet and a little of the
-        network\u2019s token for gas.
+        Labels you contribute are counted on your dashboard, and five of them earn the Labeler
+        achievement.
       </P>
-      <PageNav prev={prev} next={next} />
+
+      <Callout>
+        Auto-labelling of your own deployments can be switched off in{" "}
+        <ConsoleLink to="/settings">Settings</ConsoleLink>.
+      </Callout>
     </DocPage>
   );
 }

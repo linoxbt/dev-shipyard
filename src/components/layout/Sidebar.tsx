@@ -27,6 +27,7 @@ import { Logo } from "@/components/shared/Logo";
 import { useUi } from "@/lib/ui-state";
 import { useTheme } from "@/lib/theme";
 import { isComingSoon } from "@/lib/coming-soon";
+import { docsHref } from "@/lib/site-hosts";
 
 const NAV = [
   { to: "/overview", label: "Overview", icon: Home, exact: true },
@@ -178,6 +179,20 @@ function SidebarLink({
   active?: boolean;
   onClick?: () => void;
 }) {
+  // The docs are their own site (docs.devstation.online in production), so
+  // the link leaves the console instead of routing inside it.
+  if (to.startsWith("/docs")) {
+    return (
+      <a
+        href={docsHref(to)}
+        onClick={onClick}
+        className="flex items-center gap-2 rounded px-2 py-1.5 font-mono text-xs text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+      >
+        <Icon className="h-3.5 w-3.5" />
+        <span className="truncate">{label}</span>
+      </a>
+    );
+  }
   return (
     <Link
       to={to}

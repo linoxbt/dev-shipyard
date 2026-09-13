@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { consoleHref, docsHref } from "@/lib/site-hosts";
 import { useEffect, useState } from "react";
 import {
   Rocket,
@@ -120,16 +121,12 @@ function LandingNav() {
           <a href="#templates" className="hover:text-foreground">
             Templates
           </a>
-          <Link
-            to="/explorer/$network"
-            params={{ network: "mainnet" }}
-            className="hover:text-foreground"
-          >
+          <a href={consoleHref("/explorer/mainnet")} className="hover:text-foreground">
             Explorer
-          </Link>
-          <Link to="/docs" className="hover:text-foreground">
+          </a>
+          <a href={docsHref()} className="hover:text-foreground">
             Docs
-          </Link>
+          </a>
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
@@ -142,12 +139,12 @@ function LandingNav() {
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
-          <Link
-            to="/overview"
+          <a
+            href={consoleHref()}
             className="rounded bg-primary px-3 py-1.5 font-mono text-xs font-medium text-primary-foreground hover:bg-primary-hover"
           >
             Launch Console
-          </Link>
+          </a>
         </div>
       </div>
     </header>
@@ -213,18 +210,18 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
               tagline ? "animate-fade-up" : "opacity-0",
             )}
           >
-            <Link
-              to="/overview"
+            <a
+              href={consoleHref()}
               className="flex items-center gap-2 rounded bg-primary px-5 py-2.5 font-mono text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
             >
               <Rocket className="h-4 w-4" /> Launch Console
-            </Link>
-            <Link
-              to="/docs"
+            </a>
+            <a
+              href={docsHref()}
               className="flex items-center gap-2 rounded border border-border px-5 py-2.5 font-mono text-sm text-muted-foreground hover:border-primary hover:text-primary"
             >
               <BookOpen className="h-4 w-4" /> Read the docs
-            </Link>
+            </a>
           </div>
         </div>
 
@@ -375,10 +372,9 @@ function TemplatesShowcase() {
         />
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {TEMPLATES.map((t) => (
-            <Link
+            <a
               key={t.id}
-              to="/launchkit/marketplace/$listingId"
-              params={{ listingId: `b-${t.id}` }}
+              href={consoleHref(`/launchkit/marketplace/b-${t.id}`)}
               className="group rounded-lg border border-border bg-background p-4 transition hover:border-primary/50"
             >
               <div className="flex items-center justify-between">
@@ -391,16 +387,16 @@ function TemplatesShowcase() {
               <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                 {t.description}
               </p>
-            </Link>
+            </a>
           ))}
         </div>
         <div className="mt-8 text-center">
-          <Link
-            to="/launchkit/marketplace"
+          <a
+            href={consoleHref("/launchkit/marketplace")}
             className="inline-flex items-center gap-2 rounded border border-primary px-4 py-2 font-mono text-xs text-primary hover:bg-primary/10"
           >
             Browse the marketplace <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+          </a>
         </div>
       </div>
     </section>
@@ -470,18 +466,18 @@ function CtaBand() {
           Free to use. You only pay network gas for what you deploy. No installs, no signup.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link
-            to="/overview"
+          <a
+            href={consoleHref()}
             className="flex items-center gap-2 rounded bg-primary px-5 py-2.5 font-mono text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
           >
             <Rocket className="h-4 w-4" /> Launch Console
-          </Link>
-          <Link
-            to="/launchkit/deploy"
+          </a>
+          <a
+            href={consoleHref("/launchkit/deploy")}
             className="flex items-center gap-2 rounded border border-border px-5 py-2.5 font-mono text-sm text-muted-foreground hover:border-primary hover:text-primary"
           >
             Deploy a contract
-          </Link>
+          </a>
         </div>
       </div>
     </section>
@@ -501,22 +497,18 @@ function Footer() {
           </span>
         </div>
         <nav className="flex flex-wrap gap-x-5 gap-y-2 font-mono text-xs text-muted-foreground sm:ml-6">
-          <Link to="/overview" className="hover:text-foreground">
+          <a href={consoleHref()} className="hover:text-foreground">
             Console
-          </Link>
-          <Link
-            to="/explorer/$network"
-            params={{ network: "mainnet" }}
-            className="hover:text-foreground"
-          >
+          </a>
+          <a href={consoleHref("/explorer/mainnet")} className="hover:text-foreground">
             Explorer
-          </Link>
-          <Link to="/docs" className="hover:text-foreground">
+          </a>
+          <a href={docsHref()} className="hover:text-foreground">
             Docs
-          </Link>
-          <Link to="/docs/networks" className="hover:text-foreground">
+          </a>
+          <a href={docsHref("/docs/networks")} className="hover:text-foreground">
             All networks
-          </Link>
+          </a>
         </nav>
         <div className="flex items-center gap-3 sm:ml-auto">
           <a

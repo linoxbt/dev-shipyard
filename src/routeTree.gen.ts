@@ -32,15 +32,22 @@ import { Route as LaunchkitAiRouteImport } from './routes/launchkit.ai'
 import { Route as ExplorerNetworkRouteImport } from './routes/explorer.$network'
 import { Route as DocsWalletsRouteImport } from './routes/docs.wallets'
 import { Route as DocsVerificationRouteImport } from './routes/docs.verification'
+import { Route as DocsSellingRouteImport } from './routes/docs.selling'
 import { Route as DocsRoutebookRouteImport } from './routes/docs.routebook'
 import { Route as DocsRegistriesRouteImport } from './routes/docs.registries'
 import { Route as DocsQuickstartRouteImport } from './routes/docs.quickstart'
+import { Route as DocsQieIdRouteImport } from './routes/docs.qie-id'
 import { Route as DocsNetworksRouteImport } from './routes/docs.networks'
+import { Route as DocsMarketplaceRouteImport } from './routes/docs.marketplace'
 import { Route as DocsLaunchkitRouteImport } from './routes/docs.launchkit'
 import { Route as DocsLabelsRouteImport } from './routes/docs.labels'
 import { Route as DocsFaqRouteImport } from './routes/docs.faq'
 import { Route as DocsExplorerRouteImport } from './routes/docs.explorer'
 import { Route as DocsEditorRouteImport } from './routes/docs.editor'
+import { Route as DocsDashboardRouteImport } from './routes/docs.dashboard'
+import { Route as DocsConsoleRouteImport } from './routes/docs.console'
+import { Route as DocsCodingAgentRouteImport } from './routes/docs.coding-agent'
+import { Route as DocsAppsRouteImport } from './routes/docs.apps'
 import { Route as DocsAiRouteImport } from './routes/docs.ai'
 import { Route as DevAddressRouteImport } from './routes/dev.$address'
 import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
@@ -57,6 +64,7 @@ import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.
 import { Route as LaunchkitMarketplaceIndexRouteImport } from './routes/launchkit.marketplace.index'
 import { Route as LaunchkitAppsIndexRouteImport } from './routes/launchkit.apps.index'
 import { Route as ExplorerNetworkIndexRouteImport } from './routes/explorer.$network.index'
+import { Route as DocsCliIndexRouteImport } from './routes/docs.cli.index'
 import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
 import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
 import { Route as LaunchkitMarketplaceSellRouteImport } from './routes/launchkit.marketplace.sell'
@@ -69,6 +77,13 @@ import { Route as ExplorerNetworkTxnsRouteImport } from './routes/explorer.$netw
 import { Route as ExplorerNetworkTokensRouteImport } from './routes/explorer.$network.tokens'
 import { Route as ExplorerNetworkStatsRouteImport } from './routes/explorer.$network.stats'
 import { Route as ExplorerNetworkBlocksRouteImport } from './routes/explorer.$network.blocks'
+import { Route as DocsCliWorkspaceRouteImport } from './routes/docs.cli.workspace'
+import { Route as DocsCliTroubleshootingRouteImport } from './routes/docs.cli.troubleshooting'
+import { Route as DocsCliSessionsRouteImport } from './routes/docs.cli.sessions'
+import { Route as DocsCliReferenceRouteImport } from './routes/docs.cli.reference'
+import { Route as DocsCliPermissionsRouteImport } from './routes/docs.cli.permissions'
+import { Route as DocsCliModelsRouteImport } from './routes/docs.cli.models'
+import { Route as DocsCliInstallRouteImport } from './routes/docs.cli.install'
 import { Route as ApiGithubPushRouteImport } from './routes/api.github.push'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
 import { Route as ExplorerNetworkTxHashRouteImport } from './routes/explorer.$network.tx.$hash'
@@ -191,6 +206,11 @@ const DocsVerificationRoute = DocsVerificationRouteImport.update({
   path: '/verification',
   getParentRoute: () => DocsRoute,
 } as any)
+const DocsSellingRoute = DocsSellingRouteImport.update({
+  id: '/selling',
+  path: '/selling',
+  getParentRoute: () => DocsRoute,
+} as any)
 const DocsRoutebookRoute = DocsRoutebookRouteImport.update({
   id: '/routebook',
   path: '/routebook',
@@ -206,9 +226,19 @@ const DocsQuickstartRoute = DocsQuickstartRouteImport.update({
   path: '/quickstart',
   getParentRoute: () => DocsRoute,
 } as any)
+const DocsQieIdRoute = DocsQieIdRouteImport.update({
+  id: '/qie-id',
+  path: '/qie-id',
+  getParentRoute: () => DocsRoute,
+} as any)
 const DocsNetworksRoute = DocsNetworksRouteImport.update({
   id: '/networks',
   path: '/networks',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsMarketplaceRoute = DocsMarketplaceRouteImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
   getParentRoute: () => DocsRoute,
 } as any)
 const DocsLaunchkitRoute = DocsLaunchkitRouteImport.update({
@@ -234,6 +264,26 @@ const DocsExplorerRoute = DocsExplorerRouteImport.update({
 const DocsEditorRoute = DocsEditorRouteImport.update({
   id: '/editor',
   path: '/editor',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsDashboardRoute = DocsDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsConsoleRoute = DocsConsoleRouteImport.update({
+  id: '/console',
+  path: '/console',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCodingAgentRoute = DocsCodingAgentRouteImport.update({
+  id: '/coding-agent',
+  path: '/coding-agent',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsAppsRoute = DocsAppsRouteImport.update({
+  id: '/apps',
+  path: '/apps',
   getParentRoute: () => DocsRoute,
 } as any)
 const DocsAiRoute = DocsAiRouteImport.update({
@@ -317,6 +367,11 @@ const ExplorerNetworkIndexRoute = ExplorerNetworkIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ExplorerNetworkRoute,
 } as any)
+const DocsCliIndexRoute = DocsCliIndexRouteImport.update({
+  id: '/cli/',
+  path: '/cli/',
+  getParentRoute: () => DocsRoute,
+} as any)
 const LaunchkitTemplatesSubmitRoute =
   LaunchkitTemplatesSubmitRouteImport.update({
     id: '/launchkit/templates/submit',
@@ -382,6 +437,41 @@ const ExplorerNetworkBlocksRoute = ExplorerNetworkBlocksRouteImport.update({
   path: '/blocks',
   getParentRoute: () => ExplorerNetworkRoute,
 } as any)
+const DocsCliWorkspaceRoute = DocsCliWorkspaceRouteImport.update({
+  id: '/cli/workspace',
+  path: '/cli/workspace',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliTroubleshootingRoute = DocsCliTroubleshootingRouteImport.update({
+  id: '/cli/troubleshooting',
+  path: '/cli/troubleshooting',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliSessionsRoute = DocsCliSessionsRouteImport.update({
+  id: '/cli/sessions',
+  path: '/cli/sessions',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliReferenceRoute = DocsCliReferenceRouteImport.update({
+  id: '/cli/reference',
+  path: '/cli/reference',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliPermissionsRoute = DocsCliPermissionsRouteImport.update({
+  id: '/cli/permissions',
+  path: '/cli/permissions',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliModelsRoute = DocsCliModelsRouteImport.update({
+  id: '/cli/models',
+  path: '/cli/models',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliInstallRoute = DocsCliInstallRouteImport.update({
+  id: '/cli/install',
+  path: '/cli/install',
+  getParentRoute: () => DocsRoute,
+} as any)
 const ApiGithubPushRoute = ApiGithubPushRouteImport.update({
   id: '/push',
   path: '/push',
@@ -437,15 +527,22 @@ export interface FileRoutesByFullPath {
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
+  '/docs/apps': typeof DocsAppsRoute
+  '/docs/coding-agent': typeof DocsCodingAgentRoute
+  '/docs/console': typeof DocsConsoleRoute
+  '/docs/dashboard': typeof DocsDashboardRoute
   '/docs/editor': typeof DocsEditorRoute
   '/docs/explorer': typeof DocsExplorerRoute
   '/docs/faq': typeof DocsFaqRoute
   '/docs/labels': typeof DocsLabelsRoute
   '/docs/launchkit': typeof DocsLaunchkitRoute
+  '/docs/marketplace': typeof DocsMarketplaceRoute
   '/docs/networks': typeof DocsNetworksRoute
+  '/docs/qie-id': typeof DocsQieIdRoute
   '/docs/quickstart': typeof DocsQuickstartRoute
   '/docs/registries': typeof DocsRegistriesRoute
   '/docs/routebook': typeof DocsRoutebookRoute
+  '/docs/selling': typeof DocsSellingRoute
   '/docs/verification': typeof DocsVerificationRoute
   '/docs/wallets': typeof DocsWalletsRoute
   '/explorer/$network': typeof ExplorerNetworkRouteWithChildren
@@ -463,6 +560,13 @@ export interface FileRoutesByFullPath {
   '/routebook/': typeof RoutebookIndexRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
+  '/docs/cli/install': typeof DocsCliInstallRoute
+  '/docs/cli/models': typeof DocsCliModelsRoute
+  '/docs/cli/permissions': typeof DocsCliPermissionsRoute
+  '/docs/cli/reference': typeof DocsCliReferenceRoute
+  '/docs/cli/sessions': typeof DocsCliSessionsRoute
+  '/docs/cli/troubleshooting': typeof DocsCliTroubleshootingRoute
+  '/docs/cli/workspace': typeof DocsCliWorkspaceRoute
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
   '/explorer/$network/stats': typeof ExplorerNetworkStatsRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
@@ -475,6 +579,7 @@ export interface FileRoutesByFullPath {
   '/launchkit/marketplace/sell': typeof LaunchkitMarketplaceSellRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
+  '/docs/cli/': typeof DocsCliIndexRoute
   '/explorer/$network/': typeof ExplorerNetworkIndexRoute
   '/launchkit/apps/': typeof LaunchkitAppsIndexRoute
   '/launchkit/marketplace/': typeof LaunchkitMarketplaceIndexRoute
@@ -503,15 +608,22 @@ export interface FileRoutesByTo {
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
+  '/docs/apps': typeof DocsAppsRoute
+  '/docs/coding-agent': typeof DocsCodingAgentRoute
+  '/docs/console': typeof DocsConsoleRoute
+  '/docs/dashboard': typeof DocsDashboardRoute
   '/docs/editor': typeof DocsEditorRoute
   '/docs/explorer': typeof DocsExplorerRoute
   '/docs/faq': typeof DocsFaqRoute
   '/docs/labels': typeof DocsLabelsRoute
   '/docs/launchkit': typeof DocsLaunchkitRoute
+  '/docs/marketplace': typeof DocsMarketplaceRoute
   '/docs/networks': typeof DocsNetworksRoute
+  '/docs/qie-id': typeof DocsQieIdRoute
   '/docs/quickstart': typeof DocsQuickstartRoute
   '/docs/registries': typeof DocsRegistriesRoute
   '/docs/routebook': typeof DocsRoutebookRoute
+  '/docs/selling': typeof DocsSellingRoute
   '/docs/verification': typeof DocsVerificationRoute
   '/docs/wallets': typeof DocsWalletsRoute
   '/launchkit/ai': typeof LaunchkitAiRoute
@@ -527,6 +639,13 @@ export interface FileRoutesByTo {
   '/routebook': typeof RoutebookIndexRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
+  '/docs/cli/install': typeof DocsCliInstallRoute
+  '/docs/cli/models': typeof DocsCliModelsRoute
+  '/docs/cli/permissions': typeof DocsCliPermissionsRoute
+  '/docs/cli/reference': typeof DocsCliReferenceRoute
+  '/docs/cli/sessions': typeof DocsCliSessionsRoute
+  '/docs/cli/troubleshooting': typeof DocsCliTroubleshootingRoute
+  '/docs/cli/workspace': typeof DocsCliWorkspaceRoute
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
   '/explorer/$network/stats': typeof ExplorerNetworkStatsRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
@@ -539,6 +658,7 @@ export interface FileRoutesByTo {
   '/launchkit/marketplace/sell': typeof LaunchkitMarketplaceSellRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
+  '/docs/cli': typeof DocsCliIndexRoute
   '/explorer/$network': typeof ExplorerNetworkIndexRoute
   '/launchkit/apps': typeof LaunchkitAppsIndexRoute
   '/launchkit/marketplace': typeof LaunchkitMarketplaceIndexRoute
@@ -570,15 +690,22 @@ export interface FileRoutesById {
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
+  '/docs/apps': typeof DocsAppsRoute
+  '/docs/coding-agent': typeof DocsCodingAgentRoute
+  '/docs/console': typeof DocsConsoleRoute
+  '/docs/dashboard': typeof DocsDashboardRoute
   '/docs/editor': typeof DocsEditorRoute
   '/docs/explorer': typeof DocsExplorerRoute
   '/docs/faq': typeof DocsFaqRoute
   '/docs/labels': typeof DocsLabelsRoute
   '/docs/launchkit': typeof DocsLaunchkitRoute
+  '/docs/marketplace': typeof DocsMarketplaceRoute
   '/docs/networks': typeof DocsNetworksRoute
+  '/docs/qie-id': typeof DocsQieIdRoute
   '/docs/quickstart': typeof DocsQuickstartRoute
   '/docs/registries': typeof DocsRegistriesRoute
   '/docs/routebook': typeof DocsRoutebookRoute
+  '/docs/selling': typeof DocsSellingRoute
   '/docs/verification': typeof DocsVerificationRoute
   '/docs/wallets': typeof DocsWalletsRoute
   '/explorer/$network': typeof ExplorerNetworkRouteWithChildren
@@ -596,6 +723,13 @@ export interface FileRoutesById {
   '/routebook/': typeof RoutebookIndexRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
+  '/docs/cli/install': typeof DocsCliInstallRoute
+  '/docs/cli/models': typeof DocsCliModelsRoute
+  '/docs/cli/permissions': typeof DocsCliPermissionsRoute
+  '/docs/cli/reference': typeof DocsCliReferenceRoute
+  '/docs/cli/sessions': typeof DocsCliSessionsRoute
+  '/docs/cli/troubleshooting': typeof DocsCliTroubleshootingRoute
+  '/docs/cli/workspace': typeof DocsCliWorkspaceRoute
   '/explorer/$network/blocks': typeof ExplorerNetworkBlocksRoute
   '/explorer/$network/stats': typeof ExplorerNetworkStatsRoute
   '/explorer/$network/tokens': typeof ExplorerNetworkTokensRoute
@@ -608,6 +742,7 @@ export interface FileRoutesById {
   '/launchkit/marketplace/sell': typeof LaunchkitMarketplaceSellRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
+  '/docs/cli/': typeof DocsCliIndexRoute
   '/explorer/$network/': typeof ExplorerNetworkIndexRoute
   '/launchkit/apps/': typeof LaunchkitAppsIndexRoute
   '/launchkit/marketplace/': typeof LaunchkitMarketplaceIndexRoute
@@ -640,15 +775,22 @@ export interface FileRouteTypes {
     | '/api/sponsor-topup'
     | '/dev/$address'
     | '/docs/ai'
+    | '/docs/apps'
+    | '/docs/coding-agent'
+    | '/docs/console'
+    | '/docs/dashboard'
     | '/docs/editor'
     | '/docs/explorer'
     | '/docs/faq'
     | '/docs/labels'
     | '/docs/launchkit'
+    | '/docs/marketplace'
     | '/docs/networks'
+    | '/docs/qie-id'
     | '/docs/quickstart'
     | '/docs/registries'
     | '/docs/routebook'
+    | '/docs/selling'
     | '/docs/verification'
     | '/docs/wallets'
     | '/explorer/$network'
@@ -666,6 +808,13 @@ export interface FileRouteTypes {
     | '/routebook/'
     | '/api/github/callback'
     | '/api/github/push'
+    | '/docs/cli/install'
+    | '/docs/cli/models'
+    | '/docs/cli/permissions'
+    | '/docs/cli/reference'
+    | '/docs/cli/sessions'
+    | '/docs/cli/troubleshooting'
+    | '/docs/cli/workspace'
     | '/explorer/$network/blocks'
     | '/explorer/$network/stats'
     | '/explorer/$network/tokens'
@@ -678,6 +827,7 @@ export interface FileRouteTypes {
     | '/launchkit/marketplace/sell'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
+    | '/docs/cli/'
     | '/explorer/$network/'
     | '/launchkit/apps/'
     | '/launchkit/marketplace/'
@@ -706,15 +856,22 @@ export interface FileRouteTypes {
     | '/api/sponsor-topup'
     | '/dev/$address'
     | '/docs/ai'
+    | '/docs/apps'
+    | '/docs/coding-agent'
+    | '/docs/console'
+    | '/docs/dashboard'
     | '/docs/editor'
     | '/docs/explorer'
     | '/docs/faq'
     | '/docs/labels'
     | '/docs/launchkit'
+    | '/docs/marketplace'
     | '/docs/networks'
+    | '/docs/qie-id'
     | '/docs/quickstart'
     | '/docs/registries'
     | '/docs/routebook'
+    | '/docs/selling'
     | '/docs/verification'
     | '/docs/wallets'
     | '/launchkit/ai'
@@ -730,6 +887,13 @@ export interface FileRouteTypes {
     | '/routebook'
     | '/api/github/callback'
     | '/api/github/push'
+    | '/docs/cli/install'
+    | '/docs/cli/models'
+    | '/docs/cli/permissions'
+    | '/docs/cli/reference'
+    | '/docs/cli/sessions'
+    | '/docs/cli/troubleshooting'
+    | '/docs/cli/workspace'
     | '/explorer/$network/blocks'
     | '/explorer/$network/stats'
     | '/explorer/$network/tokens'
@@ -742,6 +906,7 @@ export interface FileRouteTypes {
     | '/launchkit/marketplace/sell'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
+    | '/docs/cli'
     | '/explorer/$network'
     | '/launchkit/apps'
     | '/launchkit/marketplace'
@@ -772,15 +937,22 @@ export interface FileRouteTypes {
     | '/api/sponsor-topup'
     | '/dev/$address'
     | '/docs/ai'
+    | '/docs/apps'
+    | '/docs/coding-agent'
+    | '/docs/console'
+    | '/docs/dashboard'
     | '/docs/editor'
     | '/docs/explorer'
     | '/docs/faq'
     | '/docs/labels'
     | '/docs/launchkit'
+    | '/docs/marketplace'
     | '/docs/networks'
+    | '/docs/qie-id'
     | '/docs/quickstart'
     | '/docs/registries'
     | '/docs/routebook'
+    | '/docs/selling'
     | '/docs/verification'
     | '/docs/wallets'
     | '/explorer/$network'
@@ -798,6 +970,13 @@ export interface FileRouteTypes {
     | '/routebook/'
     | '/api/github/callback'
     | '/api/github/push'
+    | '/docs/cli/install'
+    | '/docs/cli/models'
+    | '/docs/cli/permissions'
+    | '/docs/cli/reference'
+    | '/docs/cli/sessions'
+    | '/docs/cli/troubleshooting'
+    | '/docs/cli/workspace'
     | '/explorer/$network/blocks'
     | '/explorer/$network/stats'
     | '/explorer/$network/tokens'
@@ -810,6 +989,7 @@ export interface FileRouteTypes {
     | '/launchkit/marketplace/sell'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
+    | '/docs/cli/'
     | '/explorer/$network/'
     | '/launchkit/apps/'
     | '/launchkit/marketplace/'
@@ -1020,6 +1200,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsVerificationRouteImport
       parentRoute: typeof DocsRoute
     }
+    '/docs/selling': {
+      id: '/docs/selling'
+      path: '/selling'
+      fullPath: '/docs/selling'
+      preLoaderRoute: typeof DocsSellingRouteImport
+      parentRoute: typeof DocsRoute
+    }
     '/docs/routebook': {
       id: '/docs/routebook'
       path: '/routebook'
@@ -1041,11 +1228,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsQuickstartRouteImport
       parentRoute: typeof DocsRoute
     }
+    '/docs/qie-id': {
+      id: '/docs/qie-id'
+      path: '/qie-id'
+      fullPath: '/docs/qie-id'
+      preLoaderRoute: typeof DocsQieIdRouteImport
+      parentRoute: typeof DocsRoute
+    }
     '/docs/networks': {
       id: '/docs/networks'
       path: '/networks'
       fullPath: '/docs/networks'
       preLoaderRoute: typeof DocsNetworksRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/marketplace': {
+      id: '/docs/marketplace'
+      path: '/marketplace'
+      fullPath: '/docs/marketplace'
+      preLoaderRoute: typeof DocsMarketplaceRouteImport
       parentRoute: typeof DocsRoute
     }
     '/docs/launchkit': {
@@ -1081,6 +1282,34 @@ declare module '@tanstack/react-router' {
       path: '/editor'
       fullPath: '/docs/editor'
       preLoaderRoute: typeof DocsEditorRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/dashboard': {
+      id: '/docs/dashboard'
+      path: '/dashboard'
+      fullPath: '/docs/dashboard'
+      preLoaderRoute: typeof DocsDashboardRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/console': {
+      id: '/docs/console'
+      path: '/console'
+      fullPath: '/docs/console'
+      preLoaderRoute: typeof DocsConsoleRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/coding-agent': {
+      id: '/docs/coding-agent'
+      path: '/coding-agent'
+      fullPath: '/docs/coding-agent'
+      preLoaderRoute: typeof DocsCodingAgentRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/apps': {
+      id: '/docs/apps'
+      path: '/apps'
+      fullPath: '/docs/apps'
+      preLoaderRoute: typeof DocsAppsRouteImport
       parentRoute: typeof DocsRoute
     }
     '/docs/ai': {
@@ -1195,6 +1424,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExplorerNetworkIndexRouteImport
       parentRoute: typeof ExplorerNetworkRoute
     }
+    '/docs/cli/': {
+      id: '/docs/cli/'
+      path: '/cli'
+      fullPath: '/docs/cli/'
+      preLoaderRoute: typeof DocsCliIndexRouteImport
+      parentRoute: typeof DocsRoute
+    }
     '/launchkit/templates/submit': {
       id: '/launchkit/templates/submit'
       path: '/launchkit/templates/submit'
@@ -1279,6 +1515,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExplorerNetworkBlocksRouteImport
       parentRoute: typeof ExplorerNetworkRoute
     }
+    '/docs/cli/workspace': {
+      id: '/docs/cli/workspace'
+      path: '/cli/workspace'
+      fullPath: '/docs/cli/workspace'
+      preLoaderRoute: typeof DocsCliWorkspaceRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/cli/troubleshooting': {
+      id: '/docs/cli/troubleshooting'
+      path: '/cli/troubleshooting'
+      fullPath: '/docs/cli/troubleshooting'
+      preLoaderRoute: typeof DocsCliTroubleshootingRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/cli/sessions': {
+      id: '/docs/cli/sessions'
+      path: '/cli/sessions'
+      fullPath: '/docs/cli/sessions'
+      preLoaderRoute: typeof DocsCliSessionsRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/cli/reference': {
+      id: '/docs/cli/reference'
+      path: '/cli/reference'
+      fullPath: '/docs/cli/reference'
+      preLoaderRoute: typeof DocsCliReferenceRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/cli/permissions': {
+      id: '/docs/cli/permissions'
+      path: '/cli/permissions'
+      fullPath: '/docs/cli/permissions'
+      preLoaderRoute: typeof DocsCliPermissionsRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/cli/models': {
+      id: '/docs/cli/models'
+      path: '/cli/models'
+      fullPath: '/docs/cli/models'
+      preLoaderRoute: typeof DocsCliModelsRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/cli/install': {
+      id: '/docs/cli/install'
+      path: '/cli/install'
+      fullPath: '/docs/cli/install'
+      preLoaderRoute: typeof DocsCliInstallRouteImport
+      parentRoute: typeof DocsRoute
+    }
     '/api/github/push': {
       id: '/api/github/push'
       path: '/push'
@@ -1326,34 +1611,64 @@ declare module '@tanstack/react-router' {
 
 interface DocsRouteChildren {
   DocsAiRoute: typeof DocsAiRoute
+  DocsAppsRoute: typeof DocsAppsRoute
+  DocsCodingAgentRoute: typeof DocsCodingAgentRoute
+  DocsConsoleRoute: typeof DocsConsoleRoute
+  DocsDashboardRoute: typeof DocsDashboardRoute
   DocsEditorRoute: typeof DocsEditorRoute
   DocsExplorerRoute: typeof DocsExplorerRoute
   DocsFaqRoute: typeof DocsFaqRoute
   DocsLabelsRoute: typeof DocsLabelsRoute
   DocsLaunchkitRoute: typeof DocsLaunchkitRoute
+  DocsMarketplaceRoute: typeof DocsMarketplaceRoute
   DocsNetworksRoute: typeof DocsNetworksRoute
+  DocsQieIdRoute: typeof DocsQieIdRoute
   DocsQuickstartRoute: typeof DocsQuickstartRoute
   DocsRegistriesRoute: typeof DocsRegistriesRoute
   DocsRoutebookRoute: typeof DocsRoutebookRoute
+  DocsSellingRoute: typeof DocsSellingRoute
   DocsVerificationRoute: typeof DocsVerificationRoute
   DocsWalletsRoute: typeof DocsWalletsRoute
   DocsIndexRoute: typeof DocsIndexRoute
+  DocsCliInstallRoute: typeof DocsCliInstallRoute
+  DocsCliModelsRoute: typeof DocsCliModelsRoute
+  DocsCliPermissionsRoute: typeof DocsCliPermissionsRoute
+  DocsCliReferenceRoute: typeof DocsCliReferenceRoute
+  DocsCliSessionsRoute: typeof DocsCliSessionsRoute
+  DocsCliTroubleshootingRoute: typeof DocsCliTroubleshootingRoute
+  DocsCliWorkspaceRoute: typeof DocsCliWorkspaceRoute
+  DocsCliIndexRoute: typeof DocsCliIndexRoute
 }
 
 const DocsRouteChildren: DocsRouteChildren = {
   DocsAiRoute: DocsAiRoute,
+  DocsAppsRoute: DocsAppsRoute,
+  DocsCodingAgentRoute: DocsCodingAgentRoute,
+  DocsConsoleRoute: DocsConsoleRoute,
+  DocsDashboardRoute: DocsDashboardRoute,
   DocsEditorRoute: DocsEditorRoute,
   DocsExplorerRoute: DocsExplorerRoute,
   DocsFaqRoute: DocsFaqRoute,
   DocsLabelsRoute: DocsLabelsRoute,
   DocsLaunchkitRoute: DocsLaunchkitRoute,
+  DocsMarketplaceRoute: DocsMarketplaceRoute,
   DocsNetworksRoute: DocsNetworksRoute,
+  DocsQieIdRoute: DocsQieIdRoute,
   DocsQuickstartRoute: DocsQuickstartRoute,
   DocsRegistriesRoute: DocsRegistriesRoute,
   DocsRoutebookRoute: DocsRoutebookRoute,
+  DocsSellingRoute: DocsSellingRoute,
   DocsVerificationRoute: DocsVerificationRoute,
   DocsWalletsRoute: DocsWalletsRoute,
   DocsIndexRoute: DocsIndexRoute,
+  DocsCliInstallRoute: DocsCliInstallRoute,
+  DocsCliModelsRoute: DocsCliModelsRoute,
+  DocsCliPermissionsRoute: DocsCliPermissionsRoute,
+  DocsCliReferenceRoute: DocsCliReferenceRoute,
+  DocsCliSessionsRoute: DocsCliSessionsRoute,
+  DocsCliTroubleshootingRoute: DocsCliTroubleshootingRoute,
+  DocsCliWorkspaceRoute: DocsCliWorkspaceRoute,
+  DocsCliIndexRoute: DocsCliIndexRoute,
 }
 
 const DocsRouteWithChildren = DocsRoute._addFileChildren(DocsRouteChildren)

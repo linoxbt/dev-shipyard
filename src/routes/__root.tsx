@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   createRootRouteWithContext,
+  redirect,
   useRouter,
   useRouterState,
   HeadContent,
@@ -16,6 +17,8 @@ import { Web3Provider } from "@/components/web3/Web3Provider";
 import { Toaster } from "@/components/ui/sonner";
 import { SplashScreen } from "@/components/pwa/SplashScreen";
 import { useTheme } from "@/lib/theme";
+import { crossHostTarget } from "@/lib/site-hosts";
+import { currentHost } from "@/lib/current-host";
 
 function NotFoundComponent() {
   return (
@@ -113,6 +116,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
     ],
   }),
+  // A page asked for on the wrong hostname goes to the one that serves it:
+  // devstation.online/overview to the console, a docs page on the console to
+  // docs.devstation.online. Does nothing without a root domain configured.
+  beforeLoad: ({ location, preload }) => {
+    // Hovering a link preloads its route; only a real navigation may leave.
+    if (preload) return;
+    const target = crossHostTarget(currentHost(), location.pathname, location.searchStr);
+    if (!target) return;
+    if (typeof window !== "undefined") {
+      window.location.replace(target);
+      return;
+    }
+    throw redirect({ href: target, statusCode: 308 });
+  },
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
@@ -145,6 +162,9 @@ function RootComponent() {
   const hydrateTheme = useTheme((s) => s.hydrate);
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const isLanding = pathname === "/";
+  // The docs are their own site, with their own header and navigation, rather
+  // than a page inside the console's sidebar.
+  const isDocs = pathname === "/docs" || pathname.startsWith("/docs/");
 
   // Re-apply the persisted theme on mount (covers client navigation / hydration).
   useEffect(() => {
@@ -167,7 +187,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Web3Provider>
-        {isLanding ? (
+        {isLanding || isDocs ? (
           <Outlet />
         ) : (
           <AppShell>

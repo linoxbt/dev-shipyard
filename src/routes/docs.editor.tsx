@@ -1,37 +1,69 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Code2 } from "lucide-react";
-import { DocPage, P, Bullets, PageNav } from "@/components/docs/primitives";
-import { docNeighbors } from "@/components/docs/nav";
+import {
+  DocPage,
+  H2,
+  P,
+  Bullets,
+  Table,
+  Callout,
+  C,
+  ConsoleLink,
+  DocLink,
+} from "@/components/docs/primitives";
 
 export const Route = createFileRoute("/docs/editor")({
-  head: () => ({ meta: [{ title: "Contract Editor - DevStation Docs" }] }),
+  head: () => ({ meta: [{ title: "Contract Editor · DevStation Docs" }] }),
   component: Editor,
 });
 
 function Editor() {
-  const { prev, next } = docNeighbors("/docs/editor");
   return (
     <DocPage
       title="Contract Editor"
       icon={Code2}
-      intro="The Contract Editor writes and compiles contracts for the network you\u2019ve selected \u2014 Solidity via a real in-browser solc pipeline on EVM networks, and the right language and toolchain elsewhere. There is nothing to install."
+      intro="Write, compile and deploy Solidity without leaving the browser. The compiler is the real solc, running in a worker, so what compiles here compiles anywhere."
     >
-      <P>
-        On EVM networks, external imports such as OpenZeppelin are resolved from a CDN before
-        compilation, so common libraries work out of the box. Other networks use their own standard
-        libraries.
-      </P>
-      <P>From the editor you can:</P>
+      <H2>What you can do</H2>
       <Bullets
         items={[
-          "Write or paste a contract and compile it against a chosen compiler version.",
-          "Read compiler errors and warnings inline with source locations.",
-          "Deploy the compiled contract straight to the selected network.",
-          "Open the deployed contract in the interaction panel to call its functions.",
-          "Drive an interactive terminal with commands (compile, solc <version>, ls, cat, clear, help).",
+          "Write or paste a contract, and choose the compiler version.",
+          "See errors and warnings inline, at the line they refer to.",
+          "Deploy the compiled contract to the selected network through your wallet.",
+          "Call the deployed contract's functions from the interaction panel.",
+          "Drive it from the built-in terminal.",
         ]}
       />
-      <PageNav prev={prev} next={next} />
+      <P>
+        Open it from <ConsoleLink to="/launchkit/editor">Contract Editor</ConsoleLink> in the
+        sidebar, from a template, or from any code block that{" "}
+        <DocLink to="/docs/ai">Code with AI</DocLink> writes.
+      </P>
+
+      <H2>Imports</H2>
+      <P>
+        Imports such as <C>@openzeppelin/contracts/token/ERC20/ERC20.sol</C> are fetched and
+        resolved before compiling, so common libraries work without installing anything.
+      </P>
+
+      <H2>Terminal commands</H2>
+      <Table
+        head={["Command", "What it does"]}
+        rows={[
+          ["compile", "Compile the open contract."],
+          ["solc <version>", "Switch the compiler version."],
+          ["ls", "List the files in the editor."],
+          ["cat <file>", "Print a file."],
+          ["clear", "Clear the terminal."],
+          ["help", "List the commands."],
+        ]}
+      />
+
+      <Callout tone="tip">
+        To verify a contract that uses imports, the explorer needs a single flattened file. Compile
+        it here first, then use the flattened source in the{" "}
+        <DocLink to="/docs/verification">verification form</DocLink>.
+      </Callout>
     </DocPage>
   );
 }

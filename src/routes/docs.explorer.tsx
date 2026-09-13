@@ -1,88 +1,97 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Compass } from "lucide-react";
-import { DocPage, H2, P, Bullets, Steps, Callout, PageNav } from "@/components/docs/primitives";
-import { docNeighbors } from "@/components/docs/nav";
+import {
+  DocPage,
+  H2,
+  P,
+  Bullets,
+  Table,
+  C,
+  ConsoleLink,
+  DocLink,
+} from "@/components/docs/primitives";
 
 export const Route = createFileRoute("/docs/explorer")({
-  head: () => ({ meta: [{ title: "Explorer - DevStation Docs" }] }),
-  component: ExplorerDocs,
+  head: () => ({ meta: [{ title: "Block Explorer · DevStation Docs" }] }),
+  component: Explorer,
 });
 
-function ExplorerDocs() {
-  const { prev, next } = docNeighbors("/docs/explorer");
+function Explorer() {
   return (
     <DocPage
-      title="Explorer"
+      title="Block Explorer"
       icon={Compass}
-      intro="A native block explorer built into DevStation, covering every supported network. It reads the live chain and is scoped to the network in the URL, so a link always names its network."
+      intro="A block explorer built into the console for every supported network. It reads the live chain, and every link names its network, so a link you share opens on the same chain for everyone."
     >
+      <H2>Networks and links</H2>
+      <Table
+        head={["Network", "Path"]}
+        rows={[
+          ["QIE Mainnet", "/explorer/mainnet"],
+          ["QIE Testnet", "/explorer/testnet"],
+          ["BOT Chain Mainnet", "/explorer/bot-mainnet"],
+          ["BOT Chain Testnet", "/explorer/bot-testnet"],
+        ]}
+      />
       <P>
-        Open it at a network slug like <code>/explorer/mainnet</code>,{" "}
-        <code>/explorer/testnet</code>, or <code>/explorer/bot-mainnet</code> (the bare{" "}
-        <code>/explorer</code> redirects to your selected network). A prominent Testnet/Mainnet
-        badge in the header makes the active network unmistakable, and a dropdown switches between
-        any network.
+        <ConsoleLink to="/explorer">/explorer</ConsoleLink> on its own opens your selected network.
+        A badge in the header shows whether you are on a testnet or mainnet, and a dropdown switches
+        network.
       </P>
 
-      <H2>Dashboard</H2>
-      <P>The home view shows live network health at a glance:</P>
+      <H2>Home</H2>
       <Bullets
         items={[
-          "Native token price, market cap, average block time, total blocks and transactions, gas price, and network utilization",
-          "Daily-transactions and price charts (30-day)",
-          "Live feeds of the latest blocks and transactions",
-          "A universal search for an address, transaction hash, or block number",
+          "Token price and market cap, average block time, total blocks and transactions, gas price and utilisation.",
+          "Charts of daily transactions and price over 30 days.",
+          "Live feeds of the latest blocks and transactions.",
+          "One search box for an address, transaction hash or block number.",
         ]}
       />
 
       <H2>Pages</H2>
+      <Table
+        head={["Page", "Path", "Shows"]}
+        rows={[
+          [
+            "Transaction",
+            "/tx/<hash>",
+            "Status, block and confirmations, from and to, transfers, value, fee, gas, EIP-1559 detail, nonce, logs, decoded input.",
+          ],
+          [
+            "Block",
+            "/block/<height>",
+            "Miner, reward, gas, base fee, burnt fees, size, and its transactions.",
+          ],
+          [
+            "Address",
+            "/address/<address>",
+            "Balance, counters, creator, and tabs for transactions, token transfers, tokens, internal transactions and logs.",
+          ],
+          ["Token", "/token/<address>", "Supply, holders ranked by share, transfers and decimals."],
+          ["Lists", "/blocks, /txns, /tokens", "Latest blocks, transactions and tokens."],
+          ["Stats", "/stats", "Network charts."],
+          ["Verify", "/verify", "Publish a contract's source."],
+        ]}
+      />
+      <P>
+        Paths are relative to the network, for example <C>/explorer/mainnet/tx/0x…</C>.
+      </P>
+
+      <H2>Contracts</H2>
+      <P>A verified contract&apos;s Contract tab gives the full developer view:</P>
       <Bullets
         items={[
-          "Transaction: status, block and confirmations, from/to, token transfers, value, fee, gas, EIP-1559 detail, nonce, event logs, and decoded or raw input",
-          "Block: height with prev/next, miner, reward, gas used and limit, base fee, burnt fees, size, and the block's transactions",
-          "Address: balance and fiat value, counters, creator, and tabs for Transactions, Token Transfers, Tokens held, Internal Txns, and Logs",
-          "Token: supply, holders, transfers, and decimals, with ranked holders and ownership percentages",
+          "Code: compiler and EVM version, optimisation, licence and source.",
+          "Read Contract and Write Contract: call view functions, and send transactions with your wallet.",
+          "ABI, ready to copy.",
+          "Bytecode: deployed and creation bytecode, shown for unverified contracts too.",
         ]}
       />
-
-      <H2>Verified contracts</H2>
       <P>
-        When a contract is verified, its Contract tab opens the full developer view, the same set
-        you would expect from Etherscan:
+        An unverified contract links to the verification form. See{" "}
+        <DocLink to="/docs/verification">Contract Verification</DocLink>.
       </P>
-      <Bullets
-        items={[
-          "Code: compiler version, EVM version, optimization, license, and the source",
-          "Read Contract / Write Contract: call view functions and send transactions with your wallet, straight from the explorer",
-          "ABI: the full ABI, copyable",
-          "ByteCode: deployed and creation bytecode (shown even for unverified contracts)",
-        ]}
-      />
-
-      <H2>Verify a contract</H2>
-      <P>
-        Any unverified contract links to a built-in verification form (also reachable from the
-        Verify Contract link in the explorer header). Publish your source in a few steps:
-      </P>
-      <Steps
-        steps={[
-          { title: "Open the form", body: "From an unverified contract, or the header link." },
-          {
-            title: "Fill the details",
-            body: "Contract address, compiler version, optimization and runs, license, and your flattened Solidity source.",
-          },
-          {
-            title: "Submit",
-            body: "DevStation sends it to that network's explorer and polls until it confirms, then links to the verified contract.",
-          },
-        ]}
-      />
-      <Callout tone="info">
-        Source must be a single flattened file with all imports inline. For contracts that import
-        OpenZeppelin, use the Contract Editor to produce the flattened source first.
-      </Callout>
-
-      <PageNav prev={prev} next={next} />
     </DocPage>
   );
 }

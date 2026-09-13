@@ -1,56 +1,145 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DocPage, P, Steps, Callout, PageNav } from "@/components/docs/primitives";
-import { docNeighbors } from "@/components/docs/nav";
-import { useTerminology } from "@/lib/terminology";
+import { Rocket } from "lucide-react";
+import {
+  DocPage,
+  H2,
+  P,
+  Steps,
+  Callout,
+  ConsoleLink,
+  DocLink,
+  Code,
+} from "@/components/docs/primitives";
 
 export const Route = createFileRoute("/docs/quickstart")({
-  head: () => ({ meta: [{ title: "Quickstart - DevStation Docs" }] }),
+  head: () => ({ meta: [{ title: "Quickstart · DevStation Docs" }] }),
   component: Quickstart,
 });
 
 function Quickstart() {
-  const { t } = useTerminology();
-  const { prev, next } = docNeighbors("/docs/quickstart");
   return (
     <DocPage
       title="Quickstart"
-      intro="Deploy your first contract in under a minute, on whichever network you choose."
+      icon={Rocket}
+      intro="Deploy your first contract from the browser, then take the same work further with the Coding Agent or the CLI."
     >
+      <H2>Deploy a contract</H2>
       <Steps
         steps={[
           {
-            title: "Connect a wallet",
-            body: "Open DevStation and connect an injected wallet, or generate a DevStation wallet from the sidebar: generated wallets show you a recovery phrase before you continue. Pick any testnet from the network selector; the whole console follows your choice.",
-          },
-          {
-            title: "Get testnet funds for gas",
-            body: "You need a small amount of the network\u2019s token to pay fees. Use the faucet / get-gas link in the wallet panel for the selected network.",
-          },
-          {
-            title: "Pick a template",
-            body: t(
-              "Open LaunchKit and choose a template \u2014 an ERC-20 token, an NFT collection, staking, vesting, and more \u2014 then fill in the fields in the guided form.",
+            title: "Open the console and pick a network",
+            body: (
+              <P>
+                Open the <ConsoleLink to="/overview">console</ConsoleLink>. The network selector at
+                the bottom of the sidebar decides where everything reads and writes. It starts on
+                QIE Mainnet; choose QIE Testnet if you want to try things for free first.
+              </P>
             ),
           },
           {
-            title: "Deploy",
-            body: "DevStation compiles the contract for you and sends the transaction through your wallet, then waits for it to confirm.",
+            title: "Connect a wallet",
+            body: (
+              <P>
+                Use the wallet panel at the top of the sidebar to connect a browser wallet, or
+                create a DevStation wallet on the spot. A generated wallet shows its recovery phrase
+                before you can use it: write it down. See{" "}
+                <DocLink to="/docs/wallets">Wallets</DocLink>.
+              </P>
+            ),
           },
           {
-            title: "Inspect and share",
-            body: "From the success screen, open the deployment in Routebook or the built-in explorer, and download a ready-to-use .env file.",
+            title: "Get gas",
+            body: (
+              <P>
+                Testnets have a public faucet, linked from the wallet panel. On QIE Mainnet and BOT
+                Chain Mainnet DevStation can top your wallet up with just enough to cover a deploy.
+              </P>
+            ),
+          },
+          {
+            title: "Choose a template",
+            body: (
+              <P>
+                Open <ConsoleLink to="/launchkit/deploy">Deploy</ConsoleLink> and pick a template,
+                such as an ERC-20 token or an NFT collection. The form is generated from its
+                constructor, and every field is checked before anything is sent.
+              </P>
+            ),
+          },
+          {
+            title: "Deploy and confirm",
+            body: (
+              <P>
+                DevStation compiles the contract, asks your wallet to sign the creation transaction,
+                and waits for it to confirm. The deployment is recorded in the onchain
+                ProjectRegistry against your wallet.
+              </P>
+            ),
+          },
+          {
+            title: "Inspect it",
+            body: (
+              <P>
+                From the success screen, open the contract in the explorer, decode the transaction
+                in Routebook, verify the source, or download a ready-made <code>.env</code> file. It
+                also appears on your <ConsoleLink to="/activity">dashboard</ConsoleLink>.
+              </P>
+            ),
           },
         ]}
       />
-      <Callout>
-        Everything in the quickstart works the same on mainnet. Switch networks from the selector at
-        the bottom of the sidebar before you deploy.
+
+      <H2>Next steps</H2>
+      <Steps
+        steps={[
+          {
+            title: "Write your own contract",
+            body: (
+              <P>
+                The <DocLink to="/docs/editor">Contract Editor</DocLink> compiles Solidity in the
+                browser, and <DocLink to="/docs/ai">Code with AI</DocLink> can draft it for you.
+              </P>
+            ),
+          },
+          {
+            title: "Build an app around it",
+            body: (
+              <P>
+                Describe a front end to the <DocLink to="/docs/coding-agent">Coding Agent</DocLink>,
+                watch it run in the preview, and <DocLink to="/docs/apps">publish it</DocLink> to
+                its own address.
+              </P>
+            ),
+          },
+          {
+            title: "Sell what you made",
+            body: (
+              <P>
+                List a template, app, skill or UI kit on the{" "}
+                <DocLink to="/docs/selling">Marketplace</DocLink>. You keep 95% of every sale.
+              </P>
+            ),
+          },
+          {
+            title: "Work from your terminal",
+            body: (
+              <>
+                <P>The DevStation CLI runs the same agent against a project on your machine:</P>
+                <Code code={`npm install -g @devstationlabs/cli\ndevstation login\ndevstation`} />
+                <P>
+                  The <DocLink to="/docs/cli/install">CLI guide</DocLink> covers everything else.
+                </P>
+              </>
+            ),
+          },
+        ]}
+      />
+
+      <Callout tone="tip">
+        Everything above works the same on mainnet as on testnet. Switch networks in the sidebar
+        before you deploy; transactions always go to the network you have selected, and your wallet
+        is asked to switch if it is on a different one.
       </Callout>
-      <P>
-        From here, read about the networks DevStation supports, or jump straight into LaunchKit and
-        the contract editor.
-      </P>
-      <PageNav prev={prev} next={next} />
     </DocPage>
   );
 }
