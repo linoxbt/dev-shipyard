@@ -210,7 +210,11 @@ async function main() {
         : name === "ContractLabelRegistry" || name === "TemplateRegistry"
           ? [account.address]
           : [];
-    const hash = await walletClient.deployContract({ abi: abi as [], bytecode, args });
+    // Explicit gas: QIE's eth_estimateGas is unreliable (see ONCHAIN_WRITE_GAS),
+    // and the testnet explorer's RPC proxy, used while rpc1testnet is down,
+    // rejects estimation for contract creation outright. Unused gas is refunded.
+    const gas = 800_000n + BigInt((bytecode.length - 2) / 2) * 250n;
+    const hash = await walletClient.deployContract({ abi: abi as [], bytecode, args, gas });
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     if (!receipt.contractAddress) throw new Error(`${name}: no contract address in receipt`);
     deployed[name] = receipt.contractAddress;

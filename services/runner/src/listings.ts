@@ -10,7 +10,7 @@
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createPublicClient, http } from "viem";
+import { createPublicClient, fallback, http } from "viem";
 import { bundleHash, bundleProblem, type Bundle } from "../../../src/lib/marketplace/bundle";
 import { devStationMarketplaceAbi } from "../../../src/lib/abis/devStationMarketplace";
 import { isContractConfigured, marketplaceAddress } from "../../../src/lib/contracts";
@@ -131,7 +131,10 @@ export function rpcListingChain(): ListingChain {
     if (!chain) return null;
     let client = clients.get(chainId);
     if (!client) {
-      client = createPublicClient({ chain, transport: http() });
+      client = createPublicClient({
+        chain,
+        transport: fallback(chain.rpcUrls.default.http.map((url) => http(url))),
+      });
       clients.set(chainId, client);
     }
     return client;

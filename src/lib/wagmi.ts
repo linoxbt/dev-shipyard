@@ -1,4 +1,4 @@
-import { createConfig, createStorage, http } from "wagmi";
+import { createConfig, createStorage, fallback, http } from "wagmi";
 import { injected, metaMask } from "@wagmi/connectors";
 import { SUPPORTED_CHAINS } from "./chains";
 import { burnerConnector } from "./burner/connector";
@@ -16,7 +16,11 @@ export const wagmiConfig = createConfig({
     key: "devstation-wagmi",
     storage: typeof window !== "undefined" ? window.localStorage : undefined,
   }),
-  transports: Object.fromEntries(SUPPORTED_CHAINS.map((c) => [c.id, http()])),
+  // Every RPC a chain lists, in order: when the first is down (QIE testnet's
+  // rpc1 has been, for days at a time) calls move to the next instead of failing.
+  transports: Object.fromEntries(
+    SUPPORTED_CHAINS.map((c) => [c.id, fallback(c.rpcUrls.default.http.map((url) => http(url)))]),
+  ),
   ssr: true,
 });
 

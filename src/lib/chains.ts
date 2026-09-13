@@ -4,6 +4,10 @@ import { defineChain } from "viem";
 // known QIE network values (per docs.qie.digital) so the app works with zero
 // configuration.
 const TESTNET_RPC = import.meta.env.VITE_QIE_TESTNET_RPC || "https://rpc1testnet.qie.digital/";
+/** The testnet explorer's own JSON-RPC endpoint. rpc1testnet has gone down for
+ *  long stretches while the chain and explorer kept running; reads and
+ *  transactions fall back to this so testnet does not go dark with it. */
+const TESTNET_RPC_FALLBACK = "https://testnet.qie.digital/api/eth-rpc";
 const TESTNET_EXPLORER = import.meta.env.VITE_QIE_TESTNET_EXPLORER || "https://testnet.qie.digital";
 
 // QIE Mainnet: chain id 1990, rpc{1..5}mainnet.qie.digital (docs.qie.digital).
@@ -19,7 +23,7 @@ export const qieTestnet = defineChain({
   id: 1983,
   name: "QIE Testnet",
   nativeCurrency: { name: "QIE", symbol: "QIE", decimals: 18 },
-  rpcUrls: { default: { http: [TESTNET_RPC] } },
+  rpcUrls: { default: { http: [TESTNET_RPC, TESTNET_RPC_FALLBACK] } },
   blockExplorers: { default: { name: "QIE Explorer", url: TESTNET_EXPLORER } },
   testnet: true,
 });

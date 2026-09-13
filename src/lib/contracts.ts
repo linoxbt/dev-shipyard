@@ -84,14 +84,16 @@ export function templateRegistryAddress(chainId: number): `0x${string}` {
 }
 
 // DevStationMarketplace: listings for templates, apps, skills and UI kits,
-// priced in QIE or QUSDC. Mainnet only: it takes QIE's QUSDC address at
-// deploy, and QUSDC has no official testnet deployment.
+// priced in QIE or QUSDC (QUSDC on mainnet only).
 // Deployed 2026-09-13 at block 10434564, owner and treasury the DevStation
 // deployer 0x598d…ebfd, QUSDC 0x3F43…5DA5.
 const QIE_MAINNET_MARKETPLACE = "0xeeae4de6198cbcc837240115e86554c6968ba51d";
+// Deployed 2026-09-13 at block 8562912. Testnet has no official QUSDC, so this
+// one was deployed without it: listings there are priced in QIE only.
+const QIE_TESTNET_MARKETPLACE = "0xec783dbd04509faa96c7edbf26c681408201cd2f";
 
 const MARKETPLACE: Record<number, `0x${string}`> = {
-  [qieTestnet.id]: envAddress(env.VITE_MARKETPLACE_ADDRESS_TESTNET),
+  [qieTestnet.id]: envAddress(env.VITE_MARKETPLACE_ADDRESS_TESTNET, QIE_TESTNET_MARKETPLACE),
   [qieMainnet.id]: envAddress(env.VITE_MARKETPLACE_ADDRESS_MAINNET, QIE_MAINNET_MARKETPLACE),
   [botTestnet.id]: envAddress(env.VITE_MARKETPLACE_ADDRESS_BOT_TESTNET),
   [botMainnet.id]: envAddress(env.VITE_MARKETPLACE_ADDRESS_BOT_MAINNET),
