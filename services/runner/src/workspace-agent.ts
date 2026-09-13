@@ -570,6 +570,10 @@ async function runTurn(
       changed: result.filesChanged,
       handoffs: result.handoffs,
     });
+    // The turn is over, so it no longer counts as running. The preview refuses
+    // to start while a turn runs, and this line used to come first, which
+    // meant no preview was ever built automatically.
+    running.delete(session.id);
     if (!signal.aborted && opts.preview !== false) startWorkspacePreview(session.id);
   } catch (error) {
     finish({

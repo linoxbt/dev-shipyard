@@ -182,6 +182,25 @@ describe("where a workspace starts", () => {
 });
 
 describe("the preview", () => {
+  it("builds itself when a turn finishes", async () => {
+    const session = await blank();
+    const sent = sendWorkspaceMessage(session.id, "page", {
+      sandbox: false,
+      provider: new MockProvider([
+        {
+          toolCalls: [
+            { id: "1", name: "write_file", input: { path: "index.html", content: "<p>auto</p>" } },
+          ],
+        },
+        { text: "ok" },
+      ]),
+    });
+    expect(sent.ok).toBe(true);
+    await whenWorkspaceIdle(session.id);
+    expect(getWorkspace(session.id)!.preview.phase).toBe("ready");
+    expect(previewDist(session.id)).toEqual({ "index.html": "<p>auto</p>" });
+  });
+
   it("serves a static page as it is", async () => {
     const session = await blank();
     await say(
