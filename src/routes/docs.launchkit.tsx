@@ -38,7 +38,6 @@ function LaunchKit() {
           ],
           ["MultiSigWallet", "Governance", "An m-of-n multi-signature wallet."],
           ["TimelockController", "Governance", "Queue and execute calls after a delay."],
-          ["TokenVesting", "DeFi", "Linear token vesting with a cliff."],
           ["SimpleStaking", "DeFi", "Stake a token and earn rewards."],
           ["PaymentSplitter", "Utility", "Split incoming funds among payees."],
         ]}

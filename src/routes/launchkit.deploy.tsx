@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import {
@@ -45,12 +45,24 @@ import { useUserTemplates } from "@/lib/user-templates";
 import { NetworkMismatchModal } from "@/components/web3/NetworkMismatchModal";
 import { VerifyCard } from "@/components/deploy/VerifyCard";
 import { compile } from "@/lib/compiler";
+import { paidListingFor } from "@/lib/marketplace/paid";
 import { encodeConstructorArgs } from "@/lib/verify/constructorArgs";
 
 const search = z.object({ template: z.string().optional() });
 
 export const Route = createFileRoute("/launchkit/deploy")({
   validateSearch: search,
+  // A template that is sold now opens its paid listing, never a free deploy.
+  beforeLoad: ({ search: current }) => {
+    const paid = paidListingFor(current.template);
+    if (paid) {
+      throw redirect({
+        to: "/launchkit/marketplace/$listingId",
+        params: { listingId: paid },
+        replace: true,
+      });
+    }
+  },
   head: () => ({
     meta: [{ title: "Deploy a Contract: DevStation LaunchKit" }],
   }),

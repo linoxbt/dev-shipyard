@@ -75,139 +75,6 @@ export function templateNeedsImage(t: Template): boolean {
   return t.requiresImage ?? t.category === "NFT";
 }
 
-const STABLECOIN_INVOICES_SRC = `// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-
-interface IERC20 {
-    function transferFrom(address from, address to, uint256 amount) external returns (bool);
-    function transfer(address to, uint256 amount) external returns (bool);
-    function balanceOf(address account) external view returns (uint256);
-    function decimals() external view returns (uint8);
-}
-
-/// @title StablecoinInvoices
-/// @notice Issue invoices payable in a stablecoin (QUSDC on QIE) and collect
-///         them onchain, with a per-invoice paid/cancelled record.
-/// @dev Amounts are in the TOKEN'S OWN smallest unit. QUSDC has 6 decimals,
-///      not 18: 1 QUSDC is 1_000_000. Never assume 1e18 here.
-///      Uses transferFrom, so a payer must approve() this contract for the
-///      invoice amount first. Pull-based on withdraw, and state is written
-///      before the external call on every path.
-contract StablecoinInvoices {
-    struct Invoice {
-        address payer;      // address(0) = payable by anyone
-        uint256 amount;     // in token smallest units
-        uint64  dueBy;      // unix seconds; 0 = no expiry
-        bool    paid;
-        bool    cancelled;
-        string  memo;
-    }
-
-    IERC20 public immutable token;
-    address public owner;
-    uint256 public invoiceCount;
-    uint256 public totalCollected;
-    mapping(uint256 => Invoice) private _invoices;
-
-    event InvoiceIssued(uint256 indexed id, address indexed payer, uint256 amount, string memo);
-    event InvoicePaid(uint256 indexed id, address indexed paidBy, uint256 amount);
-    event InvoiceCancelled(uint256 indexed id);
-    event Withdrawn(address indexed to, uint256 amount);
-    event OwnerChanged(address indexed previousOwner, address indexed newOwner);
-
-    error NotOwner();
-    error ZeroAddress();
-    error NotAContract();
-    error ZeroAmount();
-    error NoSuchInvoice();
-    error AlreadySettled();
-    error NotYourInvoice();
-    error PastDue();
-    error TransferFailed();
-    error NothingToWithdraw();
-
-    modifier onlyOwner() {
-        if (msg.sender != owner) revert NotOwner();
-        _;
-    }
-
-    /// @param token_ Stablecoin accepted for payment (QUSDC on QIE Mainnet).
-    /// @param initialOwner Receives collected funds and may issue invoices.
-    constructor(address token_, address initialOwner) {
-        if (token_ == address(0) || initialOwner == address(0)) revert ZeroAddress();
-        // token is immutable: a wrong address means no invoice can ever be
-        // paid and nothing can be withdrawn, with no way to correct it.
-        if (token_.code.length == 0) revert NotAContract();
-        token = IERC20(token_);
-        owner = initialOwner;
-        emit OwnerChanged(address(0), initialOwner);
-    }
-
-    /// @notice Issue an invoice. \`payer\` may be address(0) for "anyone can pay".
-    /// @param amount In the token's smallest unit (QUSDC: 1 QUSDC = 1000000).
-    /// @param dueBy Unix seconds after which payment is refused; 0 = no expiry.
-    function issueInvoice(address payer, uint256 amount, uint64 dueBy, string calldata memo)
-        external
-        onlyOwner
-        returns (uint256 id)
-    {
-        if (amount == 0) revert ZeroAmount();
-        id = ++invoiceCount;
-        _invoices[id] = Invoice(payer, amount, dueBy, false, false, memo);
-        emit InvoiceIssued(id, payer, amount, memo);
-    }
-
-    /// @notice Pay an invoice. Approve this contract for \`amount\` first.
-    function payInvoice(uint256 id) external {
-        Invoice storage inv = _invoices[id];
-        if (inv.amount == 0) revert NoSuchInvoice();
-        if (inv.paid || inv.cancelled) revert AlreadySettled();
-        if (inv.payer != address(0) && inv.payer != msg.sender) revert NotYourInvoice();
-        if (inv.dueBy != 0 && block.timestamp > inv.dueBy) revert PastDue();
-
-        inv.paid = true;                       // effects before interaction
-        totalCollected += inv.amount;
-        emit InvoicePaid(id, msg.sender, inv.amount);
-
-        if (!token.transferFrom(msg.sender, address(this), inv.amount)) revert TransferFailed();
-    }
-
-    function cancelInvoice(uint256 id) external onlyOwner {
-        Invoice storage inv = _invoices[id];
-        if (inv.amount == 0) revert NoSuchInvoice();
-        if (inv.paid || inv.cancelled) revert AlreadySettled();
-        inv.cancelled = true;
-        emit InvoiceCancelled(id);
-    }
-
-    /// @notice Send the contract's entire token balance to \`to\`.
-    function withdraw(address to) external onlyOwner {
-        if (to == address(0)) revert ZeroAddress();
-        uint256 balance = token.balanceOf(address(this));
-        if (balance == 0) revert NothingToWithdraw();
-        emit Withdrawn(to, balance);
-        if (!token.transfer(to, balance)) revert TransferFailed();
-    }
-
-    function transferOwnership(address newOwner) external onlyOwner {
-        if (newOwner == address(0)) revert ZeroAddress();
-        emit OwnerChanged(owner, newOwner);
-        owner = newOwner;
-    }
-
-    function getInvoice(uint256 id) external view returns (Invoice memory) {
-        if (_invoices[id].amount == 0) revert NoSuchInvoice();
-        return _invoices[id];
-    }
-
-    function isPayable(uint256 id) external view returns (bool) {
-        Invoice storage inv = _invoices[id];
-        return inv.amount != 0 && !inv.paid && !inv.cancelled
-            && (inv.dueBy == 0 || block.timestamp <= inv.dueBy);
-    }
-}
-`;
-
 const QIE_ID_GATE_SRC = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -576,54 +443,6 @@ contract MultiSigWallet {
     receive() external payable {}
 }`;
 
-const VESTING_SRC = `// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-
-interface IERC20 {
-    function transfer(address to, uint256 amount) external returns (bool);
-    function balanceOf(address account) external view returns (uint256);
-}
-
-contract TokenVesting {
-    IERC20 public immutable token;
-    address public immutable beneficiary;
-    uint256 public immutable start;
-    uint256 public immutable cliff;
-    uint256 public immutable duration;
-    uint256 public released;
-
-    event Released(uint256 amount);
-
-    constructor(address token_, address beneficiary_, uint256 cliffDays_, uint256 vestingDays_) {
-        require(beneficiary_ != address(0), "ZERO_BENEFICIARY");
-        require(vestingDays_ > 0, "ZERO_DURATION");
-        token = IERC20(token_);
-        beneficiary = beneficiary_;
-        start = block.timestamp;
-        cliff = block.timestamp + cliffDays_ * 1 days;
-        duration = vestingDays_ * 1 days;
-    }
-
-    function vestedAmount() public view returns (uint256) {
-        uint256 totalBalance = token.balanceOf(address(this)) + released;
-        if (block.timestamp < cliff) return 0;
-        if (block.timestamp >= start + duration) return totalBalance;
-        return (totalBalance * (block.timestamp - start)) / duration;
-    }
-
-    function releasable() public view returns (uint256) {
-        return vestedAmount() - released;
-    }
-
-    function release() external {
-        uint256 amount = releasable();
-        require(amount > 0, "NOTHING_VESTED");
-        released += amount;
-        require(token.transfer(beneficiary, amount), "TRANSFER_FAILED");
-        emit Released(amount);
-    }
-}`;
-
 const STAKING_SRC = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -950,41 +769,6 @@ contract PaymentSplitter {
 
 export const TEMPLATES: Template[] = [
   {
-    id: "stablecoin-invoices",
-    name: "StablecoinInvoices",
-    displayName: "Stablecoin Invoices",
-    category: "DeFi",
-    description:
-      "Issue invoices payable in a stablecoin and collect them onchain, with a paid/cancelled record per invoice. Pre-filled with QUSDC on QIE Mainnet.",
-    longDescription:
-      "A merchant contract for onchain billing. Issue an invoice to a specific payer or to anyone, optionally with a due date, and let them settle it in QUSDC. Amounts are in the token's own smallest unit: QUSDC has 6 decimals, so 1 QUSDC is 1000000, not 1e18. Payers must approve() this contract for the amount before paying. State is written before every external transfer, and withdrawals are owner-only.",
-    tags: ["QUSDC", "Payments", "Invoicing", "Commerce"],
-    verified: true,
-    deployCount: 0,
-    solidity: STABLECOIN_INVOICES_SRC,
-    abi: '[{"inputs":[{"internalType":"address","name":"token_","type":"address"},{"internalType":"address","name":"initialOwner","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"AlreadySettled","type":"error"},{"inputs":[],"name":"NoSuchInvoice","type":"error"},{"inputs":[],"name":"NotAContract","type":"error"},{"inputs":[],"name":"NotOwner","type":"error"},{"inputs":[],"name":"NotYourInvoice","type":"error"},{"inputs":[],"name":"NothingToWithdraw","type":"error"},{"inputs":[],"name":"PastDue","type":"error"},{"inputs":[],"name":"TransferFailed","type":"error"},{"inputs":[],"name":"ZeroAddress","type":"error"},{"inputs":[],"name":"ZeroAmount","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"}],"name":"InvoiceCancelled","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"payer","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"string","name":"memo","type":"string"}],"name":"InvoiceIssued","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"paidBy","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"InvoicePaid","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnerChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Withdrawn","type":"event"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"cancelInvoice","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"getInvoice","outputs":[{"components":[{"internalType":"address","name":"payer","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint64","name":"dueBy","type":"uint64"},{"internalType":"bool","name":"paid","type":"bool"},{"internalType":"bool","name":"cancelled","type":"bool"},{"internalType":"string","name":"memo","type":"string"}],"internalType":"struct StablecoinInvoices.Invoice","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"invoiceCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"isPayable","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"payer","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint64","name":"dueBy","type":"uint64"},{"internalType":"string","name":"memo","type":"string"}],"name":"issueInvoice","outputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"payInvoice","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"token","outputs":[{"internalType":"contract IERC20","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalCollected","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"}],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
-    args: [
-      {
-        name: "token_",
-        label: "Stablecoin Address",
-        type: "address",
-        defaultFrom: "qusdc",
-        helper:
-          "Token accepted for payment. Pre-filled with QUSDC on QIE Mainnet (6 decimals); paste another ERC-20 to bill in something else.",
-      },
-      {
-        name: "initialOwner",
-        label: "Owner",
-        type: "address",
-        defaultFrom: "wallet",
-        helper: "Issues invoices and withdraws collected funds.",
-      },
-    ],
-    author: "DevStation",
-    version: "1.0.0",
-    estimatedGas: 1950000,
-  },
-  {
     id: "membership-pass",
     name: "MembershipPass",
     displayName: "Membership Pass",
@@ -1204,28 +988,6 @@ export const TEMPLATES: Template[] = [
     author: "DevStation",
     version: "1.0.0",
     estimatedGas: 980000,
-  },
-  {
-    id: "token-vesting",
-    name: "TokenVesting",
-    category: "DeFi",
-    description: "Linear token vesting with a configurable cliff and total vesting duration.",
-    longDescription:
-      "Fund this contract with an ERC-20 token; the beneficiary can claim a linearly-vesting amount after the cliff. Used for team allocations and investor unlocks.",
-    tags: ["Vesting", "Token", "DeFi"],
-    verified: true,
-    deployCount: 0,
-    solidity: VESTING_SRC,
-    abi: '[{"inputs":[{"name":"token_","type":"address"},{"name":"beneficiary_","type":"address"},{"name":"cliffDays_","type":"uint256"},{"name":"vestingDays_","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"release","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"releasable","outputs":[{"type":"uint256"}],"stateMutability":"view","type":"function"}]',
-    args: [
-      { name: "token_", label: "Token Address", type: "address", placeholder: "0x..." },
-      { name: "beneficiary_", label: "Beneficiary", type: "address", placeholder: "0x..." },
-      { name: "cliffDays_", label: "Cliff (days)", type: "uint", placeholder: "180" },
-      { name: "vestingDays_", label: "Vesting Duration (days)", type: "uint", placeholder: "1095" },
-    ],
-    author: "DevStation",
-    version: "1.0.0",
-    estimatedGas: 680000,
   },
   {
     id: "simple-staking",

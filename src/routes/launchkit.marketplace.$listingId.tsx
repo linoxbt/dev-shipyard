@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { CodeBlock } from "@/components/shared/CodeBlock";
 import { EmptyState, KindBadge, PriceTag } from "@/components/marketplace/ui";
 import { getTemplate, templateLabel } from "@/lib/data/templates";
+import { paidListingFor } from "@/lib/marketplace/paid";
 import { applyTerminology } from "@/lib/terminology";
 import { shortAddr } from "@/lib/explorer/format";
 import { useNetworkPref } from "@/lib/active-chain";
@@ -79,7 +80,14 @@ function ListingPage() {
       </Shell>
     );
   }
-  if (parsed.source === "builtin") return <BuiltinListing slug={parsed.key} />;
+  if (parsed.source === "builtin") {
+    const paid = paidListingFor(parsed.key);
+    if (paid)
+      return (
+        <Navigate to="/launchkit/marketplace/$listingId" params={{ listingId: paid }} replace />
+      );
+    return <BuiltinListing slug={parsed.key} />;
+  }
   if (parsed.source === "legacy") return <LegacyListing id={parsed.key} />;
   return <MarketListingPage id={parsed.key} />;
 }
