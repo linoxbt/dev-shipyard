@@ -203,7 +203,7 @@ export function useCombinedDeployStats() {
     .filter((c) => isContractConfigured(c.registry));
   const onChain = chains.length > 0;
 
-  const { data } = useQuery({
+  const { data, isLoading, isError, isFetching, dataUpdatedAt, refetch } = useQuery({
     queryKey: [
       "combined-ecosystem-stats",
       chains.map((c) => `${c.chainId}:${c.registry}`).join(","),
@@ -218,5 +218,13 @@ export function useCombinedDeployStats() {
     onChain,
     totalDeployments: data ? data.totalContracts : null,
     uniqueDeployers: data ? data.totalUsers : 0,
+    /** Per-chain answers; null fields could not be read. */
+    chains: data?.chains ?? [],
+    complete: data?.complete ?? false,
+    loading: onChain && isLoading,
+    error: isError,
+    fetching: isFetching,
+    updatedAt: dataUpdatedAt,
+    refetch,
   };
 }

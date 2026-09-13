@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createPublicClient, http, formatUnits, decodeFunctionData } from "viem";
+import { createPublicClient, fallback, http, formatUnits, decodeFunctionData } from "viem";
 import {
   qieTestnet,
   qieMainnet,
@@ -16,7 +16,13 @@ import { fetchExplorer } from "@/lib/api/explorer-fetch";
 
 function clientFor(chainId: number) {
   const chain = SUPPORTED_CHAINS.find((c) => c.id === chainId) ?? qieTestnet;
-  return createPublicClient({ chain, transport: http() });
+  // Every RPC the chain lists, in order. QIE Testnet's rpc1 has been down for
+  // days while the chain kept running; with only the first URL, its whole
+  // deployment count silently dropped out of the ecosystem totals.
+  return createPublicClient({
+    chain,
+    transport: fallback(chain.rpcUrls.default.http.map((url) => http(url))),
+  });
 }
 
 // Groups a chain id by FAMILY (testnet + mainnet of the same chain share a
@@ -211,6 +217,20 @@ export const getCombinedEcosystemStats = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     let totalContracts = 0;
     const deployersByFamily = new Map<string, Set<string>>();
+    // What each chain actually answered. null means it could not be read, so a
+    // caller can say "partial" instead of presenting an undercount as the total.
+    const perChain = new Map<
+      number,
+      { chainId: number; contracts: number | null; users: number | null }
+    >();
+    const entry = (chainId: number) => {
+      let e = perChain.get(chainId);
+      if (!e) {
+        e = { chainId, contracts: null, users: null };
+        perChain.set(chainId, e);
+      }
+      return e;
+    };
 
     await Promise.all(
       data.chains.map(async ({ chainId, registry }) => {
@@ -223,8 +243,9 @@ export const getCombinedEcosystemStats = createServerFn({ method: "GET" })
             functionName: "totalDeployments",
           });
           totalContracts += Number(total as bigint);
+          entry(chainId).contracts = Number(total as bigint);
         } catch {
-          /* skip this chain's counter if unreachable */
+          entry(chainId);
         }
 
         // Union the deployer addresses from this chain's recordDeployment
@@ -243,6 +264,7 @@ export const getCombinedEcosystemStats = createServerFn({ method: "GET" })
             familySet = new Set<string>();
             deployersByFamily.set(familyKey, familySet);
           }
+          const chainUsers = new Set<string>();
           for (const t of txs) {
             if (
               t.to?.toLowerCase() === registry.toLowerCase() &&
@@ -250,16 +272,25 @@ export const getCombinedEcosystemStats = createServerFn({ method: "GET" })
               t.isError === "0"
             ) {
               familySet.add(t.from.toLowerCase());
+              chainUsers.add(t.from.toLowerCase());
             }
           }
+          if (Array.isArray(json.result)) entry(chainId).users = chainUsers.size;
         } catch {
-          /* skip this chain's users if the explorer is unreachable */
+          entry(chainId);
         }
       }),
     );
 
     const totalUsers = [...deployersByFamily.values()].reduce((sum, set) => sum + set.size, 0);
-    return { totalContracts, totalUsers };
+    const chains = data.chains.map((c) => entry(c.chainId));
+    return {
+      totalContracts,
+      totalUsers,
+      chains,
+      /** True when every chain answered both reads. */
+      complete: chains.every((c) => c.contracts !== null && c.users !== null),
+    };
   });
 
 // Per-template deploy counts, derived from the registry's successful
