@@ -1,6 +1,6 @@
 {
   "name": "@devstationlabs/cli",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "The DevStation coding agent, in your terminal.",
   "license": "MIT",
   "type": "module",
