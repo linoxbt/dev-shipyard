@@ -60,7 +60,38 @@ const CHAINS: Record<string, Partial<Record<NetworkKey, ChainDef>>> = {
   },
 };
 
-const CONTRACTS = ["ProjectRegistry", "ContractLabelRegistry"] as const;
+const CONTRACTS = ["ProjectRegistry", "ContractLabelRegistry", "DevStationMarketplace"] as const;
+
+/** Each contract is verified against the exact set of sources it was compiled
+ *  with, because that set is part of its metadata hash. The two registries
+ *  were built before the marketplace existed; the marketplace was built with
+ *  every contract compile.ts knows. */
+const SOURCE_SETS: Record<(typeof CONTRACTS)[number], string[]> = {
+  ProjectRegistry: ["ProjectRegistry", "ContractLabelRegistry"],
+  ContractLabelRegistry: ["ProjectRegistry", "ContractLabelRegistry"],
+  DevStationMarketplace: [
+    "ProjectRegistry",
+    "ContractLabelRegistry",
+    "TemplateRegistry",
+    "DevStationMarketplace",
+  ],
+};
+
+const ENV_VAR: Record<(typeof CONTRACTS)[number], string> = {
+  ProjectRegistry: "VITE_PROJECT_REGISTRY_ADDRESS_",
+  ContractLabelRegistry: "VITE_LABEL_REGISTRY_ADDRESS_",
+  DevStationMarketplace: "VITE_MARKETPLACE_ADDRESS_",
+};
+
+/** An address recorded by scripts/deploy.ts for this chain, when .env.local has none. */
+function recordedAddress(chainId: number, name: string): string | undefined {
+  try {
+    const out = JSON.parse(fs.readFileSync(path.join(ROOT, "deployment-output.json"), "utf8"));
+    return out.chainId === chainId ? out.contracts?.[name] : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 function parseTarget(): { family: string; network: NetworkKey } {
   const [a, b] = process.argv.slice(2);
@@ -91,10 +122,10 @@ function readSource(name: string): string {
 
 // Same solc settings as scripts/compile.ts: must match exactly, or the
 // recompiled bytecode won't match what's actually on chain.
-function standardJsonInput() {
+function standardJsonInput(names: readonly string[] = SOURCE_SETS.ProjectRegistry) {
   return {
     language: "Solidity",
-    sources: Object.fromEntries(CONTRACTS.map((n) => [`${n}.sol`, { content: readSource(n) }])),
+    sources: Object.fromEntries(names.map((n) => [`${n}.sol`, { content: readSource(n) }])),
     settings: {
       optimizer: { enabled: true, runs: 200 },
       evmVersion: "shanghai",
@@ -212,22 +243,33 @@ async function main() {
   });
 
   for (const name of CONTRACTS) {
-    const envVar = `VITE_${name === "ProjectRegistry" ? "PROJECT" : "LABEL"}_REGISTRY_ADDRESS_${chain.envSuffix}`;
-    const address = process.env[envVar];
+    const envVar = `${ENV_VAR[name]}${chain.envSuffix}`;
+    const address = process.env[envVar] ?? recordedAddress(chain.id, name);
     if (!address) {
       console.log(`\n${name}: skipped: ${envVar} is not set in .env.local`);
       continue;
     }
 
     console.log(`\n${name} (${address}):`);
-    const abi = output.contracts[`${name}.sol`][name].abi as Abi;
+    const contractInput = standardJsonInput(SOURCE_SETS[name]);
+    const abi = (
+      JSON.parse(fs.readFileSync(path.join(ROOT, "contracts", "out", `${name}.json`), "utf8")) as {
+        abi: Abi;
+      }
+    ).abi;
 
     // ContractLabelRegistry is the only contract with a constructor arg
     // (autoLabeler). Read the REAL value from the deployed contract itself
     // rather than assuming: this script never needs a private key.
     let constructorArgs: `0x${string}` | undefined;
     const ctor = abi.find((e) => e.type === "constructor");
-    if (ctor && "inputs" in ctor && ctor.inputs.length > 0) {
+    if (name === "DevStationMarketplace" && ctor && "inputs" in ctor) {
+      const read = (functionName: string) =>
+        publicClient.readContract({ address: address as `0x${string}`, abi, functionName });
+      const [treasury, qusdc] = [await read("treasury"), await read("qusdc")];
+      constructorArgs = encodeAbiParameters(ctor.inputs, [treasury, qusdc]);
+      console.log(`  constructor args: treasury ${treasury}, qusdc ${qusdc}`);
+    } else if (ctor && "inputs" in ctor && ctor.inputs.length > 0) {
       const autoLabeler = await publicClient.readContract({
         address: address as `0x${string}`,
         abi,
@@ -250,7 +292,7 @@ async function main() {
       explorer: chain.explorer,
       address,
       contractName: `${name}.sol:${name}`,
-      standardJsonInput: JSON.stringify(input),
+      standardJsonInput: JSON.stringify(contractInput),
       compilerVersion,
       constructorArgs,
     });

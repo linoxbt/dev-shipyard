@@ -72,7 +72,19 @@ const CHAINS: Record<string, Partial<Record<NetworkKey, ChainDef>>> = {
   },
 };
 
-const CONTRACTS = ["ProjectRegistry", "ContractLabelRegistry", "TemplateRegistry"] as const;
+const CONTRACTS = [
+  "ProjectRegistry",
+  "ContractLabelRegistry",
+  "TemplateRegistry",
+  "DevStationMarketplace",
+] as const;
+
+/** QIE's own USDC stablecoin, per chain id. The marketplace refuses
+ *  QUSDC-priced listings where this is the zero address. */
+const QUSDC_BY_CHAIN: Record<number, `0x${string}`> = {
+  1990: "0x3F43DA82eC9A4f5285F10FaF1F26EcA7319E5DA5",
+};
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 
 // Which contracts this run should deploy.
 //
@@ -191,8 +203,13 @@ async function main() {
     // ContractLabelRegistry takes the authorized auto-labeler; TemplateRegistry
     // takes the protocol treasury that receives its 5% fee. Both default to the
     // deployer wallet.
+    // DevStationMarketplace takes the treasury and this chain's QUSDC.
     const args =
-      name === "ContractLabelRegistry" || name === "TemplateRegistry" ? [account.address] : [];
+      name === "DevStationMarketplace"
+        ? [account.address, QUSDC_BY_CHAIN[chain.id] ?? ZERO_ADDRESS]
+        : name === "ContractLabelRegistry" || name === "TemplateRegistry"
+          ? [account.address]
+          : [];
     const hash = await walletClient.deployContract({ abi: abi as [], bytecode, args });
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     if (!receipt.contractAddress) throw new Error(`${name}: no contract address in receipt`);
@@ -200,19 +217,29 @@ async function main() {
     console.log(`${receipt.contractAddress}  (block ${receipt.blockNumber})`);
   }
 
+  // Merged into what is already recorded for this chain: deploying one new
+  // contract with --only must not erase the addresses of the others.
+  const outputPath = path.join(ROOT, "deployment-output.json");
+  let previous: { chainId?: number; contracts?: Record<string, string> } = {};
+  try {
+    previous = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  } catch {
+    previous = {};
+  }
   const result = {
     network: chain.name,
     chainId: chain.id,
     deployer: account.address,
-    contracts: deployed,
+    contracts: { ...(previous.chainId === chain.id ? previous.contracts : {}), ...deployed },
   };
-  fs.writeFileSync(path.join(ROOT, "deployment-output.json"), JSON.stringify(result, null, 2));
+  fs.writeFileSync(outputPath, JSON.stringify(result, null, 2));
 
   console.log("\n=== DONE: paste these into .env.local ===\n");
   const ENV_VAR: Record<string, string> = {
     ProjectRegistry: `VITE_PROJECT_REGISTRY_ADDRESS_${chain.envSuffix}`,
     ContractLabelRegistry: `VITE_LABEL_REGISTRY_ADDRESS_${chain.envSuffix}`,
     TemplateRegistry: `VITE_TEMPLATE_REGISTRY_ADDRESS_${chain.envSuffix}`,
+    DevStationMarketplace: `VITE_MARKETPLACE_ADDRESS_${chain.envSuffix}`,
   };
   for (const [name, address] of Object.entries(deployed)) {
     console.log(`${ENV_VAR[name] ?? name}=${address}`);

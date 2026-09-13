@@ -117,7 +117,7 @@ export function DevStationAnalytics() {
             networks, or deploy a contract to start recording activity.
           </p>
           <Link
-            to="/launchkit/templates"
+            to="/launchkit/marketplace"
             className="mt-4 inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 font-mono text-xs text-primary-foreground hover:bg-primary-hover"
           >
             <Rocket className="h-3.5 w-3.5" /> Deploy a contract

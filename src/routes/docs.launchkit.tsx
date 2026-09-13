@@ -52,8 +52,9 @@ function LaunchKit() {
         and the built-in explorer.
       </P>
       <Callout>
-        You can also submit your own template to the community catalog from the Templates page. It
-        becomes available to deploy like any built-in.
+        Every template here is listed in the Marketplace as an official, free listing. You can sell
+        your own there too: contract templates, apps, agent skills and UI kits, priced in QIE or
+        QUSDC. You keep 95% of every sale.
       </Callout>
       <PageNav prev={prev} next={next} />
     </DocPage>

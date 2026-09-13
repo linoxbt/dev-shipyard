@@ -13,7 +13,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const CONTRACTS = ["ProjectRegistry", "ContractLabelRegistry", "TemplateRegistry"];
+const CONTRACTS = [
+  "ProjectRegistry",
+  "ContractLabelRegistry",
+  "TemplateRegistry",
+  "DevStationMarketplace",
+];
 
 function readSource(name: string): string {
   return fs.readFileSync(path.join(ROOT, "contracts", `${name}.sol`), "utf8");

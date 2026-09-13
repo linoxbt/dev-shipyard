@@ -83,6 +83,25 @@ export function templateRegistryAddress(chainId: number): `0x${string}` {
   return TEMPLATE_REGISTRY[chainId] ?? ("" as `0x${string}`);
 }
 
+// DevStationMarketplace: listings for templates, apps, skills and UI kits,
+// priced in QIE or QUSDC. Mainnet only: it takes QIE's QUSDC address at
+// deploy, and QUSDC has no official testnet deployment.
+// Deployed 2026-09-13 at block 10434564, owner and treasury the DevStation
+// deployer 0x598d…ebfd, QUSDC 0x3F43…5DA5.
+const QIE_MAINNET_MARKETPLACE = "0xeeae4de6198cbcc837240115e86554c6968ba51d";
+
+const MARKETPLACE: Record<number, `0x${string}`> = {
+  [qieTestnet.id]: envAddress(env.VITE_MARKETPLACE_ADDRESS_TESTNET),
+  [qieMainnet.id]: envAddress(env.VITE_MARKETPLACE_ADDRESS_MAINNET, QIE_MAINNET_MARKETPLACE),
+  [botTestnet.id]: envAddress(env.VITE_MARKETPLACE_ADDRESS_BOT_TESTNET),
+  [botMainnet.id]: envAddress(env.VITE_MARKETPLACE_ADDRESS_BOT_MAINNET),
+};
+
+/** DevStationMarketplace address for a given chain ("" when not deployed there). */
+export function marketplaceAddress(chainId: number): `0x${string}` {
+  return MARKETPLACE[chainId] ?? ("" as `0x${string}`);
+}
+
 /** ProjectRegistry address for a given chain ("" when not deployed there). */
 export function projectRegistryAddress(chainId: number): `0x${string}` {
   return PROJECT_REGISTRY[chainId] ?? ("" as `0x${string}`);

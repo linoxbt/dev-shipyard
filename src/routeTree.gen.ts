@@ -47,6 +47,7 @@ import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
 import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
 import { Route as ApiQieIdentityRouteImport } from './routes/api.qie-identity'
 import { Route as ApiPublishRouteImport } from './routes/api.publish'
+import { Route as ApiListingsRouteImport } from './routes/api.listings'
 import { Route as ApiGithubRouteImport } from './routes/api.github'
 import { Route as ApiBuildRouteImport } from './routes/api.build'
 import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
@@ -54,10 +55,15 @@ import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as ApiAgentRouteImport } from './routes/api.agent'
 import { Route as ApiAccessRouteImport } from './routes/api.access'
 import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
+import { Route as LaunchkitMarketplaceIndexRouteImport } from './routes/launchkit.marketplace.index'
 import { Route as LaunchkitAppsIndexRouteImport } from './routes/launchkit.apps.index'
 import { Route as ExplorerNetworkIndexRouteImport } from './routes/explorer.$network.index'
 import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
 import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
+import { Route as LaunchkitMarketplaceSellRouteImport } from './routes/launchkit.marketplace.sell'
+import { Route as LaunchkitMarketplaceLibraryRouteImport } from './routes/launchkit.marketplace.library'
+import { Route as LaunchkitMarketplaceCreatorRouteImport } from './routes/launchkit.marketplace.creator'
+import { Route as LaunchkitMarketplaceListingIdRouteImport } from './routes/launchkit.marketplace.$listingId'
 import { Route as LaunchkitAppsIdRouteImport } from './routes/launchkit.apps.$id'
 import { Route as ExplorerNetworkVerifyRouteImport } from './routes/explorer.$network.verify'
 import { Route as ExplorerNetworkTxnsRouteImport } from './routes/explorer.$network.txns'
@@ -261,6 +267,11 @@ const ApiPublishRoute = ApiPublishRouteImport.update({
   path: '/api/publish',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiListingsRoute = ApiListingsRouteImport.update({
+  id: '/api/listings',
+  path: '/api/listings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGithubRoute = ApiGithubRouteImport.update({
   id: '/api/github',
   path: '/api/github',
@@ -296,6 +307,12 @@ const LaunchkitTemplatesIndexRoute = LaunchkitTemplatesIndexRouteImport.update({
   path: '/launchkit/templates/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaunchkitMarketplaceIndexRoute =
+  LaunchkitMarketplaceIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => LaunchkitMarketplaceRoute,
+  } as any)
 const LaunchkitAppsIndexRoute = LaunchkitAppsIndexRouteImport.update({
   id: '/launchkit/apps/',
   path: '/launchkit/apps/',
@@ -317,6 +334,30 @@ const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
   path: '/launchkit/templates/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaunchkitMarketplaceSellRoute =
+  LaunchkitMarketplaceSellRouteImport.update({
+    id: '/sell',
+    path: '/sell',
+    getParentRoute: () => LaunchkitMarketplaceRoute,
+  } as any)
+const LaunchkitMarketplaceLibraryRoute =
+  LaunchkitMarketplaceLibraryRouteImport.update({
+    id: '/library',
+    path: '/library',
+    getParentRoute: () => LaunchkitMarketplaceRoute,
+  } as any)
+const LaunchkitMarketplaceCreatorRoute =
+  LaunchkitMarketplaceCreatorRouteImport.update({
+    id: '/creator',
+    path: '/creator',
+    getParentRoute: () => LaunchkitMarketplaceRoute,
+  } as any)
+const LaunchkitMarketplaceListingIdRoute =
+  LaunchkitMarketplaceListingIdRouteImport.update({
+    id: '/$listingId',
+    path: '/$listingId',
+    getParentRoute: () => LaunchkitMarketplaceRoute,
+  } as any)
 const LaunchkitAppsIdRoute = LaunchkitAppsIdRouteImport.update({
   id: '/launchkit/apps/$id',
   path: '/launchkit/apps/$id',
@@ -396,6 +437,7 @@ export interface FileRoutesByFullPath {
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
   '/api/github': typeof ApiGithubRouteWithChildren
+  '/api/listings': typeof ApiListingsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/qie-identity': typeof ApiQieIdentityRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
@@ -419,7 +461,7 @@ export interface FileRoutesByFullPath {
   '/launchkit/coding-agent': typeof LaunchkitCodingAgentRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
-  '/launchkit/marketplace': typeof LaunchkitMarketplaceRoute
+  '/launchkit/marketplace': typeof LaunchkitMarketplaceRouteWithChildren
   '/launchkit/projects': typeof LaunchkitProjectsRoute
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
@@ -434,10 +476,15 @@ export interface FileRoutesByFullPath {
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
   '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
   '/launchkit/apps/$id': typeof LaunchkitAppsIdRoute
+  '/launchkit/marketplace/$listingId': typeof LaunchkitMarketplaceListingIdRoute
+  '/launchkit/marketplace/creator': typeof LaunchkitMarketplaceCreatorRoute
+  '/launchkit/marketplace/library': typeof LaunchkitMarketplaceLibraryRoute
+  '/launchkit/marketplace/sell': typeof LaunchkitMarketplaceSellRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
   '/explorer/$network/': typeof ExplorerNetworkIndexRoute
   '/launchkit/apps/': typeof LaunchkitAppsIndexRoute
+  '/launchkit/marketplace/': typeof LaunchkitMarketplaceIndexRoute
   '/launchkit/templates/': typeof LaunchkitTemplatesIndexRoute
   '/explorer/$network/address/$hash': typeof ExplorerNetworkAddressHashRoute
   '/explorer/$network/block/$height': typeof ExplorerNetworkBlockHeightRoute
@@ -457,6 +504,7 @@ export interface FileRoutesByTo {
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
   '/api/github': typeof ApiGithubRouteWithChildren
+  '/api/listings': typeof ApiListingsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/qie-identity': typeof ApiQieIdentityRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
@@ -479,7 +527,6 @@ export interface FileRoutesByTo {
   '/launchkit/coding-agent': typeof LaunchkitCodingAgentRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
-  '/launchkit/marketplace': typeof LaunchkitMarketplaceRoute
   '/launchkit/projects': typeof LaunchkitProjectsRoute
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
@@ -494,10 +541,15 @@ export interface FileRoutesByTo {
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
   '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
   '/launchkit/apps/$id': typeof LaunchkitAppsIdRoute
+  '/launchkit/marketplace/$listingId': typeof LaunchkitMarketplaceListingIdRoute
+  '/launchkit/marketplace/creator': typeof LaunchkitMarketplaceCreatorRoute
+  '/launchkit/marketplace/library': typeof LaunchkitMarketplaceLibraryRoute
+  '/launchkit/marketplace/sell': typeof LaunchkitMarketplaceSellRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
   '/explorer/$network': typeof ExplorerNetworkIndexRoute
   '/launchkit/apps': typeof LaunchkitAppsIndexRoute
+  '/launchkit/marketplace': typeof LaunchkitMarketplaceIndexRoute
   '/launchkit/templates': typeof LaunchkitTemplatesIndexRoute
   '/explorer/$network/address/$hash': typeof ExplorerNetworkAddressHashRoute
   '/explorer/$network/block/$height': typeof ExplorerNetworkBlockHeightRoute
@@ -520,6 +572,7 @@ export interface FileRoutesById {
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
   '/api/github': typeof ApiGithubRouteWithChildren
+  '/api/listings': typeof ApiListingsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/qie-identity': typeof ApiQieIdentityRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
@@ -543,7 +596,7 @@ export interface FileRoutesById {
   '/launchkit/coding-agent': typeof LaunchkitCodingAgentRoute
   '/launchkit/deploy': typeof LaunchkitDeployRoute
   '/launchkit/editor': typeof LaunchkitEditorRoute
-  '/launchkit/marketplace': typeof LaunchkitMarketplaceRoute
+  '/launchkit/marketplace': typeof LaunchkitMarketplaceRouteWithChildren
   '/launchkit/projects': typeof LaunchkitProjectsRoute
   '/routebook/$txHash': typeof RoutebookTxHashRoute
   '/routebook/labels': typeof RoutebookLabelsRoute
@@ -558,10 +611,15 @@ export interface FileRoutesById {
   '/explorer/$network/txns': typeof ExplorerNetworkTxnsRoute
   '/explorer/$network/verify': typeof ExplorerNetworkVerifyRoute
   '/launchkit/apps/$id': typeof LaunchkitAppsIdRoute
+  '/launchkit/marketplace/$listingId': typeof LaunchkitMarketplaceListingIdRoute
+  '/launchkit/marketplace/creator': typeof LaunchkitMarketplaceCreatorRoute
+  '/launchkit/marketplace/library': typeof LaunchkitMarketplaceLibraryRoute
+  '/launchkit/marketplace/sell': typeof LaunchkitMarketplaceSellRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
   '/explorer/$network/': typeof ExplorerNetworkIndexRoute
   '/launchkit/apps/': typeof LaunchkitAppsIndexRoute
+  '/launchkit/marketplace/': typeof LaunchkitMarketplaceIndexRoute
   '/launchkit/templates/': typeof LaunchkitTemplatesIndexRoute
   '/explorer/$network/address/$hash': typeof ExplorerNetworkAddressHashRoute
   '/explorer/$network/block/$height': typeof ExplorerNetworkBlockHeightRoute
@@ -585,6 +643,7 @@ export interface FileRouteTypes {
     | '/api/apps-deploy'
     | '/api/build'
     | '/api/github'
+    | '/api/listings'
     | '/api/publish'
     | '/api/qie-identity'
     | '/api/repo-agent'
@@ -623,10 +682,15 @@ export interface FileRouteTypes {
     | '/explorer/$network/txns'
     | '/explorer/$network/verify'
     | '/launchkit/apps/$id'
+    | '/launchkit/marketplace/$listingId'
+    | '/launchkit/marketplace/creator'
+    | '/launchkit/marketplace/library'
+    | '/launchkit/marketplace/sell'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
     | '/explorer/$network/'
     | '/launchkit/apps/'
+    | '/launchkit/marketplace/'
     | '/launchkit/templates/'
     | '/explorer/$network/address/$hash'
     | '/explorer/$network/block/$height'
@@ -646,6 +710,7 @@ export interface FileRouteTypes {
     | '/api/apps-deploy'
     | '/api/build'
     | '/api/github'
+    | '/api/listings'
     | '/api/publish'
     | '/api/qie-identity'
     | '/api/repo-agent'
@@ -668,7 +733,6 @@ export interface FileRouteTypes {
     | '/launchkit/coding-agent'
     | '/launchkit/deploy'
     | '/launchkit/editor'
-    | '/launchkit/marketplace'
     | '/launchkit/projects'
     | '/routebook/$txHash'
     | '/routebook/labels'
@@ -683,10 +747,15 @@ export interface FileRouteTypes {
     | '/explorer/$network/txns'
     | '/explorer/$network/verify'
     | '/launchkit/apps/$id'
+    | '/launchkit/marketplace/$listingId'
+    | '/launchkit/marketplace/creator'
+    | '/launchkit/marketplace/library'
+    | '/launchkit/marketplace/sell'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
     | '/explorer/$network'
     | '/launchkit/apps'
+    | '/launchkit/marketplace'
     | '/launchkit/templates'
     | '/explorer/$network/address/$hash'
     | '/explorer/$network/block/$height'
@@ -708,6 +777,7 @@ export interface FileRouteTypes {
     | '/api/apps-deploy'
     | '/api/build'
     | '/api/github'
+    | '/api/listings'
     | '/api/publish'
     | '/api/qie-identity'
     | '/api/repo-agent'
@@ -746,10 +816,15 @@ export interface FileRouteTypes {
     | '/explorer/$network/txns'
     | '/explorer/$network/verify'
     | '/launchkit/apps/$id'
+    | '/launchkit/marketplace/$listingId'
+    | '/launchkit/marketplace/creator'
+    | '/launchkit/marketplace/library'
+    | '/launchkit/marketplace/sell'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
     | '/explorer/$network/'
     | '/launchkit/apps/'
+    | '/launchkit/marketplace/'
     | '/launchkit/templates/'
     | '/explorer/$network/address/$hash'
     | '/explorer/$network/block/$height'
@@ -772,6 +847,7 @@ export interface RootRouteChildren {
   ApiAppsDeployRoute: typeof ApiAppsDeployRoute
   ApiBuildRoute: typeof ApiBuildRoute
   ApiGithubRoute: typeof ApiGithubRouteWithChildren
+  ApiListingsRoute: typeof ApiListingsRoute
   ApiPublishRoute: typeof ApiPublishRoute
   ApiQieIdentityRoute: typeof ApiQieIdentityRoute
   ApiRepoAgentRoute: typeof ApiRepoAgentRoute
@@ -782,7 +858,7 @@ export interface RootRouteChildren {
   LaunchkitCodingAgentRoute: typeof LaunchkitCodingAgentRoute
   LaunchkitDeployRoute: typeof LaunchkitDeployRoute
   LaunchkitEditorRoute: typeof LaunchkitEditorRoute
-  LaunchkitMarketplaceRoute: typeof LaunchkitMarketplaceRoute
+  LaunchkitMarketplaceRoute: typeof LaunchkitMarketplaceRouteWithChildren
   LaunchkitProjectsRoute: typeof LaunchkitProjectsRoute
   RoutebookTxHashRoute: typeof RoutebookTxHashRoute
   RoutebookLabelsRoute: typeof RoutebookLabelsRoute
@@ -1062,6 +1138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublishRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/listings': {
+      id: '/api/listings'
+      path: '/api/listings'
+      fullPath: '/api/listings'
+      preLoaderRoute: typeof ApiListingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/github': {
       id: '/api/github'
       path: '/api/github'
@@ -1111,6 +1194,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LaunchkitTemplatesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/launchkit/marketplace/': {
+      id: '/launchkit/marketplace/'
+      path: '/'
+      fullPath: '/launchkit/marketplace/'
+      preLoaderRoute: typeof LaunchkitMarketplaceIndexRouteImport
+      parentRoute: typeof LaunchkitMarketplaceRoute
+    }
     '/launchkit/apps/': {
       id: '/launchkit/apps/'
       path: '/launchkit/apps'
@@ -1138,6 +1228,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/launchkit/templates/$id'
       preLoaderRoute: typeof LaunchkitTemplatesIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/marketplace/sell': {
+      id: '/launchkit/marketplace/sell'
+      path: '/sell'
+      fullPath: '/launchkit/marketplace/sell'
+      preLoaderRoute: typeof LaunchkitMarketplaceSellRouteImport
+      parentRoute: typeof LaunchkitMarketplaceRoute
+    }
+    '/launchkit/marketplace/library': {
+      id: '/launchkit/marketplace/library'
+      path: '/library'
+      fullPath: '/launchkit/marketplace/library'
+      preLoaderRoute: typeof LaunchkitMarketplaceLibraryRouteImport
+      parentRoute: typeof LaunchkitMarketplaceRoute
+    }
+    '/launchkit/marketplace/creator': {
+      id: '/launchkit/marketplace/creator'
+      path: '/creator'
+      fullPath: '/launchkit/marketplace/creator'
+      preLoaderRoute: typeof LaunchkitMarketplaceCreatorRouteImport
+      parentRoute: typeof LaunchkitMarketplaceRoute
+    }
+    '/launchkit/marketplace/$listingId': {
+      id: '/launchkit/marketplace/$listingId'
+      path: '/$listingId'
+      fullPath: '/launchkit/marketplace/$listingId'
+      preLoaderRoute: typeof LaunchkitMarketplaceListingIdRouteImport
+      parentRoute: typeof LaunchkitMarketplaceRoute
     }
     '/launchkit/apps/$id': {
       id: '/launchkit/apps/$id'
@@ -1318,6 +1436,25 @@ const ApiGithubRouteWithChildren = ApiGithubRoute._addFileChildren(
   ApiGithubRouteChildren,
 )
 
+interface LaunchkitMarketplaceRouteChildren {
+  LaunchkitMarketplaceListingIdRoute: typeof LaunchkitMarketplaceListingIdRoute
+  LaunchkitMarketplaceCreatorRoute: typeof LaunchkitMarketplaceCreatorRoute
+  LaunchkitMarketplaceLibraryRoute: typeof LaunchkitMarketplaceLibraryRoute
+  LaunchkitMarketplaceSellRoute: typeof LaunchkitMarketplaceSellRoute
+  LaunchkitMarketplaceIndexRoute: typeof LaunchkitMarketplaceIndexRoute
+}
+
+const LaunchkitMarketplaceRouteChildren: LaunchkitMarketplaceRouteChildren = {
+  LaunchkitMarketplaceListingIdRoute: LaunchkitMarketplaceListingIdRoute,
+  LaunchkitMarketplaceCreatorRoute: LaunchkitMarketplaceCreatorRoute,
+  LaunchkitMarketplaceLibraryRoute: LaunchkitMarketplaceLibraryRoute,
+  LaunchkitMarketplaceSellRoute: LaunchkitMarketplaceSellRoute,
+  LaunchkitMarketplaceIndexRoute: LaunchkitMarketplaceIndexRoute,
+}
+
+const LaunchkitMarketplaceRouteWithChildren =
+  LaunchkitMarketplaceRoute._addFileChildren(LaunchkitMarketplaceRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
@@ -1333,6 +1470,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAppsDeployRoute: ApiAppsDeployRoute,
   ApiBuildRoute: ApiBuildRoute,
   ApiGithubRoute: ApiGithubRouteWithChildren,
+  ApiListingsRoute: ApiListingsRoute,
   ApiPublishRoute: ApiPublishRoute,
   ApiQieIdentityRoute: ApiQieIdentityRoute,
   ApiRepoAgentRoute: ApiRepoAgentRoute,
@@ -1343,7 +1481,7 @@ const rootRouteChildren: RootRouteChildren = {
   LaunchkitCodingAgentRoute: LaunchkitCodingAgentRoute,
   LaunchkitDeployRoute: LaunchkitDeployRoute,
   LaunchkitEditorRoute: LaunchkitEditorRoute,
-  LaunchkitMarketplaceRoute: LaunchkitMarketplaceRoute,
+  LaunchkitMarketplaceRoute: LaunchkitMarketplaceRouteWithChildren,
   LaunchkitProjectsRoute: LaunchkitProjectsRoute,
   RoutebookTxHashRoute: RoutebookTxHashRoute,
   RoutebookLabelsRoute: RoutebookLabelsRoute,

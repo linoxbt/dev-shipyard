@@ -377,8 +377,8 @@ function TemplatesShowcase() {
           {TEMPLATES.map((t) => (
             <Link
               key={t.id}
-              to="/launchkit/templates/$id"
-              params={{ id: t.id }}
+              to="/launchkit/marketplace/$listingId"
+              params={{ listingId: `b-${t.id}` }}
               className="group rounded-lg border border-border bg-background p-4 transition hover:border-primary/50"
             >
               <div className="flex items-center justify-between">
@@ -396,10 +396,10 @@ function TemplatesShowcase() {
         </div>
         <div className="mt-8 text-center">
           <Link
-            to="/launchkit/templates"
+            to="/launchkit/marketplace"
             className="inline-flex items-center gap-2 rounded border border-primary px-4 py-2 font-mono text-xs text-primary hover:bg-primary/10"
           >
-            Browse all templates <ArrowRight className="h-3.5 w-3.5" />
+            Browse the marketplace <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </div>

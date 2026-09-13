@@ -31,7 +31,7 @@ function Introduction() {
           icon={Rocket}
           title="LaunchKit"
           body="Deploy audited templates, write contracts in the in-browser editor with real compilation, and generate them with AI."
-          to="/launchkit/templates"
+          to="/launchkit/marketplace"
         />
         <FeatureCard
           icon={Search}

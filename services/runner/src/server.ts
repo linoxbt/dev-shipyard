@@ -50,6 +50,8 @@ import {
   type StartAgentInput,
 } from "./agent";
 import { canServe, publishSite, serveFile, sitesFor, unpublishSite } from "./publish";
+import { readListingFiles, rpcListingChain, storeListingFiles } from "./listings";
+import { MAX_BUNDLE_BYTES } from "../../../src/lib/marketplace/bundle";
 import {
   createContainer,
   destroyContainer,
@@ -69,6 +71,8 @@ const HOST = process.env.RUNNER_HOST ?? "127.0.0.1";
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD ?? "";
 const TOKEN = process.env.RUNNER_TOKEN ?? "";
 const IMAGE = process.env.RUNNER_IMAGE ?? "devstation-runner:3";
+/** Reads DevStationMarketplace, the only authority on who may download a listing. */
+const listingChain = rpcListingChain();
 const DEFAULT_PHASES: PhaseName[] = ["install", "build"];
 const VALID_PHASES = new Set<PhaseName>(["install", "lint", "typecheck", "build", "test"]);
 
@@ -309,6 +313,63 @@ const server = createServer(async (req, res) => {
   // These outlive the page that started them, which is the entire point: the
   // browser holds an id, not a connection, so a refresh reattaches instead of
   // losing the build. Same bearer token as /jobs: starting a turn runs code.
+  // --- Marketplace files ---------------------------------------------------
+  //
+  // PUT stores a listing's files for its creator; GET releases them to a wallet
+  // the chain says has access. The wallet comes from DevStation's server, which
+  // verified it with a signature; the bearer token is what makes that header
+  // trustworthy, exactly as for /publish.
+  const listingRoute = /^\/listings\/(\d{1,10})\/(\d{1,9})$/.exec(path);
+  if (listingRoute) {
+    if (!tokenMatches(req.headers.authorization, TOKEN)) {
+      return json(res, 401, { ok: false, message: "Unauthorized" });
+    }
+    const chainId = Number(listingRoute[1]);
+    const id = Number(listingRoute[2]);
+    const wallet = String(req.headers["x-devstation-owner"] ?? "").slice(0, 100);
+
+    if (req.method === "GET") {
+      const result = await readListingFiles({ chain: listingChain, chainId, id, wallet });
+      return json(res, result.status, result.body);
+    }
+
+    if (req.method === "PUT") {
+      const caller =
+        String(req.headers["x-devstation-caller"] ?? "").slice(0, 100) || clientKey(req);
+      if (!withinRateLimit(`listing:${caller}`)) {
+        return json(res, 429, { ok: false, message: "Too many uploads from this client." });
+      }
+      let raw = "";
+      let tooBig = false;
+      req.on("data", (chunk) => {
+        raw += chunk;
+        // A bundle may be up to MAX_BUNDLE_BYTES of text; JSON escaping can grow it.
+        if (raw.length > MAX_BUNDLE_BYTES * 2) {
+          tooBig = true;
+          req.destroy();
+        }
+      });
+      await new Promise((r) => req.on("end", r).on("close", r));
+      if (tooBig) return json(res, 413, { ok: false, message: "Request too large" });
+      let body: { files?: unknown };
+      try {
+        body = JSON.parse(raw || "{}") as typeof body;
+      } catch {
+        return json(res, 400, { ok: false, message: "Malformed JSON" });
+      }
+      const result = await storeListingFiles({
+        chain: listingChain,
+        chainId,
+        id,
+        owner: wallet,
+        files: body.files,
+      });
+      return json(res, result.status, result.body);
+    }
+
+    return json(res, 405, { ok: false, message: "Method not allowed" });
+  }
+
   // --- Publish API --------------------------------------------------------
   //
   // Same bearer token as the rest: writing a site is a privileged operation,

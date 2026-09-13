@@ -183,7 +183,7 @@ function ProjectsPage() {
           <div className="rounded border border-border bg-surface p-10 text-center">
             <p className="font-mono text-xs text-meta">No deployments for this wallet yet.</p>
             <Link
-              to="/launchkit/templates"
+              to="/launchkit/marketplace"
               className="mt-3 inline-block font-mono text-xs text-primary hover:underline"
             >
               Deploy your first contract →

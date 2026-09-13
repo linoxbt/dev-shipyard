@@ -429,7 +429,7 @@ function DashboardPage() {
           {mine.length === 0 ? (
             <Empty>
               No deployments for this wallet yet.{" "}
-              <Link to="/launchkit/templates" className="text-primary hover:underline">
+              <Link to="/launchkit/marketplace" className="text-primary hover:underline">
                 Pick a template
               </Link>
               .

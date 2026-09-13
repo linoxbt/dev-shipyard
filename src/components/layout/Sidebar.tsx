@@ -10,7 +10,6 @@ import {
   Store,
   Trophy,
   Moon,
-  Package,
   PanelLeftClose,
   Rocket,
   Search,
@@ -38,7 +37,6 @@ const NAV = [
   {
     section: "LaunchKit",
     items: [
-      { to: "/launchkit/templates", label: "Templates", icon: Package },
       { to: "/launchkit/marketplace", label: "Marketplace", icon: Store },
       { to: "/launchkit/editor", label: "Contract Editor", icon: Code2 },
       { to: "/launchkit/ai", label: "Code with AI", icon: Sparkles },
