@@ -1,4 +1,5 @@
 import { PLAN_CHOICES } from "./picker";
+import { footerLine } from "./composer";
 import { SESSION_HELP, slashNames } from "./args";
 import {
   buildExecutor,
@@ -383,6 +384,18 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
   terminal.out(openingHelp(terminal.colour));
 
   const state: ChatState = { session: null, planMode: false };
+  let spent = 0;
+  const footerNow = () =>
+    footerLine(
+      {
+        mode: state.planMode ? "plan" : withExecutor.yes ? "auto" : "normal",
+        model: withExecutor.provider.model,
+        path: shortPath(context.root),
+        costUsd: spent,
+      },
+      terminal.columns || Number(process.env.COLUMNS) || 80,
+      terminal.colour,
+    );
 
   // Shift+Tab at the prompt: normal, then auto mode, then plan mode, then back.
   terminal.onCycleMode = () => {
@@ -410,11 +423,22 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
     return 0;
   };
 
+  // The footer follows the mode the moment Shift+Tab changes it.
+  const cycle = terminal.onCycleMode;
+  terminal.onCycleMode = () => {
+    const label = cycle ? cycle() : "";
+    terminal.setFooter?.(footerNow());
+    return label;
+  };
+  terminal.setFooter?.(footerNow());
+
   for (;;) {
     let goal = queued;
     queued = "";
     if (!goal) {
-      if (!pending && terminal.write) {
+      if (!pending && terminal.write && terminal.setFooter) {
+        terminal.setFooter(footerNow());
+      } else if (!pending && terminal.write) {
         const parts = [
           withExecutor.provider.model,
           shortPath(context.root),
@@ -430,7 +454,7 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
           }),
         );
       }
-      const line = pending || (await terminal.ask("> "));
+      const line = pending || (await terminal.ask(terminal.setFooter ? "› " : "> "));
       pending = "";
       const text = line.trim();
       if (!text) {
@@ -466,6 +490,7 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
       readOnly: planning,
     });
     state.session = result.session;
+    spent += result.result?.costUsd ?? 0;
     terminal.out("");
 
     // Plan mode ends the way Claude Code's does: with the plan on screen and a

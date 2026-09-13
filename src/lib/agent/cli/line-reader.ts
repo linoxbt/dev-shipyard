@@ -32,6 +32,8 @@ export interface LineSource {
   /** Ignore lines until the returned function is called: while an arrow-key
    *  picker has the keyboard, its Enter is not a message. */
   hold(): () => void;
+  /** What is waiting to be sent: a held paste, and how many lines it has. */
+  pending(): { text: string; pastedLines: number };
 }
 
 export interface LineReaderOptions {
@@ -40,6 +42,9 @@ export interface LineReaderOptions {
   coalesceMs?: number;
   /** Told when a multi-line paste is being held for Enter. */
   onPasteHeld?: (lines: number) => void;
+  /** Told when a message is handed to whoever asked for it, so a terminal can
+   *  draw it as sent. Not called for the empty line a closed input gives. */
+  onDeliver?: (text: string) => void;
 }
 
 export function lineReader(
@@ -61,6 +66,7 @@ export function lineReader(
     if (waiting) {
       const resolve = waiting;
       waiting = null;
+      opts.onDeliver?.(text);
       resolve(text);
     } else {
       queued.push(text);
@@ -124,7 +130,10 @@ export function lineReader(
   return {
     ask(prompt: string): Promise<string> {
       const next = queued.shift();
-      if (next !== undefined) return Promise.resolve(next);
+      if (next !== undefined) {
+        opts.onDeliver?.(next);
+        return Promise.resolve(next);
+      }
       if (closed) return Promise.resolve("");
       write(prompt);
       return new Promise<string>((resolve) => {
@@ -140,6 +149,10 @@ export function lineReader(
     },
     waiting() {
       return waiting !== null;
+    },
+    pending() {
+      const parts = [...(held === null ? [] : [held]), ...burst];
+      return { text: parts.join("\n"), pastedLines: held === null ? 0 : held.split("\n").length };
     },
     hold() {
       holds++;

@@ -39,7 +39,7 @@ import { colourEnabled } from "./render";
 import { lineReader } from "./line-reader";
 import { pickerKey, renderPicker, type Choice, type KeyInfo } from "./picker";
 import { slashMenuItems, slashMenuLines } from "./slash-menu";
-import { paint } from "./render";
+import { composerView, messageBlock } from "./composer";
 import { providerFromSettings, resolveSettings } from "../providers";
 import { notifyIfOutdated, upgradeCommand } from "./upgrade";
 
@@ -73,9 +73,15 @@ export async function main(argv: string[]): Promise<number> {
   // readline echoes what is typed through its output. Routing that through a
   // switchable stream is what lets a key be entered without appearing on screen.
   let muted = false;
+  // At a terminal the CLI draws the input row itself, so readline's own echo
+  // is kept off the screen for the whole session.
+  const tty = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  const composing = tty;
+  let composerPrompt = "";
+  let secret = false;
   const output = new Writable({
     write(chunk, encoding, done) {
-      if (!muted) process.stdout.write(chunk, encoding);
+      if (!muted && !composing) process.stdout.write(chunk, encoding);
       done();
     },
   });
@@ -94,15 +100,35 @@ export async function main(argv: string[]): Promise<number> {
   });
   // At a terminal, a burst of lines is a paste and becomes one message; a pipe
   // is read line by line, as scripts expect.
-  const input = lineReader(readline, (text) => process.stdout.write(text), {
-    coalesceMs: process.stdin.isTTY ? 30 : 0,
-    onPasteHeld: (lines) =>
-      process.stdout.write(`  (${lines} lines pasted. Press Enter to send them.)\n`),
-  });
+  const input = lineReader(
+    readline,
+    (text) => {
+      if (!tty) {
+        process.stdout.write(text);
+        return;
+      }
+      composerPrompt = text;
+      drawComposer();
+    },
+    {
+      coalesceMs: process.stdin.isTTY ? 30 : 0,
+      onPasteHeld: (lines) => {
+        if (tty) drawComposer();
+        else process.stdout.write(`  (${lines} lines pasted. Press Enter to send them.)\n`);
+      },
+      // A sent message replaces the input row with a shaded block.
+      onDeliver: (text) => {
+        if (!tty || secret || !text.trim()) return;
+        clearMenu();
+        const block = messageBlock(text, process.stdout.columns || 80, colourEnabled());
+        process.stdout.write(`\r\x1b[2K${block}\n`);
+        redrawFooter();
+      },
+    },
+  );
 
   // Arrow keys, the command list and Shift+Tab, at a real terminal only. A pipe
   // answers prompts with typed lines, which is what scripts send.
-  const tty = Boolean(process.stdin.isTTY && process.stdout.isTTY);
   let picking = false;
 
   const choose = (choices: Choice[]): Promise<number> =>
@@ -144,50 +170,99 @@ export async function main(argv: string[]): Promise<number> {
       process.stdin.on("keypress", onKey);
     });
 
+  // The input row, drawn by hand: a pasted brief is one tidy line while it is
+  // being written, not thirty lines of raw text across the screen.
+  const drawComposer = () => {
+    if (!tty || picking || secret || !input.waiting()) return;
+    const rl = readline as unknown as { line?: string; cursor?: number };
+    const line = rl.line ?? "";
+    const view = composerView({
+      prompt: composerPrompt,
+      line,
+      cursor: rl.cursor ?? line.length,
+      columns: process.stdout.columns || 80,
+      pastedLines: input.pending().pastedLines,
+      colour: colourEnabled(),
+    });
+    process.stdout.write(`\r\x1b[2K${view.text}\r${view.column > 0 ? `\x1b[${view.column}C` : ""}`);
+  };
+
+  // The footer: one line pinned to the bottom row, below a scroll region that
+  // everything else scrolls inside.
+  let footerText = "";
+  let footerInstalled = false;
+  const redrawFooter = () => {
+    if (!footerInstalled) return;
+    const rows = process.stdout.rows || 24;
+    process.stdout.write(`\x1b7\x1b[${rows};1H\x1b[2K${footerText}\x1b8`);
+  };
+  const installFooter = () => {
+    const rows = process.stdout.rows || 24;
+    if (!tty || rows < 8) return;
+    footerInstalled = true;
+    process.stdout.write(`\x1b7\x1b[1;${rows - 1}r\x1b8`);
+    redrawFooter();
+    process.stdout.on("resize", () => {
+      const next = process.stdout.rows || 24;
+      process.stdout.write(`\x1b7\x1b[1;${next - 1}r\x1b8`);
+      redrawFooter();
+      drawComposer();
+    });
+    // Give the terminal its whole screen back, whichever way the session ends.
+    process.on("exit", () => {
+      process.stdout.write(`\x1b[r\x1b[${process.stdout.rows || 24};1H\x1b[2K`);
+    });
+  };
+
   let menuRows = 0;
   let skillNames: string[] | null = null;
-  const clearMenu = (afterEnter = false) => {
+  const clearMenu = () => {
     if (menuRows === 0) return;
-    // After Enter the cursor is already on the menu's first row.
-    process.stdout.write(afterEnter ? "\r\x1b[J" : "\x1b7\r\n\x1b[J\x1b8");
+    process.stdout.write("\x1b7\r\n\x1b[J\x1b8");
     menuRows = 0;
+    redrawFooter();
   };
   const onPromptKey = (
     _sequence: string | undefined,
     key: (KeyInfo & { shift?: boolean }) | undefined,
   ) => {
-    if (picking || muted || !input.waiting()) return;
+    if (picking || secret || !input.waiting()) return;
     const rl = readline as unknown as { line?: string; cursor?: number };
     const line = rl.line ?? "";
-    if (key?.name === "return" || key?.name === "enter") {
-      clearMenu(true);
+    if (key?.name === "tab" && key.shift && terminal.onCycleMode) {
+      // The mode shows in the footer; nothing is printed into the conversation.
+      terminal.onCycleMode();
+      drawComposer();
       return;
     }
-    if (key?.name === "tab" && key.shift && terminal.onCycleMode) {
+    drawComposer();
+    if (key?.name === "return" || key?.name === "enter") {
       clearMenu();
-      const label = terminal.onCycleMode();
-      process.stdout.write(`\r\x1b[2K${paint(`  ${label}`, "brand", colourEnabled())}\n> ${line}`);
-      const back = line.length - (rl.cursor ?? line.length);
-      if (back > 0) process.stdout.write(`\x1b[${back}D`);
       return;
     }
     skillNames ??= listSkills(root).map((s) => s.name);
     const lines = slashMenuLines(line, slashMenuItems(skillNames), {
       colour: colourEnabled(),
-      maxRows: Math.max(4, (process.stdout.rows ?? 24) - 6),
+      maxRows: Math.max(4, (process.stdout.rows ?? 24) - 8),
     });
     if (lines.length === 0) {
       clearMenu();
       return;
     }
-    // Make room below the input, come back to where the cursor was, and draw
-    // the list under it without moving the cursor.
-    const column = 3 + (rl.cursor ?? line.length);
+    // Make room below the input row, come back to the cursor, and draw the
+    // list under it without moving the cursor.
+    const view = composerView({
+      prompt: composerPrompt,
+      line,
+      cursor: rl.cursor ?? line.length,
+      columns: process.stdout.columns || 80,
+    });
     process.stdout.write(
-      `${"\n".repeat(lines.length)}\x1b[${lines.length}A\x1b[${column}G` +
+      `${"\n".repeat(lines.length)}\x1b[${lines.length}A\x1b[${view.column + 1}G` +
         `\x1b7\r\n\x1b[J${lines.join("\r\n")}\x1b8`,
     );
     menuRows = lines.length;
+    redrawFooter();
   };
   if (tty) {
     process.stdin.prependListener(
@@ -205,13 +280,21 @@ export async function main(argv: string[]): Promise<number> {
     ask: (question) => input.ask(question),
     ended: () => input.ended(),
     choose: tty ? choose : undefined,
+    setFooter: tty
+      ? (text) => {
+          footerText = text;
+          redrawFooter();
+        }
+      : undefined,
     askSecret: async (question) => {
       process.stdout.write(question);
       muted = true;
+      secret = true;
       try {
         return await input.ask("");
       } finally {
         muted = false;
+        secret = false;
         if (process.stdin.isTTY) process.stdout.write("\n");
       }
     },
@@ -277,6 +360,7 @@ export async function main(argv: string[]): Promise<number> {
     // the shell printed last. Scrollback is left alone.
     if (parsed.command === "chat" && process.stdout.isTTY) {
       process.stdout.write("\u001b[H\u001b[2J");
+      installFooter();
     }
 
     const settings = resolveSettings({ root, model: parsed.model });

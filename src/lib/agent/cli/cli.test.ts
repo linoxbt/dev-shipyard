@@ -984,6 +984,49 @@ describe("an arrow-key picker holding the keyboard", () => {
   });
 });
 
+describe("telling the terminal a message was sent", () => {
+  function fake() {
+    const handlers: Record<string, ((line: string) => void)[]> = {};
+    return {
+      rl: {
+        on(event: string, handler: (line: string) => void) {
+          (handlers[event] ??= []).push(handler);
+          return this;
+        },
+        close() {},
+      },
+      emit(line: string) {
+        for (const h of handlers.line ?? []) h(line);
+      },
+    };
+  }
+  const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  it("reports the message as it is handed over, whether typed at the prompt or ahead of it", async () => {
+    const f = fake();
+    const sent: string[] = [];
+    const reader = lineReader(f.rl as never, () => {}, { onDeliver: (t) => sent.push(t) });
+    const answer = reader.ask("> ");
+    f.emit("first");
+    expect(await answer).toBe("first");
+    f.emit("typed ahead");
+    expect(sent).toEqual(["first"]);
+    expect(await reader.ask("> ")).toBe("typed ahead");
+    expect(sent).toEqual(["first", "typed ahead"]);
+  });
+
+  it("says a paste is waiting, and how long it is", async () => {
+    const f = fake();
+    const reader = lineReader(f.rl as never, () => {}, { coalesceMs: 5 });
+    void reader.ask("> ");
+    f.emit("a");
+    f.emit("b");
+    f.emit("c");
+    await pause(20);
+    expect(reader.pending()).toEqual({ text: "a\nb\nc", pastedLines: 3 });
+  });
+});
+
 describe("choosing where commands run", () => {
   it("defaults to the sandbox, so the weaker mode is always a choice", () => {
     expect(parseArgs(["run", "x"]).sandbox).toBe(true);

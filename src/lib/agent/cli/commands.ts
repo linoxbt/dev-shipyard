@@ -45,7 +45,14 @@ import {
 import { SessionStore, type SessionRecord } from "../session-store";
 import { Workspace } from "../workspace";
 import type { ModelProvider, ProviderMessage } from "../providers";
-import { renderApproval, renderEvent, renderReceipt, renderSessions, renderUsage } from "./render";
+import {
+  renderApproval,
+  renderEvent,
+  renderReceipt,
+  renderSessions,
+  renderStopped,
+  renderUsage,
+} from "./render";
 import { CLI_NAME } from "./args";
 import { APPROVAL_CHOICES, type Choice } from "./picker";
 
@@ -63,6 +70,8 @@ export interface Terminal {
   /** Set by an interactive session: what Shift+Tab does. Returns a line
    *  describing the mode it switched to. */
   onCycleMode?: () => string;
+  /** Set the footer pinned to the bottom of the screen, where there is one. */
+  setFooter?(text: string): void;
   /** Whether the input has closed with nothing left to read. Where it is
    *  absent, an empty answer is taken as the end of the input. */
   ended?(): boolean;
@@ -365,11 +374,12 @@ export async function runCommand(
     // Already on screen if it was streamed. Printing it twice is the most
     // obvious way to make streaming look broken.
     if (!streaming) terminal.out(result.summary);
-    // A plain answer in a live terminal needs no receipt: Claude Code does not
-    // print "0 step(s), no files changed" under "Hello". Work still gets one.
-    if (!(streaming && result.steps === 0 && result.filesChanged.length === 0)) {
+    // Every turn in a live terminal ends with a rule, so where one answer stops
+    // and the next begins is never in doubt. A turn that stopped says why, in
+    // red, on the same line.
+    if (streaming) {
       terminal.out(
-        streaming
+        result.ok
           ? renderReceipt(
               Date.now() - startedAt,
               result.steps,
@@ -378,10 +388,17 @@ export async function runCommand(
               terminal.colour,
               terminal.columns || 80,
             )
-          : renderUsage(result.costUsd, result.steps, result.filesChanged),
+          : renderStopped(
+              Date.now() - startedAt,
+              result.stoppedBecause,
+              terminal.colour,
+              terminal.columns || 80,
+            ),
       );
+    } else {
+      terminal.out(renderUsage(result.costUsd, result.steps, result.filesChanged));
+      if (!result.ok) terminal.err(result.stoppedBecause);
     }
-    if (!result.ok) terminal.err(result.stoppedBecause);
     return { code: result.ok ? 0 : 1, session, result };
   } catch (error) {
     endStream();

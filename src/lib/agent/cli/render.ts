@@ -143,3 +143,16 @@ export function renderSessions(records: SessionRecord[]): string {
   if (records.length === 0) return "No sessions yet in this workspace.";
   return records.map(renderSessionLine).join("\n");
 }
+
+/** The rule under a turn that did not finish: red, with the reason. */
+export function renderStopped(
+  elapsedMs: number,
+  reason: string,
+  colour = false,
+  columns = 80,
+): string {
+  const why = (reason || "stopped").split("\n")[0].slice(0, 140);
+  const label = ` Stopped after ${formatElapsed(elapsedMs)} · ${why} `;
+  const width = Math.max(label.length + 2, Math.min(columns, 100));
+  return paint(`─${label}${"─".repeat(Math.max(0, width - label.length - 1))}`, "red", colour);
+}
