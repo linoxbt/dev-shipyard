@@ -22,7 +22,7 @@ import {
   type SettingKey,
 } from "../providers";
 import { embeddingsFromEnv } from "../memory/embeddings";
-import { storePath, indexWorkspace, openStore } from "../memory/workspace-index";
+import { indexWorkspace, openStore } from "../memory/workspace-index";
 import { formatEntry, memoryPath, readMemory } from "../memory/project-memory";
 import { McpHub, configPaths, loadConfig } from "../mcp";
 import { hostExecutor, type Executor } from "../executor";
@@ -215,27 +215,11 @@ export async function runCommand(
   // repository pays for the walk; every one after it re-chunks only what
   // changed, which is usually nothing or one file.
   const embeddings = embeddingsFromEnv();
-  // Said before the walk, not after: the silence while it ran was
-  // indistinguishable from a hang.
-  const firstIndex = !existsSync(storePath(context.root));
-  if (firstIndex && !options.quiet)
-    terminal.out("Indexing the workspace so the agent can search it…");
   const memory = openStore(context.root);
   try {
-    const indexed = await indexWorkspace(context.root, { store: memory, embeddings });
-    if (!options.quiet) {
-      if (indexed.stopped === "home") {
-        terminal.err(
-          "Not indexing this folder: it is your home, Desktop, Documents or Downloads. The agent can still read and list files; cd into a project for a search index.",
-        );
-      } else if (indexed.stopped) {
-        terminal.err(
-          `Indexed ${indexed.scanned} files and stopped at the ${indexed.stopped === "deadline" ? "time" : "file"} limit: this workspace is very large. cd into the project you mean.`,
-        );
-      } else if (firstIndex || indexed.ms > 1500) {
-        terminal.out(`Indexed ${indexed.scanned} files in ${(indexed.ms / 1000).toFixed(1)}s.`);
-      }
-    }
+    // Quietly. The index only speeds up the agent's own search; how much of a
+    // folder it covers is not something to interrupt the conversation with.
+    await indexWorkspace(context.root, { store: memory, embeddings });
   } catch {
     // The agent works without an index. It reads and lists files instead.
   }
@@ -651,27 +635,6 @@ export function configCommand(context: CommandContext): number {
 
 function home(): string {
   return process.env.HOME ?? "";
-}
-
-/**
- * Warn when a session starts in a home directory.
- *
- * Everything under it becomes one workspace: the agent indexes, searches and
- * can edit every repository kept there, and the project scan finds all of
- * their manifests. That is almost never what somebody meant, so it is said up
- * front -- as a warning, since it is occasionally exactly what they meant.
- */
-export function homeDirectoryWarning(
-  root: string,
-  homeDir = process.env.HOME ?? "",
-): string | null {
-  if (!homeDir) return null;
-  const strip = (p: string) => p.replace(/\/+$/, "");
-  if (strip(root) !== strip(homeDir)) return null;
-  return (
-    "You are in your home directory, so the agent treats everything under it as one project, " +
-    "every repository inside it included. cd into the project you mean first."
-  );
 }
 
 /** `config set|get|unset <key> [value]` and `config path`. */

@@ -19,7 +19,6 @@ import {
   configEditCommand,
   diffCommand,
   doctorCommand,
-  homeDirectoryWarning,
   indexCommand,
   loginCommand,
   logoutCommand,
@@ -172,8 +171,6 @@ export async function main(argv: string[]): Promise<number> {
       return 2;
     }
 
-    const atHome = homeDirectoryWarning(root);
-    if (atHome) terminal.err(`warning: ${atHome}`);
     // Reads yesterday's answer from a cache and refreshes it in the background:
     // never a network round trip in front of the first prompt.
     void notifyIfOutdated(terminal);

@@ -209,7 +209,7 @@ describe("snapshots that must not be taken", () => {
     expect(read(root, ".vscode/settings.json")).toBe("{}\n");
   });
 
-  it("tells the run once, and stops trying, when it refuses", async () => {
+  it("stays silent, and stops trying, when it refuses", async () => {
     const root = scratch({ "a.js": "original\n" });
     const realHome = process.env.HOME;
     process.env.HOME = root;
@@ -227,7 +227,8 @@ describe("snapshots that must not be taken", () => {
           if (e.message.startsWith("No undo")) notices.push(e.message);
         },
       }).run("edit twice");
-      expect(notices).toHaveLength(1);
+      // Nothing said to the person: a missing undo is not worth interrupting for.
+      expect(notices).toHaveLength(0);
       expect(existsSync(join(root, ".devstation", "checkpoints"))).toBe(false);
     } finally {
       process.env.HOME = realHome;

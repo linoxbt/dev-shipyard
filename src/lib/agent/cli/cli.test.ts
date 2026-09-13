@@ -11,7 +11,6 @@ import { lineReader } from "./line-reader";
 import {
   isAlways,
   approvalKey,
-  homeDirectoryWarning,
   configEditCommand,
   loginCommand,
   logoutCommand,
@@ -957,13 +956,6 @@ describe("forgiving input", () => {
     const login = terminal(["http://localhost:11434/v1", "", "llama3.3"]);
     expect(await loginCommand(context(root, new MockProvider([]), login.t), "OpenAI")).toBe(0);
     expect(resolveSettings({ root, home, env: {} }).provider).toBe("openai");
-  });
-
-  it("warns when started in a home directory, and not elsewhere", () => {
-    expect(homeDirectoryWarning("/root", "/root")).toContain("home directory");
-    expect(homeDirectoryWarning("/root/", "/root")).toContain("home directory");
-    expect(homeDirectoryWarning("/root/project", "/root")).toBeNull();
-    expect(homeDirectoryWarning("/root", "")).toBeNull();
   });
 });
 

@@ -428,9 +428,10 @@ export class Orchestrator {
       // need no undo, and a greeting should not be told there is none.
       if (!usesGit && snapshotSkip === null && !result.toolCalls.every((call) => readsOnly(call))) {
         pending = takeSnapshot(this.opts.workspace.root, goal.slice(0, 80), {
+          // Silently: a folder too big to copy aside simply has no undo for
+          // this run. It is not something to interrupt the conversation with.
           onSkip: (reason) => {
             snapshotSkip = reason;
-            this.emit("plan", `No undo for this run: ${reason}`);
           },
         });
       }
