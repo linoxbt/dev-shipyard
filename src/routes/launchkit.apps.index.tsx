@@ -44,12 +44,12 @@ function AppsPage() {
 
   const openProject = (id: string) => {
     open(id);
-    void navigate({ to: "/launchkit/app-builder" });
+    void navigate({ to: "/launchkit/coding-agent" });
   };
 
   const startNew = () => {
     create(undefined, wallet ?? null);
-    void navigate({ to: "/launchkit/app-builder" });
+    void navigate({ to: "/launchkit/coding-agent" });
   };
 
   const commitRename = (p: AppProject) => {
@@ -197,7 +197,7 @@ function AppsPage() {
 
       <p className="mt-5 font-mono text-[10px] text-meta">
         Stored in this browser.{" "}
-        <Link to="/launchkit/app-builder" className="text-primary hover:underline">
+        <Link to="/launchkit/coding-agent" className="text-primary hover:underline">
           Open the builder
         </Link>
       </p>

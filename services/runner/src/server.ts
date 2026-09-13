@@ -50,6 +50,18 @@ import {
   type StartAgentInput,
 } from "./agent";
 import { canServe, publishSite, serveFile, sitesFor, unpublishSite } from "./publish";
+import {
+  cancelWorkspace,
+  createWorkspace,
+  getWorkspace,
+  initWorkspaceStore,
+  parseWorkspaceSource,
+  previewDist,
+  sendWorkspaceMessage,
+  startWorkspacePreview,
+  workspaceFiles,
+  workspaceView,
+} from "./workspace-agent";
 import { readListingFiles, rpcListingChain, storeListingFiles } from "./listings";
 import { MAX_BUNDLE_BYTES } from "../../../src/lib/marketplace/bundle";
 import {
@@ -550,6 +562,79 @@ const server = createServer(async (req, res) => {
     return json(res, 404, { ok: false, message: "Not found" });
   }
 
+  // The Coding Agent in the browser: a conversation over a workspace that
+  // persists between messages. See workspace-agent.ts.
+  if (path.startsWith("/agent/workspaces")) {
+    if (!tokenMatches(req.headers.authorization, TOKEN)) {
+      return json(res, 401, { ok: false, message: "Unauthorized" });
+    }
+    const [id, action] = path.slice("/agent/workspaces".length).replace(/^\//, "").split("/");
+    const caller = String(req.headers["x-devstation-caller"] ?? "").slice(0, 100) || clientKey(req);
+
+    if (!id && req.method === "POST") {
+      if (!withinRateLimit(`workspace:${caller}`)) {
+        return json(res, 429, { ok: false, message: "Too many workspaces from this client." });
+      }
+      const body = await readJsonBody<{ source?: unknown }>(req, 14_000_000);
+      if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
+      const parsed = parseWorkspaceSource(body.value.source);
+      if ("error" in parsed) return json(res, 400, { ok: false, message: parsed.error });
+      const created = await createWorkspace({
+        owner: String(req.headers["x-devstation-owner"] ?? "").slice(0, 100),
+        source: parsed.source,
+        files: parsed.files,
+      });
+      if (!created.ok) return json(res, 400, { ok: false, message: created.message });
+      return json(res, 200, { ok: true, workspace: workspaceView(created.session) });
+    }
+
+    if (id && action === "messages" && req.method === "POST") {
+      if (!withinRateLimit(`workspace-message:${caller}`)) {
+        return json(res, 429, { ok: false, message: "Too many messages from this client." });
+      }
+      const body = await readJsonBody<{ prompt?: unknown; context?: unknown }>(req, 100_000);
+      if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
+      const sent = sendWorkspaceMessage(
+        id,
+        typeof body.value.prompt === "string" ? body.value.prompt : "",
+        { context: typeof body.value.context === "string" ? body.value.context : undefined },
+      );
+      if (!sent.ok) return json(res, sent.status, { ok: false, message: sent.message });
+      return json(res, 200, { ok: true, workspace: workspaceView(sent.session) });
+    }
+
+    if (id && action === "cancel" && req.method === "POST") {
+      const cancelled = cancelWorkspace(id);
+      return json(res, cancelled ? 200 : 404, { ok: cancelled });
+    }
+
+    if (id && action === "preview" && req.method === "POST") {
+      const started = startWorkspacePreview(id);
+      if (!started.ok) return json(res, started.status, { ok: false, message: started.message });
+      return json(res, 200, { ok: true, workspace: workspaceView(started.session) });
+    }
+
+    if (id && action === "preview" && req.method === "GET") {
+      const dist = previewDist(id);
+      if (!dist) return json(res, 404, { ok: false, message: "No preview has been built." });
+      return json(res, 200, { ok: true, dist });
+    }
+
+    if (id && action === "files" && req.method === "GET") {
+      const files = workspaceFiles(id);
+      if (!files) return json(res, 404, { ok: false, message: "That workspace is gone." });
+      return json(res, 200, { ok: true, files });
+    }
+
+    if (id && !action && req.method === "GET") {
+      const session = getWorkspace(id);
+      if (!session) return json(res, 404, { ok: false, message: "That workspace is gone." });
+      return json(res, 200, { ok: true, workspace: workspaceView(session) });
+    }
+
+    return json(res, 404, { ok: false, message: "Not found" });
+  }
+
   // Agent runs against a repository somebody already has. Separate from
   // /agent/jobs: that one builds an app from a prompt, this one changes a
   // project that exists. No GitHub credential reaches this process for either.
@@ -761,6 +846,7 @@ const server = createServer(async (req, res) => {
 // that just died is read back rather than silently starting empty.
 initAgentStores();
 initRepoStore();
+initWorkspaceStore();
 
 server.listen(PORT, HOST, () => {
   console.log(

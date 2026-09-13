@@ -118,6 +118,22 @@ export function readCookie(header: string | null, name: string): string | undefi
 }
 
 export const COOKIE_NAME = COOKIE;
+export const RETURN_COOKIE_NAME = "devstation_gh_return";
+
+/** A path on this site to come back to after signing in, or null. Only a plain
+ *  same-site path: anything else would make the sign-in an open redirect. */
+export function safeReturnPath(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return null;
+  if (raw.length > 200 || /[\s<>]/.test(raw)) return null;
+  return raw;
+}
+
+export function returnCookie(path: string, secure: boolean): string {
+  return `${RETURN_COOKIE_NAME}=${encodeURIComponent(path)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${
+    secure ? "; Secure" : ""
+  }`;
+}
 export const STATE_COOKIE_NAME = STATE_COOKIE;
 
 export function sessionCookie(value: string, secure: boolean): string {

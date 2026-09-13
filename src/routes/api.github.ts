@@ -3,6 +3,8 @@ import {
   COOKIE_NAME,
   STATE_COOKIE_NAME,
   callbackUrl,
+  returnCookie,
+  safeReturnPath,
   clearedCookie,
   githubConfig,
   newState,
@@ -44,13 +46,13 @@ export const Route = createFileRoute("/api/github")({
           // defaults new repositories to private.
           authorize.searchParams.set("scope", "repo");
           authorize.searchParams.set("state", state);
-          return new Response(null, {
-            status: 302,
-            headers: {
-              location: authorize.toString(),
-              "set-cookie": stateCookie(state, secureFor(request)),
-            },
-          });
+          const headers = new Headers({ location: authorize.toString() });
+          headers.append("set-cookie", stateCookie(state, secureFor(request)));
+          // Where to come back to: the Coding Agent asks for sign-in only when
+          // someone pushes, and they should land back on their work.
+          const back = safeReturnPath(url.searchParams.get("return"));
+          if (back) headers.append("set-cookie", returnCookie(back, secureFor(request)));
+          return new Response(null, { status: 302, headers });
         }
 
         if (!cfg.configured) return Response.json({ configured: false, user: null });

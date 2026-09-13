@@ -2,10 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   COOKIE_NAME,
   STATE_COOKIE_NAME,
+  RETURN_COOKIE_NAME,
   callbackUrl,
   clearedCookie,
   githubConfig,
   readCookie,
+  safeReturnPath,
   sealSession,
   stateValid,
 } from "@/lib/github-oauth.server";
@@ -19,15 +21,18 @@ export const Route = createFileRoute("/api/github/callback")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const secure = url.protocol === "https:";
+        const returnTo =
+          safeReturnPath(readCookie(request.headers.get("cookie"), RETURN_COOKIE_NAME)) ??
+          "/launchkit/apps";
+        const withParam = (msg: string) =>
+          `${returnTo}${returnTo.includes("?") ? "&" : "?"}github=${encodeURIComponent(msg)}`;
         const back = (msg?: string) =>
           new Response(null, {
             status: 302,
             headers: [
-              [
-                "location",
-                msg ? `/launchkit/apps?github=${encodeURIComponent(msg)}` : "/launchkit/apps",
-              ],
+              ["location", msg ? withParam(msg) : returnTo],
               ["set-cookie", clearedCookie(STATE_COOKIE_NAME, secure)],
+              ["set-cookie", clearedCookie(RETURN_COOKIE_NAME, secure)],
             ],
           });
 
@@ -66,7 +71,7 @@ export const Route = createFileRoute("/api/github/callback")({
         return new Response(null, {
           status: 302,
           headers: [
-            ["location", "/launchkit/apps?github=connected"],
+            ["location", withParam("connected")],
             [
               "set-cookie",
               `${COOKIE_NAME}=${encodeURIComponent(sealSession(body.access_token))}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${
@@ -74,6 +79,7 @@ export const Route = createFileRoute("/api/github/callback")({
               }${secure ? "; Secure" : ""}`,
             ],
             ["set-cookie", clearedCookie(STATE_COOKIE_NAME, secure)],
+            ["set-cookie", clearedCookie(RETURN_COOKIE_NAME, secure)],
           ],
         });
       },

@@ -58,7 +58,10 @@ function Browse() {
   const [sort, setSort] = useState<Sort>("popular");
 
   const setKind = (next: ListingKind | undefined) =>
-    void navigate({ search: (prev) => ({ ...prev, kind: next }), replace: true });
+    void navigate({
+      search: (prev: z.infer<typeof search>) => ({ ...prev, kind: next }),
+      replace: true,
+    });
 
   const featured = useMemo(() => items.filter((i) => i.featured), [items]);
 

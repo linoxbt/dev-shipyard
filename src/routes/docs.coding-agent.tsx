@@ -7,8 +7,10 @@ import {
   P,
   Bullets,
   Steps,
+  Table,
   Callout,
   Code,
+  C,
   ConsoleLink,
   DocLink,
 } from "@/components/docs/primitives";
@@ -23,140 +25,131 @@ function CodingAgentDocs() {
     <DocPage
       title="Coding Agent"
       icon={Bot}
-      intro="Describe what you want and the agent builds it. Start from nothing and get a working app you can publish, or point it at a GitHub repository and get a pull request you decide on."
+      intro="One agent for everything: describe what you want and it writes the code, runs it in a sandbox, tests it and shows you the result. It is the DevStation CLI's agent, in your browser. No GitHub account is needed until you choose to push."
     >
-      <P>
-        Open <ConsoleLink to="/launchkit/coding-agent">Coding Agent</ConsoleLink> in the sidebar and
-        choose a mode: <strong className="text-foreground">New app</strong> or{" "}
-        <strong className="text-foreground">Repository</strong>. The console remembers which you
-        used last.
-      </P>
-
-      <H2>Build a new app</H2>
+      <H2>Start</H2>
       <Steps
         steps={[
           {
-            title: "Add an AI key",
+            title: "Open the Coding Agent and connect a wallet",
             body: (
               <P>
-                The agent uses your provider. Add a key in the AI settings on the{" "}
-                <ConsoleLink to="/launchkit/ai">Code with AI</ConsoleLink> page first; see{" "}
-                <DocLink to="/docs/ai">providers and keys</DocLink>.
+                Open <ConsoleLink to="/launchkit/coding-agent">Coding Agent</ConsoleLink>. The first
+                message asks your wallet for one signature, which costs no gas. It is what lets you
+                come back to your work from any tab.
               </P>
             ),
           },
           {
-            title: "Describe the app",
+            title: "Choose where to start",
             body: (
-              <P>
-                For example, “a token swap interface for QIE with a wallet connect button”. The
-                agent writes the files and the app runs in the preview as it goes.
-              </P>
+              <Table
+                head={["Start from", "What happens"]}
+                rows={[
+                  ["Nothing", "An empty workspace."],
+                  [
+                    "A repository",
+                    "Any public GitHub repository, as owner/name or its URL. No sign-in. Private repositories work once GitHub is connected.",
+                  ],
+                  [
+                    "Your files",
+                    "Pick a folder. Text files are copied in; dependencies, build output and binaries are left out.",
+                  ],
+                  ["One of your apps", "Pick it from the project switcher at the top of the chat."],
+                ]}
+              />
             ),
           },
           {
-            title: "Keep talking to change it",
+            title: "Say what you want",
             body: (
               <P>
-                Ask for changes the way you would ask a colleague. If the preview breaks, say so and
-                it is fixed. The conversation and the files are saved, so you can close the tab and
-                come back.
-              </P>
-            ),
-          },
-          {
-            title: "Publish or push",
-            body: (
-              <P>
-                Publish it to its own address at <code>&lt;name&gt;.devstation.online</code>, push
-                the files to GitHub, or list it on the Marketplace. See{" "}
-                <DocLink to="/docs/apps">Apps &amp; Publishing</DocLink>.
-              </P>
-            ),
-          },
-        ]}
-      />
-      <H3>Review mode</H3>
-      <P>
-        Ask the agent to read the code over and it reports what it finds without editing anything.
-        Use it before you publish, or on an app you bought.
-      </P>
-
-      <H2>Work on a GitHub repository</H2>
-      <Steps
-        steps={[
-          {
-            title: "Connect GitHub",
-            body: (
-              <P>
-                Click <strong className="text-foreground">Connect GitHub</strong> and approve
-                DevStation. The token is kept in a secure cookie that the page itself cannot read.
-              </P>
-            ),
-          },
-          {
-            title: "Pick a repository",
-            body: (
-              <P>
-                Choose from the repositories you can push to, or type <code>owner/name</code> for
-                one you have access to.
-              </P>
-            ),
-          },
-          {
-            title: "Say what it should do",
-            body: (
-              <P>
-                Be specific about the outcome: “Fix the failing test in src/total.test.js. Change
-                the source, not the test.”
-              </P>
-            ),
-          },
-          {
-            title: "Watch it work",
-            body: (
-              <P>
-                It reads the repository, edits, and verifies its work in an isolated sandbox on
-                DevStation&apos;s build runner. Binary and very large files are left out of what it
-                reads, and it tells you how many.
-              </P>
-            ),
-          },
-          {
-            title: "Read the diff, then decide",
-            body: (
-              <P>
-                When it finishes you see every changed file. The button that opens a pull request
-                only appears once there is a finished run with changes in it; nothing reaches GitHub
-                until you press it.
+                “Build a token-gated page for QIE holders”, “write and test an ERC-20 with a
+                faucet”, “fix the failing test in src/total.test.js”. Then keep talking: every
+                message continues in the same workspace, and the agent remembers the conversation.
               </P>
             ),
           },
         ]}
       />
 
-      <Callout title="Nothing is pushed without you">
-        The agent never pushes to a branch you have, and never merges. It proposes one pull request,
-        after you have seen the change.
-      </Callout>
-
-      <H2>The same agent in your terminal</H2>
-      <P>
-        For work on your own machine, with your own tools and tests, use the DevStation CLI. It runs
-        the same loop against a local folder:
-      </P>
-      <Code code={`npm install -g @devstationlabs/cli\ndevstation doctor`} />
+      <H2>What it can do</H2>
       <Bullets
         items={[
-          <>
-            <DocLink to="/docs/cli/install">Install the CLI</DocLink>
-          </>,
-          <>
-            <DocLink to="/docs/cli/sessions">Work on a repository from the terminal</DocLink> with{" "}
-            <code>devstation repo</code>
-          </>,
+          "Read, write and edit any file in the workspace.",
+          "Run shell commands: scaffold projects, install packages, run builds, linters and tests.",
+          "Search the web and read documentation pages.",
+          "Build web apps, smart contracts, APIs, scripts, libraries and command-line tools.",
+          "Verify its own work before it says it is done.",
         ]}
       />
+      <P>
+        It works in a sandboxed container on DevStation&apos;s runner, not in your browser, so a run
+        keeps going if you close the tab. Come back and the conversation is where you left it.
+      </P>
+
+      <H2>The panel beside the chat</H2>
+      <Table
+        head={["Tab", "Shows"]}
+        rows={[
+          [
+            "Preview",
+            "Anything with a web page, rebuilt after each turn: a static index.html, or a project whose npm run build writes to dist/.",
+          ],
+          ["Files", "Every file in the workspace. Files changed in the last turn are highlighted."],
+          [
+            "Activity",
+            "Each command and edit of the latest turn, and what the work has cost so far.",
+          ],
+        ]}
+      />
+
+      <H2>When you are happy with it</H2>
+      <Table
+        head={["Action", "Needs"]}
+        rows={[
+          ["Download", "Nothing. A zip of every file."],
+          [
+            "Publish",
+            <>
+              A wallet. Puts the built page live at <C>&lt;name&gt;.devstation.online</C>.
+            </>,
+          ],
+          ["Push", "GitHub. Creates a new repository with the files."],
+          [
+            "Pull request",
+            "GitHub, and a workspace that started from a repository. Opens a branch against it.",
+          ],
+          ["Sell", "A wallet. List it on the Marketplace."],
+        ]}
+      />
+      <P>
+        Push and pull request ask you to connect GitHub the first time, then bring you straight
+        back. The agent may suggest pushing or publishing; it cannot do either itself. You confirm
+        with a button and your own account does it.
+      </P>
+
+      <Callout title="Nothing reaches GitHub without you">
+        The agent never holds a GitHub credential. Your GitHub session stays on DevStation&apos;s
+        server, and it is only used when you press Push or Open pull request.
+      </Callout>
+
+      <H3>Limits</H3>
+      <Bullets
+        items={[
+          "An import or upload can bring in up to 12 MB of text.",
+          "Previews build projects of up to 200 files and 2 MB; larger ones can be downloaded and run locally.",
+          "A single turn stops after about 20 minutes or 60 steps.",
+          "Workspaces are kept for three days after you last used them, and are recreated from your saved files after that.",
+        ]}
+      />
+
+      <H2>The same agent in your terminal</H2>
+      <P>For work on your own machine, with your own tools, install the CLI:</P>
+      <Code code={`npm install -g @devstationlabs/cli\ndevstation`} />
+      <P>
+        See <DocLink to="/docs/cli/install">Install the CLI</DocLink>.
+      </P>
     </DocPage>
   );
 }

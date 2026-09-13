@@ -64,6 +64,12 @@ export interface AppProject {
   repo?: { owner: string; name: string; url: string; pushedAt: number } | null;
   /** Contract the app was wired to, if any. */
   attached?: ProjectAttachment | null;
+  /** The Coding Agent workspace on the runner that holds this project. */
+  workspaceId?: string | null;
+  /** How many of that workspace's turns this project has already recorded. */
+  workspaceTurns?: number;
+  /** Where the project started, and the repository it belongs to, if any. */
+  source?: { kind: "blank" | "files" | "github"; repo?: string; ref?: string } | null;
 }
 
 // Everything below is read back from localStorage, which is user-editable and
@@ -111,6 +117,16 @@ const projectSchema = z.object({
     .nullable()
     .optional(),
   attached: attachmentSchema.nullable().optional(),
+  workspaceId: z.string().max(80).nullable().optional(),
+  workspaceTurns: z.number().optional(),
+  source: z
+    .object({
+      kind: z.enum(["blank", "files", "github"]),
+      repo: z.string().max(200).optional(),
+      ref: z.string().max(200).optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 interface ProjectsState {
