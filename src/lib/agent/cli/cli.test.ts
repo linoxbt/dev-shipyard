@@ -181,7 +181,9 @@ describe("run, from the terminal", () => {
     await runCommand(context(root, provider, term.t), "clean up");
 
     expect(term.asked[0]).toContain("Allow this?");
-    expect(term.text()).toContain("Approval needed");
+    expect(term.text()).toContain("Would you like to run the following command?");
+    expect(term.text()).toContain("$ rm -rf build");
+    expect(term.text()).toContain("3. No, skip it (n)");
     expect(term.text()).toContain("was not allowed");
   });
 

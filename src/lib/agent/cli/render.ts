@@ -1,5 +1,6 @@
 import type { AgentEvent, ApprovalRequest } from "../orchestrator";
 import type { SessionRecord } from "../session-store";
+import { formatElapsed } from "./live";
 
 // Formatting lives apart from the terminal so it can be tested without one,
 // and so the same renderer can back `run` (live) and `status` (replayed from
@@ -60,18 +61,70 @@ export function renderEvent(event: AgentEvent, colour = false): string | null {
   return `${paint(style.mark, style.colour, colour)} ${tool}${event.message}`;
 }
 
+/** The command a gated step would run, when it is one. */
+export function approvalCommand(request: ApprovalRequest): string {
+  const input = request.input ?? {};
+  switch (request.tool) {
+    case "run_shell":
+      return String(input.command ?? "");
+    case "git":
+      return `git ${String(input.op ?? "")} ${Array.isArray(input.args) ? input.args.join(" ") : ""}`.trim();
+    case "install_dependency":
+      return `install ${String(input.name ?? "")}`;
+    default:
+      return "";
+  }
+}
+
+/** A permission prompt laid out like Codex's: the question, the reason, the
+ *  exact command, and numbered answers. */
 export function renderApproval(request: ApprovalRequest, colour = false): string {
+  const command = approvalCommand(request);
   const lines = [
     "",
-    paint(`Approval needed: ${request.operation}`, "bold", colour),
-    `  tool:  ${request.tool}`,
-    `  risk:  ${request.riskLevel}`,
+    paint(
+      command
+        ? "  Would you like to run the following command?"
+        : `  Would you like to allow ${request.operation}?`,
+      "bold",
+      colour,
+    ),
+    `  Reason: ${request.why}`,
   ];
-  if (request.resources.length > 0) {
-    lines.push(`  what:  ${request.resources.join(", ")}`);
+  if (command) {
+    const commandLines = command.split("\n");
+    commandLines.slice(0, 8).forEach((line, i) => lines.push(`  ${i === 0 ? "$" : " "} ${line}`));
+    if (commandLines.length > 8) lines.push(`    … +${commandLines.length - 8} lines`);
+  } else if (request.resources.length > 0) {
+    lines.push(`  What: ${request.resources.join(", ")}`);
   }
-  lines.push(`  why:   ${request.why}`, "");
+  lines.push(
+    paint(`  Risk: ${request.riskLevel}`, "grey", colour),
+    "",
+    `${paint("›", "brand", colour)} 1. Yes, proceed ${paint("(y)", "grey", colour)}`,
+    `  2. Yes, and don't ask again this session ${paint("(a)", "grey", colour)}`,
+    `  3. No, skip it ${paint("(n)", "grey", colour)}`,
+    "",
+  );
   return lines.join("\n");
+}
+
+/** The rule under a finished turn: "─ Worked for 1m 20s · 6 steps ─". */
+export function renderReceipt(
+  elapsedMs: number,
+  steps: number,
+  files: string[],
+  costUsd: number,
+  colour = false,
+  columns = 80,
+): string {
+  const parts = [`Worked for ${formatElapsed(elapsedMs)}`];
+  if (steps > 0) parts.push(`${steps} step${steps === 1 ? "" : "s"}`);
+  if (files.length > 0) parts.push(`${files.length} file${files.length === 1 ? "" : "s"} changed`);
+  parts.push(`$${costUsd.toFixed(2)}`);
+  const label = ` ${parts.join(" · ")} `;
+  const width = Math.max(label.length + 2, Math.min(columns, 100));
+  return paint(`─${label}${"─".repeat(width - label.length - 1)}`, "grey", colour);
 }
 
 export function renderUsage(costUsd: number, steps: number, files: string[]): string {

@@ -82,6 +82,9 @@ export interface AgentEvent {
 
 export interface ApprovalRequest {
   tool: string;
+  /** The call's arguments, trimmed for display: the command a shell step
+   *  would run is what a person needs to see before saying yes. */
+  input?: Record<string, unknown>;
   operation: string;
   resources: string[];
   riskLevel: string;
@@ -597,6 +600,7 @@ export class Orchestrator {
         resources: gate.rejection.action.resources,
         riskLevel: gate.rejection.verdict.riskLevel,
         why: gate.rejection.message,
+        input: eventInput(call),
       };
       this.emit("approval.requested", gate.rejection.message, {
         tool: call.name,
@@ -618,11 +622,23 @@ export class Orchestrator {
       this.emit("approval.granted", `${call.name} allowed.`, { tool: call.name });
     }
 
-    this.emit("step.started", describe(call), { tool: call.name });
+    this.emit("step.started", describe(call), {
+      tool: call.name,
+      detail: { input: eventInput(call) },
+    });
     const outcome = await this.execute(call);
     this.emit(outcome.ok ? "step.completed" : "step.failed", summarise(call, outcome), {
       tool: call.name,
       ok: outcome.ok,
+      // What the terminal shows under a step: the command and what it printed.
+      // Only for the tools whose output is worth showing, and bounded, because
+      // events are also written to the session log.
+      detail: {
+        input: eventInput(call),
+        ...(SHOWN_OUTPUT.has(call.name) || !outcome.ok
+          ? { output: boundOutput(outcome.output) }
+          : {}),
+      },
     });
 
     const definition = TOOLS[call.name];
@@ -809,6 +825,25 @@ export class Orchestrator {
  *  ended up with an injection hole in the first place. */
 function quoteArg(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/** Tools whose output the terminal shows under the step. A file's contents or
+ *  a page's text is the model's material, not something to print. */
+const SHOWN_OUTPUT = new Set(["run_shell", "run_tests", "run_build", "lint_and_typecheck", "git"]);
+
+/** A call's arguments for display and the log: file bodies and patches are
+ *  replaced by their size, so an event is never a second copy of a file. */
+function eventInput(call: ProviderToolCall): Record<string, unknown> {
+  const { content, patch, ...rest } = (call.input ?? {}) as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...rest };
+  if (typeof content === "string") out.lines = content.split("\n").length;
+  if (typeof patch === "string") out.patchLines = patch.split("\n").length;
+  return out;
+}
+
+function boundOutput(output: string): string {
+  if (output.length <= 8000) return output;
+  return `${output.slice(0, 5000)}\n…\n${output.slice(-2500)}`;
 }
 
 function formatShell(result: {

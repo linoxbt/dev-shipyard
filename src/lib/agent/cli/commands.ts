@@ -45,7 +45,7 @@ import {
 import { SessionStore, type SessionRecord } from "../session-store";
 import { Workspace } from "../workspace";
 import type { ModelProvider, ProviderMessage } from "../providers";
-import { renderApproval, renderEvent, renderSessions, renderUsage } from "./render";
+import { renderApproval, renderEvent, renderReceipt, renderSessions, renderUsage } from "./render";
 import { CLI_NAME } from "./args";
 
 // The commands take their terminal as a parameter rather than reaching for
@@ -128,12 +128,12 @@ export async function buildExecutor(
  *  Silence, a stray newline and a closed pipe all mean no, which is the only
  *  safe reading of them. */
 export function isYes(answer: string): boolean {
-  return /^(y|yes)$/i.test(answer.trim());
+  return /^(y|yes|1)$/i.test(answer.trim());
 }
 
 /** "a" or "always": allow this kind of action for the rest of the session. */
 export function isAlways(answer: string): boolean {
-  return /^(a|always)$/i.test(answer.trim());
+  return /^(a|always|2)$/i.test(answer.trim());
 }
 
 /** What "always" remembers: the operation and what it touches, so saying
@@ -154,9 +154,7 @@ function approver(context: CommandContext, live: LiveView | null = null) {
     live?.suspend();
     try {
       context.terminal.out(renderApproval(request, context.terminal.colour));
-      const answer = await context.terminal.ask(
-        "Allow this? [y]es / [a]lways this session / [N]o ",
-      );
+      const answer = await context.terminal.ask("Allow this? Type 1, 2 or 3 › ");
       if (isAlways(answer)) {
         (context.alwaysAllow ??= new Set()).add(key);
         return true;
@@ -251,6 +249,7 @@ export async function runCommand(
   // a greeting does not need a session id and its own goal read back to it.
   // Pipes and logs keep the header, where it is what makes the log readable.
   const streaming = typeof terminal.write === "function";
+  const startedAt = Date.now();
   if (!options.quiet && !streaming) {
     terminal.out(`session ${session.id}  ${context.provider.name}/${context.provider.model}`);
     terminal.out(`commands run ${executor.describe}`);
@@ -350,7 +349,18 @@ export async function runCommand(
     // A plain answer in a live terminal needs no receipt: Claude Code does not
     // print "0 step(s), no files changed" under "Hello". Work still gets one.
     if (!(streaming && result.steps === 0 && result.filesChanged.length === 0)) {
-      terminal.out(renderUsage(result.costUsd, result.steps, result.filesChanged));
+      terminal.out(
+        streaming
+          ? renderReceipt(
+              Date.now() - startedAt,
+              result.steps,
+              result.filesChanged,
+              result.costUsd,
+              terminal.colour,
+              terminal.columns || 80,
+            )
+          : renderUsage(result.costUsd, result.steps, result.filesChanged),
+      );
     }
     if (!result.ok) terminal.err(result.stoppedBecause);
     return { code: result.ok ? 0 : 1, session, result };
