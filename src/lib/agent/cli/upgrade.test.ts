@@ -134,7 +134,7 @@ describe("devstation upgrade", () => {
       },
     });
     expect(code).toBe(0);
-    expect(calls).toEqual([["npm", "install", "-g", `${PACKAGE}@${NEWER}`]]);
+    expect(calls).toEqual([["npm", "install", "-g", `${PACKAGE}@${NEWER}`, "--prefer-online"]]);
   });
 
   it("replaces a standalone binary with a verified download", async () => {

@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "devstation": "./bin/devstation.mjs"
+    "devstation": "bin/devstation.mjs"
   },
   "files": [
     "bin/",

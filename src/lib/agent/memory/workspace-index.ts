@@ -14,6 +14,29 @@ export function storePath(root: string): string {
   return join(root, ".agent", "memory.db");
 }
 
+/** Folders that hold a person's everything rather than one project: home, and
+ *  the Desktop, Documents and Downloads inside it. Indexing one puts private
+ *  notes, keys and unrelated projects in front of the model. Compared without
+ *  regard to slash direction or, on Windows, case, so C:\Users\Me\Desktop and
+ *  /c/Users/Me/Desktop are the same folder. */
+export function isPersonalFolder(
+  root: string,
+  home: string,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  if (!home) return false;
+  const norm = (p: string) => {
+    let out = p.replace(/\\/g, "/").replace(/\/+$/, "");
+    // Git Bash spells C:\ as /c/.
+    out = out.replace(/^\/([a-zA-Z])\//, "$1:/");
+    return platform === "win32" ? out.toLowerCase() : out;
+  };
+  const target = norm(root);
+  const base = norm(home);
+  const inside = ["Desktop", "Documents", "Downloads"].map((name) => norm(`${home}/${name}`));
+  return target === base || inside.includes(target);
+}
+
 export function openStore(root: string): MemoryStore {
   return new MemoryStore(storePath(root));
 }
@@ -41,9 +64,8 @@ export async function indexWorkspace(
   } = {},
 ): Promise<IndexResult> {
   const started = Date.now();
-  const home = options.home ?? process.env.HOME ?? "";
-  const strip = (p: string) => p.replace(/\/+$/, "");
-  if (home && strip(root) === strip(home)) {
+  const home = options.home ?? process.env.HOME ?? process.env.USERPROFILE ?? "";
+  if (isPersonalFolder(root, home)) {
     return {
       scanned: 0,
       reindexed: 0,

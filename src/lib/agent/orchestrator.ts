@@ -424,7 +424,9 @@ export class Orchestrator {
       // Capturing there produced a post-change snapshot, newer than the good
       // one, and undo restored the change it was asked to remove.
       let pending: ReturnType<typeof takeSnapshot> = null;
-      if (!usesGit && snapshotSkip === null) {
+      // Only before a turn that can change something: reading and searching
+      // need no undo, and a greeting should not be told there is none.
+      if (!usesGit && snapshotSkip === null && !result.toolCalls.every((call) => readsOnly(call))) {
         pending = takeSnapshot(this.opts.workspace.root, goal.slice(0, 80), {
           onSkip: (reason) => {
             snapshotSkip = reason;

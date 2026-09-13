@@ -226,7 +226,7 @@ export async function runCommand(
     if (!options.quiet) {
       if (indexed.stopped === "home") {
         terminal.err(
-          "Not indexing your home directory. The agent can still read and list files; cd into a project for a real index.",
+          "Not indexing this folder: it is your home, Desktop, Documents or Downloads. The agent can still read and list files; cd into a project for a search index.",
         );
       } else if (indexed.stopped) {
         terminal.err(

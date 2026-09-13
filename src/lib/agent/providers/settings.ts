@@ -124,8 +124,10 @@ export function readCredentials(home: string, problems: string[] = []): Credenti
   try {
     // Looser than owner-only means someone else on the machine can read the
     // keys. Worth saying rather than silently using them.
+    // Not on Windows: NTFS has no Unix modes, so every file reports 666 and
+    // chmod cannot change it. Access there is governed by the user profile.
     const mode = statSync(path).mode & 0o777;
-    if (mode & 0o077) {
+    if (process.platform !== "win32" && mode & 0o077) {
       problems.push(
         `${path} is readable by other users (mode ${mode.toString(8)}). Fix it: chmod 600 ${path}`,
       );

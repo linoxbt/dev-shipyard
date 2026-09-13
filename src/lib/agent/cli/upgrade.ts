@@ -131,7 +131,15 @@ export async function upgradeCommand(
   switch (method) {
     case "npm": {
       t.out(`Installed through npm, so upgrading through npm: npm install -g ${PACKAGE}@${latest}`);
-      const code = (opts.run ?? runInherit)("npm", ["install", "-g", `${PACKAGE}@${latest}`]);
+      const code = (opts.run ?? runInherit)("npm", [
+        "install",
+        "-g",
+        `${PACKAGE}@${latest}`,
+        // npm answers from its cached package list for a while after a
+        // release, and then reports the version it was just told about as
+        // not existing (ETARGET).
+        "--prefer-online",
+      ]);
       if (code !== 0) {
         t.err(
           `npm exited with ${code}. Nothing else was changed. Run it yourself: npm install -g ${PACKAGE}@latest`,
