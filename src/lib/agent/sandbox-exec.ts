@@ -413,6 +413,17 @@ export function sandboxNetworkEnabled(env: NodeJS.ProcessEnv = process.env): boo
   return (env.DEVSTATION_SANDBOX_NETWORK ?? "on").toLowerCase() !== "off";
 }
 
+/** Whether a command failed because the session container itself is gone:
+ *  killed for memory, stopped at its time limit, or removed. Docker says so in
+ *  its own words, which is what this reads rather than guessing from the code. */
+export function containerGone(result: { code: number | null; stderr: string }): boolean {
+  return /No such container|is not running|container [^ ]+ (?:is )?not found/i.test(result.stderr);
+}
+
+const RESTARTED =
+  "The sandbox had stopped (out of memory, or past its time limit), so a fresh one was started " +
+  "for this command. Files in the workspace are intact; anything installed outside it is gone.";
+
 export function sandboxExecutor(options: SandboxOptions): Executor {
   const image = options.image ?? imageFor();
   const runtime = options.runtime ?? runtimeFor();
@@ -578,14 +589,27 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
         }
       }
 
-      return present(
-        await runShell(execCommand(sealed, command, seconds, workdir), {
+      const exec = (name: string) =>
+        runShell(execCommand(name, command, seconds, workdir), {
           cwd: options.workspace,
           timeoutMs: backstopMs,
           signal: opts.signal,
           env,
-        }),
-      );
+        });
+      let result = await exec(sealed);
+      if (containerGone(result)) {
+        // The container died under the session. Every command after this one
+        // would fail the same way, which is how a session ended up unable to
+        // run anything at all, so start a fresh one and try the command again.
+        await remove(sealed);
+        sealed = await create(sealedName, options.network ?? false);
+        if (!sealed) {
+          return failedResult(`The sandbox stopped and could not be restarted from ${image}.`);
+        }
+        result = await exec(sealed);
+        result = { ...result, stderr: `${RESTARTED}\n${result.stderr}` };
+      }
+      return present(result);
     },
 
     async dispose() {
