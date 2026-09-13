@@ -45,8 +45,24 @@ export function affordableTokens(detail: string): number | null {
 export function describeFailure(label: string, status: number, detail: string): string {
   let message = detail;
   try {
-    const parsed = JSON.parse(detail) as { error?: { message?: string } };
+    const parsed = JSON.parse(detail) as {
+      error?: { message?: string; metadata?: { raw?: string; provider_name?: string } };
+    };
     if (parsed.error?.message) message = parsed.error.message;
+    // OpenRouter's own message for an upstream failure is "Provider returned
+    // error". The reason is in metadata.raw, and without it there is nothing
+    // to act on.
+    const raw = parsed.error?.metadata?.raw;
+    if (raw) {
+      let why = raw;
+      try {
+        const inner = JSON.parse(raw) as { error?: { message?: string }; message?: string };
+        why = inner.error?.message ?? inner.message ?? raw;
+      } catch {
+        // Not JSON: the raw text is the reason.
+      }
+      message = `${message}: ${why}`;
+    }
   } catch {
     // Not JSON: use the text as it is.
   }

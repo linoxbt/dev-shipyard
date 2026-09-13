@@ -31,6 +31,10 @@ export interface ToolDefinition<S extends z.ZodTypeAny = z.ZodTypeAny> {
   /** The operation this maps to for policy purposes. */
   operation: string;
   schema: S;
+  /** The JSON Schema the model is shown, for a tool whose arguments are not a
+   *  flat list of strings. Without it the schema is read from `usage`, which
+   *  only understands flat names. */
+  jsonSchema?: Record<string, unknown>;
   /** Which argument names identify what is being touched, so the policy engine
    *  and any authorization grant can be scoped to real resources. */
   resourcesFrom: (args: z.infer<S>) => string[];
@@ -364,7 +368,26 @@ export const TOOLS: Record<string, ToolDefinition> = {
   },
   update_plan: {
     name: "update_plan",
-    usage: 'update_plan {"plan": [{"step", "status"}], "explanation?"}',
+    usage: 'update_plan {"plan", "explanation?"}',
+    jsonSchema: {
+      type: "object",
+      properties: {
+        explanation: { type: "string", description: "Optional: why the plan changed." },
+        plan: {
+          type: "array",
+          description: "The steps, in order.",
+          items: {
+            type: "object",
+            properties: {
+              step: { type: "string" },
+              status: { type: "string", enum: ["pending", "in_progress", "completed"] },
+            },
+            required: ["step", "status"],
+          },
+        },
+      },
+      required: ["plan"],
+    },
     description:
       "Keep the person's checklist for this task up to date: the steps, and whether each is pending, in_progress or completed. Call it when multi-step work starts and whenever a step changes status. It changes nothing in the project.",
     // Looking, not changing: allowed in plan mode and never asks.

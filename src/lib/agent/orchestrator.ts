@@ -230,7 +230,11 @@ function availableTools(offered: string[] = []) {
  *  Deliberately not a general Zod-to-JSON-Schema converter: the registry's
  *  `usage` already names every argument, and a converter is a dependency and a
  *  source of drift for something this small. */
-function zodToJsonSchema(def: ToolDefinition): Record<string, unknown> {
+export function zodToJsonSchema(def: ToolDefinition): Record<string, unknown> {
+  // A tool with nested arguments says what they are. Splitting its usage string
+  // on commas turned `"plan": [{"step", "status"}]` into a property named
+  // `plan": [{"step`, which Anthropic rejects, and with it every request.
+  if (def.jsonSchema) return def.jsonSchema;
   const match = /\{(.*)\}/s.exec(def.usage);
   const properties: Record<string, unknown> = {};
   const required: string[] = [];
