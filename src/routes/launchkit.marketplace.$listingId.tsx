@@ -26,7 +26,7 @@ import { EmptyState, KindBadge, PriceTag } from "@/components/marketplace/ui";
 import { getTemplate, templateLabel } from "@/lib/data/templates";
 import { paidListingFor } from "@/lib/marketplace/paid";
 import { applyTerminology } from "@/lib/terminology";
-import { shortAddr } from "@/lib/explorer/format";
+
 import { useNetworkPref } from "@/lib/active-chain";
 import { useEditorIntake } from "@/lib/editor-intake";
 import { useProjects } from "@/lib/appgen/projects";
@@ -41,6 +41,7 @@ import {
   parsePrice,
   splitSale,
 } from "@/lib/marketplace/listing";
+import { BuilderName } from "@/components/builder/BuilderName";
 
 export const Route = createFileRoute("/launchkit/marketplace/$listingId")({
   head: () => ({ meta: [{ title: "Listing: DevStation Marketplace" }] }),
@@ -316,7 +317,7 @@ function LegacyListing({ id }: { id: number }) {
               <ShareButton />
             </div>
             <div className="mt-4 border-t border-border pt-3">
-              <MetaRow label="Creator" value={shortAddr(tpl.creator)} />
+              <MetaRow label="Creator" value={<BuilderName address={tpl.creator} />} />
               <MetaRow label="Deploys" value={tpl.deployCount} />
             </div>
           </Panel>
@@ -681,7 +682,7 @@ function MarketListingView({
             </div>
 
             <div className="mt-4 border-t border-border pt-3">
-              <MetaRow label="Creator" value={shortAddr(listing.creator)} />
+              <MetaRow label="Creator" value={<BuilderName address={listing.creator} />} />
               <MetaRow label="Sales" value={listing.sales} />
               {listing.deploys > 0 && <MetaRow label="Deploys" value={listing.deploys} />}
               {listing.price > 0n && (

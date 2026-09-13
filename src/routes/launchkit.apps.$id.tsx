@@ -21,6 +21,7 @@ import { repoNameFrom } from "@/lib/github";
 import { chainConfig } from "@/lib/chains";
 import { slugForChainId } from "@/lib/explorer/network";
 import { shortAddr, timeAgo } from "@/lib/explorer/format";
+import { BuilderName } from "@/components/builder/BuilderName";
 
 // Everything about one app: who built it, what is in it, where it is published,
 // and where its source lives.
@@ -238,7 +239,7 @@ function AppDetail() {
                 params={{ address: project.owner }}
                 className="text-primary hover:underline"
               >
-                {shortAddr(project.owner)}
+                <BuilderName address={project.owner} link={false} />
               </Link>
             </Row>
           ) : (

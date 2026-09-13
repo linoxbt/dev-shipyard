@@ -8,8 +8,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { getLeaderboard } from "@/lib/api/profile.functions";
 import { useNetworkPref } from "@/lib/active-chain";
 import { chainConfig } from "@/lib/chains";
-import { shortAddr } from "@/lib/explorer/format";
+
 import { TIER_LABEL } from "@/lib/reputation";
+import { BuilderName } from "@/components/builder/BuilderName";
 
 // Developer leaderboard, ranked by deployments recorded on ProjectRegistry.
 //
@@ -98,7 +99,7 @@ function LeaderboardPage() {
                           params={{ address: e.address }}
                           className="text-foreground hover:underline"
                         >
-                          {shortAddr(e.address)}
+                          <BuilderName address={e.address} link={false} avatar />
                         </Link>
                         {isYou && <span className="ml-2 text-[10px] text-meta">you</span>}
                       </td>

@@ -12,10 +12,11 @@ import {
   Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { shortAddr } from "@/lib/explorer/format";
+
 import { formatPrice, kindInfo, type ListingKind } from "@/lib/marketplace/listing";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import type { CatalogItem } from "./catalog";
+import { BuilderName } from "@/components/builder/BuilderName";
 
 // The marketplace's building blocks. Kept to the app's own tokens (amber
 // primary, mono type, surface and border) so the store reads as part of
@@ -166,7 +167,13 @@ export function ListingCard({ item }: { item: CatalogItem }) {
 
       <div className="relative mt-auto flex items-center justify-between gap-2 border-t border-border pt-3 font-mono text-[10px] text-meta">
         <span className="truncate">
-          {item.official ? "by DevStation" : item.creator ? `by ${shortAddr(item.creator)}` : ""}
+          {item.official ? (
+            "by DevStation"
+          ) : item.creator ? (
+            <span className="inline-flex min-w-0 items-center gap-1">
+              by <BuilderName address={item.creator} link={false} />
+            </span>
+          ) : null}
         </span>
         <span className="flex shrink-0 items-center gap-2">
           {item.sales > 0 && (

@@ -28,9 +28,9 @@ export interface ComingSoonPage {
  * Dashboard, Leaderboard and Marketplace all shipped: each reads real data and
  * says so honestly when there is none -- the leaderboard reports the explorer
  * as unreachable rather than inventing rankings, the dashboard derives
- * reputation only from deployments that cost gas, and QIE Pass reports a wallet
- * as unverified when no credentials are configured rather than filling anything
- * in. That was the bar for taking the gate off, not the pages merely rendering.
+ * reputation only from deployments that cost gas, and a wallet's .qie names are
+ * shown only when the QIE ID contract says it owns them. That was the bar for
+ * taking the gate off, not the pages merely rendering.
  *
  * The map stays, empty, and so do the branches in the routes. Gating a page
  * again is one entry here, and nothing else: the sidebar badge and the route

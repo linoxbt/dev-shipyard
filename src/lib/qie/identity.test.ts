@@ -1,13 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import {
   decodeRegistrationStrings,
-  describePass,
   formatWalletAge,
   isPlausibleLabel,
   labelsFromStrings,
   matchNamesToTokens,
-  QIE_CLAIMS,
-  type PassState,
 } from "./identity";
 
 // The real calldata from registration tx 0x3e3c4496…fe12 on QIE mainnet,
@@ -75,47 +72,6 @@ describe("formatWalletAge", () => {
   it("says unknown rather than guessing", () => {
     expect(formatWalletAge(null)).toBe("unknown");
     expect(formatWalletAge(-1)).toBe("unknown");
-  });
-});
-
-describe("describePass", () => {
-  const p = (over: Partial<PassState>): PassState => ({
-    status: "pending_consent",
-    userStatus: "not_verified",
-    requestId: "pvr_1",
-    ...over,
-  });
-
-  it("only claims verified when consent AND KYC are both done", () => {
-    expect(describePass(p({ status: "consent_given", userStatus: "verified" })).tone).toBe(
-      "verified",
-    );
-    // Consent given but KYC incomplete is NOT verified.
-    expect(describePass(p({ status: "consent_given", userStatus: "not_verified" })).tone).not.toBe(
-      "verified",
-    );
-  });
-
-  it("distinguishes waiting from refused", () => {
-    expect(describePass(p({ status: "pending_kyc" })).tone).toBe("pending");
-    expect(describePass(p({ status: "consent_rejected" })).tone).toBe("rejected");
-    expect(describePass(p({ status: "expired" })).tone).toBe("rejected");
-  });
-
-  it("has an honest state for never having asked", () => {
-    expect(describePass(null).tone).toBe("none");
-  });
-});
-
-describe("QIE_CLAIMS", () => {
-  it("contains no reputation or wallet-age claim", () => {
-    // Enumerated from QIE's own docs. If this ever changes, the Station can
-    // start showing a real QIE reputation instead of DevStation's own.
-    const joined = QIE_CLAIMS.join(" ");
-    expect(joined).not.toContain("reputation");
-    expect(joined).not.toContain("score");
-    expect(QIE_CLAIMS).toContain("age_over_18");
-    expect(QIE_CLAIMS).toContain("firstName");
   });
 });
 

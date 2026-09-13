@@ -1,40 +1,40 @@
-// QIE-native identity, as it actually exists on chain and in QIE's own API.
+// QIE ID: `.qie` names, as they actually exist on chain.
 //
-// What follows was established by probing the deployed contracts and QIE's
-// partner API directly, not from assumption. It is written down because the
-// gap between the branding and the deployment is wide enough to mislead:
+// What follows was established by probing the deployed contracts directly, not
+// from assumption. It is written down because the gap between the branding and
+// the deployment is wide enough to mislead:
 //
-//   QIE ID (0x9aab…7bdc) is a plain ERC-721Enumerable of `.qie` names.
+//   QIE ID (0x9aab…7bdc on QIE Mainnet) is a plain ERC-721Enumerable of `.qie`
+//   names, registered through a proxy registrar (0x1d69…f62e, selector
+//   0xbc96db3f) at domains.qie.digital.
 //   Present:  name, symbol, totalSupply, balanceOf, ownerOf, tokenURI,
 //             tokenOfOwnerByIndex, tokenByIndex, supportsInterface, mint.
-//   Absent:   every resolver shape (addr, nameOf, primaryName, reverse…),
-//             every reputation/verification/profile/pass function. 43 standard
-//             signatures were tested across the NFT and its registrar; none
-//             exist. tokenURI on a REAL token id returns an empty string, so
-//             there is no metadata to read either.
+//   Absent:   every resolver shape (addr, nameOf, primaryName, reverse…) and
+//             any profile or verification function. tokenURI returns an empty
+//             string, so there is no metadata to read either.
 //
-//   The name is therefore NOT readable from a contract. It is recoverable
-//   from the registration transaction, whose calldata carries it, and is then
-//   verified by confirming the wallet still owns the token that transaction
-//   minted. That is authoritative: it comes from the registration itself -
-//   and it cannot be spoofed, because ownership is checked on chain.
+//   The name is therefore NOT readable from a contract. It is carried in the
+//   calldata of the registration that minted the token, and is recovered from
+//   there. Which tokens a wallet holds IS readable from the contract
+//   (balanceOf + tokenOfOwnerByIndex), and that is the proof: a name is shown
+//   for a wallet only if the contract says the wallet owns its token right
+//   now. A name that was sold disappears; a name received as a transfer shows.
 //
 //   Token ids are not derived from the name by any obvious scheme (keccak,
 //   namehash, sha256 and abi-encoded variants were all tested and none match),
-//   so a name is tied to a token by the transaction that created both.
+//   so a name is tied to its token by the transaction that minted both.
 //
-//   QIE Identity / QIE Pass (did-stapi.qie.digital) is a consent-based
-//   verifiable-credential API, not a lookup. It answers "is this identity
-//   verified" only after the user approves a request, and it offers KYC
-//   claims: firstName, dateOfBirth, citizenship, age_over_18 and similar.
-//   It offers NO reputation score and NO wallet age.
-//
-// Consequently: reputation shown in DevStation is DevStation's own, derived
-// from the onchain ProjectRegistry (see lib/reputation.ts). There is no QIE
-// reputation score to display, and inventing one would be a lie about a
-// number users are asked to trust.
+// Reputation shown in DevStation is DevStation's own, derived from what builders
+// did on chain (see lib/reputation.ts). QIE ID carries no score.
 
-/** The only calls that are sound on the QIE ID registry.
+/** Where people register a `.qie` name. */
+export const QIE_ID_REGISTER_URL = "https://domains.qie.digital/";
+
+/** QIE ID lives on QIE Mainnet only. Identity is the same whichever network
+ *  the app is pointed at, so names are always resolved there. */
+export const QIE_ID_CHAIN_ID = 1990;
+
+/** The calls that are sound on the QIE ID registry.
  *
  *  Deliberately minimal: a mismatched deployment then fails on the call rather
  *  than silently decoding the wrong storage slot. */
@@ -42,6 +42,16 @@ export const qieIdAbi = [
   {
     inputs: [{ name: "owner", type: "address" }],
     name: "balanceOf",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "index", type: "uint256" },
+    ],
+    name: "tokenOfOwnerByIndex",
     outputs: [{ type: "uint256" }],
     stateMutability: "view",
     type: "function",
@@ -73,64 +83,18 @@ export interface ResolvedName extends QieName {
   confidence: NameConfidence;
 }
 
-/** The consent states QIE's partner API reports. */
-export type PassStatus =
-  | "pending_kyc"
-  | "pending_consent"
-  | "consent_given"
-  | "consent_rejected"
-  | "expired"
-  | "failed";
-
-/** Whether the identity behind an identifier has completed KYC with QIE. */
-export type UserStatus = "verified" | "not_verified";
-
-/** Claims QIE offers. Enumerated from their own documentation rather than
- *  guessed: note there is no reputation or wallet-age claim among them. */
-export const QIE_CLAIMS = [
-  "firstName",
-  "lastName",
-  "dateOfBirth",
-  "citizenship",
-  "nationality",
-  "gender",
-  "age_over_18",
-  "age_over_21",
-  "age_over_25",
-  "age_over_65",
-  "age_18_to_25",
-  "age_26_to_65",
-  "is_us_citizen",
-  "is_eu_citizen",
-  "is_us_national",
-  "is_eu_national",
-] as const;
-/** One claim identifier. Exported for callers building their own request
- *  bodies; the route validates against QIE_CLAIMS itself. */
-export type QieClaim = (typeof QIE_CLAIMS)[number];
-
-export interface PassState {
-  status: PassStatus;
-  userStatus: UserStatus;
-  requestId: string;
-  walletAddress?: string;
-  expiresAt?: string;
-  redirectUrl?: string;
-}
-
 /** Everything DevStation can say about a wallet's QIE identity. */
 export interface QieIdentity {
   address: string;
-  /** Names the wallet provably holds; empty is a real answer, not a failure. */
+  /** Names the wallet provably holds, in the contract's enumeration order;
+   *  empty is a real answer, not a failure. */
   names: ResolvedName[];
   /** Count from balanceOf. May exceed names.length when a registration could
    *  not be indexed: the count is authoritative, the labels are best effort. */
   nameCount: number;
-  /** Milliseconds since the wallet's first transaction, null when unknown. */
+  /** Milliseconds since the wallet's first activity, null when unknown. */
   walletAgeMs: number | null;
   firstSeenAt: number | null;
-  /** Present only after the user has consented through QIE Pass. */
-  pass: PassState | null;
 }
 
 /** ASCII strings in a registration's calldata, in the order they appear.
@@ -198,9 +162,10 @@ export function labelsFromStrings(strings: string[], tld = "qie"): string[] {
 /**
  * Tie labels to the tokens minted in the same transaction.
  *
- * One label and one token is unambiguous and marked "exact". Several are
- * matched by position and marked "positional", so the UI can present the
- * difference rather than implying certainty it does not have.
+ * `tokenIds` is every token the registration minted, in mint order. One label
+ * and one token is unambiguous and marked "exact". Several are matched by
+ * position and marked "positional", so the UI can present the difference
+ * rather than implying certainty it does not have.
  */
 export function matchNamesToTokens(
   labels: string[],
@@ -238,29 +203,4 @@ export function formatWalletAge(ms: number | null): string {
   const years = Math.floor(days / 365);
   const rem = Math.floor((days % 365) / 30);
   return rem > 0 ? `${years}y ${rem}m` : `${years} year${years === 1 ? "" : "s"}`;
-}
-
-/** How a pass state reads to a person. */
-export function describePass(pass: PassState | null): {
-  tone: "verified" | "pending" | "rejected" | "none";
-  label: string;
-} {
-  if (!pass) return { tone: "none", label: "Not verified with QIE Pass" };
-  if (pass.status === "consent_given" && pass.userStatus === "verified") {
-    return { tone: "verified", label: "Verified with QIE Pass" };
-  }
-  switch (pass.status) {
-    case "pending_kyc":
-      return { tone: "pending", label: "Awaiting KYC with QIE" };
-    case "pending_consent":
-      return { tone: "pending", label: "Awaiting your consent" };
-    case "consent_rejected":
-      return { tone: "rejected", label: "Consent declined" };
-    case "expired":
-      return { tone: "rejected", label: "Request expired" };
-    case "failed":
-      return { tone: "rejected", label: "Verification failed" };
-    default:
-      return { tone: "none", label: "Not verified with QIE Pass" };
-  }
 }

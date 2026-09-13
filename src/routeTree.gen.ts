@@ -45,7 +45,6 @@ import { Route as DocsAiRouteImport } from './routes/docs.ai'
 import { Route as DevAddressRouteImport } from './routes/dev.$address'
 import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
 import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
-import { Route as ApiQieIdentityRouteImport } from './routes/api.qie-identity'
 import { Route as ApiPublishRouteImport } from './routes/api.publish'
 import { Route as ApiListingsRouteImport } from './routes/api.listings'
 import { Route as ApiGithubRouteImport } from './routes/api.github'
@@ -257,11 +256,6 @@ const ApiRepoAgentRoute = ApiRepoAgentRouteImport.update({
   path: '/api/repo-agent',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiQieIdentityRoute = ApiQieIdentityRouteImport.update({
-  id: '/api/qie-identity',
-  path: '/api/qie-identity',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublishRoute = ApiPublishRouteImport.update({
   id: '/api/publish',
   path: '/api/publish',
@@ -439,7 +433,6 @@ export interface FileRoutesByFullPath {
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/listings': typeof ApiListingsRoute
   '/api/publish': typeof ApiPublishRoute
-  '/api/qie-identity': typeof ApiQieIdentityRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/dev/$address': typeof DevAddressRoute
@@ -506,7 +499,6 @@ export interface FileRoutesByTo {
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/listings': typeof ApiListingsRoute
   '/api/publish': typeof ApiPublishRoute
-  '/api/qie-identity': typeof ApiQieIdentityRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/dev/$address': typeof DevAddressRoute
@@ -574,7 +566,6 @@ export interface FileRoutesById {
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/listings': typeof ApiListingsRoute
   '/api/publish': typeof ApiPublishRoute
-  '/api/qie-identity': typeof ApiQieIdentityRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/dev/$address': typeof DevAddressRoute
@@ -645,7 +636,6 @@ export interface FileRouteTypes {
     | '/api/github'
     | '/api/listings'
     | '/api/publish'
-    | '/api/qie-identity'
     | '/api/repo-agent'
     | '/api/sponsor-topup'
     | '/dev/$address'
@@ -712,7 +702,6 @@ export interface FileRouteTypes {
     | '/api/github'
     | '/api/listings'
     | '/api/publish'
-    | '/api/qie-identity'
     | '/api/repo-agent'
     | '/api/sponsor-topup'
     | '/dev/$address'
@@ -779,7 +768,6 @@ export interface FileRouteTypes {
     | '/api/github'
     | '/api/listings'
     | '/api/publish'
-    | '/api/qie-identity'
     | '/api/repo-agent'
     | '/api/sponsor-topup'
     | '/dev/$address'
@@ -849,7 +837,6 @@ export interface RootRouteChildren {
   ApiGithubRoute: typeof ApiGithubRouteWithChildren
   ApiListingsRoute: typeof ApiListingsRoute
   ApiPublishRoute: typeof ApiPublishRoute
-  ApiQieIdentityRoute: typeof ApiQieIdentityRoute
   ApiRepoAgentRoute: typeof ApiRepoAgentRoute
   ApiSponsorTopupRoute: typeof ApiSponsorTopupRoute
   DevAddressRoute: typeof DevAddressRoute
@@ -1122,13 +1109,6 @@ declare module '@tanstack/react-router' {
       path: '/api/repo-agent'
       fullPath: '/api/repo-agent'
       preLoaderRoute: typeof ApiRepoAgentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/qie-identity': {
-      id: '/api/qie-identity'
-      path: '/api/qie-identity'
-      fullPath: '/api/qie-identity'
-      preLoaderRoute: typeof ApiQieIdentityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/publish': {
@@ -1472,7 +1452,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGithubRoute: ApiGithubRouteWithChildren,
   ApiListingsRoute: ApiListingsRoute,
   ApiPublishRoute: ApiPublishRoute,
-  ApiQieIdentityRoute: ApiQieIdentityRoute,
   ApiRepoAgentRoute: ApiRepoAgentRoute,
   ApiSponsorTopupRoute: ApiSponsorTopupRoute,
   DevAddressRoute: DevAddressRoute,

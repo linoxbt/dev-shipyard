@@ -11,70 +11,98 @@ const WALLET = "0xAbC0000000000000000000000000000000000001";
 function sources(over: Partial<IdentitySources> = {}): IdentitySources {
   return {
     nameCount: async () => 1,
-    transfers: async () => [{ txHash: "0xtx1", tokenId: "111" }],
+    tokenIds: async () => ["111"],
+    mintTx: async () => "0xtx1",
+    mintedIn: async () => ["111"],
     txInput: async () => registration(["oepeo3512"]),
-    ownerOf: async () => WALLET,
     firstSeenAt: async () => Date.now() - 400 * 86_400_000,
     ...over,
   };
 }
 
 describe("resolveNames", () => {
-  it("returns a name only when the wallet still owns its token", async () => {
-    const names = await resolveNames(WALLET, sources());
+  it("names a token the wallet owns from the registration that minted it", async () => {
+    const names = await resolveNames(1, sources());
     expect(names).toHaveLength(1);
     expect(names[0].full).toBe("oepeo3512.qie");
     expect(names[0].confidence).toBe("exact");
   });
 
-  it("drops a name the wallet has sold", async () => {
-    // Otherwise a profile would keep asserting an identity its owner gave away.
+  it("shows a name received by transfer, not only names the wallet registered", async () => {
+    // The registration minted to someone else; the contract says this wallet
+    // owns the token now, which is what counts.
     const names = await resolveNames(
-      WALLET,
-      sources({ ownerOf: async () => "0x9999999999999999999999999999999999999999" }),
+      1,
+      sources({ mintTx: async () => "0xsomeone-elses-registration" }),
     );
-    expect(names).toEqual([]);
+    expect(names.map((n) => n.full)).toEqual(["oepeo3512.qie"]);
   });
 
-  it("matches ownership case-insensitively", async () => {
-    // Explorers and RPCs disagree on address casing; a checksum mismatch must
-    // not silently hide someone's name.
+  it("never names a token the wallet does not own", async () => {
+    // A registration that minted two names to two wallets: only this wallet's
+    // token may come back, even though both labels decode.
     const names = await resolveNames(
-      WALLET.toLowerCase(),
-      sources({ ownerOf: async () => WALLET.toUpperCase() }),
-    );
-    expect(names).toHaveLength(1);
-  });
-
-  it("groups several names minted in one registration", async () => {
-    const names = await resolveNames(
-      WALLET,
+      1,
       sources({
-        transfers: async () => [
-          { txHash: "0xtx1", tokenId: "1" },
-          { txHash: "0xtx1", tokenId: "2" },
-        ],
+        tokenIds: async () => ["2"],
+        mintedIn: async () => ["1", "2"],
         txInput: async () => registration(["alice", "bob"]),
       }),
     );
-    expect(names.map((n) => n.full)).toEqual(["alice.qie", "bob.qie"]);
-    expect(names.every((n) => n.confidence === "positional")).toBe(true);
+    expect(names.map((n) => n.full)).toEqual(["bob.qie"]);
+    expect(names[0].confidence).toBe("positional");
+  });
+
+  it("keeps the contract's order so the first name is the same for every viewer", async () => {
+    const names = await resolveNames(
+      2,
+      sources({
+        nameCount: async () => 2,
+        tokenIds: async () => ["20", "10"],
+        mintTx: async (id) => `0x${id}`,
+        mintedIn: async (tx) => [tx.slice(2)],
+        txInput: async (tx) => registration([tx === "0x20" ? "second" : "first"]),
+      }),
+    );
+    expect(names.map((n) => n.full)).toEqual(["second.qie", "first.qie"]);
   });
 
   it("is empty, not broken, for a wallet with no names", async () => {
-    expect(await resolveNames(WALLET, sources({ transfers: async () => [] }))).toEqual([]);
+    expect(await resolveNames(0, sources())).toEqual([]);
+    expect(await resolveNames(1, sources({ tokenIds: async () => [] }))).toEqual([]);
+  });
+
+  it("resolves registrations in parallel, not one after another", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const slow = () => new Promise((r) => setTimeout(r, 20));
+    const ids = ["1", "2", "3", "4", "5", "6"];
+    await resolveNames(6, {
+      ...sources(),
+      tokenIds: async () => ids,
+      mintTx: async (id) => `0x${id}`,
+      mintedIn: async (tx) => [tx.slice(2)],
+      txInput: async () => {
+        inFlight++;
+        peak = Math.max(peak, inFlight);
+        await slow();
+        inFlight--;
+        return registration(["alice"]);
+      },
+    });
+    expect(peak).toBe(6);
   });
 });
 
 describe("loadIdentity", () => {
-  it("keeps the authoritative count even when indexing fails", async () => {
+  it("keeps the authoritative count even when the explorer fails", async () => {
     // balanceOf is exact; the labels are best effort. Losing the explorer must
     // not make a wallet look like it holds nothing.
     const id = await loadIdentity(
       WALLET,
       sources({
         nameCount: async () => 3,
-        transfers: async () => {
+        mintTx: async () => {
           throw new Error("explorer down");
         },
       }),
@@ -83,7 +111,7 @@ describe("loadIdentity", () => {
     expect(id.names).toEqual([]);
   });
 
-  it("computes wallet age from the first transaction", async () => {
+  it("computes wallet age from the first activity", async () => {
     const id = await loadIdentity(WALLET, sources());
     expect(id.walletAgeMs).toBeGreaterThan(390 * 86_400_000);
   });
@@ -93,78 +121,20 @@ describe("loadIdentity", () => {
     expect(id.walletAgeMs).toBeNull();
   });
 
-  it("never populates pass state passively", async () => {
-    // A verification request notifies a real person and asks for consent. It
-    // must only ever happen when they press the button.
-    const id = await loadIdentity(WALLET, sources());
-    expect(id.pass).toBeNull();
-  });
-
   it("survives every source failing at once", async () => {
     const boom = async () => {
       throw new Error("nope");
     };
     const id = await loadIdentity(WALLET, {
       nameCount: boom,
-      transfers: boom,
+      tokenIds: boom,
+      mintTx: boom,
+      mintedIn: boom,
       txInput: boom,
-      ownerOf: boom,
       firstSeenAt: boom,
     } as unknown as IdentitySources);
     expect(id.nameCount).toBe(0);
     expect(id.names).toEqual([]);
     expect(id.walletAgeMs).toBeNull();
-  });
-});
-
-describe("resolution is parallel, not serial", () => {
-  it("does not chain one request after another", async () => {
-    // Serially, a dozen names meant roughly two dozen round-trips and five to
-    // ten seconds before anything appeared. This asserts the shape, not the
-    // clock: all the txInput calls must be in flight before any resolves.
-    let concurrentInputs = 0;
-    let peakInputs = 0;
-    const slow = () => new Promise((r) => setTimeout(r, 20));
-
-    const transfers = Array.from({ length: 6 }, (_, i) => ({
-      txHash: `0xtx${i}`,
-      tokenId: String(i),
-    }));
-
-    await resolveNames(WALLET, {
-      nameCount: async () => 6,
-      transfers: async () => transfers,
-      txInput: async () => {
-        concurrentInputs++;
-        peakInputs = Math.max(peakInputs, concurrentInputs);
-        await slow();
-        concurrentInputs--;
-        return registration(["alice"]);
-      },
-      ownerOf: async () => WALLET,
-      firstSeenAt: async () => null,
-    });
-
-    expect(peakInputs).toBe(6);
-  });
-
-  it("still verifies ownership for every candidate", async () => {
-    // Parallelising must not skip the check that makes a name trustworthy.
-    let ownerChecks = 0;
-    const names = await resolveNames(WALLET, {
-      nameCount: async () => 2,
-      transfers: async () => [
-        { txHash: "0xa", tokenId: "1" },
-        { txHash: "0xb", tokenId: "2" },
-      ],
-      txInput: async () => registration(["alice"]),
-      ownerOf: async () => {
-        ownerChecks++;
-        return WALLET;
-      },
-      firstSeenAt: async () => null,
-    });
-    expect(ownerChecks).toBe(2);
-    expect(names).toHaveLength(2);
   });
 });

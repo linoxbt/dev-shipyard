@@ -104,6 +104,22 @@ export function marketplaceAddress(chainId: number): `0x${string}` {
   return MARKETPLACE[chainId] ?? ("" as `0x${string}`);
 }
 
+/** The block each default marketplace was deployed at, so its event history is
+ *  read from there instead of from genesis. Null for an address supplied by
+ *  env, whose history this file cannot know. */
+const MARKETPLACE_DEPLOY_BLOCK: Record<number, bigint> = {
+  [qieMainnet.id]: 10_434_564n,
+  [qieTestnet.id]: 8_562_912n,
+};
+
+export function marketplaceDeployBlock(chainId: number): bigint | null {
+  const address = marketplaceAddress(chainId).toLowerCase();
+  const isDefault =
+    (chainId === qieMainnet.id && address === QIE_MAINNET_MARKETPLACE) ||
+    (chainId === qieTestnet.id && address === QIE_TESTNET_MARKETPLACE);
+  return isDefault ? (MARKETPLACE_DEPLOY_BLOCK[chainId] ?? null) : null;
+}
+
 /** ProjectRegistry address for a given chain ("" when not deployed there). */
 export function projectRegistryAddress(chainId: number): `0x${string}` {
   return PROJECT_REGISTRY[chainId] ?? ("" as `0x${string}`);

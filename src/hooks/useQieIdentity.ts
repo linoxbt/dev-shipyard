@@ -2,44 +2,49 @@ import { useQuery } from "@tanstack/react-query";
 import { readContract } from "wagmi/actions";
 import { wagmiConfig } from "@/lib/wagmi";
 import { qieIdAddress, isContractConfigured } from "@/lib/contracts";
-import { qieIdAbi } from "@/lib/qie/identity";
-import { loadIdentity, type ExplorerTransfer, type IdentitySources } from "@/lib/qie/client";
-import type { QieIdentity } from "@/lib/qie/identity";
+import { QIE_ID_CHAIN_ID, qieIdAbi, type QieIdentity, type ResolvedName } from "@/lib/qie/identity";
+import { loadIdentity, type IdentitySources } from "@/lib/qie/client";
 import { getExplorerData } from "@/lib/api/explorer.functions";
 
-// Wiring the identity layer to the real chain and the real explorer.
+// A wallet's QIE ID, wired to the real contract and the real explorer.
 //
-// The contract reads are authoritative; the explorer calls are how the labels
-// and the wallet's age are recovered, since neither is on chain in a readable
-// form. Every source is allowed to fail independently: see client.ts.
+// Always read from QIE Mainnet, where QIE ID lives: a builder's name is the same
+// whichever network the app is pointed at. The contract reads are authoritative;
+// the explorer is how labels and wallet age are recovered. Every source may fail
+// on its own: see lib/qie/client.ts.
 
-const ownerOfAbi = [
-  {
-    inputs: [{ name: "tokenId", type: "uint256" }],
-    name: "ownerOf",
-    outputs: [{ type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-] as const;
+const ZERO = "0x0000000000000000000000000000000000000000";
 
-function makeSources(address: string, chainId: number): IdentitySources {
+type Transfer = {
+  from?: { hash?: string };
+  total?: { token_id?: string };
+  token?: { address_hash?: string; address?: string };
+  transaction_hash?: string;
+};
+
+function makeSources(address: string): IdentitySources {
+  const chainId = QIE_ID_CHAIN_ID;
   const contract = qieIdAddress(chainId);
+  const configured = isContractConfigured(contract);
 
-  // Routed through the server rather than fetched from the page. The browser
-  // enforces its own certificate check, so while QIE's explorer certificate is
-  // invalid a client-side call fails outright and no server-side handling can
-  // reach it. getExplorerData validates the path, fixes the host from chainId,
-  // and shares the same scoped certificate handling as every other call.
+  // Through the server rather than from the page: the server validates the
+  // path, fixes the host from chainId, and handles the explorer's certificate.
   const json = async (path: string) => {
     const res = await getExplorerData({ data: { chainId, path } });
     if (!res.ok) throw new Error(`explorer ${res.status}`);
     return (res.data ?? {}) as Record<string, unknown>;
   };
+  const mintsOf = (items: Transfer[] | undefined) =>
+    (items ?? []).filter(
+      (t) =>
+        (t.from?.hash ?? "").toLowerCase() === ZERO &&
+        (t.token?.address_hash ?? t.token?.address ?? contract).toLowerCase() ===
+          contract.toLowerCase(),
+    );
 
   return {
     nameCount: async () => {
-      if (!isContractConfigured(contract)) return 0;
+      if (!configured) return 0;
       const n = await readContract(wagmiConfig, {
         address: contract,
         abi: qieIdAbi,
@@ -50,26 +55,34 @@ function makeSources(address: string, chainId: number): IdentitySources {
       return Number(n ?? 0n);
     },
 
-    transfers: async (limit) => {
-      // No registry on this chain means no names to look for. Without this
-      // guard the request went out with an empty `token=` and the explorer
-      // answered "Invalid parameter(s)": a wasted round-trip on every load
-      // on every non-QIE chain.
-      if (!isContractConfigured(contract)) return [];
-      // Mints of this token into the wallet, each one is a registration.
-      const d = (await json(
-        `/addresses/${address}/token-transfers?type=ERC-721&token=${contract}`,
-      )) as { items?: Array<Record<string, unknown>> };
-      const out: ExplorerTransfer[] = [];
-      for (const item of d.items ?? []) {
-        const to = ((item.to as { hash?: string })?.hash ?? "").toLowerCase();
-        if (to !== address.toLowerCase()) continue;
-        const tokenId = (item.total as { token_id?: string })?.token_id;
-        const txHash = item.transaction_hash as string | undefined;
-        if (tokenId && txHash) out.push({ tokenId, txHash });
-        if (out.length >= limit) break;
-      }
-      return out;
+    tokenIds: async (count) => {
+      if (!configured) return [];
+      const ids = await Promise.all(
+        Array.from({ length: count }, (_, i) =>
+          readContract(wagmiConfig, {
+            address: contract,
+            abi: qieIdAbi,
+            functionName: "tokenOfOwnerByIndex",
+            args: [address as `0x${string}`, BigInt(i)],
+            chainId,
+          }).catch(() => null),
+        ),
+      );
+      return ids.filter((id): id is bigint => id !== null).map((id) => id.toString());
+    },
+
+    mintTx: async (tokenId) => {
+      const d = (await json(`/tokens/${contract}/instances/${tokenId}/transfers`)) as {
+        items?: Transfer[];
+      };
+      return mintsOf(d.items)[0]?.transaction_hash ?? null;
+    },
+
+    mintedIn: async (txHash) => {
+      const d = (await json(`/transactions/${txHash}/token-transfers`)) as { items?: Transfer[] };
+      return mintsOf(d.items)
+        .map((t) => t.total?.token_id)
+        .filter((id): id is string => !!id);
     },
 
     txInput: async (txHash) => {
@@ -77,24 +90,10 @@ function makeSources(address: string, chainId: number): IdentitySources {
       return d.raw_input ?? null;
     },
 
-    ownerOf: async (tokenId) => {
-      if (!isContractConfigured(contract)) return null;
-      const owner = await readContract(wagmiConfig, {
-        address: contract,
-        abi: ownerOfAbi,
-        functionName: "ownerOf",
-        args: [BigInt(tokenId)],
-        chainId,
-      });
-      return (owner as string) ?? null;
-    },
-
     firstSeenAt: async () => {
-      // Age is the wallet's first ACTIVITY, not its first outgoing
-      // transaction. A wallet that has only ever received, which is the norm
-      // for one holding a name someone else registered for it: has no
-      // transactions at all, and reporting it as ageless would be wrong.
-      // Not a QIE ID signal either way; QIE offers no wallet-age claim.
+      // Age is the wallet's first ACTIVITY, not its first outgoing transaction:
+      // a wallet that has only ever received has no transactions at all, and
+      // reporting it as ageless would be wrong.
       const stamps: number[] = [];
       const collect = (items: Array<{ timestamp?: string }> | undefined) => {
         for (const t of items ?? []) {
@@ -102,31 +101,35 @@ function makeSources(address: string, chainId: number): IdentitySources {
           if (Number.isFinite(ms)) stamps.push(ms);
         }
       };
-
       const [txs, transfers] = await Promise.all([
         json(`/addresses/${address}/transactions`).catch(() => ({})),
         json(`/addresses/${address}/token-transfers`).catch(() => ({})),
       ]);
       collect((txs as { items?: Array<{ timestamp?: string }> }).items);
       collect((transfers as { items?: Array<{ timestamp?: string }> }).items);
-
       return stamps.length ? Math.min(...stamps) : null;
     },
   };
 }
 
-/** A wallet's QIE identity. Null address means nothing is fetched. */
-export function useQieIdentity(address: string | undefined, chainId: number) {
+const isAddress = (a: string | undefined): a is string => !!a && /^0x[a-fA-F0-9]{40}$/.test(a);
+
+/** A wallet's QIE identity: its `.qie` names and age. Null address fetches nothing. */
+export function useQieIdentity(address: string | undefined) {
   return useQuery<QieIdentity | null>({
-    queryKey: ["qie-identity", address, chainId],
-    enabled: !!address,
+    queryKey: ["qie-identity", address?.toLowerCase()],
+    enabled: isAddress(address),
     // Registrations do not change minute to minute, and each refresh costs
     // several explorer calls.
-    staleTime: 5 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
     retry: false,
-    queryFn: async () => {
-      if (!address) return null;
-      return loadIdentity(address, makeSources(address, chainId));
-    },
+    queryFn: async () => (isAddress(address) ? loadIdentity(address, makeSources(address)) : null),
   });
+}
+
+/** The wallet's first `.qie` name, for showing a builder by name anywhere in the
+ *  app. Shares the identity query, so many callers for one wallet fetch once. */
+export function useQieName(address: string | undefined): ResolvedName | null {
+  const { data } = useQieIdentity(address);
+  return data?.names[0] ?? null;
 }

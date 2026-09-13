@@ -6,6 +6,7 @@ import { gasLink } from "@/lib/chains";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useQusdcBalance } from "@/hooks/useQusdc";
 import { ConnectModal } from "./ConnectModal";
+import { useQieName } from "@/hooks/useQieIdentity";
 
 // Native balance below this (in QIE) is treated as "too low for gas".
 const LOW_GAS_THRESHOLD = 0.01;
@@ -22,6 +23,8 @@ export function WalletPanel() {
     query: { enabled: isConnected, refetchInterval: 30_000 },
   });
   const qusdc = useQusdcBalance(address, chainId);
+  // The connected wallet by its .qie name, when it holds one.
+  const qieName = useQieName(address);
   const [copied, setCopied] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
 
@@ -56,7 +59,9 @@ export function WalletPanel() {
         className="group flex w-full items-center gap-2 rounded border border-border bg-background px-2 py-1.5 text-left transition hover:border-primary/50"
       >
         <span className="h-2 w-2 rounded-full bg-success" />
-        <span className="font-mono text-xs text-foreground">{truncateAddress(address)}</span>
+        <span className="min-w-0 truncate font-mono text-xs text-foreground" title={address}>
+          {qieName ? qieName.full : truncateAddress(address)}
+        </span>
         {copied ? (
           <Check className="ml-auto h-3 w-3 text-success" />
         ) : (
