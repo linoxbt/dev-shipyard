@@ -37,6 +37,9 @@ import { chatCommand } from "./interactive";
 import { repoCommand } from "./repo-command";
 import { colourEnabled } from "./render";
 import { lineReader } from "./line-reader";
+import { pickerKey, renderPicker, type Choice, type KeyInfo } from "./picker";
+import { slashMenuItems, slashMenuLines } from "./slash-menu";
+import { paint } from "./render";
 import { providerFromSettings, resolveSettings } from "../providers";
 import { notifyIfOutdated, upgradeCommand } from "./upgrade";
 
@@ -76,12 +79,18 @@ export async function main(argv: string[]): Promise<number> {
       done();
     },
   });
+  // Set for the length of one Shift+Tab, so readline's own Tab completion does
+  // not also fire for it.
+  let cyclingMode = false;
   const readline = createInterface({
     input: process.stdin,
     output,
     terminal: Boolean(process.stdin.isTTY),
     // Tab after "/" offers the session commands and the skills found here.
-    completer: (line: string) => completeSlash(line, () => listSkills(root).map((s) => s.name)),
+    completer: (line: string) =>
+      cyclingMode
+        ? ([[], line] as [string[], string])
+        : completeSlash(line, () => listSkills(root).map((s) => s.name)),
   });
   // At a terminal, a burst of lines is a paste and becomes one message; a pipe
   // is read line by line, as scripts expect.
@@ -90,11 +99,112 @@ export async function main(argv: string[]): Promise<number> {
     onPasteHeld: (lines) =>
       process.stdout.write(`  (${lines} lines pasted. Press Enter to send them.)\n`),
   });
+
+  // Arrow keys, the command list and Shift+Tab, at a real terminal only. A pipe
+  // answers prompts with typed lines, which is what scripts send.
+  const tty = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  let picking = false;
+
+  const choose = (choices: Choice[]): Promise<number> =>
+    new Promise((resolve) => {
+      picking = true;
+      const release = input.hold();
+      muted = true;
+      let selected = 0;
+      let drawn = 0;
+      const draw = (finished = false) => {
+        const lines = renderPicker(choices, selected, colourEnabled(), finished);
+        const up = drawn > 0 ? `\x1b[${drawn}A` : "";
+        process.stdout.write(`${up}${lines.map((line) => `\r\x1b[2K${line}`).join("\n")}\n`);
+        drawn = lines.length;
+      };
+      const onKey = (sequence: string | undefined, key: KeyInfo | undefined) => {
+        const step = pickerKey({ ...key, sequence: key?.sequence ?? sequence }, selected, choices);
+        selected = step.selected;
+        if (step.done === undefined) {
+          draw();
+          return;
+        }
+        process.stdin.off("keypress", onKey);
+        selected = step.done;
+        draw(true);
+        process.stdout.write("\x1b[?25h");
+        // Whatever the keys put in readline's own line is not a message.
+        (readline as unknown as { write(data: null, key: object): void }).write(null, {
+          ctrl: true,
+          name: "u",
+        });
+        muted = false;
+        picking = false;
+        setTimeout(release, 50);
+        resolve(step.done);
+      };
+      process.stdout.write("\x1b[?25l");
+      draw();
+      process.stdin.on("keypress", onKey);
+    });
+
+  let menuRows = 0;
+  let skillNames: string[] | null = null;
+  const clearMenu = (afterEnter = false) => {
+    if (menuRows === 0) return;
+    // After Enter the cursor is already on the menu's first row.
+    process.stdout.write(afterEnter ? "\r\x1b[J" : "\x1b7\r\n\x1b[J\x1b8");
+    menuRows = 0;
+  };
+  const onPromptKey = (
+    _sequence: string | undefined,
+    key: (KeyInfo & { shift?: boolean }) | undefined,
+  ) => {
+    if (picking || muted || !input.waiting()) return;
+    const rl = readline as unknown as { line?: string; cursor?: number };
+    const line = rl.line ?? "";
+    if (key?.name === "return" || key?.name === "enter") {
+      clearMenu(true);
+      return;
+    }
+    if (key?.name === "tab" && key.shift && terminal.onCycleMode) {
+      clearMenu();
+      const label = terminal.onCycleMode();
+      process.stdout.write(`\r\x1b[2K${paint(`  ${label}`, "brand", colourEnabled())}\n> ${line}`);
+      const back = line.length - (rl.cursor ?? line.length);
+      if (back > 0) process.stdout.write(`\x1b[${back}D`);
+      return;
+    }
+    skillNames ??= listSkills(root).map((s) => s.name);
+    const lines = slashMenuLines(line, slashMenuItems(skillNames), {
+      colour: colourEnabled(),
+      maxRows: Math.max(4, (process.stdout.rows ?? 24) - 6),
+    });
+    if (lines.length === 0) {
+      clearMenu();
+      return;
+    }
+    // Make room below the input, come back to where the cursor was, and draw
+    // the list under it without moving the cursor.
+    const column = 3 + (rl.cursor ?? line.length);
+    process.stdout.write(
+      `${"\n".repeat(lines.length)}\x1b[${lines.length}A\x1b[${column}G` +
+        `\x1b7\r\n\x1b[J${lines.join("\r\n")}\x1b8`,
+    );
+    menuRows = lines.length;
+  };
+  if (tty) {
+    process.stdin.prependListener(
+      "keypress",
+      (_s: string, key: { name?: string; shift?: boolean }) => {
+        cyclingMode = Boolean(key?.name === "tab" && key.shift);
+      },
+    );
+    process.stdin.on("keypress", onPromptKey);
+  }
+
   const terminal: Terminal = {
     out: (text) => process.stdout.write(`${text}\n`),
     err: (text) => process.stderr.write(`${text}\n`),
     ask: (question) => input.ask(question),
     ended: () => input.ended(),
+    choose: tty ? choose : undefined,
     askSecret: async (question) => {
       process.stdout.write(question);
       muted = true;

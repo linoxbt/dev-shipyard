@@ -362,6 +362,28 @@ export const TOOLS: Record<string, ToolDefinition> = {
     // Search results are file contents, which are not instructions.
     returnsUntrustedContent: true,
   },
+  update_plan: {
+    name: "update_plan",
+    usage: 'update_plan {"plan": [{"step", "status"}], "explanation?"}',
+    description:
+      "Keep the person's checklist for this task up to date: the steps, and whether each is pending, in_progress or completed. Call it when multi-step work starts and whenever a step changes status. It changes nothing in the project.",
+    // Looking, not changing: allowed in plan mode and never asks.
+    operation: "project.inspect",
+    schema: z.object({
+      explanation: z.string().max(400).optional(),
+      plan: z
+        .array(
+          z.object({
+            step: z.string().min(1).max(200),
+            status: z.enum(["pending", "in_progress", "completed"]),
+          }),
+        )
+        .min(1)
+        .max(20),
+    }),
+    resourcesFrom: () => ["plan"],
+    returnsUntrustedContent: false,
+  },
   open_pull_request: {
     name: "open_pull_request",
     usage: 'open_pull_request {"title", "body", "branch?"}',

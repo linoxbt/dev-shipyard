@@ -47,6 +47,7 @@ import { Workspace } from "../workspace";
 import type { ModelProvider, ProviderMessage } from "../providers";
 import { renderApproval, renderEvent, renderReceipt, renderSessions, renderUsage } from "./render";
 import { CLI_NAME } from "./args";
+import { APPROVAL_CHOICES, type Choice } from "./picker";
 
 // The commands take their terminal as a parameter rather than reaching for
 // process.stdout, so every one of them can be driven by a test with no tty,
@@ -56,6 +57,12 @@ export interface Terminal {
   out(text: string): void;
   err(text: string): void;
   ask(question: string): Promise<string>;
+  /** Pick one of a few options with the arrow keys. Only at a real terminal;
+   *  elsewhere prompts fall back to ask(). Resolves to the chosen index. */
+  choose?(choices: Choice[]): Promise<number>;
+  /** Set by an interactive session: what Shift+Tab does. Returns a line
+   *  describing the mode it switched to. */
+  onCycleMode?: () => string;
   /** Whether the input has closed with nothing left to read. Where it is
    *  absent, an empty answer is taken as the end of the input. */
   ended?(): boolean;
@@ -153,6 +160,18 @@ function approver(context: CommandContext, live: LiveView | null = null) {
 
     live?.suspend();
     try {
+      if (context.terminal.choose) {
+        // The question and the command, then the options as an arrow-key list.
+        const block = renderApproval(request, context.terminal.colour).split("\n");
+        const options = block.findIndex((line) => line.includes("1. Yes, proceed"));
+        context.terminal.out(block.slice(0, options > 0 ? options : block.length).join("\n"));
+        const picked = await context.terminal.choose(APPROVAL_CHOICES);
+        if (picked === 1) {
+          (context.alwaysAllow ??= new Set()).add(key);
+          return true;
+        }
+        return picked === 0;
+      }
       context.terminal.out(renderApproval(request, context.terminal.colour));
       const answer = await context.terminal.ask("Allow this? Type 1, 2 or 3 › ");
       if (isAlways(answer)) {

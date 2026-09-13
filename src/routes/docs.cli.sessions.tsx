@@ -57,6 +57,46 @@ devstation resume <id> "actually, use the existing helper"
 devstation sessions                                   # every run in this workspace`}
       />
 
+      <H2>Modes and shortcuts</H2>
+      <Table
+        head={["Key", "Does"]}
+        rows={[
+          [
+            "/",
+            "Show every command under the prompt. Keep typing to narrow the list; Tab completes.",
+          ],
+          [
+            "Shift+Tab",
+            "Switch mode: normal, then auto mode, then plan mode, then back. The rule above the prompt shows which is on.",
+          ],
+          [
+            "↑ / ↓ and Enter",
+            "Choose an answer when the agent asks for permission or a plan is ready.",
+          ],
+          ["Ctrl-C", "Interrupt the turn in progress."],
+        ]}
+      />
+      <Table
+        head={["Mode", "What happens"]}
+        rows={[
+          ["Normal", "Ordinary work runs; anything that changes things outside it asks first."],
+          [
+            "Auto mode",
+            "Actions run without asking. Critical ones still ask. The same as /approve on.",
+          ],
+          [
+            "Plan mode",
+            "It reads, searches and looks things up, changes nothing, and ends with a plan to approve. The same as /plan on.",
+          ],
+        ]}
+      />
+      <H3>Plans</H3>
+      <P>
+        For work with several steps the agent keeps a checklist, shown as it goes: ✔ done, ◐ in
+        progress, □ still to do. In plan mode it ends with that checklist and asks whether to carry
+        it out; choose Yes and it starts, choose No and it keeps planning.
+      </P>
+
       <H2>Slash commands</H2>
       <Table
         head={["Command", "What it does"]}

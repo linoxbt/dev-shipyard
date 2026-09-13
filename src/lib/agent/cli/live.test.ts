@@ -122,6 +122,29 @@ describe("edits and the web", () => {
   });
 });
 
+describe("the plan", () => {
+  it("is a checklist of what is done, in progress and still to do", () => {
+    const { live, screen, ev } = view();
+    live.event(
+      ev("step.completed", "update_plan", {
+        input: {
+          plan: [
+            { step: "Inspect the repository", status: "completed" },
+            { step: "Write the contract", status: "in_progress" },
+            { step: "Add tests", status: "pending" },
+          ],
+        },
+      }),
+    );
+    live.stop();
+    const out = screen();
+    expect(out).toContain("• Updated Plan");
+    expect(out).toContain("└ ✔ Inspect the repository");
+    expect(out).toContain("◐ Write the contract");
+    expect(out).toContain("□ Add tests");
+  });
+});
+
 describe("the model's words", () => {
   it("are a bulleted cell, with following lines indented", () => {
     const { live, screen, ev } = view();

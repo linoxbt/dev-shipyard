@@ -27,6 +27,11 @@ export interface LineSource {
   /** True once the input has closed and everything it sent has been read. An
    *  empty line from a person pressing Enter is not the end of anything. */
   ended(): boolean;
+  /** Whether a prompt is currently waiting for a line. */
+  waiting(): boolean;
+  /** Ignore lines until the returned function is called: while an arrow-key
+   *  picker has the keyboard, its Enter is not a message. */
+  hold(): () => void;
 }
 
 export interface LineReaderOptions {
@@ -50,6 +55,7 @@ export function lineReader(
   let timer: ReturnType<typeof setTimeout> | null = null;
   /** A multi-line paste, waiting for the Enter that sends it. */
   let held: string | null = null;
+  let holds = 0;
 
   const deliver = (text: string) => {
     if (waiting) {
@@ -89,6 +95,7 @@ export function lineReader(
   };
 
   rl.on("line", (line) => {
+    if (holds > 0) return;
     if (coalesceMs <= 0) {
       deliver(line);
       return;
@@ -130,6 +137,18 @@ export function lineReader(
     },
     ended() {
       return closed && queued.length === 0 && burst.length === 0 && held === null;
+    },
+    waiting() {
+      return waiting !== null;
+    },
+    hold() {
+      holds++;
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        holds--;
+      };
     },
   };
 }

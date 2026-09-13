@@ -960,6 +960,30 @@ describe("pasting at a terminal", () => {
   });
 });
 
+describe("an arrow-key picker holding the keyboard", () => {
+  it("does not turn its Enter into a message", async () => {
+    const handlers: Record<string, ((line: string) => void)[]> = {};
+    const rl = {
+      on(event: string, handler: (line: string) => void) {
+        (handlers[event] ??= []).push(handler);
+        return this;
+      },
+      close() {},
+    };
+    const emit = (line: string) => {
+      for (const h of handlers.line ?? []) h(line);
+    };
+    const reader = lineReader(rl as never, () => {});
+    const release = reader.hold();
+    emit("");
+    release();
+    const next = reader.ask("> ");
+    expect(reader.waiting()).toBe(true);
+    emit("real message");
+    expect(await next).toBe("real message");
+  });
+});
+
 describe("choosing where commands run", () => {
   it("defaults to the sandbox, so the weaker mode is always a choice", () => {
     expect(parseArgs(["run", "x"]).sandbox).toBe(true);

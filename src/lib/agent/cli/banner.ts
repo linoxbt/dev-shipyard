@@ -110,7 +110,7 @@ export function openingHelp(colour = false): string {
   return [
     paint("  Ask anything, or say what you want built, and press Enter.", "dim", colour),
     paint(
-      "  /help for commands (Tab completes them), Ctrl-C to interrupt, Ctrl-D or /exit to leave.",
+      "  Type / for commands · Shift+Tab switches auto and plan mode · Ctrl-C interrupts · /exit leaves.",
       "dim",
       colour,
     ),

@@ -1,3 +1,4 @@
+import { PLAN_CHOICES } from "./picker";
 import { SESSION_HELP, slashNames } from "./args";
 import {
   buildExecutor,
@@ -382,6 +383,22 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
   terminal.out(openingHelp(terminal.colour));
 
   const state: ChatState = { session: null, planMode: false };
+
+  // Shift+Tab at the prompt: normal, then auto mode, then plan mode, then back.
+  terminal.onCycleMode = () => {
+    if (state.planMode) {
+      state.planMode = false;
+      withExecutor.yes = false;
+      return "Normal mode: anything that changes things asks first. (Shift+Tab to switch)";
+    }
+    if (withExecutor.yes) {
+      withExecutor.yes = false;
+      state.planMode = true;
+      return "⏸ Plan mode: it looks and proposes a plan, and changes nothing. (Shift+Tab to switch)";
+    }
+    withExecutor.yes = true;
+    return "⏵⏵ Auto mode: actions run without asking; critical ones still ask. (Shift+Tab to switch)";
+  };
   let pending = opening.trim();
   // A turn queued by the loop itself, such as carrying out an accepted plan.
   // Never read as a slash command.
@@ -402,7 +419,7 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
           withExecutor.provider.model,
           shortPath(context.root),
           state.planMode ? "plan mode" : "",
-          withExecutor.yes ? "auto-approve" : "",
+          withExecutor.yes ? "auto mode" : "",
           state.session?.title ?? "",
           "/help",
         ].filter(Boolean);
@@ -454,8 +471,14 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
     // Plan mode ends the way Claude Code's does: with the plan on screen and a
     // question. Only asked of a person at a terminal; a pipe keeps planning.
     if (planning && result.result?.ok && terminal.write) {
-      const answer = await terminal.ask("Carry out this plan? [y]es / [N]o, keep planning ");
-      if (isYes(answer)) {
+      let approved: boolean;
+      if (terminal.choose) {
+        terminal.out("  Carry out this plan?");
+        approved = (await terminal.choose(PLAN_CHOICES)) === 0;
+      } else {
+        approved = isYes(await terminal.ask("Carry out this plan? [y]es / [N]o, keep planning "));
+      }
+      if (approved) {
         state.planMode = false;
         queued = "The plan above is approved. Carry it out now, then verify it works.";
       }

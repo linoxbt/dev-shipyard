@@ -22,14 +22,18 @@ function CliPermissions() {
       </P>
       <P>
         It asks before anything that loses data, spends money, changes who can get in, or reaches
-        production. A plain Enter means no.
+        production. It shows the exact command and asks you to choose, with the arrow keys and
+        Enter, or by pressing the number or letter beside an answer. Esc means no.
       </P>
       <Table
         head={["Answer", "Means"]}
         rows={[
-          ["y", "Allow it once."],
-          ["a", "Allow that action, on that target, for the rest of the session."],
-          ["anything else, including Enter", "No."],
+          ["1 · Yes, proceed (y)", "Allow it once."],
+          [
+            "2 · Yes, and don't ask again this session (a)",
+            "Allow that action, on that target, for the rest of the session.",
+          ],
+          ["3 · No, skip it (n), or Esc", "No. The agent carries on without it."],
         ]}
       />
       <P>

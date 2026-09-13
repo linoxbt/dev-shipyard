@@ -450,7 +450,9 @@ export class Orchestrator {
       for (const call of result.toolCalls) {
         steps++;
         const outcome = await this.runOne(call);
-        (outcome.ok ? turn.applied : turn.failed).push(call.name);
+        // A plan update changes nothing in the project, so it is neither half
+        // of a change nor evidence that one happened.
+        if (call.name !== "update_plan") (outcome.ok ? turn.applied : turn.failed).push(call.name);
         messages.push({
           role: "tool",
           toolCallId: call.id,
@@ -460,7 +462,10 @@ export class Orchestrator {
         this.progress(steps, summary, messages);
       }
 
-      const partial = partialTurn(turn, result.toolCalls.length);
+      const partial = partialTurn(
+        turn,
+        result.toolCalls.filter((call) => call.name !== "update_plan").length,
+      );
       if (partial) {
         this.emit("turn.partial", partial, { detail: { ...turn } });
         // Told to the model as well, because otherwise its next move is built
@@ -735,6 +740,12 @@ export class Orchestrator {
         return { ok: result.ok, output: result.message };
       }
 
+      case "update_plan": {
+        const plan = Array.isArray(args.plan) ? (args.plan as Array<{ status?: string }>) : [];
+        const done = plan.filter((step) => step.status === "completed").length;
+        return { ok: true, output: `Plan updated: ${done} of ${plan.length} steps done.` };
+      }
+
       case "recall": {
         const store = this.opts.memory;
         if (!store) {
@@ -913,6 +924,8 @@ function describe(call: ProviderToolCall): string {
       return "Linting and type-checking";
     case "install_dependency":
       return `Installing ${a.name}`;
+    case "update_plan":
+      return "Updating the plan";
     case "recall":
       return `Searching the project for "${a.query}"`;
     case "web_search":

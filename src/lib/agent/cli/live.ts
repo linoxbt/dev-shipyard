@@ -98,6 +98,8 @@ export interface Cell {
   /** Lines under the title, already carrying their connector. */
   body: string[];
   failed: boolean;
+  /** Body text in the normal colour rather than dimmed, for a plan. */
+  plain?: boolean;
 }
 
 function bodyFrom(preview: string[], connector = "└"): string[] {
@@ -168,6 +170,19 @@ export function stepCell(event: AgentEvent): Cell {
       return { title: `Read ${text(input.url)}`, body: why, failed };
     case "remember":
       return { title: `Noted: ${clip(text(input.note), 90)}`, body: why, failed };
+    case "update_plan": {
+      const steps = Array.isArray(input.plan) ? (input.plan as Array<Record<string, unknown>>) : [];
+      const mark = (status: unknown) =>
+        status === "completed" ? "✔" : status === "in_progress" ? "◐" : "□";
+      const items = steps.map((s) => `${mark(s.status)} ${text(s.step)}`);
+      const explanation = text(input.explanation);
+      return {
+        title: "Updated Plan",
+        body: bodyFrom(explanation ? [explanation, ...items] : items),
+        failed,
+        plain: true,
+      };
+    }
     default: {
       const tool = event.tool ?? "a tool";
       return { title: tool.includes("__") ? `Called ${tool}` : `Used ${tool}`, body: why, failed };
@@ -194,6 +209,8 @@ function activityFor(tool: string | undefined, input: Input): string {
       return `Editing ${text(input.path)}`;
     case "web_search":
       return "Searching the web";
+    case "update_plan":
+      return "Planning";
     case "fetch_url":
       return `Reading ${clip(text(input.url), 60)}`;
     default:
@@ -311,7 +328,11 @@ export class LiveView {
       ...cell.body.map((line) => {
         const connector = line.slice(0, 1);
         const content = line.slice(2);
-        const coloured = cell.failed ? this.paint(content, "31") : this.paint(content, "90");
+        const coloured = cell.failed
+          ? this.paint(content, "31")
+          : cell.plain
+            ? content
+            : this.paint(content, "90");
         return `  ${this.paint(connector, "90")} ${coloured}`;
       }),
     ];
