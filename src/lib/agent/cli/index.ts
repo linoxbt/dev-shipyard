@@ -83,11 +83,18 @@ export async function main(argv: string[]): Promise<number> {
     // Tab after "/" offers the session commands and the skills found here.
     completer: (line: string) => completeSlash(line, () => listSkills(root).map((s) => s.name)),
   });
-  const input = lineReader(readline, (text) => process.stdout.write(text));
+  // At a terminal, a burst of lines is a paste and becomes one message; a pipe
+  // is read line by line, as scripts expect.
+  const input = lineReader(readline, (text) => process.stdout.write(text), {
+    coalesceMs: process.stdin.isTTY ? 30 : 0,
+    onPasteHeld: (lines) =>
+      process.stdout.write(`  (${lines} lines pasted. Press Enter to send them.)\n`),
+  });
   const terminal: Terminal = {
     out: (text) => process.stdout.write(`${text}\n`),
     err: (text) => process.stderr.write(`${text}\n`),
     ask: (question) => input.ask(question),
+    ended: () => input.ended(),
     askSecret: async (question) => {
       process.stdout.write(question);
       muted = true;

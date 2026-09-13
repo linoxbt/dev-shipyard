@@ -417,8 +417,12 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
       pending = "";
       const text = line.trim();
       if (!text) {
-        // An empty line at a closed pipe would otherwise spin forever.
-        if (line === "") return finish();
+        // The end of the input closes the session; an empty line does not. A
+        // person pressing Enter on an empty prompt, or a blank line in a paste,
+        // used to end the session on the spot. Where the terminal cannot say,
+        // an empty answer is the end, which is what a closed pipe gives.
+        const ended = terminal.ended ? terminal.ended() : line === "";
+        if (ended) return finish();
         continue;
       }
 

@@ -56,6 +56,9 @@ export interface Terminal {
   out(text: string): void;
   err(text: string): void;
   ask(question: string): Promise<string>;
+  /** Whether the input has closed with nothing left to read. Where it is
+   *  absent, an empty answer is taken as the end of the input. */
+  ended?(): boolean;
   /** Ask without echoing what is typed, for API keys. Absent where there is no
    *  terminal to mute, and callers fall back to ask(). */
   askSecret?(question: string): Promise<string>;

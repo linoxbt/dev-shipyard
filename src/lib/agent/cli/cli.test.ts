@@ -876,6 +876,88 @@ describe("reading input while a turn is running", () => {
   });
 });
 
+describe("pasting at a terminal", () => {
+  function fakeInterface() {
+    const handlers: Record<string, ((line: string) => void)[]> = {};
+    return {
+      rl: {
+        on(event: string, handler: (line: string) => void) {
+          (handlers[event] ??= []).push(handler);
+          return this;
+        },
+        close() {
+          for (const h of handlers.close ?? []) h("");
+        },
+      },
+      emit(line: string) {
+        for (const h of handlers.line ?? []) h(line);
+      },
+      end() {
+        for (const h of handlers.close ?? []) h("");
+      },
+    };
+  }
+  const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  it("sends a pasted brief as one message, blank lines and all, when Enter is pressed", async () => {
+    const fake = fakeInterface();
+    const held: number[] = [];
+    const reader = lineReader(fake.rl as never, () => {}, {
+      coalesceMs: 5,
+      onPasteHeld: (n) => held.push(n),
+    });
+    const answer = reader.ask("> ");
+    fake.emit("Build GenContract");
+    fake.emit("");
+    fake.emit("### The core premise");
+    await pause(20);
+    expect(held).toEqual([3]);
+    fake.emit("");
+    expect(await answer).toBe("Build GenContract\n\n### The core premise");
+  });
+
+  it("joins the last line, which only arrives with Enter, to the paste", async () => {
+    const fake = fakeInterface();
+    const reader = lineReader(fake.rl as never, () => {}, { coalesceMs: 5 });
+    const answer = reader.ask("> ");
+    fake.emit("first");
+    fake.emit("second");
+    await pause(20);
+    fake.emit("third");
+    expect(await answer).toBe("first\nsecond\nthird");
+  });
+
+  it("sends a typed line straight away", async () => {
+    const fake = fakeInterface();
+    const reader = lineReader(fake.rl as never, () => {}, { coalesceMs: 5 });
+    const answer = reader.ask("> ");
+    fake.emit("hello");
+    expect(await answer).toBe("hello");
+  });
+
+  it("does not treat an empty line as the end of the input", async () => {
+    const fake = fakeInterface();
+    const reader = lineReader(fake.rl as never, () => {}, { coalesceMs: 5 });
+    const answer = reader.ask("> ");
+    fake.emit("");
+    expect(await answer).toBe("");
+    expect(reader.ended()).toBe(false);
+    fake.end();
+    expect(reader.ended()).toBe(true);
+  });
+
+  it("still sends a held paste if the input closes", async () => {
+    const fake = fakeInterface();
+    const reader = lineReader(fake.rl as never, () => {}, { coalesceMs: 5 });
+    fake.emit("a");
+    fake.emit("b");
+    await pause(20);
+    fake.end();
+    expect(await reader.ask("> ")).toBe("a\nb");
+    expect(reader.ended()).toBe(true);
+  });
+});
+
 describe("choosing where commands run", () => {
   it("defaults to the sandbox, so the weaker mode is always a choice", () => {
     expect(parseArgs(["run", "x"]).sandbox).toBe(true);
