@@ -4,6 +4,7 @@ import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "n
 import { dirname, join } from "node:path";
 import { VERSION } from "./args";
 import type { CommandContext, Terminal } from "./commands";
+import type { Choice } from "./picker";
 
 // Keeping the CLI current, the way `claude update` does.
 //
@@ -227,6 +228,43 @@ export interface NoticeOptions {
   env?: NodeJS.ProcessEnv;
   now?: number;
   fetchImpl?: typeof fetch;
+  /** Refresh the cache without printing the line: the person was just asked. */
+  silent?: boolean;
+}
+
+function updateCachePath(homeDir: string): string {
+  return join(homeDir, ".devstation", "update-check.json");
+}
+
+/** The newer version the last daily check found, read from its cache: no
+ *  network, so it can be asked before the first prompt. Null when there is
+ *  none, or checks are off. */
+export function cachedUpdate(opts: { home?: string; env?: NodeJS.ProcessEnv } = {}): string | null {
+  const env = opts.env ?? process.env;
+  if (env.DEVSTATION_NO_UPDATE_CHECK === "1" || env.CI) return null;
+  const homeDir = opts.home ?? env.HOME ?? "";
+  if (!homeDir) return null;
+  try {
+    const cached = JSON.parse(readFileSync(updateCachePath(homeDir), "utf8")) as {
+      latest?: unknown;
+    };
+    return typeof cached.latest === "string" && compareVersions(cached.latest, VERSION) > 0
+      ? cached.latest
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** What starting a conversation asks when a newer version exists. */
+export function updateQuestion(latest: string): { heading: string; choices: Choice[] } {
+  return {
+    heading: `  devstation ${latest} is available. You have ${VERSION}.`,
+    choices: [
+      { label: `Upgrade to ${latest} now`, key: "u" },
+      { label: `Continue with ${VERSION}`, key: "c" },
+    ],
+  };
 }
 
 /**
@@ -244,7 +282,7 @@ export function notifyIfOutdated(terminal: Terminal, opts: NoticeOptions = {}): 
   const homeDir = opts.home ?? env.HOME ?? "";
   if (!homeDir) return Promise.resolve();
 
-  const path = join(homeDir, ".devstation", "update-check.json");
+  const path = updateCachePath(homeDir);
   let cached: { checkedAt?: number; latest?: string } = {};
   try {
     cached = JSON.parse(readFileSync(path, "utf8")) as typeof cached;
@@ -252,7 +290,7 @@ export function notifyIfOutdated(terminal: Terminal, opts: NoticeOptions = {}): 
     // No cache yet, or a broken one: treated as never checked.
   }
 
-  if (cached.latest && compareVersions(cached.latest, VERSION) > 0) {
+  if (!opts.silent && cached.latest && compareVersions(cached.latest, VERSION) > 0) {
     terminal.err(
       `devstation ${cached.latest} is available (you have ${VERSION}). Run: devstation upgrade`,
     );

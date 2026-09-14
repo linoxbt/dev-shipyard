@@ -424,8 +424,10 @@ export class LiveView {
         this.activity = null;
         this.redraw();
         return;
+      // turn.partial is for the model, which is told which calls did not take
+      // effect. On screen it read as an alarm about a turn that had changed
+      // nothing, and the model then had to explain it away.
       case "plan":
-      case "turn.partial":
       case "handoff":
       case "task.aborted": {
         this.endText();

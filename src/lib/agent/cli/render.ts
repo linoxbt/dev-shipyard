@@ -98,8 +98,11 @@ export function renderApproval(request: ApprovalRequest, colour = false): string
   } else if (request.resources.length > 0) {
     lines.push(`  What: ${request.resources.join(", ")}`);
   }
+  // Only the critical level is worth a line of its own. "Risk: high" under an
+  // `echo` read as an alarm, and prompts that always sound alarmed get clicked
+  // through unread.
+  if (request.riskLevel === "critical") lines.push(paint("  Risk: critical", "red", colour));
   lines.push(
-    paint(`  Risk: ${request.riskLevel}`, "grey", colour),
     "",
     `${paint("❯", "brand", colour)} 1. Yes, proceed ${paint("(y)", "grey", colour)}`,
     `  2. Yes, and don't ask again this session ${paint("(a)", "grey", colour)}`,

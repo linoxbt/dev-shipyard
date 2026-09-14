@@ -42,7 +42,7 @@ import { slashMenuItems, slashMenuLines } from "./slash-menu";
 import { boxLines, composerView, messageBlock } from "./composer";
 import { fitWidth } from "./width";
 import { providerFromSettings, resolveSettings } from "../providers";
-import { notifyIfOutdated, upgradeCommand } from "./upgrade";
+import { cachedUpdate, notifyIfOutdated, updateQuestion, upgradeCommand } from "./upgrade";
 
 // The terminal front end. Everything below the parsing and the readline lives
 // in commands.ts and interactive.ts, which is what makes this a thin third
@@ -345,6 +345,21 @@ export async function main(argv: string[]): Promise<number> {
         break;
     }
 
+    // A newer version, found by the last daily check: upgrade now, or carry on
+    // with this one. Asked of a person at a terminal starting a conversation;
+    // `run`, scripts and pipes keep the one-line notice instead.
+    const askToUpgrade = parsed.command === "chat" && tty && Boolean(terminal.choose);
+    const newer = askToUpgrade ? cachedUpdate() : null;
+    if (newer && terminal.choose) {
+      const question = updateQuestion(newer);
+      terminal.out(question.heading);
+      if ((await terminal.choose(question.choices)) === 0) {
+        const code = await upgradeCommand(offline, {});
+        if (code === 0) terminal.out(`Start it again with: ${CLI_NAME}`);
+        return code;
+      }
+    }
+
     // A conversation gets a screen of its own, the way claude and codex open:
     // a clean terminal with the banner at the top, not a banner under whatever
     // the shell printed last. Scrollback is left alone.
@@ -370,7 +385,7 @@ export async function main(argv: string[]): Promise<number> {
 
     // Reads yesterday's answer from a cache and refreshes it in the background:
     // never a network round trip in front of the first prompt.
-    void notifyIfOutdated(terminal);
+    void notifyIfOutdated(terminal, { silent: askToUpgrade });
 
     const ctx = context(root, terminal, parsed, provider);
     ctx.signal = controller.signal;

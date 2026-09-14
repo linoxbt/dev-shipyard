@@ -42,6 +42,10 @@ const READ_ONLY = new Set([
   "realpath",
   "basename",
   "dirname",
+  // `|| true` and `type gh` only report.
+  "true",
+  "false",
+  "type",
   "ls",
   "pwd",
   "echo",
@@ -74,6 +78,27 @@ const READ_ONLY_SUBCOMMANDS: Record<string, Set<string>> = {
   bun: new Set(["--version", "-v", "pm"]),
   docker: new Set(["ps", "images", "version"]),
 };
+
+/** gh commands that only read: which account is signed in, and repositories,
+ *  pull requests, issues, releases and runs as they stand. */
+const GH_READS = new Set([
+  "auth status",
+  "repo list",
+  "repo view",
+  "pr list",
+  "pr view",
+  "pr status",
+  "pr diff",
+  "pr checks",
+  "issue list",
+  "issue view",
+  "issue status",
+  "release list",
+  "release view",
+  "run list",
+  "run view",
+  "workflow list",
+]);
 
 /** Anything that can destroy work or reach past the workspace. Kept per
  *  platform: `rm -rf` is not a real command on Windows, so a POSIX-only list
@@ -181,7 +206,16 @@ function segmentReadsOnly(segment: string): boolean {
   if (!cleaned) return true;
   // Any remaining output redirect writes to a file.
   if (/>/.test(cleaned)) return false;
-  const [head, sub] = cleaned.split(/\s+/);
+  const words = cleaned.split(/\s+/);
+  const [head, sub, verb] = words;
+  // `git config` reads with --get or --list and writes with anything else.
+  if (head === "git" && sub === "config") {
+    return words.some((word) => /^(--get(-all|-regexp)?|--list|-l)$/.test(word));
+  }
+  // gh reads with a noun and a reading verb: `gh auth status`, `gh repo view`.
+  if (head === "gh") return Boolean(sub && verb && GH_READS.has(`${sub} ${verb}`));
+  // `command -v x` only looks x up; `command x` runs it.
+  if (head === "command") return sub === "-v" || sub === "-V";
   const subcommands = READ_ONLY_SUBCOMMANDS[head];
   if (subcommands) return Boolean(sub && subcommands.has(sub));
   return READ_ONLY.has(head);
