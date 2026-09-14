@@ -1,4 +1,5 @@
 import { paint } from "./render";
+import { displayWidth, fitWidth } from "./width";
 
 // The parts of a session screen that belong to the person rather than the
 // agent, drawn the way Claude Code draws them:
@@ -14,12 +15,11 @@ import { paint } from "./render";
 // index.ts owns the cursor.
 
 const ESC = String.fromCharCode(27);
-const COLOUR_CODE = new RegExp(`${ESC}\\[[0-9;]*m`, "g");
 
-/** Width on screen, ignoring colour codes. */
-export function visibleLength(text: string): number {
-  return text.replace(COLOUR_CODE, "").length;
-}
+/** Width on screen in cells, ignoring colour codes. Every line here is drawn
+ *  narrower than the terminal: one that wraps breaks the redraw, and a rule is
+ *  left behind on every keypress. */
+export const visibleLength = displayWidth;
 
 export interface ComposerView {
   text: string;
@@ -40,13 +40,17 @@ export function composerView(opts: {
   const colour = opts.colour ?? false;
   const note = opts.pastedLines ? `[Pasted ${opts.pastedLines} lines] ` : "";
   const fixed = visibleLength(opts.prompt) + note.length;
-  const width = Math.max(10, opts.columns - fixed - 1);
+  const width = Math.max(10, opts.columns - fixed - 2);
   const cursor = Math.max(0, Math.min(opts.cursor, opts.line.length));
-  const start = cursor > width ? cursor - width : 0;
-  const visible = opts.line.slice(start, start + width);
+  let start = cursor > width ? cursor - width : 0;
+  // Wide characters take two cells: move the window on until what is before
+  // the cursor fits.
+  while (start < cursor && displayWidth(opts.line.slice(start, cursor)) > width) start++;
+  let visible = opts.line.slice(start, start + width);
+  while (visible && displayWidth(visible) > width) visible = visible.slice(0, -1);
   return {
     text: `${opts.prompt}${note ? paint(note, "grey", colour) : ""}${visible}`,
-    column: fixed + (cursor - start),
+    column: fixed + displayWidth(opts.line.slice(start, cursor)),
   };
 }
 
@@ -66,26 +70,27 @@ export function boxLines(opts: {
   const top = title ? `${"─".repeat(width - title.length - 1)}${title}─` : "─".repeat(width);
   return [
     paint(top, "grey", colour),
-    opts.input,
+    fitWidth(opts.input, width - 1),
     paint("─".repeat(width), "grey", colour),
-    opts.footer,
-    ...(opts.menu ?? []),
+    // Two more cells spare: ⏵⏵ and ⏸ are drawn two wide by some terminals.
+    fitWidth(opts.footer, width - 2),
+    ...(opts.menu ?? []).map((line) => fitWidth(line, width - 1)),
   ];
 }
 
 /** A message the person sent, set apart: a shaded band with a ❯, long pastes
  *  shortened to their first lines. */
 export function messageBlock(text: string, columns: number, colour = false, maxLines = 8): string {
-  const width = Math.max(20, Math.min(columns, 200));
+  // One cell short of the edge, so an emoji the terminal draws wide never wraps.
+  const width = Math.max(20, Math.min(columns - 1, 200));
   const raw = text.replace(/\s+$/, "").split("\n");
   const cut = raw.length > maxLines;
   const lines = cut
     ? [...raw.slice(0, maxLines - 1), `… +${raw.length - (maxLines - 1)} more lines`]
     : raw;
   const rows = lines.map((line, i) => {
-    let body = `${i === 0 ? "❯" : " "} ${line}`;
-    if (body.length > width - 2) body = `${body.slice(0, width - 3)}…`;
-    const padded = ` ${body}`.padEnd(width);
+    const body = fitWidth(`${i === 0 ? "❯" : " "} ${line.replace(/\t/g, "  ")}`, width - 2);
+    const padded = ` ${body}${" ".repeat(Math.max(0, width - 1 - displayWidth(body)))}`;
     if (!colour) return padded.trimEnd();
     const tone = cut && i === lines.length - 1 ? "90" : "97";
     return `${ESC}[48;5;236m${ESC}[${tone}m${padded}${ESC}[0m`;
@@ -111,11 +116,15 @@ export function footerLine(
   const items = [parts.model, parts.path];
   if (parts.costUsd && parts.costUsd > 0) items.push(`$${parts.costUsd.toFixed(2)}`);
   let right = items.join(" · ");
-  const width = Math.max(20, columns - 1);
-  const room = width - left.length - 2;
+  // Three cells short of the edge: the mode glyphs are drawn two wide by some
+  // terminals, and a footer that wraps leaves a rule behind on every keypress.
+  const width = Math.max(20, columns - 3);
+  const room = width - displayWidth(left) - 2;
   if (room < 8) right = "";
-  else if (right.length > room) right = `${right.slice(0, room - 1)}…`;
-  const gap = right ? " ".repeat(Math.max(2, width - left.length - right.length)) : "";
+  else if (displayWidth(right) > room) right = fitWidth(right, room);
+  const gap = right
+    ? " ".repeat(Math.max(2, width - displayWidth(left) - displayWidth(right)))
+    : "";
   const leftColour = parts.mode === "normal" ? "grey" : "brand";
   return `${paint(left, leftColour, colour)}${gap}${paint(right, "grey", colour)}`;
 }

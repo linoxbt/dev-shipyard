@@ -1,4 +1,5 @@
 import type { AgentEvent } from "../orchestrator";
+import { fitWidth } from "./width";
 
 // What a turn looks like in a real terminal.
 //
@@ -245,6 +246,10 @@ export interface LiveOptions {
   tickMs?: number;
   /** The word the status line uses while the model thinks. Random by default. */
   verb?: string;
+  /** The terminal's width, read on every redraw. The live lines are cut to fit
+   *  it: a line that wraps is only half erased, and the other half stays on
+   *  screen, once per tick. */
+  columns?: () => number;
 }
 
 export class LiveView {
@@ -309,7 +314,11 @@ export class LiveView {
     const meta = `(${formatElapsed(this.now() - this.started)} · ↓ ${formatTokens(this.outputTokens)} tokens · ctrl+c to interrupt)`;
     const label = this.activity ?? `${this.verb}…`;
     lines.push(`${symbol} ${this.paint(label, "38;5;208")} ${this.paint(meta, "90")}`);
-    return lines;
+    const columns = this.opts.columns?.();
+    if (!columns) return lines;
+    // Three cells spare: the spinner glyphs are drawn two wide by some terminals.
+    const width = Math.max(20, columns - 3);
+    return lines.map((line) => fitWidth(line, width));
   }
 
   /** Redraw the live region. Not while text is mid-sentence, where moving the
@@ -344,6 +353,10 @@ export class LiveView {
   }
 
   private renderCell(cell: Cell): string[] {
+    // A finished cell never moves, so a wrap would not break the redraw, but a
+    // command folded mid-word is harder to read than one cut with an ellipsis.
+    const columns = this.opts.columns?.();
+    const fit = (line: string) => (columns ? fitWidth(line, Math.max(20, columns - 2)) : line);
     const dot = this.paint("●", cell.failed ? "31" : "32");
     const open = cell.title.indexOf("(");
     const title =
@@ -351,7 +364,7 @@ export class LiveView {
         ? `${this.paint(cell.title.slice(0, open), "1")}${cell.title.slice(open)}`
         : this.paint(cell.title, "1");
     return [
-      `${dot} ${title}`,
+      fit(`${dot} ${title}`),
       ...cell.body.map((line) => {
         const connector = line.slice(0, 1);
         const content = line.slice(3);
@@ -360,7 +373,7 @@ export class LiveView {
           : cell.plain
             ? content
             : this.paint(content, "90");
-        return `  ${this.paint(connector, "90")}  ${coloured}`;
+        return fit(`  ${this.paint(connector, "90")}  ${coloured}`);
       }),
     ];
   }

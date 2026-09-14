@@ -36,6 +36,12 @@ export type CommandRisk = "safe" | "writes" | "destructive";
  *  does not go through here anyway: run_tests is its own tool and its own
  *  operation. */
 const READ_ONLY = new Set([
+  // Moves only the command it starts; `cd app && npm install` is still gated by
+  // the part after it.
+  "cd",
+  "realpath",
+  "basename",
+  "dirname",
   "ls",
   "pwd",
   "echo",

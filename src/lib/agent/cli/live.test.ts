@@ -8,6 +8,7 @@ import {
   outputPreview,
   stepCell,
 } from "./live";
+import { displayWidth } from "./width";
 
 // The terminal view, laid out like Claude Code: every part of a turn is a
 // cell with a dot, actions read `Tool(what)` with the result under a ⎿,
@@ -173,6 +174,60 @@ describe("the status line", () => {
     expect(out).toContain("Running pytest -q");
     expect(out).toContain("(12s · ↓ 1.2k tokens · ctrl+c to interrupt)");
     live.stop();
+  });
+
+  it("is cut to the terminal's width, so the redraw erases all of it", () => {
+    const chunks: string[] = [];
+    const live = new LiveView((t) => chunks.push(t), {
+      colour: true,
+      tickMs: 0,
+      now: () => 15_000,
+      verb: "Elucidating",
+      columns: () => 87,
+    });
+    const command =
+      'ls -d */ 2>/dev/null | head -50; echo "---"; find . -maxdepth 3 -iname "*provenance*"';
+    live.event({
+      kind: "step.started",
+      tool: "run_shell",
+      message: "",
+      at: "",
+      detail: { input: { command } },
+    });
+    const drawn = chunks
+      .join("")
+      .split(new RegExp(`\\r${ESC}\\[2K|${ESC}\\[1A${ESC}\\[2K|\\n`))
+      .filter(Boolean);
+    expect(drawn.some((line) => line.includes("Running ls -d"))).toBe(true);
+    for (const line of drawn) expect(displayWidth(line)).toBeLessThanOrEqual(84);
+    live.stop();
+  });
+
+  it("cuts a finished action's title and output to the width instead of folding them", () => {
+    const chunks: string[] = [];
+    const live = new LiveView((t) => chunks.push(t), {
+      colour: false,
+      tickMs: 0,
+      verb: "Elucidating",
+      columns: () => 60,
+    });
+    live.event({
+      kind: "step.completed",
+      tool: "run_shell",
+      message: "",
+      at: "",
+      detail: {
+        input: { command: `find /usr -name "*${"x".repeat(80)}*" | head -50` },
+        output: `exit 0\n${"y".repeat(120)}`,
+      },
+    });
+    live.stop();
+    const committed = chunks
+      .join("")
+      .split(new RegExp(`\\r${ESC}\\[2K|${ESC}\\[1A${ESC}\\[2K|\\n`))
+      .filter((line) => line.startsWith("●") || line.startsWith("  ⎿"));
+    expect(committed.length).toBeGreaterThanOrEqual(2);
+    for (const line of committed) expect(displayWidth(line)).toBeLessThanOrEqual(58);
   });
 
   it("steps aside for a permission prompt and comes back", () => {

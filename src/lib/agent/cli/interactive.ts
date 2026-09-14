@@ -381,7 +381,7 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
       { colour: terminal.colour },
     ),
   );
-  terminal.out(openingHelp(terminal.colour));
+  terminal.out(openingHelp(terminal.colour, terminal.columns || Number(process.env.COLUMNS) || 80));
 
   const state: ChatState = { session: null, planMode: false };
   let spent = 0;

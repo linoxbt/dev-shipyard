@@ -58,6 +58,15 @@ describe("the banner", () => {
     for (const line of text.split("\n")) expect(line.length).toBeLessThanOrEqual(60);
   });
 
+  it("wraps the opening hints between phrases, never mid-word", () => {
+    const lines = openingHelp(false, 87).trimEnd().split("\n");
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(85);
+    expect(lines).toContain("  /exit leaves.");
+    expect(lines.some((line) => line.startsWith("  Type / for commands · Shift+Tab"))).toBe(true);
+    // A wide terminal keeps the hints on one line.
+    expect(openingHelp(false, 140).trimEnd().split("\n")).toHaveLength(2);
+  });
+
   it("leaves out counts it does not have", () => {
     const text = banner(facts, { columns: 100 });
     expect(text).not.toContain("chunks indexed");

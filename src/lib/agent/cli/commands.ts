@@ -298,7 +298,10 @@ export async function runCommand(
     midStream = false;
   };
   const live = streaming
-    ? new LiveView((text) => terminal.write?.(text), { colour: terminal.colour })
+    ? new LiveView((text) => terminal.write?.(text), {
+        colour: terminal.colour,
+        columns: () => terminal.columns || Number(process.env.COLUMNS) || 80,
+      })
     : null;
 
   const orchestrator = new Orchestrator({

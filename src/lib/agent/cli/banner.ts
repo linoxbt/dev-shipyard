@@ -105,17 +105,34 @@ export function banner(facts: BannerFacts, options: { columns?: number; colour?:
   return ["", ...art, "", ...lines.map((line) => paint(line, "dim", colour)), ""].join("\n");
 }
 
-/** What to say once, under the banner, so a new user knows what to type. */
-export function openingHelp(colour = false): string {
-  return [
-    paint("  Ask anything, or say what you want built, and press Enter.", "dim", colour),
-    paint(
-      "  Type / for commands · Shift+Tab switches auto and plan mode · Ctrl-C interrupts · /exit leaves.",
-      "dim",
-      colour,
-    ),
-    "",
-  ].join("\n");
+/** What to say once, under the banner, so a new user knows what to type.
+ *  Given the terminal's width, the hints wrap between phrases rather than
+ *  letting the terminal fold one mid-word. */
+export function openingHelp(colour = false, columns = 0): string {
+  const sentences = [
+    ["Ask anything, or say what you want built, and press Enter."],
+    [
+      "Type / for commands",
+      "Shift+Tab switches auto and plan mode",
+      "Ctrl-C interrupts",
+      "/exit leaves.",
+    ],
+  ];
+  const width = columns > 0 ? Math.max(40, columns - 2) : Infinity;
+  const lines: string[] = [];
+  for (const parts of sentences) {
+    let current = `  ${parts[0]}`;
+    for (const part of parts.slice(1)) {
+      if (current.length + part.length + 3 > width) {
+        lines.push(current);
+        current = `  ${part}`;
+      } else {
+        current += ` · ${part}`;
+      }
+    }
+    lines.push(current);
+  }
+  return [...lines.map((line) => paint(line, "dim", colour)), ""].join("\n");
 }
 
 /** The rule above the input: what the next message goes to, at a glance. */

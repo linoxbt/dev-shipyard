@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { boxLines, composerView, footerLine, messageBlock, visibleLength } from "./composer";
+import { displayWidth, fitWidth } from "./width";
 
 describe("the input line", () => {
   it("is the prompt and what has been typed, with the cursor after it", () => {
@@ -56,7 +57,64 @@ describe("a sent message", () => {
   it("fills the width with a shaded band when there is colour", () => {
     const block = messageBlock("hi", 30, true);
     expect(block).toContain("[48;5;236m");
-    expect(visibleLength(block.split("\n")[1])).toBe(30);
+    expect(visibleLength(block.split("\n")[1])).toBe(29);
+  });
+
+  it("never runs past the edge, whatever the paste holds", () => {
+    const text = [
+      "Build this as an intelligent contract, check provenance folder for insights. disregard all",
+      "# 1️⃣ GenContract – AI‑Powered Legal‑Contract Builder & Enforcer 合同 🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀",
+    ].join("\n");
+    for (const colour of [false, true]) {
+      for (const row of messageBlock(text, 87, colour).split("\n")) {
+        expect(displayWidth(row)).toBeLessThan(87);
+      }
+    }
+  });
+});
+
+describe("width on screen", () => {
+  it("counts emoji and CJK as two cells, and colour and joiners as none", () => {
+    expect(displayWidth("abc")).toBe(3);
+    expect(displayWidth("1️⃣")).toBe(2);
+    expect(displayWidth("合同")).toBe(4);
+    expect(displayWidth("🚀")).toBe(2);
+    expect(displayWidth("\x1b[38;5;208m✳\x1b[0m hi")).toBe(4);
+  });
+
+  it("cuts to the width with an ellipsis, keeping colour codes and resetting them", () => {
+    const cut = fitWidth("\x1b[90m🚀🚀🚀🚀 launch\x1b[0m", 6);
+    expect(displayWidth(cut)).toBeLessThanOrEqual(6);
+    expect(cut.startsWith("\x1b[90m🚀🚀")).toBe(true);
+    expect(cut.endsWith("…\x1b[0m")).toBe(true);
+    expect(fitWidth("short", 10)).toBe("short");
+  });
+});
+
+describe("every line of the box fits the terminal", () => {
+  it("even with wide characters in the input, the footer and the menu", () => {
+    const columns = 60;
+    const view = composerView({
+      prompt: "❯ ",
+      line: "合同".repeat(40),
+      cursor: 80,
+      columns,
+    });
+    expect(displayWidth(view.text)).toBeLessThan(columns - 1);
+    expect(view.column).toBeLessThan(columns - 1);
+    const lines = boxLines({
+      input: view.text,
+      footer: footerLine(
+        { mode: "auto", model: "openrouter/anthropic/claude-opus-5", path: "~/a/long/folder" },
+        columns,
+      ),
+      columns,
+      menu: ["  /resume ".padEnd(70, "x")],
+    });
+    // The rules run to one cell short of the edge; nothing else reaches that far.
+    for (const line of lines) expect(displayWidth(line)).toBeLessThanOrEqual(columns - 1);
+    expect(displayWidth(lines[1])).toBeLessThan(columns - 1);
+    expect(displayWidth(lines[3])).toBeLessThan(columns - 2);
   });
 });
 
@@ -68,7 +126,7 @@ describe("the footer", () => {
     );
     expect(text.startsWith("  ⏵⏵ auto mode on (shift+tab to cycle)")).toBe(true);
     expect(text.endsWith("anthropic/claude-opus-5 · ~/gencontract · $0.42")).toBe(true);
-    expect(text).toHaveLength(99);
+    expect(text).toHaveLength(97);
   });
 
   it("says how to get started in normal mode, and drops the right side when narrow", () => {

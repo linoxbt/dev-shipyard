@@ -40,6 +40,7 @@ import { lineReader } from "./line-reader";
 import { pickerKey, renderPicker, type Choice, type KeyInfo } from "./picker";
 import { slashMenuItems, slashMenuLines } from "./slash-menu";
 import { boxLines, composerView, messageBlock } from "./composer";
+import { fitWidth } from "./width";
 import { providerFromSettings, resolveSettings } from "../providers";
 import { notifyIfOutdated, upgradeCommand } from "./upgrade";
 
@@ -140,7 +141,10 @@ export async function main(argv: string[]): Promise<number> {
       let selected = 0;
       let drawn = 0;
       const draw = (finished = false) => {
-        const lines = renderPicker(choices, selected, colourEnabled(), finished);
+        // Cut to the width: a wrapped option would throw off the redraw.
+        const lines = renderPicker(choices, selected, colourEnabled(), finished).map((line) =>
+          fitWidth(line, Math.max(20, (process.stdout.columns || 80) - 2)),
+        );
         const up = drawn > 0 ? `\x1b[${drawn}A` : "";
         process.stdout.write(`${up}${lines.map((line) => `\r\x1b[2K${line}`).join("\n")}\n`);
         drawn = lines.length;

@@ -25,6 +25,13 @@ describe("chains of read-only commands", () => {
     expect(classifyCommand("echo `id`")).toBe("writes");
   });
 
+  it("does not gate reading inside a folder, but gates what writes there", () => {
+    expect(
+      classifyCommand('cd genlayer-provenance && find . -type f -not -path "./.venv/*" | head -80'),
+    ).toBe("safe");
+    expect(classifyCommand("cd contracts && npm install --save-dev hardhat")).toBe("writes");
+  });
+
   it("still reports destruction in a chain as destructive", () => {
     expect(classifyCommand("ls && rm -rf build")).toBe("destructive");
   });
