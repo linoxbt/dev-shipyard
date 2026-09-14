@@ -686,6 +686,22 @@ export class Orchestrator {
 
     switch (call.name) {
       case "run_shell": {
+        if (args.background === true) {
+          const executor = this.opts.executor ?? (this.fallback ??= hostExecutor());
+          if (!executor.start) {
+            return {
+              ok: false,
+              output:
+                "Background commands are not available here. Run it in the foreground with a timeout.",
+            };
+          }
+          const started = await executor.start(String(args.command ?? ""), { cwd: workspace.root });
+          if (!started.ok) return { ok: false, output: started.message };
+          return {
+            ok: true,
+            output: `Started in the background as ${started.id}. Read its output with shell_output {"id": "${started.id}"} and stop it with stop_shell.`,
+          };
+        }
         const seconds = Number(args.timeoutSeconds ?? 120);
         const result = await this.shell(String(args.command ?? ""), {
           cwd: workspace.root,
@@ -742,6 +758,27 @@ export class Orchestrator {
           args.tag ? String(args.tag) : null,
         );
         return { ok: result.ok, output: result.message };
+      }
+
+      case "shell_output": {
+        const executor = this.opts.executor ?? (this.fallback ??= hostExecutor());
+        const job = executor.jobOutput ? await executor.jobOutput(String(args.id ?? "")) : null;
+        if (!job) return { ok: false, output: `There is no background command called ${args.id}.` };
+        const state = job.running
+          ? "still running"
+          : `exited with code ${job.exitCode ?? "unknown"}`;
+        return {
+          ok: true,
+          output: `${job.id} (${job.command}) is ${state}.\n${job.output || "(nothing printed yet)"}`,
+        };
+      }
+
+      case "stop_shell": {
+        const executor = this.opts.executor ?? (this.fallback ??= hostExecutor());
+        const stopped = executor.stop ? await executor.stop(String(args.id ?? "")) : false;
+        return stopped
+          ? { ok: true, output: `Stopped ${args.id}.` }
+          : { ok: false, output: `There is no background command called ${args.id}.` };
       }
 
       case "update_plan": {
@@ -844,7 +881,14 @@ function quoteArg(value: string): string {
 
 /** Tools whose output the terminal shows under the step. A file's contents or
  *  a page's text is the model's material, not something to print. */
-const SHOWN_OUTPUT = new Set(["run_shell", "run_tests", "run_build", "lint_and_typecheck", "git"]);
+const SHOWN_OUTPUT = new Set([
+  "run_shell",
+  "run_tests",
+  "run_build",
+  "lint_and_typecheck",
+  "git",
+  "shell_output",
+]);
 
 /** A call's arguments for display and the log: file bodies and patches are
  *  replaced by their size, so an event is never a second copy of a file. */
@@ -928,6 +972,10 @@ function describe(call: ProviderToolCall): string {
       return "Linting and type-checking";
     case "install_dependency":
       return `Installing ${a.name}`;
+    case "shell_output":
+      return `Reading ${a.id}`;
+    case "stop_shell":
+      return `Stopping ${a.id}`;
     case "update_plan":
       return "Updating the plan";
     case "recall":

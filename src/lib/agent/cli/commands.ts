@@ -737,6 +737,10 @@ export function configEditCommand(
       context.terminal.err(`Unknown provider "${value}". Providers: ${PROVIDER_IDS.join(", ")}.`);
       return 2;
     }
+    if (name === "sandbox" && !["on", "off"].includes(value.toLowerCase())) {
+      context.terminal.err('sandbox is "on" or "off".');
+      return 2;
+    }
     if (name === "baseUrl" && !/^https?:\/\//.test(value)) {
       context.terminal.err("baseUrl must start with http:// or https://.");
       return 2;
@@ -744,7 +748,7 @@ export function configEditCommand(
     (current as Record<string, string>)[name] =
       name === "baseUrl"
         ? value.replace(/\/+$/, "")
-        : name === "provider"
+        : name === "provider" || name === "sandbox"
           ? value.toLowerCase()
           : value;
     writeSettingsFile(path, current);

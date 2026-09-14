@@ -31,10 +31,13 @@ export interface Settings {
   /** An OpenAI-compatible endpoint, or an Anthropic-compatible one for that
    *  provider. The path up to, not including, `/chat/completions`. */
   baseUrl?: string;
+  /** "off" runs commands on this machine, with its logins and tools, instead
+   *  of in a container. Only a flag or DEVSTATION_SANDBOX overrides it. */
+  sandbox?: "on" | "off";
 }
 
 /** The keys `config set` accepts. apiKey is deliberately absent: see login. */
-export const SETTING_KEYS = ["provider", "model", "baseUrl"] as const;
+export const SETTING_KEYS = ["provider", "model", "baseUrl", "sandbox"] as const;
 export type SettingKey = (typeof SETTING_KEYS)[number];
 
 export type Credentials = Partial<Record<ProviderId, string>>;
@@ -85,6 +88,11 @@ export function readSettingsFile(path: string, problems: string[] = []): Setting
     if (typeof raw.model === "string" && raw.model.trim()) out.model = raw.model.trim();
     if (typeof raw.baseUrl === "string" && raw.baseUrl.trim()) {
       out.baseUrl = raw.baseUrl.trim().replace(/\/+$/, "");
+    }
+    if (raw.sandbox !== undefined) {
+      const choice = typeof raw.sandbox === "string" ? raw.sandbox.toLowerCase() : raw.sandbox;
+      if (choice === "on" || choice === "off") out.sandbox = choice;
+      else problems.push(`${path}: sandbox must be "on" or "off", not "${String(raw.sandbox)}".`);
     }
     // A key here would be a key in whatever this file gets committed with.
     if ("apiKey" in raw) {
@@ -158,6 +166,8 @@ export interface Resolved {
   model: string | null;
   baseUrl: string | null;
   apiKey: string | null;
+  /** The saved sandbox choice, project first, or null when none is saved. */
+  sandbox: "on" | "off" | null;
   /** Where each value came from, in words a person can act on. */
   source: { provider: string; model: string; baseUrl: string; apiKey: string };
   /** Why nothing can run, when nothing can. */
@@ -307,6 +317,7 @@ export function resolveSettings(opts: ResolveOptions): Resolved {
     model,
     baseUrl,
     apiKey,
+    sandbox: project.sandbox ?? global.sandbox ?? null,
     source: {
       provider: providerSource,
       model: modelSource,

@@ -120,6 +120,13 @@ export function stepCell(event: AgentEvent): Cell {
 
   switch (event.tool) {
     case "run_shell": {
+      if (input.background === true) {
+        return {
+          title: `Bash(${clip(text(input.command).split("\n")[0], 90)})`,
+          body: result(["Running in the background"]),
+          failed,
+        };
+      }
       const shown = outputPreview(shellBody(output));
       return {
         title: `Bash(${clip(text(input.command).split("\n")[0], 90)})`,
@@ -173,6 +180,16 @@ export function stepCell(event: AgentEvent): Cell {
       return { title: `Fetch(${clip(text(input.url), 90)})`, body: result(["Received"]), failed };
     case "remember":
       return { title: "Remember", body: result([clip(text(input.note), 90)]), failed };
+    case "shell_output": {
+      const shown = outputPreview(output.split("\n").slice(1).join("\n"), 4, 2);
+      return {
+        title: `BashOutput(${text(input.id)})`,
+        body: under([output.split("\n")[0] || "", ...shown].filter(Boolean)),
+        failed,
+      };
+    }
+    case "stop_shell":
+      return { title: `KillShell(${text(input.id)})`, body: result(["Stopped"]), failed };
     case "update_plan": {
       const steps = Array.isArray(input.plan) ? (input.plan as Array<Record<string, unknown>>) : [];
       const mark = (status: unknown) =>

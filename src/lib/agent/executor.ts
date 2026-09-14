@@ -1,3 +1,7 @@
+import { spawn, type ChildProcess } from "node:child_process";
+import { closeSync, mkdirSync, openSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { runShell, type ShellResult } from "./shell";
 import { looksLikeSecret } from "./workspace";
 
@@ -22,6 +26,18 @@ export interface ExecOptions {
   network?: boolean;
 }
 
+/** A command left running in the background, as last seen. */
+export interface BackgroundJob {
+  id: string;
+  command: string;
+  running: boolean;
+  exitCode: number | null;
+  /** The end of what it has printed, stdout and stderr together. */
+  output: string;
+}
+
+export type StartResult = { ok: true; id: string } | { ok: false; message: string };
+
 export interface Executor {
   readonly kind: "host" | "sandbox";
   /** One line for `doctor`, the banner and the run header. It says what the
@@ -32,6 +48,14 @@ export interface Executor {
   run(command: string, opts: ExecOptions): Promise<ShellResult>;
   /** Release whatever was held open. Safe to call twice. */
   dispose(): Promise<void>;
+  /** Start a command that keeps running after this returns: a dev server, a
+   *  local chain, a watcher. Stopped when the executor is disposed. Absent
+   *  where it cannot be done. */
+  start?(command: string, opts: ExecOptions): Promise<StartResult>;
+  /** What a background command has printed, and whether it is still running. */
+  jobOutput?(id: string, maxBytes?: number): Promise<BackgroundJob | null>;
+  /** Stop a background command. False when there is no such command. */
+  stop?(id: string): Promise<boolean>;
 }
 
 /**
@@ -108,18 +132,92 @@ export function refusedForSecret(command: string): string | null {
 /** Commands run directly on this machine, as this user. What the agent has
  *  always done, minus the parent's secrets. */
 export function hostExecutor(): Executor {
+  const jobs = new Map<
+    string,
+    { command: string; child: ChildProcess; log: string; running: boolean; exitCode: number | null }
+  >();
+  let count = 0;
+  const logDir = join(tmpdir(), `devstation-jobs-${process.pid}`);
+
+  const stop = async (id: string): Promise<boolean> => {
+    const job = jobs.get(id);
+    if (!job) return false;
+    const pid = job.child.pid;
+    if (job.running && pid) {
+      // The whole group: a dev server started through npm is npm's child.
+      try {
+        process.kill(-pid, "SIGTERM");
+      } catch {
+        /* already gone */
+      }
+      setTimeout(() => {
+        try {
+          process.kill(-pid, "SIGKILL");
+        } catch {
+          /* gone */
+        }
+      }, 3_000).unref();
+    }
+    return true;
+  };
+
   return {
     kind: "host",
     describe: "on this machine, unsandboxed",
     run(command, opts) {
       const refusal = refusedForSecret(command);
       if (refusal) return Promise.resolve(failedResult(refusal));
-
       const { network: _network, env, ...rest } = opts;
       return runShell(command, { ...rest, env: allowedEnv(process.env, env) });
     },
+    async start(command, opts) {
+      const refusal = refusedForSecret(command);
+      if (refusal) return { ok: false, message: refusal };
+      if (process.platform === "win32") {
+        return { ok: false, message: "Background commands are not supported on Windows yet." };
+      }
+      mkdirSync(logDir, { recursive: true });
+      const id = `job-${++count}`;
+      const log = join(logDir, `${id}.log`);
+      const fd = openSync(log, "a");
+      const child = spawn(command, {
+        cwd: opts.cwd,
+        shell: "/bin/sh",
+        // Its own process group, so stopping it stops everything it started.
+        detached: true,
+        env: allowedEnv(process.env, opts.env),
+        stdio: ["ignore", fd, fd],
+      });
+      closeSync(fd);
+      const job = { command, child, log, running: true, exitCode: null as number | null };
+      child.on("exit", (code) => {
+        job.running = false;
+        job.exitCode = code;
+      });
+      child.on("error", () => {
+        job.running = false;
+      });
+      // Never the reason the CLI stays open.
+      child.unref();
+      jobs.set(id, job);
+      return { ok: true, id };
+    },
+    async jobOutput(id, maxBytes = 20_000) {
+      const job = jobs.get(id);
+      if (!job) return null;
+      let output = "";
+      try {
+        const data = readFileSync(job.log);
+        output = data.subarray(Math.max(0, data.length - maxBytes)).toString("utf8");
+      } catch {
+        /* nothing printed yet */
+      }
+      return { id, command: job.command, running: job.running, exitCode: job.exitCode, output };
+    },
+    stop,
     async dispose() {
-      // Nothing is held.
+      // Background commands end with the session that started them.
+      for (const id of jobs.keys()) await stop(id);
     },
   };
 }

@@ -175,7 +175,7 @@ export const TOOLS: Record<string, ToolDefinition> = {
   },
   run_shell: {
     name: "run_shell",
-    usage: 'run_shell {"command", "timeoutSeconds?"}',
+    usage: 'run_shell {"command", "timeoutSeconds?", "background?"}',
     description: "Run a shell command in the workspace and return its output and exit code.",
     // The operation is decided from the command itself, not fixed here: `ls`
     // and `rm -rf /` are not the same action and must not carry the same risk.
@@ -183,7 +183,24 @@ export const TOOLS: Record<string, ToolDefinition> = {
     schema: z.object({
       command: z.string().min(1).max(4_000),
       timeoutSeconds: z.number().int().min(1).max(600).optional(),
+      background: z.boolean().optional(),
     }),
+    jsonSchema: {
+      type: "object",
+      properties: {
+        command: { type: "string" },
+        timeoutSeconds: {
+          type: "number",
+          description: "How long to wait for a foreground command, 1 to 600. Default 120.",
+        },
+        background: {
+          type: "boolean",
+          description:
+            "Start it and return straight away, for anything that keeps running: a dev server, a local chain such as anvil, a watcher. Read its output with shell_output and stop it with stop_shell.",
+        },
+      },
+      required: ["command"],
+    },
     operationFrom: (a) => operationForCommand(String((a as { command: string }).command)),
     resourcesFrom: (a) => [String((a as { command: string }).command).slice(0, 120)],
     returnsUntrustedContent: true,
@@ -405,6 +422,25 @@ export const TOOLS: Record<string, ToolDefinition> = {
         .max(20),
     }),
     resourcesFrom: () => ["plan"],
+    returnsUntrustedContent: false,
+  },
+  shell_output: {
+    name: "shell_output",
+    usage: 'shell_output {"id"}',
+    description:
+      "Read what a background command started with run_shell has printed so far, and whether it is still running.",
+    operation: "project.inspect",
+    schema: z.object({ id: z.string().min(1).max(40) }),
+    resourcesFrom: () => ["background-command"],
+    returnsUntrustedContent: true,
+  },
+  stop_shell: {
+    name: "stop_shell",
+    usage: 'stop_shell {"id"}',
+    description: "Stop a background command started with run_shell.",
+    operation: "project.inspect",
+    schema: z.object({ id: z.string().min(1).max(40) }),
+    resourcesFrom: () => ["background-command"],
     returnsUntrustedContent: false,
   },
   open_pull_request: {

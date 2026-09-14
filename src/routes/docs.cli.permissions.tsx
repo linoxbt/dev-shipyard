@@ -112,6 +112,30 @@ devstation --no-sandbox                       # run commands on this machine (DE
         internet access.
       </P>
 
+      <H3>Running on the machine instead</H3>
+      <P>
+        Inside the container, this machine&apos;s logins are not available: the GitHub CLI, git
+        credentials and cloud CLIs belong to your account on the machine, not to the sandbox. When
+        the agent needs them, run it on the machine itself, and save the choice so it sticks:
+      </P>
+      <Code
+        code={`devstation config set sandbox off     # every session on this machine
+devstation config set sandbox off --project   # just this project
+devstation config set sandbox on      # back to the container`}
+      />
+      <P>
+        <C>--sandbox</C>, <C>--no-sandbox</C> and <C>DEVSTATION_SANDBOX</C> still override the saved
+        choice for a single run.
+      </P>
+
+      <H2>Background commands</H2>
+      <P>
+        Anything that keeps running, such as a dev server, a local chain like <C>anvil</C>, or a
+        watcher, is started in the background. The agent reads what it has printed with{" "}
+        <C>shell_output</C> and stops it with <C>stop_shell</C>, and every background command ends
+        when the session does. This works on the machine and inside the sandbox.
+      </P>
+
       <H2>The web</H2>
       <P>Two tools, no key needed:</P>
       <Bullets

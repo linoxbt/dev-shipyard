@@ -435,6 +435,8 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
   const sealedName = `devstation-agent-${session}`;
 
   let sealed: string | null = null;
+  let jobCount = 0;
+  const jobCommands = new Map<string, string>();
   let disposed = false;
 
   const create = async (name: string, network: boolean): Promise<string | null> => {
@@ -610,6 +612,76 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
         result = { ...result, stderr: `${RESTARTED}\n${result.stderr}` };
       }
       return present(result);
+    },
+
+    async start(command: string, opts: ExecOptions) {
+      if (disposed)
+        return { ok: false as const, message: "The sandbox has already been shut down." };
+      const refusal = refusedForSecret(command);
+      if (refusal) return { ok: false as const, message: refusal };
+      const workdir = workdirFor(options.workspace, opts.cwd);
+      if (workdir === null) {
+        return {
+          ok: false as const,
+          message: `That command asked to run in ${opts.cwd}, outside the sandbox's workspace.`,
+        };
+      }
+      if (!sealed) {
+        sealed = await create(sealedName, options.network ?? false);
+        if (!sealed)
+          return { ok: false as const, message: `Could not start the sandbox from ${image}.` };
+      }
+      const id = `job-${++jobCount}`;
+      const dir = "/tmp/devstation-jobs";
+      // Detached inside the session container, in its own session so the whole
+      // tree stops together, with its exit code written down when it ends.
+      const script =
+        `mkdir -p ${dir}; setsid sh -c "$DEVSTATION_CMD" > ${dir}/${id}.log 2>&1 < /dev/null & ` +
+        `pid=$!; echo $pid > ${dir}/${id}.pid; wait $pid; echo $? > ${dir}/${id}.exit`;
+      const started = await runShell(
+        `docker exec -d --workdir ${quote(workdir)} --env ${quote(`DEVSTATION_CMD=${command}`)} ` +
+          `${quote(sealed)} sh -c ${quote(script)}`,
+        { cwd: options.workspace, timeoutMs: 30_000 },
+      );
+      if (!started.ok) {
+        return { ok: false as const, message: started.stderr.trim() || "It did not start." };
+      }
+      jobCommands.set(id, command);
+      return { ok: true as const, id };
+    },
+
+    async jobOutput(id: string, maxBytes = 20_000) {
+      const command = jobCommands.get(id);
+      if (!command || !sealed) return null;
+      const file = `/tmp/devstation-jobs/${id}`;
+      const read = await runShell(
+        `docker exec ${quote(sealed)} sh -c ${quote(
+          `tail -c ${maxBytes} ${file}.log 2>/dev/null; echo; echo "__devstation_job__ $(cat ${file}.exit 2>/dev/null || echo running)"`,
+        )}`,
+        { cwd: options.workspace, timeoutMs: 30_000 },
+      );
+      const lines = read.stdout.replace(/\s+$/, "").split("\n");
+      const marker = lines.pop() ?? "";
+      const state = marker.replace("__devstation_job__ ", "").trim();
+      return {
+        id,
+        command,
+        running: state === "running",
+        exitCode: state === "running" ? null : Number.parseInt(state, 10),
+        output: lines.join("\n").replace(/\n$/, ""),
+      };
+    },
+
+    async stop(id: string) {
+      if (!jobCommands.has(id) || !sealed) return false;
+      const pidFile = `/tmp/devstation-jobs/${id}.pid`;
+      await runShell(
+        `docker exec ${quote(sealed)} sh -c ${quote(
+          `p=$(cat ${pidFile} 2>/dev/null) && (kill -TERM -- -$p 2>/dev/null || kill -TERM $p 2>/dev/null); true`,
+        )}`,
+        { cwd: options.workspace, timeoutMs: 30_000 },
+      );
+      return true;
     },
 
     async dispose() {

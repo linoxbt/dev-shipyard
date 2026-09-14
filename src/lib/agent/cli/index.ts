@@ -349,6 +349,13 @@ export async function main(argv: string[]): Promise<number> {
     }
 
     const settings = resolveSettings({ root, model: parsed.model });
+    // A saved `sandbox off` (or `on`) applies unless this run chose for itself
+    // with a flag or DEVSTATION_SANDBOX.
+    const chosenNow =
+      argv.includes("--no-sandbox") ||
+      argv.includes("--sandbox") ||
+      process.env.DEVSTATION_SANDBOX !== undefined;
+    if (!chosenNow && settings.sandbox) parsed.sandbox = settings.sandbox === "on";
     for (const warning of settings.warnings) terminal.err(`warning: ${warning}`);
     const provider = providerFromSettings(settings);
     if (!provider) {
