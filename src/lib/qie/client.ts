@@ -14,6 +14,7 @@ import {
   decodeRegistrationStrings,
   labelsFromStrings,
   matchNamesToTokens,
+  registrationIsFree,
   type QieIdentity,
   type ResolvedName,
 } from "./identity";
@@ -50,9 +51,25 @@ export async function resolveNames(
   count: number,
   sources: IdentitySources,
 ): Promise<ResolvedName[]> {
-  if (count <= 0) return [];
+  return (await resolveOwnedNames(count, sources)).names;
+}
+
+export interface OwnedNames {
+  /** Names somebody registered, in the contract's order. */
+  names: ResolvedName[];
+  /** Tokens the wallet holds that are free names QIE handed out. */
+  freeTokens: number;
+}
+
+/** resolveNames, and how many of the wallet's tokens were free names, so the
+ *  count can leave them out too. */
+export async function resolveOwnedNames(
+  count: number,
+  sources: IdentitySources,
+): Promise<OwnedNames> {
+  if (count <= 0) return { names: [], freeTokens: 0 };
   const owned = await sources.tokenIds(Math.min(count, MAX_NAMES_INDEXED)).catch(() => []);
-  if (owned.length === 0) return [];
+  if (owned.length === 0) return { names: [], freeTokens: 0 };
   const ownedSet = new Set(owned);
 
   // Waves of parallel requests rather than a serial chain: a wallet with a
@@ -71,8 +88,15 @@ export async function resolveNames(
   );
 
   const byToken = new Map<string, ResolvedName>();
+  const free = new Set<string>();
   for (const { txHash, input, minted } of registrations) {
     if (!input || minted.length === 0) continue;
+    // A random name QIE handed out is not the wallet's identity: never shown,
+    // never counted.
+    if (registrationIsFree(input) === true) {
+      for (const id of minted) if (ownedSet.has(id)) free.add(id);
+      continue;
+    }
     const labels = labelsFromStrings(decodeRegistrationStrings(input));
     // Matched against everything the registration minted, not just this
     // wallet's tokens: a registration can mint names to several wallets, and
@@ -83,7 +107,10 @@ export async function resolveNames(
   }
   // The contract's enumeration order, so the first name is stable for every
   // viewer rather than depending on which explorer call answered first.
-  return owned.map((id) => byToken.get(id)).filter((n): n is ResolvedName => !!n);
+  return {
+    names: owned.map((id) => byToken.get(id)).filter((n): n is ResolvedName => !!n),
+    freeTokens: free.size,
+  };
 }
 
 /** Everything DevStation can say about a wallet, from real sources only. */
@@ -95,12 +122,14 @@ export async function loadIdentity(
     sources.nameCount().catch(() => 0),
     sources.firstSeenAt().catch(() => null),
   ]);
-  const names = await resolveNames(nameCount, sources).catch(() => [] as ResolvedName[]);
+  const { names, freeTokens } = await resolveOwnedNames(nameCount, sources).catch(
+    (): OwnedNames => ({ names: [], freeTokens: 0 }),
+  );
 
   return {
     address,
     names,
-    nameCount,
+    nameCount: Math.max(0, nameCount - freeTokens),
     firstSeenAt,
     walletAgeMs: firstSeenAt === null ? null : Math.max(0, Date.now() - firstSeenAt),
   };

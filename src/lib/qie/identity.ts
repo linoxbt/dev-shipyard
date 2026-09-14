@@ -24,6 +24,12 @@
 //   namehash, sha256 and abi-encoded variants were all tested and none match),
 //   so a name is tied to its token by the transaction that minted both.
 //
+// Not every name is one somebody registered. The registrar's call is
+// `register(Order order, bool isFree)`, and QIE's own backend hands new wallets a
+// free, randomly generated name (`ykhli97464.qie`) with isFree set: in a sample of
+// 120 recent registrations, 108 were those. A free name is a placeholder, not an
+// identity, so only names registered with isFree false are shown.
+//
 // Reputation shown in DevStation is DevStation's own, derived from what builders
 // did on chain (see lib/reputation.ts). QIE ID carries no score.
 
@@ -89,7 +95,8 @@ export interface QieIdentity {
   /** Names the wallet provably holds, in the contract's enumeration order;
    *  empty is a real answer, not a failure. */
   names: ResolvedName[];
-  /** Count from balanceOf. May exceed names.length when a registration could
+  /** Names the wallet holds that somebody registered: balanceOf, less the free
+   *  names QIE hands out. May exceed names.length when a registration could
    *  not be indexed: the count is authoritative, the labels are best effort. */
   nameCount: number;
   /** Milliseconds since the wallet's first activity, null when unknown. */
@@ -136,6 +143,26 @@ export function decodeRegistrationStrings(rawInput: string): string[] {
     if (ok && isPlausibleLabel(text)) out.push(text);
   }
   return out;
+}
+
+/** The registrar's `register(Order order, bool isFree)`. */
+export const REGISTER_SELECTOR = "bc96db3f";
+
+/**
+ * Whether a registration was one of the free names QIE hands out.
+ *
+ * `isFree` is the call's second argument, the word right after the offset to
+ * the order. True or false when the calldata is that call; null when it is not,
+ * or the word is not a bool, so nothing unrecognised is hidden on a guess.
+ */
+export function registrationIsFree(rawInput: string): boolean | null {
+  const body = rawInput.startsWith("0x") ? rawInput.slice(2) : rawInput;
+  if (body.slice(0, 8).toLowerCase() !== REGISTER_SELECTOR) return null;
+  const flag = body.slice(8 + 64, 8 + 128);
+  if (!/^[0-9a-fA-F]{64}$/.test(flag)) return null;
+  if (/^0{64}$/.test(flag)) return false;
+  if (/^0{63}1$/.test(flag)) return true;
+  return null;
 }
 
 /** Does this look like a registerable label rather than incidental bytes?

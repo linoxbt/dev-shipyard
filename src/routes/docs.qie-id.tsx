@@ -61,6 +61,7 @@ function QieIdDocs() {
           "A name is shown only if the QIE ID contract says the wallet owns its token now.",
           "A name you sell or transfer away disappears from your profile.",
           "A name you receive by transfer shows, just like one you registered.",
+          "The free, randomly generated name QIE gives some new wallets is not shown or counted: only a name somebody registered is an identity.",
           "Names are always read from QIE Mainnet, whichever network is selected in the console.",
           "A wallet with many names shows the correct total, with up to 24 of them listed.",
         ]}

@@ -8,6 +8,22 @@ const registration = (labels: string[]) =>
 
 const WALLET = "0xAbC0000000000000000000000000000000000001";
 
+/** The registrar's real call shape: offset to the order, isFree, then the order. */
+const order = (isFree: boolean, label: string) =>
+  "0xbc96db3f" +
+  num(0x40) +
+  num(isFree ? 1 : 0) +
+  "8d4f87fcf811df24ca33bf4b68b3bbe4eee91e88".padStart(64, "0") +
+  num(0x80) +
+  num(0xc0) +
+  num(0x100) +
+  num(3) +
+  word("qie") +
+  num(label.length) +
+  word(label) +
+  num(3) +
+  word("qie");
+
 function sources(over: Partial<IdentitySources> = {}): IdentitySources {
   return {
     nameCount: async () => 1,
@@ -65,6 +81,30 @@ describe("resolveNames", () => {
       }),
     );
     expect(names.map((n) => n.full)).toEqual(["second.qie", "first.qie"]);
+  });
+
+  it("never shows a free name QIE handed out, only names somebody registered", async () => {
+    // QIE's backend gives new wallets a random free name. That is a
+    // placeholder, not the wallet's identity.
+    const only = await loadIdentity(
+      WALLET,
+      sources({ txInput: async () => order(true, "ykhli97464") }),
+    );
+    expect(only.names).toEqual([]);
+    expect(only.nameCount).toBe(0);
+
+    const mixed = await loadIdentity(
+      WALLET,
+      sources({
+        nameCount: async () => 2,
+        tokenIds: async () => ["1", "2"],
+        mintTx: async (id) => `0x${id}`,
+        mintedIn: async (tx) => [tx.slice(2)],
+        txInput: async (tx) => (tx === "0x1" ? order(true, "ykhli97464") : order(false, "qieidui")),
+      }),
+    );
+    expect(mixed.names.map((n) => n.full)).toEqual(["qieidui.qie"]);
+    expect(mixed.nameCount).toBe(1);
   });
 
   it("is empty, not broken, for a wallet with no names", async () => {

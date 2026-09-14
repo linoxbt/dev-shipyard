@@ -5,6 +5,7 @@ import {
   isPlausibleLabel,
   labelsFromStrings,
   matchNamesToTokens,
+  registrationIsFree,
 } from "./identity";
 
 // The real calldata from registration tx 0x3e3c4496…fe12 on QIE mainnet,
@@ -27,6 +28,42 @@ describe("decodeRegistrationStrings", () => {
   it("survives empty or malformed input", () => {
     expect(decodeRegistrationStrings("")).toEqual([]);
     expect(decodeRegistrationStrings("0x")).toEqual([]);
+  });
+});
+
+describe("registrationIsFree", () => {
+  // The calldata of two real QIE Mainnet registrations, word for word:
+  //   0xbaa0b904…2bd3  ykhli97464.qie  handed out by QIE's backend, isFree true
+  //   0x28672d93…0b22  qieidui.qie     registered,                  isFree false
+  const registration = (free: number, owner: string, label: string) =>
+    "0xbc96db3f" +
+    num(0x40) +
+    num(free) +
+    owner.padStart(64, "0") +
+    num(0x80) +
+    num(0xc0) +
+    num(0x100) +
+    num(3) +
+    word("qie") +
+    num(label.length) +
+    word(label) +
+    num(3) +
+    word("qie");
+  const handedOut = registration(1, "8d4f87fcf811df24ca33bf4b68b3bbe4eee91e88", "ykhli97464");
+  const registered = registration(0, "4c52da0c72865d6ab21f16ff1a8ee9cbcb754681", "qieidui");
+
+  it("tells a free name QIE handed out from one somebody registered", () => {
+    expect(registrationIsFree(handedOut)).toBe(true);
+    expect(registrationIsFree(registered)).toBe(false);
+    // The label still decodes either way; whether to show it is the caller's call.
+    expect(labelsFromStrings(decodeRegistrationStrings(handedOut))).toEqual(["ykhli97464"]);
+  });
+
+  it("does not guess about calldata that is not that call", () => {
+    expect(registrationIsFree("")).toBeNull();
+    expect(registrationIsFree("0xa9059cbb" + num(0x40) + num(1))).toBeNull();
+    expect(registrationIsFree("0xbc96db3f" + num(0x40))).toBeNull();
+    expect(registrationIsFree("0xbc96db3f" + num(0x40) + num(7))).toBeNull();
   });
 });
 
