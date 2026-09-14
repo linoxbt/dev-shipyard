@@ -71,7 +71,7 @@ export interface Terminal {
    *  describing the mode it switched to. */
   onCycleMode?: () => string;
   /** Set the footer pinned to the bottom of the screen, where there is one. */
-  setFooter?(text: string): void;
+  setFooter?(text: string, title?: string): void;
   /** Whether the input has closed with nothing left to read. Where it is
    *  absent, an empty answer is taken as the end of the input. */
   ended?(): boolean;

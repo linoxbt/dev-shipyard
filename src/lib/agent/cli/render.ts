@@ -101,7 +101,7 @@ export function renderApproval(request: ApprovalRequest, colour = false): string
   lines.push(
     paint(`  Risk: ${request.riskLevel}`, "grey", colour),
     "",
-    `${paint("›", "brand", colour)} 1. Yes, proceed ${paint("(y)", "grey", colour)}`,
+    `${paint("❯", "brand", colour)} 1. Yes, proceed ${paint("(y)", "grey", colour)}`,
     `  2. Yes, and don't ask again this session ${paint("(a)", "grey", colour)}`,
     `  3. No, skip it ${paint("(n)", "grey", colour)}`,
     "",
@@ -109,22 +109,20 @@ export function renderApproval(request: ApprovalRequest, colour = false): string
   return lines.join("\n");
 }
 
-/** The rule under a finished turn: "─ Worked for 1m 20s · 6 steps ─". */
+/** The line under a finished turn: "✻ Worked for 1m 20s · 6 steps · $0.42". */
 export function renderReceipt(
   elapsedMs: number,
   steps: number,
   files: string[],
   costUsd: number,
   colour = false,
-  columns = 80,
+  _columns = 80,
 ): string {
   const parts = [`Worked for ${formatElapsed(elapsedMs)}`];
   if (steps > 0) parts.push(`${steps} step${steps === 1 ? "" : "s"}`);
   if (files.length > 0) parts.push(`${files.length} file${files.length === 1 ? "" : "s"} changed`);
   parts.push(`$${costUsd.toFixed(2)}`);
-  const label = ` ${parts.join(" · ")} `;
-  const width = Math.max(label.length + 2, Math.min(columns, 100));
-  return paint(`─${label}${"─".repeat(width - label.length - 1)}`, "grey", colour);
+  return `${paint("✻", "brand", colour)} ${paint(parts.join(" · "), "grey", colour)}`;
 }
 
 export function renderUsage(costUsd: number, steps: number, files: string[]): string {
@@ -144,15 +142,13 @@ export function renderSessions(records: SessionRecord[]): string {
   return records.map(renderSessionLine).join("\n");
 }
 
-/** The rule under a turn that did not finish: red, with the reason. */
+/** The line under a turn that did not finish: red, with the reason. */
 export function renderStopped(
   elapsedMs: number,
   reason: string,
   colour = false,
-  columns = 80,
+  _columns = 80,
 ): string {
-  const why = (reason || "stopped").split("\n")[0].slice(0, 140);
-  const label = ` Stopped after ${formatElapsed(elapsedMs)} · ${why} `;
-  const width = Math.max(label.length + 2, Math.min(columns, 100));
-  return paint(`─${label}${"─".repeat(Math.max(0, width - label.length - 1))}`, "red", colour);
+  const why = (reason || "stopped").split("\n")[0].slice(0, 160);
+  return paint(`✻ Stopped after ${formatElapsed(elapsedMs)} · ${why}`, "red", colour);
 }

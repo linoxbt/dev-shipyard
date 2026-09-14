@@ -27,7 +27,7 @@ describe("choosing with the arrow keys", () => {
   it("draws the marker on the selected option, with how to use it", () => {
     const lines = renderPicker(APPROVAL_CHOICES, 1);
     expect(lines[0]).toBe("  1. Yes, proceed (y)");
-    expect(lines[1]).toBe("› 2. Yes, and don't ask again this session (a)");
+    expect(lines[1]).toBe("❯ 2. Yes, and don't ask again this session (a)");
     expect(lines[3]).toContain("↑/↓ to choose");
   });
 });

@@ -39,7 +39,7 @@ import { colourEnabled } from "./render";
 import { lineReader } from "./line-reader";
 import { pickerKey, renderPicker, type Choice, type KeyInfo } from "./picker";
 import { slashMenuItems, slashMenuLines } from "./slash-menu";
-import { composerView, messageBlock } from "./composer";
+import { boxLines, composerView, messageBlock } from "./composer";
 import { providerFromSettings, resolveSettings } from "../providers";
 import { notifyIfOutdated, upgradeCommand } from "./upgrade";
 
@@ -108,21 +108,22 @@ export async function main(argv: string[]): Promise<number> {
         return;
       }
       composerPrompt = text;
-      drawComposer();
+      menu = [];
+      drawBox();
     },
     {
       coalesceMs: process.stdin.isTTY ? 30 : 0,
       onPasteHeld: (lines) => {
-        if (tty) drawComposer();
+        if (tty) drawBox();
         else process.stdout.write(`  (${lines} lines pasted. Press Enter to send them.)\n`);
       },
       // A sent message replaces the input row with a shaded block.
       onDeliver: (text) => {
         if (!tty || secret || !text.trim()) return;
-        clearMenu();
+        menu = [];
+        eraseBox();
         const block = messageBlock(text, process.stdout.columns || 80, colourEnabled());
-        process.stdout.write(`\r\x1b[2K${block}\n`);
-        redrawFooter();
+        process.stdout.write(`${block}\n`);
       },
     },
   );
@@ -170,99 +171,73 @@ export async function main(argv: string[]): Promise<number> {
       process.stdin.on("keypress", onKey);
     });
 
-  // The input row, drawn by hand: a pasted brief is one tidy line while it is
-  // being written, not thirty lines of raw text across the screen.
-  const drawComposer = () => {
+  // The input box, drawn by hand the way Claude Code draws it: a rule, the ❯
+  // prompt, a rule, and the footer under it, with the command list below when
+  // "/" is typed. It follows the conversation rather than being pinned, so it
+  // never covers what the agent said, and a pasted brief is one tidy line.
+  let boxDrawn = false;
+  let footerText = "";
+  let boxTitle = "";
+  let menu: string[] = [];
+  let skillNames: string[] | null = null;
+  const drawBox = () => {
     if (!tty || picking || secret || !input.waiting()) return;
     const rl = readline as unknown as { line?: string; cursor?: number };
     const line = rl.line ?? "";
+    const columns = process.stdout.columns || 80;
     const view = composerView({
       prompt: composerPrompt,
       line,
       cursor: rl.cursor ?? line.length,
-      columns: process.stdout.columns || 80,
+      columns,
       pastedLines: input.pending().pastedLines,
       colour: colourEnabled(),
     });
-    process.stdout.write(`\r\x1b[2K${view.text}\r${view.column > 0 ? `\x1b[${view.column}C` : ""}`);
-  };
-
-  // The footer: one line pinned to the bottom row, below a scroll region that
-  // everything else scrolls inside.
-  let footerText = "";
-  let footerInstalled = false;
-  const redrawFooter = () => {
-    if (!footerInstalled) return;
-    const rows = process.stdout.rows || 24;
-    process.stdout.write(`\x1b7\x1b[${rows};1H\x1b[2K${footerText}\x1b8`);
-  };
-  const installFooter = () => {
-    const rows = process.stdout.rows || 24;
-    if (!tty || rows < 8) return;
-    footerInstalled = true;
-    process.stdout.write(`\x1b7\x1b[1;${rows - 1}r\x1b8`);
-    redrawFooter();
-    process.stdout.on("resize", () => {
-      const next = process.stdout.rows || 24;
-      process.stdout.write(`\x1b7\x1b[1;${next - 1}r\x1b8`);
-      redrawFooter();
-      drawComposer();
+    const lines = boxLines({
+      input: view.text,
+      footer: footerText,
+      columns,
+      title: boxTitle,
+      menu,
+      colour: colourEnabled(),
     });
-    // Give the terminal its whole screen back, whichever way the session ends.
-    process.on("exit", () => {
-      process.stdout.write(`\x1b[r\x1b[${process.stdout.rows || 24};1H\x1b[2K`);
-    });
+    // From the input line, up to the top rule and clear; draw; then back up
+    // from the last line to the input line.
+    const start = boxDrawn ? "\x1b[1A\r\x1b[J" : "\r\x1b[J";
+    const up = lines.length - 2;
+    process.stdout.write(
+      `${start}${lines.join("\n")}${up > 0 ? `\x1b[${up}A` : ""}\r` +
+        (view.column > 0 ? `\x1b[${view.column}C` : ""),
+    );
+    boxDrawn = true;
   };
-
-  let menuRows = 0;
-  let skillNames: string[] | null = null;
-  const clearMenu = () => {
-    if (menuRows === 0) return;
-    process.stdout.write("\x1b7\r\n\x1b[J\x1b8");
-    menuRows = 0;
-    redrawFooter();
+  const eraseBox = () => {
+    if (!boxDrawn) return;
+    process.stdout.write("\x1b[1A\r\x1b[J");
+    boxDrawn = false;
   };
   const onPromptKey = (
     _sequence: string | undefined,
     key: (KeyInfo & { shift?: boolean }) | undefined,
   ) => {
     if (picking || secret || !input.waiting()) return;
-    const rl = readline as unknown as { line?: string; cursor?: number };
-    const line = rl.line ?? "";
     if (key?.name === "tab" && key.shift && terminal.onCycleMode) {
       // The mode shows in the footer; nothing is printed into the conversation.
       terminal.onCycleMode();
-      drawComposer();
+      drawBox();
       return;
     }
-    drawComposer();
     if (key?.name === "return" || key?.name === "enter") {
-      clearMenu();
+      menu = [];
       return;
     }
+    const line = (readline as unknown as { line?: string }).line ?? "";
     skillNames ??= listSkills(root).map((s) => s.name);
-    const lines = slashMenuLines(line, slashMenuItems(skillNames), {
+    menu = slashMenuLines(line, slashMenuItems(skillNames), {
       colour: colourEnabled(),
-      maxRows: Math.max(4, (process.stdout.rows ?? 24) - 8),
+      maxRows: Math.max(3, Math.min(8, (process.stdout.rows ?? 24) - 10)),
     });
-    if (lines.length === 0) {
-      clearMenu();
-      return;
-    }
-    // Make room below the input row, come back to the cursor, and draw the
-    // list under it without moving the cursor.
-    const view = composerView({
-      prompt: composerPrompt,
-      line,
-      cursor: rl.cursor ?? line.length,
-      columns: process.stdout.columns || 80,
-    });
-    process.stdout.write(
-      `${"\n".repeat(lines.length)}\x1b[${lines.length}A\x1b[${view.column + 1}G` +
-        `\x1b7\r\n\x1b[J${lines.join("\r\n")}\x1b8`,
-    );
-    menuRows = lines.length;
-    redrawFooter();
+    drawBox();
   };
   if (tty) {
     process.stdin.prependListener(
@@ -275,15 +250,26 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   const terminal: Terminal = {
-    out: (text) => process.stdout.write(`${text}\n`),
-    err: (text) => process.stderr.write(`${text}\n`),
+    out: (text) => {
+      const hadBox = boxDrawn;
+      eraseBox();
+      process.stdout.write(`${text}\n`);
+      if (hadBox) drawBox();
+    },
+    err: (text) => {
+      const hadBox = boxDrawn;
+      eraseBox();
+      process.stderr.write(`${text}\n`);
+      if (hadBox) drawBox();
+    },
     ask: (question) => input.ask(question),
     ended: () => input.ended(),
     choose: tty ? choose : undefined,
     setFooter: tty
-      ? (text) => {
+      ? (text, title) => {
           footerText = text;
-          redrawFooter();
+          if (title !== undefined) boxTitle = title;
+          drawBox();
         }
       : undefined,
     askSecret: async (question) => {
@@ -360,7 +346,6 @@ export async function main(argv: string[]): Promise<number> {
     // the shell printed last. Scrollback is left alone.
     if (parsed.command === "chat" && process.stdout.isTTY) {
       process.stdout.write("\u001b[H\u001b[2J");
-      installFooter();
     }
 
     const settings = resolveSettings({ root, model: parsed.model });

@@ -135,10 +135,13 @@ export function lineReader(
         return Promise.resolve(next);
       }
       if (closed) return Promise.resolve("");
-      write(prompt);
-      return new Promise<string>((resolve) => {
+      // Waiting first, then the prompt: a terminal that draws its own input
+      // box only draws it for a prompt that is actually waiting.
+      const answer = new Promise<string>((resolve) => {
         waiting = resolve;
       });
+      write(prompt);
+      return answer;
     },
     close() {
       closed = true;

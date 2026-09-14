@@ -2,16 +2,16 @@ import { describe, expect, it } from "bun:test";
 import type { AgentEvent } from "../orchestrator";
 import {
   LiveView,
-  exploredLines,
+  exploredSummary,
   formatElapsed,
   formatTokens,
   outputPreview,
   stepCell,
 } from "./live";
 
-// The terminal view, laid out like Codex: every part of a turn is a bulleted
-// cell, exploration folds into one "Explored" cell, commands show what they
-// printed, and a status line proves nothing is hung.
+// The terminal view, laid out like Claude Code: every part of a turn is a
+// cell with a dot, actions read `Tool(what)` with the result under a ⎿,
+// exploration folds into one line, and a status line proves nothing is hung.
 
 const ESC = String.fromCharCode(27);
 const ERASE = new RegExp(`\\r${ESC}\\[2K(${ESC}\\[1A${ESC}\\[2K)*`, "g");
@@ -19,7 +19,12 @@ const ERASE = new RegExp(`\\r${ESC}\\[2K(${ESC}\\[1A${ESC}\\[2K)*`, "g");
 function view() {
   const chunks: string[] = [];
   let clock = 0;
-  const live = new LiveView((t) => chunks.push(t), { colour: false, tickMs: 0, now: () => clock });
+  const live = new LiveView((t) => chunks.push(t), {
+    colour: false,
+    tickMs: 0,
+    now: () => clock,
+    verb: "Elucidating",
+  });
   const screen = () => chunks.join("").replace(ERASE, "");
   const ev = (
     kind: AgentEvent["kind"],
@@ -31,22 +36,18 @@ function view() {
 }
 
 describe("exploring", () => {
-  it("folds reads and searches into one Explored cell, reads on one line", () => {
+  it("folds reads and searches into one line", () => {
     const { live, screen, ev } = view();
     live.event(ev("step.completed", "read_file", { input: { path: "trial_runner.py" } }));
     live.event(ev("step.completed", "read_file", { input: { path: "worker.compose.yaml" } }));
-    live.event(
-      ev("step.completed", "search_files", { input: { query: "AGENTS.md", path: "src" } }),
-    );
+    live.event(ev("step.completed", "search_files", { input: { query: "AGENTS.md" } }));
     live.stop();
-    const out = screen();
-    expect(out).toContain("• Explored");
-    expect(out).toContain("└ Read trial_runner.py, worker.compose.yaml");
-    expect(out).toContain("Search AGENTS.md in src");
-    expect(out.match(/Explored/g)).toHaveLength(1);
+    expect(screen()).toContain("● Read 2 files, searched 1 pattern");
+    // Finished as one line when the turn stops; the live region only redraws it.
+    expect(screen().endsWith("● Read 2 files, searched 1 pattern\n")).toBe(true);
   });
 
-  it("closes the Explored cell when other work starts", () => {
+  it("closes the exploring line when other work starts", () => {
     const { live, screen, ev } = view();
     live.event(ev("step.completed", "list_files", { input: {} }));
     live.event(ev("step.started", "run_shell", { input: { command: "ls" } }));
@@ -55,43 +56,37 @@ describe("exploring", () => {
     );
     live.stop();
     const out = screen();
-    expect(out.indexOf("• Explored")).toBeLessThan(out.indexOf("• Ran ls"));
-    expect(out).toContain("List .");
+    expect(out.indexOf("● Listed 1 directory")).toBeLessThan(out.indexOf("● Bash(ls)"));
   });
 });
 
-describe("commands", () => {
-  it("shows the command and what it printed, shortened", () => {
+describe("actions", () => {
+  it("show a command as Bash(...) with what it printed under ⎿, shortened", () => {
     const { live, screen, ev } = view();
     const output = ["exit 0", ...Array.from({ length: 20 }, (_, i) => `line ${i + 1}`)].join("\n");
     live.event(ev("step.completed", "run_shell", { input: { command: "pytest -q" }, output }));
     live.stop();
     const out = screen();
-    expect(out).toContain("• Ran pytest -q");
-    expect(out).toContain("└ line 1");
-    expect(out).toContain("… +15 lines");
+    expect(out).toContain("● Bash(pytest -q)");
+    expect(out).toContain("  ⎿  line 1");
+    expect(out).toContain("     … +15 lines");
     expect(out).toContain("line 20");
     expect(out).not.toContain("exit 0");
   });
 
-  it("shows a multi-line command's continuation", () => {
+  it("say when a command printed nothing", () => {
     const cell = stepCell({
       kind: "step.completed",
       tool: "run_shell",
       message: "",
       at: "",
-      detail: {
-        input: { command: "for p in a b; do\n  echo $p\ndone\necho x" },
-        output: "exit 0\n",
-      },
+      detail: { input: { command: "mkdir -p out" }, output: "exit 0\n" },
     });
-    expect(cell.title).toBe("Ran for p in a b; do");
-    expect(cell.body).toContain("│   echo $p");
-    expect(cell.body).toContain("│ … +1 lines");
-    expect(cell.body).toContain("└ (no output)");
+    expect(cell.title).toBe("Bash(mkdir -p out)");
+    expect(cell.body).toEqual(["⎿  (No output)"]);
   });
 
-  it("never hides a failure", () => {
+  it("never hide a failure", () => {
     const { live, screen, ev } = view();
     live.event(
       ev("step.failed", "run_shell", {
@@ -101,29 +96,28 @@ describe("commands", () => {
     );
     live.stop();
     const out = screen();
-    expect(out).toContain("• Ran npm test");
+    expect(out).toContain("● Bash(npm test)");
     expect(out).toContain("exit 1");
     expect(out).toContain("2 failing");
   });
-});
 
-describe("edits and the web", () => {
-  it("names the file and the query", () => {
+  it("name the file a write touched, and the query a search used", () => {
     const cell = (tool: string, input: Record<string, unknown>) =>
-      stepCell({ kind: "step.completed", tool, message: "", at: "", detail: { input } }).title;
-    expect(cell("write_file", { path: "index.html", lines: 12 })).toBe(
-      "Wrote index.html (12 lines)",
+      stepCell({ kind: "step.completed", tool, message: "", at: "", detail: { input } });
+    expect(cell("write_file", { path: "index.html", lines: 12 })).toMatchObject({
+      title: "Write(index.html)",
+      body: ["⎿  Wrote 12 lines to index.html"],
+    });
+    expect(cell("edit_file", { path: "src/a.ts" }).title).toBe("Update(src/a.ts)");
+    expect(cell("web_search", { query: "nvidia toolkit" }).title).toBe(
+      'Web Search("nvidia toolkit")',
     );
-    expect(cell("edit_file", { path: "src/a.ts" })).toBe("Edited src/a.ts");
-    expect(cell("web_search", { query: "nvidia container toolkit" })).toBe(
-      "Searched the web for nvidia container toolkit",
-    );
-    expect(cell("install_dependency", { name: "viem" })).toBe("Installed viem");
+    expect(cell("install_dependency", { name: "viem" }).title).toBe("Bash(install viem)");
   });
 });
 
-describe("the plan", () => {
-  it("is a checklist of what is done, in progress and still to do", () => {
+describe("the todo list", () => {
+  it("shows what is done, in progress and still to do", () => {
     const { live, screen, ev } = view();
     live.event(
       ev("step.completed", "update_plan", {
@@ -138,23 +132,23 @@ describe("the plan", () => {
     );
     live.stop();
     const out = screen();
-    expect(out).toContain("• Updated Plan");
-    expect(out).toContain("└ ✔ Inspect the repository");
-    expect(out).toContain("◐ Write the contract");
-    expect(out).toContain("□ Add tests");
+    expect(out).toContain("● Update Todos");
+    expect(out).toContain("  ⎿  ☒ Inspect the repository");
+    expect(out).toContain("◼ Write the contract");
+    expect(out).toContain("☐ Add tests");
   });
 });
 
 describe("the model's words", () => {
-  it("are a bulleted cell, with following lines indented", () => {
+  it("are a cell with a dot, with following lines indented", () => {
     const { live, screen, ev } = view();
     live.event(ev("step.completed", "read_file", { input: { path: "a.ts" } }));
     live.delta("I'll resume the build.\nFirst, ");
     live.delta("the tests.\n");
     live.stop();
     const out = screen();
-    expect(out.indexOf("• Explored")).toBeLessThan(out.indexOf("• I'll resume the build."));
-    expect(out).toContain("• I'll resume the build.\n  First, the tests.\n");
+    expect(out.indexOf("● Read 1 file")).toBeLessThan(out.indexOf("● I'll resume the build."));
+    expect(out).toContain("● I'll resume the build.\n  First, the tests.\n");
     expect(out).not.toContain("tests.\n  \n");
   });
 
@@ -168,14 +162,16 @@ describe("the model's words", () => {
 });
 
 describe("the status line", () => {
-  it("says what is running, for how long, and how to stop it", () => {
+  it("turns while the model thinks, with time, tokens and how to stop it", () => {
     const { live, chunks, ev, tick } = view();
     tick(12_000);
     live.event(ev("usage", undefined, {}, "1234 output tokens so far"));
+    const thinking = chunks.join("");
     live.event(ev("step.started", "run_shell", { input: { command: "pytest -q" } }));
     const out = chunks.join("");
+    expect(`${thinking}${out}`).toContain("Elucidating…");
     expect(out).toContain("Running pytest -q");
-    expect(out).toContain("(12s · ↓ 1.2k tokens · Ctrl-C to interrupt)");
+    expect(out).toContain("(12s · ↓ 1.2k tokens · ctrl+c to interrupt)");
     live.stop();
   });
 
@@ -198,11 +194,8 @@ describe("the status line", () => {
     expect(formatTokens(38_300)).toBe("38.3k");
     expect(outputPreview("a\nb")).toEqual(["a", "b"]);
     expect(outputPreview("")).toEqual([]);
-    expect(
-      exploredLines([
-        { verb: "List", target: "." },
-        { verb: "Read", target: "x" },
-      ]),
-    ).toEqual(["List .", "Read x"]);
+    expect(exploredSummary({ read: 1, listed: 2, searched: 0, recalled: 0 })).toBe(
+      "Read 1 file, listed 2 directories",
+    );
   });
 });

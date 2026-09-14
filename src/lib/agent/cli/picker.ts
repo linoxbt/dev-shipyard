@@ -77,7 +77,7 @@ export function renderPicker(
     const label = `${i + 1}. ${choice.label}`;
     const hint = choice.key ? ` ${paint(`(${choice.key})`, "grey", colour)}` : "";
     return i === selected
-      ? `${paint("›", "brand", colour)} ${paint(label, "bold", colour)}${hint}`
+      ? `${paint("❯", "brand", colour)} ${paint(label, "bold", colour)}${hint}`
       : `  ${paint(label, finished ? "grey" : "reset", colour)}${hint}`;
   });
   lines.push(

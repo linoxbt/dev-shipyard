@@ -2,16 +2,15 @@ import type { AgentEvent } from "../orchestrator";
 
 // What a turn looks like in a real terminal.
 //
-// Laid out the way Codex lays it out, because it reads well at a glance: every
-// piece of the turn is a cell that starts with a bullet. The model's words are
-// a cell. Reading and searching fold into one "Explored" cell that lists what
-// was looked at. Each command is its own "Ran" cell showing the command and
-// the head and tail of what it printed. Edits say which file. A live status
-// line at the bottom says what is happening now, for how long, and how to
-// interrupt it, so a long silence never looks like a hang.
+// Laid out the way Claude Code lays it out. Every piece of a turn is a cell
+// that starts with a dot: the model's words; one line summing up what it read
+// and searched; and each action as `Tool(what)` with its result under a ⎿,
+// the head and tail of a command's output, the file a write touched, the todo
+// list as it changes. A status line at the bottom turns while the agent works
+// and says for how long and how to interrupt it.
 //
 // The view owns a small live region at the bottom of the screen -- the open
-// "Exploring" cell and the status line -- and redraws it in place. Finished
+// exploring line and the status line -- and redraws it in place. Finished
 // cells are written above it and never move. Only used when stdout is a
 // terminal; a pipe keeps the plain one-line-per-event log, which is what a
 // pipe wants.
@@ -19,7 +18,17 @@ import type { AgentEvent } from "../orchestrator";
 const ESC = String.fromCharCode(27);
 const CLEAR_LINE = `${ESC}[2K`;
 const UP = `${ESC}[1A`;
-const FRAMES = ["◦", "•"];
+const FRAMES = ["✢", "✳", "✶", "✻", "✽", "✻", "✶", "✳"];
+const VERBS = [
+  "Thinking",
+  "Working",
+  "Pondering",
+  "Crafting",
+  "Elucidating",
+  "Tinkering",
+  "Brewing",
+  "Figuring",
+];
 
 export function formatTokens(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
@@ -39,42 +48,35 @@ export function clip(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
 }
 
-const EXPLORATION = new Set(["read_file", "list_files", "search_files", "recall"]);
+export interface ExploredCounts {
+  read: number;
+  listed: number;
+  searched: number;
+  recalled: number;
+}
+
+const EXPLORATION: Record<string, keyof ExploredCounts> = {
+  read_file: "read",
+  list_files: "listed",
+  search_files: "searched",
+  recall: "recalled",
+};
 
 export function isExploration(tool: string | undefined): boolean {
-  return EXPLORATION.has(tool ?? "");
+  return (tool ?? "") in EXPLORATION;
 }
 
-export interface Explored {
-  verb: string;
-  target: string;
-}
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-export function exploration(tool: string | undefined, input: Input): Explored {
-  switch (tool) {
-    case "read_file":
-      return { verb: "Read", target: text(input.path) };
-    case "list_files":
-      return { verb: "List", target: text(input.path) || "." };
-    case "search_files": {
-      const where = text(input.path);
-      return { verb: "Search", target: `${text(input.query)}${where ? ` in ${where}` : ""}` };
-    }
-    default:
-      return { verb: "Recall", target: text(input.query) };
-  }
-}
-
-/** The lines under "Explored". Consecutive reads share one line, the way
- *  "Read trial_runner.py, worker.compose.yaml" does. */
-export function exploredLines(items: Explored[]): string[] {
-  const merged: { verb: string; targets: string[] }[] = [];
-  for (const item of items) {
-    const last = merged[merged.length - 1];
-    if (last && last.verb === "Read" && item.verb === "Read") last.targets.push(item.target);
-    else merged.push({ verb: item.verb, targets: [item.target] });
-  }
-  return merged.map((m) => `${m.verb} ${m.targets.join(", ")}`);
+/** "Read 2 files, listed 1 directory, searched 3 patterns". */
+export function exploredSummary(counts: ExploredCounts): string {
+  const parts: string[] = [];
+  if (counts.read) parts.push(`read ${plural(counts.read, "file", "files")}`);
+  if (counts.listed) parts.push(`listed ${plural(counts.listed, "directory", "directories")}`);
+  if (counts.searched) parts.push(`searched ${plural(counts.searched, "pattern", "patterns")}`);
+  if (counts.recalled) parts.push(`recalled ${plural(counts.recalled, "note", "notes")}`);
+  const sentence = parts.join(", ");
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
 }
 
 /** What a command printed, shortened to its head and tail. */
@@ -94,16 +96,17 @@ function shellBody(output: string): string {
 }
 
 export interface Cell {
+  /** `Tool(what)`, or a plain heading for a cell that is not a tool call. */
   title: string;
-  /** Lines under the title, already carrying their connector. */
+  /** Lines under the title. The first carries the ⎿. */
   body: string[];
   failed: boolean;
-  /** Body text in the normal colour rather than dimmed, for a plan. */
+  /** Body in the normal colour rather than dimmed, for a todo list. */
   plain?: boolean;
 }
 
-function bodyFrom(preview: string[], connector = "└"): string[] {
-  return preview.map((line, i) => `${i === 0 ? connector : " "} ${line}`);
+function under(lines: string[]): string[] {
+  return lines.map((line, i) => `${i === 0 ? "⎿" : " "}  ${line}`);
 }
 
 /** The cell for a finished step that is not exploration. */
@@ -111,86 +114,86 @@ export function stepCell(event: AgentEvent): Cell {
   const input = ((event.detail?.input ?? {}) as Input) || {};
   const output = text(event.detail?.output);
   const failed = event.kind === "step.failed";
-  const why = failed ? bodyFrom(outputPreview(output || event.message, 4, 1)) : [];
+  const why = under(outputPreview(output || event.message, 4, 1));
   const path = text(input.path);
+  const result = (lines: string[]) => (failed ? why : under(lines));
 
   switch (event.tool) {
     case "run_shell": {
-      const lines = text(input.command).split("\n");
-      const body: string[] = [];
-      const extra = lines.slice(1);
-      for (const line of extra.slice(0, 2)) body.push(`│ ${line}`);
-      if (extra.length > 2) body.push(`│ … +${extra.length - 2} lines`);
       const shown = outputPreview(shellBody(output));
-      body.push(...(shown.length ? bodyFrom(shown) : ["└ (no output)"]));
-      return { title: `Ran ${lines[0]}`, body, failed };
+      return {
+        title: `Bash(${clip(text(input.command).split("\n")[0], 90)})`,
+        body: under(shown.length ? shown : ["(No output)"]),
+        failed,
+      };
     }
     case "run_tests":
     case "run_build":
     case "lint_and_typecheck": {
       const [command, ...rest] = output.split("\n");
-      const hasCommand = command && !command.startsWith("This project");
+      const hasCommand = Boolean(command) && !command.startsWith("This project");
       const shown = outputPreview(shellBody(hasCommand ? rest.join("\n") : output), 3, 2);
-      const title = hasCommand
-        ? `Ran ${command}`
-        : event.tool === "lint_and_typecheck"
-          ? "Checked lint and types"
-          : "Ran the tests";
-      return { title, body: shown.length ? bodyFrom(shown) : [], failed };
+      const label = event.tool === "lint_and_typecheck" ? "lint and type-check" : "tests";
+      return {
+        title: `Bash(${hasCommand ? clip(command, 90) : `run ${label}`})`,
+        body: under(shown.length ? shown : ["(No output)"]),
+        failed,
+      };
     }
     case "install_dependency":
       return {
-        title: `${failed ? "Could not install" : "Installed"} ${text(input.name)}`,
-        body: why,
+        title: `Bash(install ${text(input.name)})`,
+        body: result([`Installed ${text(input.name)}`]),
         failed,
       };
     case "git": {
       const args = Array.isArray(input.args) ? ` ${(input.args as unknown[]).join(" ")}` : "";
+      const shown = outputPreview(output, 3, 1);
       return {
-        title: `Ran git ${text(input.op) || "status"}${args}`,
-        body: bodyFrom(outputPreview(output, 3, 1)),
+        title: `Bash(git ${text(input.op) || "status"}${args})`,
+        body: under(shown.length ? shown : ["(No output)"]),
         failed,
       };
     }
     case "write_file": {
-      const lines = typeof input.lines === "number" ? ` (${input.lines} lines)` : "";
-      return {
-        title: failed ? `Could not write ${path}` : `Wrote ${path}${lines}`,
-        body: why,
-        failed,
-      };
+      const lines = typeof input.lines === "number" ? `${input.lines} lines` : "the file";
+      return { title: `Write(${path})`, body: result([`Wrote ${lines} to ${path}`]), failed };
     }
     case "edit_file":
-      return { title: failed ? `Could not edit ${path}` : `Edited ${path}`, body: why, failed };
+      return { title: `Update(${path})`, body: result([`Updated ${path}`]), failed };
     case "delete_file":
-      return { title: failed ? `Could not delete ${path}` : `Deleted ${path}`, body: why, failed };
+      return { title: `Delete(${path})`, body: result([`Deleted ${path}`]), failed };
     case "web_search":
-      return { title: `Searched the web for ${text(input.query)}`, body: why, failed };
+      return {
+        title: `Web Search("${clip(text(input.query), 80)}")`,
+        body: result(["Did 1 search"]),
+        failed,
+      };
     case "fetch_url":
-      return { title: `Read ${text(input.url)}`, body: why, failed };
+      return { title: `Fetch(${clip(text(input.url), 90)})`, body: result(["Received"]), failed };
     case "remember":
-      return { title: `Noted: ${clip(text(input.note), 90)}`, body: why, failed };
+      return { title: "Remember", body: result([clip(text(input.note), 90)]), failed };
     case "update_plan": {
       const steps = Array.isArray(input.plan) ? (input.plan as Array<Record<string, unknown>>) : [];
       const mark = (status: unknown) =>
-        status === "completed" ? "✔" : status === "in_progress" ? "◐" : "□";
+        status === "completed" ? "☒" : status === "in_progress" ? "◼" : "☐";
       const items = steps.map((s) => `${mark(s.status)} ${text(s.step)}`);
       const explanation = text(input.explanation);
       return {
-        title: "Updated Plan",
-        body: bodyFrom(explanation ? [explanation, ...items] : items),
+        title: "Update Todos",
+        body: under(explanation ? [explanation, ...items] : items),
         failed,
         plain: true,
       };
     }
     default: {
-      const tool = event.tool ?? "a tool";
-      return { title: tool.includes("__") ? `Called ${tool}` : `Used ${tool}`, body: why, failed };
+      const tool = event.tool ?? "Tool";
+      return { title: tool, body: result(["Done"]), failed };
     }
   }
 }
 
-function activityFor(tool: string | undefined, input: Input): string {
+function activityFor(tool: string | undefined, input: Input): string | null {
   switch (tool) {
     case "run_shell":
       return `Running ${clip(text(input.command).split("\n")[0], 60)}`;
@@ -209,12 +212,12 @@ function activityFor(tool: string | undefined, input: Input): string {
       return `Editing ${text(input.path)}`;
     case "web_search":
       return "Searching the web";
-    case "update_plan":
-      return "Planning";
     case "fetch_url":
       return `Reading ${clip(text(input.url), 60)}`;
+    case "update_plan":
+      return "Planning";
     default:
-      return isExploration(tool) ? "Exploring" : "Working";
+      return isExploration(tool) ? "Exploring" : null;
   }
 }
 
@@ -223,24 +226,27 @@ export interface LiveOptions {
   now?: () => number;
   /** Redraw interval. Zero disables the timer, for tests. */
   tickMs?: number;
+  /** The word the status line uses while the model thinks. Random by default. */
+  verb?: string;
 }
 
 export class LiveView {
   private readonly now: () => number;
   private readonly started: number;
+  private readonly verb: string;
   private outputTokens = 0;
   private frame = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
   /** Lines currently drawn in the live region, so they can be erased. */
   private liveLines = 0;
-  private explored: Explored[] = [];
+  private explored: ExploredCounts = { read: 0, listed: 0, searched: 0, recalled: 0 };
   private midText = false;
   /** Newlines held back from the end of a chunk, so a message that ends in
    *  one does not leave an indented empty line behind. */
   private heldBreaks = 0;
   private suspended = false;
   private stopped = false;
-  private activity = "Working";
+  private activity: string | null = null;
 
   constructor(
     private readonly write: (text: string) => void,
@@ -248,7 +254,8 @@ export class LiveView {
   ) {
     this.now = opts.now ?? Date.now;
     this.started = this.now();
-    const tick = opts.tickMs ?? 400;
+    this.verb = opts.verb ?? VERBS[Math.floor(Math.random() * VERBS.length)];
+    const tick = opts.tickMs ?? 150;
     if (tick > 0) {
       this.timer = setInterval(() => this.redraw(), tick);
       // Never the reason a finished process stays alive.
@@ -261,8 +268,9 @@ export class LiveView {
     return this.opts.colour ? `${ESC}[${code}m${value}${ESC}[0m` : value;
   }
 
-  private bullet(failed = false): string {
-    return failed ? this.paint("•", "31") : this.paint("•", "90");
+  private exploring(): boolean {
+    const e = this.explored;
+    return e.read + e.listed + e.searched + e.recalled > 0;
   }
 
   private eraseLive() {
@@ -273,19 +281,17 @@ export class LiveView {
     this.liveLines = 0;
   }
 
-  private exploredCell(title: string): string[] {
-    const lines = exploredLines(this.explored);
-    return [
-      `${this.bullet()} ${this.paint(title, "1")}`,
-      ...lines.map((line, i) => `  ${this.paint(i === 0 ? "└" : " ", "90")} ${line}`),
-    ];
+  private exploredLine(done: boolean): string {
+    const dot = done ? this.paint("●", "32") : this.paint("●", "90");
+    return `${dot} ${this.paint(exploredSummary(this.explored), "1")}`;
   }
 
   private liveContent(): string[] {
-    const lines = this.explored.length > 0 ? this.exploredCell("Exploring") : [];
+    const lines = this.exploring() ? [this.exploredLine(false)] : [];
     const symbol = this.paint(FRAMES[this.frame % FRAMES.length], "38;5;208");
-    const meta = `(${formatElapsed(this.now() - this.started)} · ↓ ${formatTokens(this.outputTokens)} tokens · Ctrl-C to interrupt)`;
-    lines.push(`${symbol} ${this.activity} ${this.paint(meta, "90")}`);
+    const meta = `(${formatElapsed(this.now() - this.started)} · ↓ ${formatTokens(this.outputTokens)} tokens · ctrl+c to interrupt)`;
+    const label = this.activity ?? `${this.verb}…`;
+    lines.push(`${symbol} ${this.paint(label, "38;5;208")} ${this.paint(meta, "90")}`);
     return lines;
   }
 
@@ -307,10 +313,10 @@ export class LiveView {
   }
 
   private flushExplored() {
-    if (this.explored.length === 0) return;
-    const cell = this.exploredCell("Explored");
-    this.explored = [];
-    this.commit(cell);
+    if (!this.exploring()) return;
+    const line = this.exploredLine(true);
+    this.explored = { read: 0, listed: 0, searched: 0, recalled: 0 };
+    this.commit([line]);
   }
 
   private endText() {
@@ -321,19 +327,23 @@ export class LiveView {
   }
 
   private renderCell(cell: Cell): string[] {
-    const [verb, ...rest] = cell.title.split(" ");
-    const title = `${this.paint(verb, cell.failed ? "31;1" : "1")}${rest.length ? ` ${rest.join(" ")}` : ""}`;
+    const dot = this.paint("●", cell.failed ? "31" : "32");
+    const open = cell.title.indexOf("(");
+    const title =
+      open > 0
+        ? `${this.paint(cell.title.slice(0, open), "1")}${cell.title.slice(open)}`
+        : this.paint(cell.title, "1");
     return [
-      `${this.bullet(cell.failed)} ${title}`,
+      `${dot} ${title}`,
       ...cell.body.map((line) => {
         const connector = line.slice(0, 1);
-        const content = line.slice(2);
+        const content = line.slice(3);
         const coloured = cell.failed
           ? this.paint(content, "31")
           : cell.plain
             ? content
             : this.paint(content, "90");
-        return `  ${this.paint(connector, "90")} ${coloured}`;
+        return `  ${this.paint(connector, "90")}  ${coloured}`;
       }),
     ];
   }
@@ -344,7 +354,7 @@ export class LiveView {
       this.eraseLive();
       this.flushExplored();
       this.eraseLive();
-      this.write(`${this.bullet()} `);
+      this.write("● ");
       this.midText = true;
       this.heldBreaks = 0;
     }
@@ -376,12 +386,12 @@ export class LiveView {
       case "step.failed":
         this.endText();
         if (isExploration(event.tool) && event.kind === "step.completed") {
-          this.explored.push(exploration(event.tool, input));
+          this.explored[EXPLORATION[event.tool as string]]++;
         } else {
           this.flushExplored();
           this.commit(this.renderCell(stepCell(event)));
         }
-        this.activity = "Working";
+        this.activity = null;
         this.redraw();
         return;
       case "plan":
@@ -392,7 +402,7 @@ export class LiveView {
         this.flushExplored();
         const aborted = event.kind === "task.aborted";
         this.commit([
-          `${this.bullet(aborted)} ${this.paint(event.message, aborted ? "31" : "90")}`,
+          `${this.paint("●", aborted ? "31" : "90")} ${this.paint(event.message, aborted ? "31" : "90")}`,
         ]);
         this.redraw();
         return;

@@ -427,17 +427,17 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
   const cycle = terminal.onCycleMode;
   terminal.onCycleMode = () => {
     const label = cycle ? cycle() : "";
-    terminal.setFooter?.(footerNow());
+    terminal.setFooter?.(footerNow(), state.session?.title ?? "");
     return label;
   };
-  terminal.setFooter?.(footerNow());
+  terminal.setFooter?.(footerNow(), state.session?.title ?? "");
 
   for (;;) {
     let goal = queued;
     queued = "";
     if (!goal) {
       if (!pending && terminal.write && terminal.setFooter) {
-        terminal.setFooter(footerNow());
+        terminal.setFooter(footerNow(), state.session?.title ?? "");
       } else if (!pending && terminal.write) {
         const parts = [
           withExecutor.provider.model,
@@ -454,7 +454,7 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
           }),
         );
       }
-      const line = pending || (await terminal.ask(terminal.setFooter ? "› " : "> "));
+      const line = pending || (await terminal.ask(terminal.setFooter ? "❯ " : "> "));
       pending = "";
       const text = line.trim();
       if (!text) {
