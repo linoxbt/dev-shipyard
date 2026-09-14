@@ -6,7 +6,7 @@ export const CLI_NAME = "devstation";
 /** The CLI's own version. Deliberately not the web app's package version: the
  *  two ship on different clocks and pinning them together would make one lie
  *  about the other. */
-export const VERSION = "0.2.8";
+export const VERSION = "0.2.9";
 
 export type Command =
   | "chat"
