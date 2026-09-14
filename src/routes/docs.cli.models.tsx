@@ -32,6 +32,48 @@ devstation login openai        # OpenAI, or any compatible server: Ollama, LM St
         every value in use and where it came from.
       </P>
 
+      <H2>Use your Claude or ChatGPT subscription</H2>
+      <P>
+        DevStation can hand each turn to Claude Code or Codex running on your machine, signed in
+        with your own account. The work then counts against your Claude Pro or Max plan, or your
+        ChatGPT Plus or Pro plan, instead of an API key.
+      </P>
+      <Code
+        code={`claude auth login              # once, through Anthropic's own sign-in
+devstation login claude-code
+
+codex login                    # once, through OpenAI's own sign-in
+devstation login codex`}
+      />
+      <P>
+        The session looks the same as before: every command, edit and todo list is a cell, Shift+Tab
+        switches to plan mode, and <C>/resume</C> carries a conversation on. The model is that CLI's
+        own default. <C>devstation config set model &lt;name&gt;</C>, or <C>/model &lt;name&gt;</C>{" "}
+        in a session, passes a different one through.
+      </P>
+      <Table
+        head={["Mode", "claude-code", "codex"]}
+        rows={[
+          [
+            "normal and auto",
+            "Claude Code's auto mode: a classifier reviews each action",
+            "writes inside the project, with network access",
+          ],
+          ["plan", "Claude Code's plan mode", "read-only"],
+        ]}
+      />
+      <Callout>
+        DevStation never sees, stores or passes on your Claude or ChatGPT sign-in. It runs the
+        official <C>claude</C> or <C>codex</C> program, which uses its own login. Anthropic's terms
+        allow exactly that, and do not allow other tools to use a Claude subscription's tokens
+        directly. Keep it to your own account, for your own work.
+      </Callout>
+      <P>
+        On these turns the engine uses its own tools, permissions and sandbox, so DevStation's
+        container, budget and <C>undo</C> checkpoints do not apply. Use git, or the engine's own
+        tools, to go back.
+      </P>
+
       <H2>Endpoints</H2>
       <Table
         head={["To use", "provider", "baseUrl", "Key"]}
@@ -44,6 +86,8 @@ devstation login openai        # OpenAI, or any compatible server: Ollama, LM St
           ["Groq", "openai", "https://api.groq.com/openai/v1", "yes"],
           ["Together", "openai", "https://api.together.xyz/v1", "yes"],
           ["An Anthropic-compatible gateway", "anthropic", "the gateway's URL", "yes"],
+          ["Claude Pro/Max, through Claude Code", "claude-code", "none", "no: claude auth login"],
+          ["ChatGPT Plus/Pro, through Codex", "codex", "none", "no: codex login"],
         ]}
       />
       <P>

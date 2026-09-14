@@ -9,8 +9,14 @@ import {
   DEFAULT_BASE_URL,
   PROVIDER_IDS,
   SETTING_KEYS,
+  ENGINE_BINARY,
+  ENGINE_INSTALL,
+  ENGINE_LABEL,
+  ENGINE_SIGN_IN,
   credentialsPath,
   globalConfigPath,
+  isEngineId,
+  isEngineProvider,
   maskKey,
   projectConfigPath,
   readCredentials,
@@ -55,6 +61,7 @@ import {
 } from "./render";
 import { CLI_NAME } from "./args";
 import { APPROVAL_CHOICES, type Choice } from "./picker";
+import { engineLoginCommand, engineSignIn, runEngineCommand } from "./engine-run";
 
 // The commands take their terminal as a parameter rather than reaching for
 // process.stdout, so every one of them can be driven by a test with no tty,
@@ -216,6 +223,10 @@ export async function runCommand(
     quiet?: boolean;
   } = {},
 ): Promise<RunOutcome> {
+  // Claude Code or Codex, on the person's own subscription: the whole turn is
+  // theirs, with their own tools and permissions.
+  if (isEngineProvider(context.provider)) return runEngineCommand(context, goal, options);
+
   const { terminal } = context;
   const workspace = new Workspace(context.root);
   const store = new SessionStore(context.root);
@@ -662,6 +673,8 @@ export function configCommand(context: CommandContext): number {
   // always say "none configured". Each value says where it came from, because
   // "why is it using that model" is the question this command exists for.
   const r = resolveSettings({ root: context.root });
+  const chosen = context.provider ? context.provider.name : r.provider;
+  const engine = isEngineId(chosen) ? chosen : null;
   const lines = [
     `workspace   ${context.root}`,
     `git         ${isRepo(context.root) ? "yes" : "no, so checkpoints are file snapshots under .devstation/"}`,
@@ -672,8 +685,15 @@ export function configCommand(context: CommandContext): number {
       ? `provider    ${context.provider.name}/${context.provider.model}  (this session)`
       : `provider    ${r.provider ?? "none"}  (${r.source.provider})`,
     `model       ${context.provider ? context.provider.model : (r.model ?? "provider default")}  (${context.provider ? "this session" : r.source.model})`,
-    `endpoint    ${r.baseUrl ?? (r.provider ? DEFAULT_BASE_URL[r.provider] : "none")}  (${r.source.baseUrl})`,
-    `api key     ${maskKey(r.apiKey)}  (${r.source.apiKey})`,
+    ...(engine
+      ? [
+          `runs        the ${ENGINE_BINARY[engine]} program on this machine`,
+          `sign-in     your own ${ENGINE_LABEL[engine]} account (${ENGINE_SIGN_IN[engine]})`,
+        ]
+      : [
+          `endpoint    ${r.baseUrl ?? (r.provider ? DEFAULT_BASE_URL[r.provider] : "none")}  (${r.source.baseUrl})`,
+          `api key     ${maskKey(r.apiKey)}  (${r.source.apiKey})`,
+        ]),
     `autonomy    ${context.autonomy ?? "ask_sensitive"}`,
     `max steps   ${context.maxSteps ?? 40}`,
     `budget      ${context.maxCostUsd ? `$${context.maxCostUsd}` : "none set"}`,
@@ -784,6 +804,8 @@ export async function loginCommand(context: CommandContext, rest: string): Promi
     t.out("  anthropic   Claude, directly (prompt caching, native tool use)");
     t.out("  openrouter  one key for Claude, GPT, Gemini, DeepSeek and more");
     t.out("  openai      OpenAI, or any compatible server: Ollama, LM Studio, Groq, Together");
+    t.out("  claude-code your Claude Pro/Max plan, through the claude program you signed in to");
+    t.out("  codex       your ChatGPT Plus/Pro plan, through the codex program you signed in to");
     provider = ((await t.ask("provider [anthropic]: ")).trim().toLowerCase() ||
       "anthropic") as ProviderId;
   }
@@ -792,6 +814,8 @@ export async function loginCommand(context: CommandContext, rest: string): Promi
     return 2;
   }
   const id = provider as ProviderId;
+  // No key for these: the engine's own program holds the sign-in.
+  if (isEngineId(id)) return engineLoginCommand(context, id);
 
   let baseUrl = "";
   if (id === "openai") {
@@ -862,6 +886,13 @@ export function logoutCommand(context: CommandContext, rest: string): number {
     context.terminal.err(`Unknown provider "${target}". Providers: ${PROVIDER_IDS.join(", ")}.`);
     return 2;
   }
+  if (isEngineId(target)) {
+    const signOut = target === "claude-code" ? "claude auth logout" : "codex logout";
+    context.terminal.out(
+      `DevStation stores nothing for ${target}. To sign out of ${ENGINE_LABEL[target]}, run \`${signOut}\`.`,
+    );
+    return 0;
+  }
   const credentials = readCredentials(h);
   const removed = target
     ? credentials[target as ProviderId]
@@ -900,8 +931,23 @@ export async function runChecks(
     ok: settings.problem === null,
     detail:
       settings.problem ??
-      `${settings.provider}${settings.model ? `/${settings.model}` : ""}, key from ${settings.source.apiKey}`,
+      (isEngineId(settings.provider)
+        ? `${settings.provider}, through the ${ENGINE_BINARY[settings.provider]} program`
+        : `${settings.provider}${settings.model ? `/${settings.model}` : ""}, key from ${settings.source.apiKey}`),
   });
+  if (isEngineId(settings.provider)) {
+    const engine = settings.provider;
+    const status = await engineSignIn(engine, env);
+    checks.push({
+      name: ENGINE_BINARY[engine],
+      ok: status.installed && status.signedIn,
+      detail: !status.installed
+        ? `${status.detail} ${ENGINE_INSTALL[engine]}.`
+        : status.signedIn
+          ? status.detail
+          : `not signed in: run \`${ENGINE_SIGN_IN[engine]}\``,
+    });
+  }
   for (const warning of settings.warnings) {
     checks.push({ name: "settings", ok: false, detail: warning });
   }

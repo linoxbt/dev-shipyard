@@ -27,7 +27,13 @@ import { findSkill, listSkills, skillGoal } from "./skills";
 import { upgradeCommand } from "./upgrade";
 import { readMemory } from "../memory/project-memory";
 import { openStore } from "../memory/workspace-index";
-import { providerFromSettings, resolveSettings } from "../providers";
+import {
+  ENGINE_BINARY,
+  ENGINE_LABEL,
+  isEngineProvider,
+  providerFromSettings,
+  resolveSettings,
+} from "../providers";
 import { SessionStore, type SessionRecord } from "./../session-store";
 
 // A session, rather than one command and out.
@@ -359,12 +365,17 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
   // One container for the conversation, not one per turn: otherwise every turn
   // pays to start one and loses /tmp, the package cache and anything running in
   // the background between them.
-  const built = await buildExecutor(context.root, context.sandbox ?? true);
-  if ("problem" in built) {
+  //
+  // Claude Code and Codex run their own tools, so a session through one of
+  // them needs no container. One is still built later if /login switches to a
+  // provider DevStation drives itself.
+  const engine = isEngineProvider(context.provider) ? context.provider : null;
+  const built = engine ? null : await buildExecutor(context.root, context.sandbox ?? true);
+  if (built && "problem" in built) {
     terminal.err(built.problem);
     return 2;
   }
-  const executor = built.executor;
+  const executor = built?.executor;
   // One set for the whole conversation: "always" means for this session, not
   // for this turn.
   const withExecutor: CommandContext = { ...context, executor, alwaysAllow: new Set() };
@@ -376,7 +387,11 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
         workspace: context.root,
         indexed: indexedCount(context.root),
         memory: readMemory(context.root).length,
-        executor: executor.describe,
+        executor:
+          executor?.describe ??
+          (engine
+            ? `through ${ENGINE_LABEL[engine.name]} (${ENGINE_BINARY[engine.name]}), on your own sign-in`
+            : undefined),
       },
       { colour: terminal.colour },
     ),
@@ -419,7 +434,7 @@ export async function chatCommand(context: CommandContext, opening = ""): Promis
   let turns = 0;
 
   const finish = async () => {
-    await executor.dispose();
+    await executor?.dispose();
     return 0;
   };
 

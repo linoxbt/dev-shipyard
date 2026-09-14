@@ -22,8 +22,23 @@ import { dirname, join } from "node:path";
 // only in the home directory, and is written readable by its owner alone. A
 // project config that could carry a key is a key that ends up in git.
 
-export type ProviderId = "anthropic" | "openrouter" | "openai";
-export const PROVIDER_IDS: readonly ProviderId[] = ["anthropic", "openrouter", "openai"];
+export type ProviderId = "anthropic" | "openrouter" | "openai" | "claude-code" | "codex";
+export const PROVIDER_IDS: readonly ProviderId[] = [
+  "anthropic",
+  "openrouter",
+  "openai",
+  "claude-code",
+  "codex",
+];
+
+/** Providers that are another agent's CLI, signed in with that person's own
+ *  Claude or ChatGPT account. They need no key here. See providers/engine.ts. */
+export const ENGINE_IDS = ["claude-code", "codex"] as const;
+export type EngineId = (typeof ENGINE_IDS)[number];
+
+export function isEngineId(id: unknown): id is EngineId {
+  return typeof id === "string" && (ENGINE_IDS as readonly string[]).includes(id);
+}
 
 export interface Settings {
   provider?: ProviderId;
@@ -48,12 +63,16 @@ export const KEY_ENV: Record<ProviderId, readonly string[]> = {
   anthropic: ["ANTHROPIC_API_KEY"],
   openrouter: ["OPENROUTER_API_KEY", "AI_API_KEY"],
   openai: ["OPENAI_API_KEY"],
+  "claude-code": [],
+  codex: [],
 };
 
 export const DEFAULT_BASE_URL: Record<ProviderId, string> = {
   anthropic: "https://api.anthropic.com",
   openrouter: "https://openrouter.ai/api/v1",
   openai: "https://api.openai.com/v1",
+  "claude-code": "",
+  codex: "",
 };
 
 export function globalDir(home: string): string {
@@ -270,6 +289,14 @@ export function resolveSettings(opts: ResolveOptions): Resolved {
     modelSource = globalLabel;
   }
 
+  // Claude Code and Codex name models without a provider prefix. A saved
+  // `anthropic/claude-opus-5` is an OpenRouter name, and both programs refuse
+  // it outright, so an engine quietly uses its own default instead.
+  if (provider && isEngineId(provider) && model?.includes("/")) {
+    model = null;
+    modelSource = "provider default";
+  }
+
   let baseUrl: string | null = null;
   let baseUrlSource = "provider default";
   if (env.DEVSTATION_BASE_URL) {
@@ -300,6 +327,9 @@ export function resolveSettings(opts: ResolveOptions): Resolved {
   if (!provider) {
     problem =
       "No model provider is configured. Run `devstation login`, or set ANTHROPIC_API_KEY or OPENROUTER_API_KEY.";
+  } else if (isEngineId(provider)) {
+    // Signed in through its own CLI. Whether it is installed and signed in is
+    // checked when a turn runs, and by doctor.
   } else if (!apiKey && provider !== "openai") {
     problem = `No API key for ${provider}. Run \`devstation login ${provider}\`, or set ${KEY_ENV[provider][0]}.`;
   } else if (provider === "openai" && !apiKey && !baseUrl) {

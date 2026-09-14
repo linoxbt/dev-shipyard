@@ -1,4 +1,5 @@
 import { AnthropicProvider } from "./anthropic";
+import { EngineProvider } from "./engine";
 import { OpenRouterProvider } from "./openrouter";
 import type { ModelProvider } from "./types";
 import type { Resolved } from "./settings";
@@ -6,6 +7,14 @@ import type { Resolved } from "./settings";
 export * from "./types";
 export { AnthropicProvider } from "./anthropic";
 export { OpenRouterProvider } from "./openrouter";
+export {
+  ENGINE_BINARY,
+  ENGINE_INSTALL,
+  ENGINE_LABEL,
+  ENGINE_SIGN_IN,
+  EngineProvider,
+  isEngineProvider,
+} from "./engine";
 export { MockProvider, type MockTurn } from "./mock";
 export * from "./settings";
 
@@ -60,5 +69,9 @@ export function providerFromSettings(resolved: Resolved): ModelProvider | null {
         name: "openai",
         baseUrl: baseUrl ?? "https://api.openai.com/v1",
       });
+    // Claude Code or Codex, signed in with the person's own subscription.
+    case "claude-code":
+    case "codex":
+      return new EngineProvider(resolved.provider, model);
   }
 }

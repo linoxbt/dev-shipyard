@@ -46,6 +46,9 @@ export interface SessionRecord {
   title?: string;
   /** Hidden from lists by /archive, still resumable by id. */
   archived?: boolean;
+  /** The conversation Claude Code or Codex keeps for this session, so the next
+   *  turn resumes it there. See cli/engine-run.ts. */
+  engineSession?: string;
 }
 
 export const SESSIONS_DIR = join(".agent", "sessions");

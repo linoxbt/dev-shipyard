@@ -239,7 +239,8 @@ export const HELP = `DevStation, the coding agent.
   ${CLI_NAME} memory               show what it has been told about this project
   ${CLI_NAME} mcp                  the MCP servers configured here, and their tools
   ${CLI_NAME} tools                list the tools it can use, and which ones ask first
-  ${CLI_NAME} login [provider]     store an API key and choose a model
+  ${CLI_NAME} login [provider]     store an API key and choose a model, or use your
+                               Claude or ChatGPT plan: login claude-code | codex
   ${CLI_NAME} logout [provider]    remove stored API keys
   ${CLI_NAME} upgrade [--check]    update to the latest version (--check only reports)
   ${CLI_NAME} config               show the settings a run would use, and where each came from
@@ -270,6 +271,8 @@ Options
 The repo command also needs GITHUB_TOKEN, with permission to push to that repository.
 
 Set up a model with \`${CLI_NAME} login\`, or export ANTHROPIC_API_KEY or OPENROUTER_API_KEY.
+To work on your Claude Pro/Max or ChatGPT Plus/Pro plan instead, sign in to Claude Code
+(\`claude auth login\`) or Codex (\`codex login\`), then run \`${CLI_NAME} login claude-code\` or \`${CLI_NAME} login codex\`.
 Settings live in ~/.devstation/config.json, keys in ~/.devstation/credentials.json.
 `;
 
@@ -309,7 +312,11 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: "index", help: "re-index this project for search" },
   { name: "config", help: "the settings in force" },
   { name: "doctor", help: "check this machine is set up" },
-  { name: "login", args: "[provider]", help: "store an API key and choose a model" },
+  {
+    name: "login",
+    args: "[provider]",
+    help: "store an API key, or use your plan: claude-code | codex",
+  },
   { name: "logout", args: "[provider]", help: "remove stored API keys" },
   { name: "upgrade", help: "update DevStation to the latest version" },
   { name: "help", help: "this list" },
