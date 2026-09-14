@@ -1,0 +1,83 @@
+/* QIE Transaction Kit. Classes are prefixed ds- to sit beside yours; theme
+   with --ds-brand, --ds-ok, --ds-fail, --ds-text, --ds-muted, --ds-surface,
+   --ds-border and --ds-radius on :root. */
+
+.ds-btn {
+  background: var(--ds-brand, #1294a9);
+  color: var(--ds-on-brand, #fff);
+  border: 0;
+  border-radius: var(--ds-radius, 8px);
+  padding: 9px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ds-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.ds-tx-button {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.ds-tx {
+  font-size: 13px;
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.ds-tx-wait {
+  color: var(--ds-muted, #8b98a5);
+}
+
+.ds-tx-ok {
+  color: var(--ds-ok, #3fb950);
+}
+
+.ds-tx-fail {
+  color: var(--ds-fail, #ff6b6b);
+}
+
+.ds-tx-link {
+  color: var(--ds-brand, #1294a9);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.ds-toaster {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  gap: 8px;
+  z-index: 50;
+  max-width: min(360px, calc(100vw - 32px));
+}
+
+.ds-toast {
+  background: var(--ds-surface, #121821);
+  color: var(--ds-text, #e6edf3);
+  border: 1px solid var(--ds-border, #223041);
+  border-left-width: 4px;
+  border-radius: var(--ds-radius, 8px);
+  padding: 10px 12px;
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.ds-toast-ok {
+  border-left-color: var(--ds-ok, #3fb950);
+}
+
+.ds-toast-fail {
+  border-left-color: var(--ds-fail, #ff6b6b);
+}
+
+.ds-toast-info {
+  border-left-color: var(--ds-brand, #1294a9);
+}

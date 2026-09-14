@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { TEMPLATES, templateLabel } from "@/lib/data/templates";
+import { OFFICIAL_LISTINGS } from "@/lib/data/marketplace/official";
 import { applyTerminology } from "@/lib/terminology";
 import { useTemplateDeploys } from "@/hooks/useTemplateDeploys";
 import { useTemplateRegistry } from "@/hooks/useTemplateRegistry";
@@ -114,7 +115,28 @@ export function useCatalog() {
         tags: [],
       }));
 
-    return [...listed, ...older, ...builtins];
+    // Official apps, skills and UI kits: free, and shipped with DevStation.
+    const officials: CatalogItem[] = OFFICIAL_LISTINGS.map((l) => ({
+      id: listingId("builtin", l.slug),
+      source: "builtin",
+      key: l.slug,
+      kind: l.kind,
+      name: l.name,
+      description: l.description,
+      creator: null,
+      official: true,
+      price: 0n,
+      currency: "QIE",
+      model: "one-time",
+      sales: 0,
+      deploys: 0,
+      createdAt: 0,
+      featured: false,
+      category: l.category,
+      tags: l.tags,
+    }));
+
+    return [...listed, ...older, ...officials, ...builtins];
   }, [chainId, counts, legacy.summaries, market.summaries]);
 
   const stats = useMemo(() => {

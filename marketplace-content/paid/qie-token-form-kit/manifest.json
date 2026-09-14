@@ -1,0 +1,11 @@
+{
+  "kind": "ui-kit",
+  "name": "QIE Token Form Kit",
+  "description": "Token form components for QIE Mainnet: exact bigint amounts with Max and validation, a token picker for QIE, QUSDC or any ERC-20, sends, and the approve-then-act flow.",
+  "currency": "QUSDC",
+  "price": "6",
+  "category": "Forms",
+  "tags": ["erc-20", "forms", "approvals", "qusdc"],
+  "version": "1.0.0",
+  "readme": "The QIE Token Form Kit covers every form that moves tokens: sends, deposits, purchases, stakes.\n\nWhat is inside\n- AmountInput: exact bigint parsing, decimals checks, balance and a Max button\n- TokenSelect: QIE, QUSDC, or any ERC-20 pasted by address, with symbol and decimals read from chain\n- useTokenBalance and useAllowance hooks\n- sendToken and approveToken, which resolve only when the receipt succeeds, with explicit gas for QIE\n- ApproveThenAct: approves exactly what is needed, only when the allowance is short, then runs your action\n\nGetting started\n1. Buy the kit, then press Clone into my apps to open the demo: a working send form and the approval flow.\n2. Copy token-form-kit.js, token-form-kit.css, wallet.js and contract.js into your app folder.\n3. Link token-form-kit.css in index.html.\n4. Use AmountInput and TokenSelect in your form, and ApproveThenAct with a buildTx that returns your contract call.\n5. Theme it with the --ds- CSS variables on :root."
+}

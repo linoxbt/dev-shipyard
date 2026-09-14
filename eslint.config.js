@@ -24,6 +24,11 @@ export default tseslint.config(
       // nobody wrote.
       "dist-cli",
       "packages/cli/devstation.js",
+      // Marketplace listings' own files: the software buyers get, written for
+      // its own stack. The paid ones are hashed on chain, so they must not be
+      // rewritten either.
+      "src/lib/data/marketplace/official/*/files",
+      "marketplace-content",
     ],
   },
   {

@@ -1,0 +1,145 @@
+:root {
+  --bg: #0b0f14;
+  --surface: #121821;
+  --border: #223041;
+  --text: #e6edf3;
+  --muted: #8b98a5;
+  --brand: #1294a9;
+  --ok: #3fb950;
+  --danger: #ff6b6b;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+main {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+
+.sub,
+.meta {
+  color: var(--muted);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+input,
+select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font: 14px ui-monospace, monospace;
+  min-width: 0;
+}
+
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+button {
+  background: var(--brand);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.amount {
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.amount span {
+  font-size: 16px;
+  color: var(--muted);
+}
+
+a {
+  color: var(--brand);
+  word-break: break-all;
+}
+
+.memo {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.link {
+  display: block;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.ok {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.error {
+  color: var(--danger);
+  margin: 0;
+}
+
+@media (max-width: 420px) {
+  .two {
+    grid-template-columns: 1fr;
+  }
+}

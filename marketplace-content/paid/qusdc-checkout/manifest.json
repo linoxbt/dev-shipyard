@@ -1,0 +1,11 @@
+{
+  "kind": "skill",
+  "name": "QUSDC Checkout",
+  "description": "An agent skill with a tested checkout contract for taking QUSDC payments on QIE Mainnet: order ids, approve-then-pay, server-side confirmation, refunds and withdrawals.",
+  "currency": "QUSDC",
+  "price": "4",
+  "category": "Payments",
+  "tags": ["qusdc", "payments", "checkout", "foundry"],
+  "version": "1.0.0",
+  "readme": "A skill that sets up real QUSDC payments on QIE Mainnet, including the contract.\n\nWhat is inside\n- QusdcCheckout.sol: each order id paid once, events for every payment, owner refunds and withdrawals, two-step ownership, fee-on-transfer tokens refused\n- A Foundry test suite with a fuzz test and a 6-decimal mock token\n- The frontend flow (exact approval, pay, receipt checks with explicit gas), server-side confirmation from chain data, and QIE's traps: 6 decimals, low gas estimates, the 10,000-block log range, no MCOPY\n\nGetting started\n1. Buy it, then press Open the skill and download the qusdc-checkout folder.\n2. Put the folder at .devstation/skills/qusdc-checkout in your project, or ~/.devstation/skills for every project. .claude/skills works too.\n3. In the DevStation CLI, run: /qusdc-checkout add QUSDC payments for my orders\n4. In the web Coding Agent, upload the folder into the workspace, then ask: Follow .devstation/skills/qusdc-checkout/SKILL.md to add QUSDC checkout to this app.\n5. The agent adds the contract and tests, runs forge test, and deploys to QIE Testnet before Mainnet."
+}

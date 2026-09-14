@@ -1,0 +1,11 @@
+{
+  "kind": "app",
+  "name": "Holder Gate",
+  "description": "A members area for QIE wallets: sign in with a wallet signature, then unlock content when on-chain holdings meet your rules, such as a QIE ID or a QUSDC balance.",
+  "currency": "QUSDC",
+  "price": "8",
+  "category": "Community",
+  "tags": ["token-gating", "qie-id", "sign-in", "community"],
+  "version": "1.0.0",
+  "readme": "Holder Gate turns holdings on QIE Mainnet into membership.\n\nWhat it does\n- Sign in with a wallet signature: proves the visitor controls the wallet, free, no transaction.\n- Checks any ERC-20 or ERC-721 balance against rules in config.js, with all or any logic. Default: a QIE ID and at least 1 QUSDC.\n- Shows each rule passing or failing, then reveals content.js to members.\n- The README includes a server-side check, for content that must stay secret.\n\nGetting started\n1. Buy it, then press Clone into my apps. It previews straight away in the App Builder.\n2. Edit config.js: set the title, the tokens or NFTs, the minimums, and all or any.\n3. Replace content.js with what members should see: links, perks, schedules.\n4. Sign in with your own wallet in the preview to test both outcomes.\n5. Publish from the App Builder, or download and serve the app folder over HTTP.\n\nBuilt with preact, htm and viem via an import map: no build step."
+}

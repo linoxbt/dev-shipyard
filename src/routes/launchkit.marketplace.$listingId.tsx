@@ -42,6 +42,11 @@ import {
   splitSale,
 } from "@/lib/marketplace/listing";
 import { BuilderName } from "@/components/builder/BuilderName";
+import { GettingStarted } from "@/components/marketplace/GettingStarted";
+import { skillNameFromPaths } from "@/lib/marketplace/skill-install";
+import { getOfficialListing, type OfficialListing } from "@/lib/data/marketplace/official";
+import { officialFiles } from "@/lib/data/marketplace/official-files";
+import { downloadZip } from "@/lib/appgen/zip";
 
 export const Route = createFileRoute("/launchkit/marketplace/$listingId")({
   head: () => ({ meta: [{ title: "Listing: DevStation Marketplace" }] }),
@@ -87,6 +92,8 @@ function ListingPage() {
       return (
         <Navigate to="/launchkit/marketplace/$listingId" params={{ listingId: paid }} replace />
       );
+    const official = getOfficialListing(parsed.key);
+    if (official) return <OfficialListingView item={official} />;
     return <BuiltinListing slug={parsed.key} />;
   }
   if (parsed.source === "legacy") return <LegacyListing id={parsed.key} />;
@@ -236,6 +243,179 @@ function BuiltinListing({ slug }: { slug: string }) {
 }
 
 // --- legacy TemplateRegistry ------------------------------------------------
+
+// --- official apps, skills and UI kits ----------------------------------------
+
+function OfficialListingView({ item }: { item: OfficialListing }) {
+  const navigate = useNavigate();
+  const projects = useProjects();
+  const { address } = useAccount();
+  const [openFile, setOpenFile] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const { data: files, isLoading } = useQuery({
+    queryKey: ["marketplace", "official-files", item.slug],
+    staleTime: Infinity,
+    queryFn: () => officialFiles(item.slug),
+  });
+  const paths = useMemo(() => (files ? Object.keys(files).sort() : []), [files]);
+  const shown =
+    openFile ?? paths.find((p) => /(^|\/)(SKILL|README)\.md$/.test(p)) ?? paths[0] ?? null;
+  const zipName = `${item.skillName ?? item.slug}.zip`;
+
+  const clone = async () => {
+    if (!files) return;
+    setBusy("clone");
+    try {
+      projects.hydrate();
+      const projectId = projects.create(item.name, address ?? null);
+      projects.update(projectId, { files });
+      toast.success("Cloned into your apps");
+      void navigate({ to: "/launchkit/apps/$id", params: { id: projectId } });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not clone it.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const download = async () => {
+    if (!files) return;
+    setBusy("zip");
+    try {
+      await downloadZip(files, zipName);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Shell title={item.name} subtitle={item.description}>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          <Panel>
+            <div className="flex flex-wrap items-center gap-2">
+              <KindBadge kind={item.kind} />
+              <span
+                className="inline-flex items-center gap-1 font-mono text-[10px] uppercase text-success"
+                title="Ships with DevStation. Not a third-party audit."
+              >
+                <BadgeCheck className="h-3 w-3" /> Official
+              </span>
+              <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+                {item.category}
+              </span>
+            </div>
+            <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+              {item.readme}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-1">
+              {item.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </Panel>
+
+          <GettingStarted kind={item.kind} steps={item.gettingStarted} skillName={item.skillName} />
+
+          <div className="rounded-lg border border-border bg-surface">
+            <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+              <span className="font-mono text-xs font-bold uppercase tracking-wider text-foreground">
+                What you get
+              </span>
+              <span className="font-mono text-[11px] text-meta">
+                {files ? `${paths.length} files` : ""}
+              </span>
+            </div>
+            {isLoading || !files ? (
+              <div className="h-40 animate-pulse" />
+            ) : (
+              <div className="grid md:grid-cols-[220px_1fr]">
+                <ul className="max-h-[520px] overflow-auto border-b border-border p-2 md:border-b-0 md:border-r">
+                  {paths.map((path) => (
+                    <li key={path}>
+                      <button
+                        onClick={() => setOpenFile(path)}
+                        className={`w-full truncate rounded px-2 py-1 text-left font-mono text-[11px] ${shown === path ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        {path}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="min-w-0 p-3">
+                  {shown && (
+                    <>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="truncate font-mono text-[11px] text-foreground">
+                          {shown}
+                        </span>
+                        <button
+                          onClick={() => downloadText(shown, files[shown])}
+                          className="inline-flex shrink-0 items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-primary"
+                        >
+                          <Download className="h-3 w-3" /> Download
+                        </button>
+                      </div>
+                      <CodeBlock
+                        code={files[shown]}
+                        language={languageOf(shown)}
+                        maxHeight="460px"
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+          <Panel>
+            <PriceTag
+              item={{ price: 0n, currency: "QIE", model: "one-time" }}
+              className="text-base"
+            />
+            <p className="mt-2 text-xs text-muted-foreground">
+              Free for everyone, maintained by DevStation.
+            </p>
+            <div className="mt-4 grid gap-2">
+              {item.kind !== "skill" && (
+                <ActionButton
+                  primary
+                  busy={busy === "clone"}
+                  onClick={() => void clone()}
+                  icon={AppWindow}
+                >
+                  Clone into my apps
+                </ActionButton>
+              )}
+              <ActionButton
+                primary={item.kind === "skill"}
+                busy={busy === "zip"}
+                onClick={() => void download()}
+                icon={Download}
+              >
+                {item.kind === "skill" ? `Download the ${item.skillName} skill` : "Download .zip"}
+              </ActionButton>
+              <ShareButton />
+            </div>
+            <div className="mt-4 border-t border-border pt-3">
+              <MetaRow label="Version" value={item.version} />
+              <MetaRow label="Files" value={files ? paths.length : "…"} />
+              <MetaRow label="Category" value={item.category} />
+              {item.skillName && <MetaRow label="Skill name" value={item.skillName} />}
+            </div>
+          </Panel>
+        </aside>
+      </div>
+    </Shell>
+  );
+}
 
 function LegacyListing({ id }: { id: number }) {
   const navigate = useNavigate();
@@ -531,12 +711,33 @@ function MarketListingView({
             )}
           </Panel>
 
+          {listing.kind === "skill" && (
+            <GettingStarted
+              kind="skill"
+              steps={[]}
+              skillName={skillNameFromPaths(listing.metadata.files ?? [])}
+            />
+          )}
+
           {/* Files */}
           <div className="rounded-lg border border-border bg-surface">
             <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
               <span className="font-mono text-xs font-bold uppercase tracking-wider text-foreground">
                 What you get
               </span>
+              {files && (
+                <button
+                  onClick={() =>
+                    void downloadZip(
+                      files,
+                      `${skillNameFromPaths(Object.keys(files)) ?? (listing.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "listing")}.zip`,
+                    )
+                  }
+                  className="inline-flex items-center gap-1.5 font-mono text-[11px] text-primary hover:underline"
+                >
+                  <Download className="h-3 w-3" /> Download all
+                </button>
+              )}
               {unlocked && !files && (
                 <button
                   onClick={() => void run("files", loadFiles)}
@@ -657,7 +858,7 @@ function MarketListingView({
                 <ActionButton primary busy={busy === "open"} onClick={openTemplate} icon={Code2}>
                   Open in Editor
                 </ActionButton>
-              ) : listing.kind === "app" ? (
+              ) : listing.kind === "app" || listing.kind === "ui-kit" ? (
                 <ActionButton primary busy={busy === "clone"} onClick={cloneApp} icon={AppWindow}>
                   Clone into my apps
                 </ActionButton>

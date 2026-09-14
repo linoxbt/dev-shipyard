@@ -1,0 +1,11 @@
+{
+  "kind": "app",
+  "name": "Token Desk",
+  "description": "Inspect and operate any ERC-20 on QIE Mainnet: supply and balances from chain, transfers, approvals, allowance checks and revokes, each confirmed by its receipt.",
+  "currency": "QUSDC",
+  "price": "10",
+  "category": "DeFi",
+  "tags": ["erc-20", "qusdc", "approvals", "wallet"],
+  "version": "1.0.0",
+  "readme": "Token Desk is a complete app for working with any ERC-20 token on QIE Mainnet.\n\nWhat it does\n- Loads a token by address (QUSDC to start): name, symbol, decimals, total supply and your balance, read from chain.\n- Transfers with decimal and balance checks.\n- Checks, sets and revokes allowances, with unlimited approval kept one deliberate step away.\n- Waits for every receipt and reports failure honestly; a session log links each transaction.\n- Sends an explicit gas limit on writes, because QIE's gas estimate is too low for storage writes.\n\nGetting started\n1. Buy it, then press Clone into my apps.\n2. The app opens in the App Builder and previews at once, using the wallet you connected to DevStation.\n3. Load QUSDC or paste any token address, and try a transfer to yourself.\n4. Change the default token in app.js, restyle styles.css, or ask the App Builder's AI for changes.\n5. Publish it from the App Builder to give it its own web address, or download it and serve the app folder over HTTP.\n\nBuilt with preact, htm and viem via an import map: no build step, nothing to install."
+}

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QIE Wallet Kit</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./wallet-kit.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "preact": "https://esm.sh/preact@10.24.3",
+          "preact/hooks": "https://esm.sh/preact@10.24.3/hooks",
+          "htm/preact": "https://esm.sh/htm@3.1.1/preact?deps=preact@10.24.3",
+          "viem": "https://esm.sh/viem@2.52.0"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

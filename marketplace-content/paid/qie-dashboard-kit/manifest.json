@@ -1,0 +1,11 @@
+{
+  "kind": "ui-kit",
+  "name": "QIE Dashboard Kit",
+  "description": "Dashboard components for preact + htm with live QIE Mainnet data: stat cards, sparklines, bar charts, sortable tables and tabs, drawn in plain SVG.",
+  "currency": "QUSDC",
+  "price": "6",
+  "category": "Dashboards",
+  "tags": ["dashboard", "charts", "tables", "live-data"],
+  "version": "1.0.0",
+  "readme": "The QIE Dashboard Kit gives a preact + htm app everything a dashboard needs, and live data from QIE Mainnet to show in it.\n\nComponents\n- StatCard with trend deltas and loading skeletons\n- Sparkline and BarChart in plain SVG: no chart library\n- DataTable, sortable by any column\n- Tabs, Skeleton and EmptyState\n\nData\n- recentBlocks and useLiveBlocks: the latest QIE Mainnet blocks, refreshed on an interval\n- blockStats: block time, transactions per block, gas used\n\nGetting started\n1. Buy the kit, then press Clone into my apps to open the live demo dashboard in the App Builder.\n2. Copy dashboard-kit.js, dashboard-kit.css and contract.js into your own app folder.\n3. Link dashboard-kit.css in index.html and import the components you need.\n4. Feed them your own contract reads, or the block data helpers.\n5. Theme it with the --ds- CSS variables on :root."
+}

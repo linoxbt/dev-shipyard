@@ -1,0 +1,11 @@
+{
+  "kind": "skill",
+  "name": "Solidity Security Review",
+  "description": "An agent skill that audits Solidity contracts step by step: scope, tests, static analysis, a full checklist, proof-of-concept tests for every serious finding, and a severity-ranked report.",
+  "currency": "QUSDC",
+  "price": "5",
+  "category": "Security",
+  "tags": ["audit", "security", "solidity", "foundry"],
+  "version": "1.0.0",
+  "readme": "A skill for the DevStation CLI, the web Coding Agent and Claude Code that turns \"is this contract safe?\" into a real review.\n\nWhat the agent does with it\n- Fixes the scope to a commit, builds, runs the tests and coverage, and Slither when available\n- Maps roles, value flows and invariants before hunting\n- Works through a 40-point checklist: access control, reentrancy, tokens, arithmetic, oracles and MEV, signatures, DoS, upgradeability, QIE specifics\n- Proves every High or Critical finding with a failing Foundry test\n- Writes AUDIT.md from the included report template, with severity, location, impact, proof and fix\n\nGetting started\n1. Buy it, then press Open the skill and download the solidity-audit folder: SKILL.md, checklist.md, report-template.md.\n2. Put the folder at .devstation/skills/solidity-audit in your project, or ~/.devstation/skills for every project. .claude/skills works too.\n3. In the DevStation CLI, run: /solidity-audit review the contracts in src\n4. In the web Coding Agent, upload the folder into the workspace, then ask: Follow .devstation/skills/solidity-audit/SKILL.md to review src.\n5. Read AUDIT.md, then ask the agent to fix findings one at a time."
+}

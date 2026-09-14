@@ -15,6 +15,9 @@
     "scripts/**/*.ts",
     "types/**/*.d.ts"
   ],
+  // The files of marketplace listings are what buyers get, not part of the site:
+  // a skill's hardhat.config.ts imports Hardhat, which the site never installs.
+  "exclude": ["src/lib/data/marketplace/official/*/files/**", "marketplace-content/**"],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",
