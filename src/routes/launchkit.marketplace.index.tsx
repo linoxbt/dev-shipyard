@@ -43,7 +43,7 @@ type CurrencyFilter = "all" | "QIE" | "QUSDC";
 type Sort = "popular" | "newest" | "price-low" | "price-high";
 
 function popularity(item: CatalogItem) {
-  return item.sales * 3 + item.deploys;
+  return item.sales * 3 + item.tips * 2 + item.deploys + item.clones + item.downloads;
 }
 
 function Browse() {

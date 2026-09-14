@@ -49,7 +49,8 @@ import {
   startAgentJob,
   type StartAgentInput,
 } from "./agent";
-import { canServe, publishSite, serveFile, sitesFor, unpublishSite } from "./publish";
+import { canServe, publishSite, serveFile, siteCounts, sitesFor, unpublishSite } from "./publish";
+import { ActivityStore, activityFile } from "./activity";
 import {
   cancelWorkspace,
   createWorkspace,
@@ -78,6 +79,8 @@ import {
 } from "./sandbox";
 
 const PORT = Number(process.env.PORT ?? 8792);
+/** Clones and downloads of marketplace listings. See activity.ts. */
+const activity = new ActivityStore(activityFile());
 const HOST = process.env.RUNNER_HOST ?? "127.0.0.1";
 /** Separate from RUNNER_TOKEN on purpose: see session.ts. Unset means the
  *  dashboard is off entirely rather than open. */
@@ -395,6 +398,54 @@ const server = createServer(async (req, res) => {
     }
 
     return json(res, 405, { ok: false, message: "Method not allowed" });
+  }
+
+  // --- Marketplace activity and published-app counts ---------------------
+  //
+  // Clones and downloads leave nothing on chain, so they are counted here; how
+  // many apps each wallet has published is known only here. DevStation's server
+  // reads both for the marketplace and the leaderboard. The caller header names
+  // the person for the once-a-day rule, and the bearer token is what makes it
+  // trustworthy.
+  if (path === "/marketplace/activity") {
+    if (!tokenMatches(req.headers.authorization, TOKEN)) {
+      return json(res, 401, { ok: false, message: "Unauthorized" });
+    }
+    if (req.method === "GET") return json(res, 200, { ok: true, counts: activity.all() });
+    if (req.method === "POST") {
+      const caller =
+        String(req.headers["x-devstation-caller"] ?? "").slice(0, 100) || clientKey(req);
+      if (!withinRateLimit(`activity:${caller}`, 240)) {
+        return json(res, 429, { ok: false, message: "Too many requests from this client." });
+      }
+      const body = await readJsonBody<{ listing?: unknown; action?: unknown; wallet?: unknown }>(
+        req,
+        4_000,
+      );
+      if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
+      const wallet =
+        typeof body.value.wallet === "string" && /^0x[a-fA-F0-9]{40}$/.test(body.value.wallet)
+          ? body.value.wallet
+          : "";
+      const counted = activity.record(
+        String(body.value.listing ?? ""),
+        String(body.value.action ?? ""),
+        wallet || caller,
+      );
+      if (counted === null) {
+        return json(res, 400, { ok: false, message: "Unknown listing or action." });
+      }
+      return json(res, 200, { ok: true, counted });
+    }
+    return json(res, 405, { ok: false, message: "Method not allowed" });
+  }
+
+  if (path === "/published-counts") {
+    if (!tokenMatches(req.headers.authorization, TOKEN)) {
+      return json(res, 401, { ok: false, message: "Unauthorized" });
+    }
+    if (req.method !== "GET") return json(res, 405, { ok: false, message: "Method not allowed" });
+    return json(res, 200, { ok: true, counts: siteCounts() });
   }
 
   // --- Publish API --------------------------------------------------------

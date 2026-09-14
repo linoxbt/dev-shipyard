@@ -5,6 +5,7 @@ import { applyTerminology } from "@/lib/terminology";
 import { useTemplateDeploys } from "@/hooks/useTemplateDeploys";
 import { useTemplateRegistry } from "@/hooks/useTemplateRegistry";
 import { useMarketplace } from "@/hooks/useMarketplace";
+import { useMarketplaceStats } from "@/hooks/useMarketplaceStats";
 import { useNetworkPref } from "@/lib/active-chain";
 import {
   listingId,
@@ -37,21 +38,29 @@ export interface CatalogItem {
   model: PricingModel;
   sales: number;
   deploys: number;
+  /** Tips from people other than the creator. Market listings only. */
+  tips: number;
+  /** Cloned into the App Builder, or opened in the Editor. */
+  clones: number;
+  downloads: number;
   createdAt: number;
   featured: boolean;
   category: string | null;
   tags: string[];
 }
 
+type BaseItem = Omit<CatalogItem, "tips" | "clones" | "downloads">;
+
 export function useCatalog() {
   const chainId = useNetworkPref((s) => s.preferredChainId);
   const { counts } = useTemplateDeploys();
   const legacy = useTemplateRegistry();
   const market = useMarketplace();
+  const { data: activity } = useMarketplaceStats();
 
   const items = useMemo<CatalogItem[]>(() => {
     const now = Date.now();
-    const builtins: CatalogItem[] = TEMPLATES.map((t) => ({
+    const builtins: BaseItem[] = TEMPLATES.map((t) => ({
       id: listingId("builtin", t.id),
       source: "builtin",
       key: t.id,
@@ -71,7 +80,7 @@ export function useCatalog() {
       tags: t.tags,
     }));
 
-    const older: CatalogItem[] = legacy.summaries
+    const older: BaseItem[] = legacy.summaries
       .filter((s) => s.active)
       .map((s) => ({
         id: listingId("legacy", s.id),
@@ -93,7 +102,7 @@ export function useCatalog() {
         tags: [],
       }));
 
-    const listed: CatalogItem[] = market.summaries
+    const listed: BaseItem[] = market.summaries
       .filter((s) => s.active && !s.hidden)
       .map((s) => ({
         id: listingId("market", s.id),
@@ -116,7 +125,7 @@ export function useCatalog() {
       }));
 
     // Official apps, skills and UI kits: free, and shipped with DevStation.
-    const officials: CatalogItem[] = OFFICIAL_LISTINGS.map((l) => ({
+    const officials: BaseItem[] = OFFICIAL_LISTINGS.map((l) => ({
       id: listingId("builtin", l.slug),
       source: "builtin",
       key: l.slug,
@@ -136,8 +145,11 @@ export function useCatalog() {
       tags: l.tags,
     }));
 
-    return [...listed, ...older, ...officials, ...builtins];
-  }, [chainId, counts, legacy.summaries, market.summaries]);
+    return [...listed, ...older, ...officials, ...builtins].map((item) => {
+      const s = activity?.listings[item.id];
+      return { ...item, tips: s?.tips ?? 0, clones: s?.clones ?? 0, downloads: s?.downloads ?? 0 };
+    });
+  }, [activity, chainId, counts, legacy.summaries, market.summaries]);
 
   const stats = useMemo(() => {
     const creators = new Set(

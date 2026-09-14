@@ -31,12 +31,14 @@ import { useNetworkPref } from "@/lib/active-chain";
 import { useEditorIntake } from "@/lib/editor-intake";
 import { useProjects } from "@/lib/appgen/projects";
 import { useMarketplace, type MarketListing } from "@/hooks/useMarketplace";
+import { useMarketplaceStats, useRecordActivity } from "@/hooks/useMarketplaceStats";
 import { useTemplateRegistry } from "@/hooks/useTemplateRegistry";
 import { useTemplateDeploys } from "@/hooks/useTemplateDeploys";
 import type { Bundle } from "@/lib/marketplace/bundle";
 import {
   formatAmount,
   formatPrice,
+  listingId,
   parseListingId,
   parsePrice,
   splitSale,
@@ -159,6 +161,22 @@ function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+/** Tips, clones and downloads for one listing. A dash means the source did
+ *  not answer, which is not the same as nobody having done it. */
+function StatRows({ id, tippable = false }: { id: string; tippable?: boolean }) {
+  const { data } = useMarketplaceStats();
+  const show = (n: number | undefined, available: boolean | undefined) =>
+    !data ? "…" : available ? (n ?? 0) : "–";
+  const s = data?.listings[id];
+  return (
+    <>
+      {tippable && <MetaRow label="Tips" value={show(s?.tips, data?.tipsAvailable)} />}
+      <MetaRow label="Clones" value={show(s?.clones, data?.activityAvailable)} />
+      <MetaRow label="Downloads" value={show(s?.downloads, data?.activityAvailable)} />
+    </>
+  );
+}
+
 // --- built-in -------------------------------------------------------------
 
 function BuiltinListing({ slug }: { slug: string }) {
@@ -167,6 +185,7 @@ function BuiltinListing({ slug }: { slug: string }) {
   const setPending = useEditorIntake((s) => s.setPending);
   const { counts } = useTemplateDeploys();
   const tpl = getTemplate(slug);
+  const record = useRecordActivity();
 
   if (!tpl) {
     return (
@@ -220,6 +239,7 @@ function BuiltinListing({ slug }: { slug: string }) {
               </Link>
               <button
                 onClick={() => {
+                  record(listingId("builtin", tpl.id), "clone");
                   setPending(`${tpl.name}.sol`, tpl.solidity);
                   void navigate({ to: "/launchkit/editor" });
                 }}
@@ -232,6 +252,7 @@ function BuiltinListing({ slug }: { slug: string }) {
             <div className="mt-4 border-t border-border pt-3">
               <MetaRow label="Contract" value={tpl.name} />
               <MetaRow label="Deploys" value={(counts[tpl.id] ?? tpl.deployCount).toString()} />
+              <StatRows id={listingId("builtin", tpl.id)} />
               <MetaRow label="Constructor args" value={tpl.args.length} />
               <MetaRow label="Version" value={tpl.version} />
             </div>
@@ -261,6 +282,8 @@ function OfficialListingView({ item }: { item: OfficialListing }) {
   const shown =
     openFile ?? paths.find((p) => /(^|\/)(SKILL|README)\.md$/.test(p)) ?? paths[0] ?? null;
   const zipName = `${item.skillName ?? item.slug}.zip`;
+  const record = useRecordActivity();
+  const statId = listingId("builtin", item.slug);
 
   const clone = async () => {
     if (!files) return;
@@ -269,6 +292,7 @@ function OfficialListingView({ item }: { item: OfficialListing }) {
       projects.hydrate();
       const projectId = projects.create(item.name, address ?? null);
       projects.update(projectId, { files });
+      record(statId, "clone");
       toast.success("Cloned into your apps");
       void navigate({ to: "/launchkit/apps/$id", params: { id: projectId } });
     } catch (e) {
@@ -283,6 +307,7 @@ function OfficialListingView({ item }: { item: OfficialListing }) {
     setBusy("zip");
     try {
       await downloadZip(files, zipName);
+      record(statId, "download");
     } finally {
       setBusy(null);
     }
@@ -355,7 +380,10 @@ function OfficialListingView({ item }: { item: OfficialListing }) {
                           {shown}
                         </span>
                         <button
-                          onClick={() => downloadText(shown, files[shown])}
+                          onClick={() => {
+                            downloadText(shown, files[shown]);
+                            record(statId, "download");
+                          }}
                           className="inline-flex shrink-0 items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-primary"
                         >
                           <Download className="h-3 w-3" /> Download
@@ -409,6 +437,7 @@ function OfficialListingView({ item }: { item: OfficialListing }) {
               <MetaRow label="Files" value={files ? paths.length : "…"} />
               <MetaRow label="Category" value={item.category} />
               {item.skillName && <MetaRow label="Skill name" value={item.skillName} />}
+              <StatRows id={statId} />
             </div>
           </Panel>
         </aside>
@@ -423,6 +452,7 @@ function LegacyListing({ id }: { id: number }) {
   const setPending = useEditorIntake((s) => s.setPending);
   const registry = useTemplateRegistry();
   const [busy, setBusy] = useState(false);
+  const record = useRecordActivity();
   const { data: tpl, isLoading } = useQuery({
     queryKey: ["template-registry", "template", id, registry.registry],
     enabled: registry.configured,
@@ -454,6 +484,7 @@ function LegacyListing({ id }: { id: number }) {
     try {
       if (tpl.price > 0n) await registry.payForDeploy(id, tpl.price);
       setPending(`${tpl.name}.sol`, tpl.source);
+      record(listingId("legacy", id), "clone");
       void navigate({ to: "/launchkit/editor" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "That failed.");
@@ -499,6 +530,7 @@ function LegacyListing({ id }: { id: number }) {
             <div className="mt-4 border-t border-border pt-3">
               <MetaRow label="Creator" value={<BuilderName address={tpl.creator} />} />
               <MetaRow label="Deploys" value={tpl.deployCount} />
+              <StatRows id={listingId("legacy", id)} />
             </div>
           </Panel>
         </aside>
@@ -569,6 +601,8 @@ function MarketListingView({
   const [files, setFiles] = useState<Bundle | null>(null);
   const [openFile, setOpenFile] = useState<string | null>(null);
   const [tipInput, setTipInput] = useState("");
+  const record = useRecordActivity();
+  const statId = listingId("market", listing.id);
 
   const isCreator =
     !!market.address && market.address.toLowerCase() === listing.creator.toLowerCase();
@@ -630,6 +664,7 @@ function MarketListingView({
     run("open", async () => {
       const { path, source } = solidityOf(await loadFiles());
       setPending(path.split("/").pop() ?? path, source);
+      record(statId, "clone");
       void navigate({ to: "/launchkit/editor" });
     });
 
@@ -639,6 +674,7 @@ function MarketListingView({
       projects.hydrate();
       const projectId = projects.create(listing.name, market.address ?? null);
       projects.update(projectId, { files: bundle });
+      record(statId, "clone");
       toast.success("Cloned into your apps");
       void navigate({ to: "/launchkit/apps/$id", params: { id: projectId } });
     });
@@ -727,12 +763,13 @@ function MarketListingView({
               </span>
               {files && (
                 <button
-                  onClick={() =>
+                  onClick={() => {
+                    record(statId, "download");
                     void downloadZip(
                       files,
                       `${skillNameFromPaths(Object.keys(files)) ?? (listing.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "listing")}.zip`,
-                    )
-                  }
+                    );
+                  }}
                   className="inline-flex items-center gap-1.5 font-mono text-[11px] text-primary hover:underline"
                 >
                   <Download className="h-3 w-3" /> Download all
@@ -775,7 +812,10 @@ function MarketListingView({
                           {openFile}
                         </span>
                         <button
-                          onClick={() => downloadText(openFile, files[openFile])}
+                          onClick={() => {
+                            downloadText(openFile, files[openFile]);
+                            record(statId, "download");
+                          }}
                           className="inline-flex shrink-0 items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-primary"
                         >
                           <Download className="h-3 w-3" /> Download
@@ -884,8 +924,9 @@ function MarketListingView({
 
             <div className="mt-4 border-t border-border pt-3">
               <MetaRow label="Creator" value={<BuilderName address={listing.creator} />} />
-              <MetaRow label="Sales" value={listing.sales} />
-              {listing.deploys > 0 && <MetaRow label="Deploys" value={listing.deploys} />}
+              {listing.price > 0n && <MetaRow label="Sold" value={listing.sales} />}
+              {perDeploy && <MetaRow label="Deploys" value={listing.deploys} />}
+              <StatRows id={statId} tippable />
               {listing.price > 0n && (
                 <MetaRow
                   label="Creator receives"

@@ -4,7 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import {
   AppWindow,
   BadgeCheck,
+  Copy,
   FileCode2,
+  Heart,
   LayoutTemplate,
   Rocket,
   ShoppingBag,
@@ -176,20 +178,30 @@ export function ListingCard({ item }: { item: CatalogItem }) {
           ) : null}
         </span>
         <span className="flex shrink-0 items-center gap-2">
-          {item.sales > 0 && (
-            <span className="inline-flex items-center gap-0.5">
-              <ShoppingBag className="h-3 w-3" /> {item.sales}
-            </span>
-          )}
-          {item.deploys > 0 && (
-            <span className="inline-flex items-center gap-0.5">
-              <Rocket className="h-3 w-3" /> {item.deploys}
-            </span>
-          )}
+          {item.price > 0n && <Stat icon={ShoppingBag} value={item.sales} label="sold" />}
+          {item.kind === "template" && <Stat icon={Rocket} value={item.deploys} label="deploys" />}
+          {item.source === "market" && <Stat icon={Heart} value={item.tips} label="tips" />}
+          <Stat icon={Copy} value={item.clones + item.downloads} label="clones and downloads" />
           <PriceTag item={item} />
         </span>
       </div>
     </Link>
+  );
+}
+
+function Stat({
+  icon: Icon,
+  value,
+  label,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  value: number;
+  label: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-0.5" title={`${value} ${label}`}>
+      <Icon className="h-3 w-3" /> {value}
+    </span>
   );
 }
 

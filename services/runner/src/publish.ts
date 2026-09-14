@@ -221,6 +221,20 @@ export function sitesFor(owner: string): Manifest[] {
   }
 }
 
+/** How many sites each wallet has published, lowercased, for the leaderboard. */
+export function siteCounts(): Record<string, number> {
+  const counts: Record<string, number> = {};
+  try {
+    for (const slug of readdirSync(PUBLISH_DIR)) {
+      const owner = readManifest(slug)?.owner?.toLowerCase();
+      if (owner) counts[owner] = (counts[owner] ?? 0) + 1;
+    }
+  } catch {
+    // Nothing published yet.
+  }
+  return counts;
+}
+
 export function unpublishSite(slug: string, owner: string): boolean {
   const clean = normaliseSlug(slug);
   if (!clean) return false;
