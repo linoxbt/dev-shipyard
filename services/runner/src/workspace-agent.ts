@@ -105,9 +105,11 @@ export interface WorkspaceSession {
   revision: number;
   fileCount: number;
   preview: { phase: PreviewPhase; revision: number; message: string | null };
+  /** Other wallets the owner has added as builders, lowercased. */
+  collaborators?: string[];
 }
 
-export type WorkspaceView = Omit<WorkspaceSession, "root" | "owner">;
+export type WorkspaceView = Omit<WorkspaceSession, "root" | "owner" | "collaborators">;
 
 const sessions = new Map<string, WorkspaceSession>();
 const running = new Map<string, AbortController>();
@@ -347,10 +349,75 @@ export function getWorkspace(id: string): WorkspaceSession | null {
 }
 
 export function workspaceView(session: WorkspaceSession): WorkspaceView {
-  const { root, owner, ...rest } = session;
+  const { root, owner, collaborators, ...rest } = session;
   void root;
   void owner;
+  void collaborators;
   return rest;
+}
+
+// --- other builders -----------------------------------------------------------
+//
+// A workspace belongs to the wallet that started it. The owner can add other
+// wallets as builders: they talk to the same agent over the same files, see the
+// same preview, and can publish. Only the owner changes who is in, and the
+// agent still runs one message at a time, whoever sent it.
+
+export const MAX_COLLABORATORS = 10;
+const WALLET = /^0x[a-fA-F0-9]{40}$/;
+
+export type WorkspaceRole = "owner" | "builder";
+
+export function workspaceRole(id: string, wallet: string): WorkspaceRole | null {
+  const s = sessions.get(id);
+  if (!s || !wallet) return null;
+  const who = wallet.toLowerCase();
+  if (s.owner.toLowerCase() === who) return "owner";
+  return (s.collaborators ?? []).includes(who) ? "builder" : null;
+}
+
+export function workspaceMembers(id: string): { owner: string; collaborators: string[] } | null {
+  const s = sessions.get(id);
+  return s ? { owner: s.owner.toLowerCase(), collaborators: [...(s.collaborators ?? [])] } : null;
+}
+
+export function setCollaborator(
+  id: string,
+  by: string,
+  wallet: string,
+  add: boolean,
+): { ok: true; collaborators: string[] } | { ok: false; status: number; message: string } {
+  const s = sessions.get(id);
+  if (!s) return { ok: false, status: 404, message: "That workspace is gone." };
+  if (workspaceRole(id, by) !== "owner") {
+    return {
+      ok: false,
+      status: 403,
+      message: "Only the wallet that started this workspace can change who builds on it.",
+    };
+  }
+  if (!WALLET.test(wallet))
+    return { ok: false, status: 400, message: "That is not a wallet address." };
+  const who = wallet.toLowerCase();
+  if (who === s.owner.toLowerCase()) {
+    return { ok: false, status: 400, message: "That wallet already owns this workspace." };
+  }
+  const current = s.collaborators ?? [];
+  if (add && !current.includes(who)) {
+    if (current.length >= MAX_COLLABORATORS) {
+      return {
+        ok: false,
+        status: 400,
+        message: `A workspace can have up to ${MAX_COLLABORATORS} other builders.`,
+      };
+    }
+    s.collaborators = [...current, who];
+  } else if (!add) {
+    s.collaborators = current.filter((c) => c !== who);
+  }
+  s.updatedAt = Date.now();
+  persist(s);
+  return { ok: true, collaborators: [...(s.collaborators ?? [])] };
 }
 
 export function workspaceFiles(id: string): Record<string, string> | null {

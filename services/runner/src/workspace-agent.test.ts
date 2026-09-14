@@ -13,11 +13,14 @@ import {
   previewDist,
   previewPlan,
   sendWorkspaceMessage,
+  setCollaborator,
   startWorkspacePreview,
   trimHistory,
   whenWorkspaceIdle,
   workspaceFiles,
+  workspaceMembers,
   workspaceMessages,
+  workspaceRole,
   workspaceView,
 } from "./workspace-agent";
 
@@ -365,5 +368,44 @@ describe("carrying the conversation", () => {
     const kept = trimHistory(messages, 80);
     expect(kept[0].role).toBe("user");
     expect(kept.map((m) => m.content[0])).toEqual(["d", "e"]);
+  });
+});
+
+describe("other builders on one workspace", () => {
+  const friend = "0x1111111111111111111111111111111111111111";
+
+  it("lets only the owner add and remove builders", async () => {
+    const session = await blank();
+    expect(workspaceRole(session.id, "0xABC")).toBe("owner");
+    expect(workspaceRole(session.id, friend)).toBeNull();
+    expect(setCollaborator(session.id, friend, friend, true)).toMatchObject({
+      ok: false,
+      status: 403,
+    });
+    expect(setCollaborator(session.id, "0xabc", "not-a-wallet", true)).toMatchObject({
+      ok: false,
+      status: 400,
+    });
+    expect(setCollaborator(session.id, "0xabc", friend, true)).toEqual({
+      ok: true,
+      collaborators: [friend],
+    });
+    expect(setCollaborator(session.id, "0xabc", friend, true)).toEqual({
+      ok: true,
+      collaborators: [friend],
+    });
+    expect(workspaceRole(session.id, friend)).toBe("builder");
+    expect(setCollaborator(session.id, "0xabc", friend, false)).toEqual({
+      ok: true,
+      collaborators: [],
+    });
+    expect(workspaceRole(session.id, friend)).toBeNull();
+  });
+
+  it("keeps who builds out of what the browser sees", async () => {
+    const session = await blank();
+    setCollaborator(session.id, "0xabc", friend, true);
+    expect(JSON.stringify(workspaceView(getWorkspace(session.id)!))).not.toContain(friend.slice(2));
+    expect(workspaceMembers(session.id)).toEqual({ owner: "0xabc", collaborators: [friend] });
   });
 });

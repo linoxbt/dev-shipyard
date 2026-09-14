@@ -124,6 +124,15 @@ const bodySchema = z.discriminatedUnion("action", [
     restore: sourceSchema.optional(),
   }),
   z.object({ action: z.literal("cancel"), id: z.string().min(1).max(80) }),
+  /** Open somebody else's workspace, as a builder they added. */
+  z.object({ action: z.literal("join"), id: z.string().min(1).max(80) }),
+  /** Add or remove a builder. Only the owner can; the runner checks. */
+  z.object({
+    action: z.literal("members"),
+    id: z.string().min(1).max(80),
+    wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+    remove: z.boolean().optional(),
+  }),
   z.object({ action: z.literal("preview"), id: z.string().min(1).max(80) }),
   z.object({
     action: z.literal("pull_request"),
@@ -220,14 +229,18 @@ export const Route = createFileRoute("/api/workspace")({
         ) {
           return fail("rate_limited", "Too many requests. Wait a moment.", 429);
         }
+        const members = url.searchParams.get("members");
         const suffix = url.searchParams.get("files")
           ? "/files"
           : url.searchParams.get("preview")
             ? "/preview"
-            : "";
+            : members
+              ? "/members"
+              : "";
         const result = await runner(
           request,
           `/agent/workspaces/${encodeURIComponent(id)}${suffix}`,
+          members ? { owner: ownerOf(claimsOf(request)) ?? "" } : {},
         );
         return Response.json(result.body, { status: result.status });
       },
@@ -283,7 +296,66 @@ export const Route = createFileRoute("/api/workspace")({
           return fail("runner", String(sent.body.message ?? "Could not send."), sent.status);
         }
 
+        if (data.action === "join") {
+          const owner = ownerOf(claims);
+          if (!owner) return fail(...NO_GRANT);
+          if (!checkRateLimit(`workspace:join:${key}`, START_LIMIT, WINDOW_MS)) {
+            return fail("rate_limited", "Too many workspaces opened. Try again later.", 429);
+          }
+          const path = `/agent/workspaces/${encodeURIComponent(data.id)}`;
+          const members = await runner(request, `${path}/members`, { owner });
+          if (!members.ok) {
+            return fail(
+              "runner",
+              String(members.body.message ?? "That workspace is gone."),
+              members.status,
+            );
+          }
+          if (!members.body.role) {
+            return fail(
+              "not_invited",
+              "This wallet has not been added to that app. Ask its owner to add it.",
+              403,
+            );
+          }
+          const [view, files] = await Promise.all([
+            runner(request, path),
+            runner(request, `${path}/files`),
+          ]);
+          if (!view.ok) {
+            return fail(
+              "runner",
+              String(view.body.message ?? "That workspace is gone."),
+              view.status,
+            );
+          }
+          return withCookie(
+            {
+              ok: true,
+              role: members.body.role,
+              workspace: view.body.workspace,
+              files: files.body.files ?? {},
+            },
+            claimCookieHeader(withClaim(claims, data.id, owner)),
+          );
+        }
+
         if (!holdsClaim(claims, data.id)) return fail(...NOT_YOURS);
+
+        if (data.action === "members") {
+          const owner = ownerOf(claims);
+          if (!owner) return fail(...NO_GRANT);
+          const result = await runner(
+            request,
+            `/agent/workspaces/${encodeURIComponent(data.id)}/members`,
+            {
+              method: "POST",
+              owner,
+              body: JSON.stringify({ wallet: data.wallet, remove: data.remove === true }),
+            },
+          );
+          return Response.json(result.body, { status: result.status });
+        }
 
         if (data.action === "cancel" || data.action === "preview") {
           const result = await runner(

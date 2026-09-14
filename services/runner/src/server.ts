@@ -60,8 +60,11 @@ import {
   previewAssets,
   previewDist,
   sendWorkspaceMessage,
+  setCollaborator,
   startWorkspacePreview,
   workspaceFiles,
+  workspaceMembers,
+  workspaceRole,
   workspaceView,
 } from "./workspace-agent";
 import { readListingFiles, rpcListingChain, storeListingFiles } from "./listings";
@@ -655,6 +658,16 @@ const server = createServer(async (req, res) => {
     }
 
     if (id && action === "messages" && req.method === "POST") {
+      // The owner or a builder they added. A missing workspace still answers
+      // 404 below, which is what tells the site to recreate it.
+      const sender = String(req.headers["x-devstation-owner"] ?? "").slice(0, 100);
+      if (getWorkspace(id) && !workspaceRole(id, sender)) {
+        return json(res, 403, {
+          ok: false,
+          message:
+            "This workspace belongs to another wallet. Switch back to it, or ask its owner to add this one.",
+        });
+      }
       if (!withinRateLimit(`workspace-message:${caller}`)) {
         return json(res, 429, { ok: false, message: "Too many messages from this client." });
       }
@@ -685,6 +698,35 @@ const server = createServer(async (req, res) => {
       if (!dist) return json(res, 404, { ok: false, message: "No preview has been built." });
       // Images and fonts travel beside the text, as base64.
       return json(res, 200, { ok: true, dist, assets: previewAssets(id) });
+    }
+
+    // Who builds on a workspace. The wallet asking comes in the owner header,
+    // set by DevStation's server from the signed claim, never by the browser.
+    if (id && action === "members") {
+      const wallet = String(req.headers["x-devstation-owner"] ?? "").slice(0, 100);
+      const members = workspaceMembers(id);
+      if (!members) return json(res, 404, { ok: false, message: "That workspace is gone." });
+      if (req.method === "GET") {
+        return json(res, 200, { ok: true, role: workspaceRole(id, wallet), ...members });
+      }
+      if (req.method === "POST") {
+        const body = await readJsonBody<{ wallet?: unknown; remove?: unknown }>(req, 2_000);
+        if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
+        const changed = setCollaborator(
+          id,
+          wallet,
+          String(body.value.wallet ?? ""),
+          body.value.remove !== true,
+        );
+        if (!changed.ok) return json(res, changed.status, { ok: false, message: changed.message });
+        return json(res, 200, {
+          ok: true,
+          role: "owner",
+          owner: members.owner,
+          collaborators: changed.collaborators,
+        });
+      }
+      return json(res, 405, { ok: false, message: "Method not allowed" });
     }
 
     if (id && action === "files" && req.method === "GET") {

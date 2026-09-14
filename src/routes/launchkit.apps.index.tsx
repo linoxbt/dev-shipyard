@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Check, Code2, Pencil, Plus, Trash2, Wand2, X } from "lucide-react";
+import { Check, Code2, GitFork, Pencil, Plus, Trash2, Wand2, X } from "lucide-react";
 import { useAccount } from "wagmi";
 import { fileCount, useProjects, type AppProject } from "@/lib/appgen/projects";
 
@@ -168,6 +168,17 @@ function AppsPage() {
                         className="text-meta opacity-0 transition group-hover:opacity-100 hover:text-primary"
                       >
                         <Code2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (useProjects.getState().remix(p.id, wallet ?? null)) {
+                            void navigate({ to: "/launchkit/coding-agent" });
+                          }
+                        }}
+                        title="Remix: a copy of your own to change"
+                        className="text-meta opacity-0 transition group-hover:opacity-100 hover:text-primary"
+                      >
+                        <GitFork className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={() => {

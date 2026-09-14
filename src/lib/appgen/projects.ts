@@ -70,6 +70,10 @@ export interface AppProject {
   workspaceTurns?: number;
   /** Where the project started, and the repository it belongs to, if any. */
   source?: { kind: "blank" | "files" | "github"; repo?: string; ref?: string } | null;
+  /** True once another wallet builds on this project's workspace. */
+  shared?: boolean;
+  /** "builder" when this browser joined somebody else's workspace. */
+  role?: "owner" | "builder";
 }
 
 // Everything below is read back from localStorage, which is user-editable and
@@ -127,6 +131,8 @@ const projectSchema = z.object({
     })
     .nullable()
     .optional(),
+  shared: z.boolean().optional(),
+  role: z.enum(["owner", "builder"]).optional(),
 });
 
 interface ProjectsState {
@@ -149,6 +155,10 @@ interface ProjectsState {
    *  switch the builder's active project as a side effect of viewing a page. */
   update: (id: string, patch: Partial<Omit<AppProject, "id" | "createdAt">>) => void;
   active: () => AppProject | null;
+  /** Copy a project into a new one and open it: same files, preview and
+   *  conversation, but its own workspace, address and repository, so nothing
+   *  done to the remix touches the original. Returns the new id. */
+  remix: (id: string, owner?: string | null) => string | null;
 }
 
 function newId(): string {
@@ -319,6 +329,33 @@ export const useProjects = create<ProjectsState>((set, get) => ({
     // activeId is passed through untouched: persisting a patch to some other
     // project must not change which one is open.
     write(next, activeId);
+  },
+
+  remix: (id, owner) => {
+    const projects = get().projects;
+    const from = projects.find((p) => p.id === id);
+    if (!from) return null;
+    const now = Date.now();
+    const hasFiles = Object.keys(from.files).length > 0;
+    const project: AppProject = {
+      id: newId(),
+      name: cleanName(`${from.name} remix`, defaultName(projects)),
+      createdAt: now,
+      updatedAt: now,
+      files: { ...from.files },
+      history: [...from.history],
+      turns: [...from.turns],
+      dist: from.dist ?? null,
+      owner: owner ?? null,
+      attached: from.attached ?? null,
+      source: hasFiles
+        ? { kind: "files", repo: from.source?.repo, ref: from.source?.ref }
+        : (from.source ?? { kind: "blank" }),
+    };
+    const next = [project, ...projects].slice(0, MAX_PROJECTS);
+    set({ projects: next, activeId: project.id });
+    write(next, project.id);
+    return project.id;
   },
 
   active: () => {
