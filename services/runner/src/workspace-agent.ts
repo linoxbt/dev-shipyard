@@ -13,12 +13,20 @@
 // out by their session on DevStation's server after they have seen the work.
 // No credential of theirs ever reaches this process.
 
-import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { join, relative, sep } from "node:path";
 import { randomBytes } from "node:crypto";
 import { Orchestrator, type AgentEvent, type Handoff } from "../../../src/lib/agent/orchestrator";
 import type { ProviderMessage } from "../../../src/lib/agent/providers/types";
-import { Workspace } from "../../../src/lib/agent/workspace";
+import { looksBinary, Workspace } from "../../../src/lib/agent/workspace";
 import { initLocalRepo, materialise, readWorkspace } from "../../../src/lib/agent/repo-session";
 import { providerFromEnv, type ModelProvider } from "../../../src/lib/agent/providers";
 import { SANDBOX_ADDENDUM, SANDBOX_NETWORK_ADDENDUM } from "../../../src/lib/agent/system-prompt";
@@ -657,10 +665,73 @@ function under(files: Record<string, string>, dir: string): Record<string, strin
   return out;
 }
 
+/** Folders that hold nothing a preview build needs: installs, history and
+ *  earlier build output. */
+const PREVIEW_SKIP = new Set([
+  "node_modules",
+  ".git",
+  ".agent",
+  ".devstation",
+  "dist",
+  "build",
+  ".next",
+  ".turbo",
+]);
+const MAX_ASSET_BYTES = 1024 * 1024;
+
+const previewAssetsFile = (s: { root: string }) => `${s.root}.preview-assets.json`;
+
+/**
+ * The files readWorkspace leaves out because they are not text -- images,
+ * fonts, icons -- as base64, keyed by path under `dir`.
+ *
+ * A preview used to be built from the text files alone, so a project that
+ * imports ./assets/hero.png, as the Vite template does, failed with "Could not
+ * resolve" however correct its code was.
+ */
+export function readBinaryFiles(dir: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const walk = (current: string) => {
+    let entries;
+    try {
+      entries = readdirSync(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const item of entries) {
+      if (item.isSymbolicLink()) continue;
+      const full = join(current, item.name);
+      if (item.isDirectory()) {
+        if (!PREVIEW_SKIP.has(item.name)) walk(full);
+        continue;
+      }
+      if (!item.isFile()) continue;
+      try {
+        if (statSync(full).size > MAX_ASSET_BYTES) continue;
+        const bytes = readFileSync(full);
+        // The same test readWorkspace uses, so every file lands on exactly one side.
+        if (!looksBinary(bytes)) continue;
+        out[relative(dir, full).split(sep).join("/")] = bytes.toString("base64");
+      } catch {
+        // A file that vanished mid-walk is not a failed preview.
+      }
+    }
+  };
+  walk(dir);
+  return out;
+}
+
 export function previewDist(id: string): Record<string, string> | null {
   const s = sessions.get(id);
   if (!s) return null;
   return readJson<Record<string, string>>(previewFile(s));
+}
+
+/** The preview's images and fonts, as base64, beside previewDist's text. */
+export function previewAssets(id: string): Record<string, string> {
+  const s = sessions.get(id);
+  if (!s) return {};
+  return readJson<Record<string, string>>(previewAssetsFile(s)) ?? {};
 }
 
 export function startWorkspacePreview(
@@ -693,22 +764,31 @@ export function startWorkspacePreview(
   }
   if (plan.kind === "static") {
     writeAtomic(previewFile(session), JSON.stringify(under(files, plan.dir)));
+    writeAtomic(
+      previewAssetsFile(session),
+      JSON.stringify(readBinaryFiles(join(session.root, plan.dir))),
+    );
     set({ phase: "ready", revision, message: null });
     return { ok: true, session };
   }
 
   let project = under(files, plan.dir);
-  const size = (f: Record<string, string>) => Object.values(f).reduce((n, c) => n + c.length, 0);
+  const binary = readBinaryFiles(join(session.root, plan.dir));
+  const binaryBytes = Object.values(binary).reduce((n, c) => n + Math.floor((c.length * 3) / 4), 0);
+  const binaryCount = Object.keys(binary).length;
+  const size = (f: Record<string, string>) =>
+    Object.values(f).reduce((n, c) => n + c.length, 0) + binaryBytes;
+  const count = (f: Record<string, string>) => Object.keys(f).length + binaryCount;
   // Lockfiles are the largest thing in most projects and npm installs without
   // one, so they go first when a project is over the build limits.
-  if (size(project) > LIMITS.maxInputBytes || Object.keys(project).length > LIMITS.maxFiles) {
+  if (size(project) > LIMITS.maxInputBytes || count(project) > LIMITS.maxFiles) {
     project = Object.fromEntries(
       Object.entries(project).filter(
         ([p]) => !/(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?)$/.test(p),
       ),
     );
   }
-  if (size(project) > LIMITS.maxInputBytes || Object.keys(project).length > LIMITS.maxFiles) {
+  if (size(project) > LIMITS.maxInputBytes || count(project) > LIMITS.maxFiles) {
     set({
       phase: "unsupported",
       revision,
@@ -718,10 +798,11 @@ export function startWorkspacePreview(
   }
 
   set({ phase: "building", revision, message: "Installing and building" });
-  void buildImpl(project, plan.outDir).then((outcome) => {
+  void buildImpl(project, plan.outDir, binary).then((outcome) => {
     if (sessions.get(id) !== session) return;
     if (outcome.ok && outcome.dist && Object.keys(outcome.dist).length > 0) {
       writeAtomic(previewFile(session), JSON.stringify(outcome.dist));
+      writeAtomic(previewAssetsFile(session), JSON.stringify(outcome.distBinary ?? {}));
       set({ phase: "ready", revision, message: null });
     } else {
       set({ phase: "error", revision, message: outcome.message });
@@ -735,7 +816,14 @@ export function startWorkspacePreview(
 export async function buildViaSelf(
   files: Record<string, string>,
   outDir: string,
-): Promise<{ ok: boolean; dist: Record<string, string> | null; message: string }> {
+  binaryFiles: Record<string, string> = {},
+): Promise<{
+  ok: boolean;
+  dist: Record<string, string> | null;
+  /** Built images and fonts, as base64. */
+  distBinary?: Record<string, string> | null;
+  message: string;
+}> {
   const port = process.env.PORT ?? "8792";
   try {
     const res = await fetch(`http://127.0.0.1:${port}/jobs`, {
@@ -745,15 +833,23 @@ export async function buildViaSelf(
         authorization: `Bearer ${process.env.RUNNER_TOKEN ?? ""}`,
         "x-devstation-caller": "workspace-preview",
       },
-      body: JSON.stringify({ files, phases: ["install", "build"], outDir }),
+      body: JSON.stringify({
+        files,
+        ...(Object.keys(binaryFiles).length > 0 ? { binaryFiles } : {}),
+        phases: ["install", "build"],
+        outDir,
+      }),
     });
     const body = (await res.json().catch(() => null)) as {
       ok?: boolean;
       dist?: Record<string, string> | null;
+      distBinary?: Record<string, string> | null;
       message?: string;
       phases?: Array<{ phase: string; ok: boolean; log?: string }>;
     } | null;
-    if (body?.ok && body.dist) return { ok: true, dist: body.dist, message: "" };
+    if (body?.ok && body.dist) {
+      return { ok: true, dist: body.dist, distBinary: body.distBinary ?? null, message: "" };
+    }
     const failed = body?.phases?.find((p) => !p.ok);
     const log = failed?.log ? `\n${failed.log.slice(-1500)}` : "";
     return {

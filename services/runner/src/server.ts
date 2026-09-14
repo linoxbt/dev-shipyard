@@ -56,6 +56,7 @@ import {
   getWorkspace,
   initWorkspaceStore,
   parseWorkspaceSource,
+  previewAssets,
   previewDist,
   sendWorkspaceMessage,
   startWorkspacePreview,
@@ -90,6 +91,9 @@ const VALID_PHASES = new Set<PhaseName>(["install", "lint", "typecheck", "build"
 
 interface JobBody {
   files?: Record<string, string>;
+  /** Images, fonts and other files that are not text, as base64. Kept apart
+   *  from `files` so a text file is never mistaken for an encoded one. */
+  binaryFiles?: Record<string, string>;
   phases?: PhaseName[];
   /** Directory to return after a successful build. */
   outDir?: string;
@@ -174,15 +178,26 @@ function safePath(p: string): boolean {
   );
 }
 
+/** Bytes that are not UTF-8 text: a NUL, or a sequence that does not survive
+ *  being decoded and encoded again. */
+function isBinary(content: Buffer): boolean {
+  return content.includes(0) || !Buffer.from(content.toString("utf8"), "utf8").equals(content);
+}
+
 function validate(body: JobBody): string | null {
   const files = body.files ?? {};
-  const names = Object.keys(files);
+  const binary = body.binaryFiles ?? {};
+  const names = [...Object.keys(files), ...Object.keys(binary)];
   if (names.length === 0) return "No files supplied.";
   if (names.length > LIMITS.maxFiles) return `At most ${LIMITS.maxFiles} files per job.`;
   let bytes = 0;
   for (const [p, c] of Object.entries(files)) {
     if (!safePath(p)) return `Unsafe path: ${p}`;
     bytes += c.length;
+  }
+  for (const [p, c] of Object.entries(binary)) {
+    if (!safePath(p) || typeof c !== "string") return `Unsafe path: ${p}`;
+    bytes += Math.floor((c.length * 3) / 4);
   }
   if (bytes > LIMITS.maxInputBytes) return "Project is too large.";
   for (const p of body.phases ?? []) {
@@ -617,7 +632,8 @@ const server = createServer(async (req, res) => {
     if (id && action === "preview" && req.method === "GET") {
       const dist = previewDist(id);
       if (!dist) return json(res, 404, { ok: false, message: "No preview has been built." });
-      return json(res, 200, { ok: true, dist });
+      // Images and fonts travel beside the text, as base64.
+      return json(res, 200, { ok: true, dist, assets: previewAssets(id) });
     }
 
     if (id && action === "files" && req.method === "GET") {
@@ -756,7 +772,15 @@ const server = createServer(async (req, res) => {
     let distCount: number | null = null;
     try {
       await createContainer(IMAGE, name);
-      await putFiles(name, packTar(body.files!));
+      await putFiles(
+        name,
+        packTar({
+          ...body.files,
+          ...Object.fromEntries(
+            Object.entries(body.binaryFiles ?? {}).map(([p, c]) => [p, Buffer.from(c, "base64")]),
+          ),
+        }),
+      );
 
       for (const phase of phases) {
         if (Date.now() > deadline) {
@@ -778,24 +802,41 @@ const server = createServer(async (req, res) => {
       }
 
       let dist: Record<string, string> | null = null;
+      // Built images and fonts, as base64. Read as UTF-8 they were mangled
+      // beyond use; a caller that wants only text ignores this.
+      let distBinary: Record<string, string> | null = null;
       const built = results.find((r) => r.phase === "build");
       if (built?.ok) {
-        const tar = await getDir(name, body.outDir ?? "dist");
+        const outDir = body.outDir ?? "dist";
+        const tar = await getDir(name, outDir);
         if (tar) {
           dist = {};
           for (const entry of unpackTar(tar)) {
-            // docker cp prefixes with the directory name.
-            const rel = entry.path.replace(/^dist\//, "");
+            // The archive names every file under the directory it came from,
+            // which is `build/` for some projects, not always `dist/`.
+            const rel = entry.path.startsWith(`${outDir}/`)
+              ? entry.path.slice(outDir.length + 1)
+              : entry.path;
             if (!rel || rel.endsWith("/")) continue;
-            dist[rel] = entry.content.toString("utf8");
+            if (isBinary(entry.content)) {
+              distBinary ??= {};
+              distBinary[rel] = entry.content.toString("base64");
+            } else {
+              dist[rel] = entry.content.toString("utf8");
+            }
           }
         }
       }
 
-      distCount = dist ? Object.keys(dist).length : null;
+      distCount = dist ? Object.keys(dist).length + Object.keys(distBinary ?? {}).length : null;
       return {
         status: 200,
-        body: { ok: results.every((r) => r.ok), phases: results, dist },
+        body: {
+          ok: results.every((r) => r.ok),
+          phases: results,
+          dist,
+          ...(distBinary ? { distBinary } : {}),
+        },
       };
     } catch (e) {
       failure = e instanceof Error ? e.message : "The job failed to start.";

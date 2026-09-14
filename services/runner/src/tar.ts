@@ -17,11 +17,12 @@ function octal(value: number, len: number): Buffer {
   return pad(value.toString(8).padStart(len - 1, "0"), len);
 }
 
-/** Build a tar archive from path -> contents. */
-export function packTar(files: Record<string, string>): Buffer {
+/** Build a tar archive from path -> contents. A string is written as UTF-8; an
+ *  image or a font goes in as its bytes. */
+export function packTar(files: Record<string, string | Uint8Array>): Buffer {
   const parts: Buffer[] = [];
   for (const [path, content] of Object.entries(files)) {
-    const data = Buffer.from(content, "utf8");
+    const data = typeof content === "string" ? Buffer.from(content, "utf8") : Buffer.from(content);
     const header = Buffer.alloc(BLOCK);
     pad(path, 100).copy(header, 0);
     octal(0o644, 8).copy(header, 100); // mode

@@ -101,6 +101,42 @@ function baseName(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
 
+const ASSET_TYPES: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  avif: "image/avif",
+  bmp: "image/bmp",
+  ico: "image/x-icon",
+  svg: "image/svg+xml",
+  woff: "font/woff",
+  woff2: "font/woff2",
+  ttf: "font/ttf",
+  otf: "font/otf",
+  eot: "application/vnd.ms-fontobject",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  ogg: "audio/ogg",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  wasm: "application/wasm",
+};
+
+function assetType(name: string): string | null {
+  return ASSET_TYPES[name.slice(name.lastIndexOf(".") + 1).toLowerCase()] ?? null;
+}
+
+/** A quoted or url(...) reference to a file with an asset's extension, such as
+ *  "/assets/hero-abc.png" in a built bundle or url(./font.woff2?v=2) in CSS.
+ *  A ?query or #hash is matched too, so it is dropped with the path: left on a
+ *  data: URL it would corrupt the data. */
+const ASSET_REF = new RegExp(
+  `(["'\`(])((?:\\.{0,2}/)?(?:[\\w@.-]+/)*[\\w@.-]+\\.(?:${Object.keys(ASSET_TYPES).join("|")}))((?:[?#][^"'\`)\\s]*)?)(?=["'\`)])`,
+  "gi",
+);
+
 /**
  * Build a runnable preview from a generated app's files.
  *
@@ -108,12 +144,41 @@ function baseName(path: string): string {
  * Throws if the module graph cannot be linearised (a cycle), rather than
  * silently producing a page that fails at runtime with an opaque error.
  */
-export function buildPreview(files: Record<string, string>, dir = "app"): PreviewBundle {
+export function buildPreview(
+  files: Record<string, string>,
+  dir = "app",
+  /** Images, fonts and other files that are not text, as base64. */
+  assets: Record<string, string> = {},
+): PreviewBundle {
   const prefix = dir ? `${dir}/` : "";
   const own: Record<string, string> = {};
   for (const [path, content] of Object.entries(files)) {
     if (path.startsWith(prefix)) own[baseName(path)] = content;
   }
+
+  // Images, fonts and icons become data: URLs too, for the reason modules do:
+  // "/assets/hero-abc.png" in a srcdoc frame resolves against DevStation itself
+  // and 404s, and the app shows a broken image.
+  const assetUrls = new Map<string, string>();
+  for (const [path, base64] of Object.entries(assets)) {
+    const type = assetType(path);
+    if (path.startsWith(prefix) && type) {
+      assetUrls.set(baseName(path), `data:${type};base64,${base64}`);
+    }
+  }
+  for (const [name, content] of Object.entries(own)) {
+    const type = assetType(name);
+    if (type && !assetUrls.has(name)) {
+      assetUrls.set(name, `data:${type};charset=utf-8,${encodeURIComponent(content)}`);
+    }
+  }
+  const withAssets = (source: string): string =>
+    assetUrls.size === 0
+      ? source
+      : source.replace(ASSET_REF, (whole: string, open: string, path: string) => {
+          const url = assetUrls.get(baseName(path));
+          return url ? `${open}${url}` : whole;
+        });
 
   const html = own["index.html"];
   if (!html) throw new Error(`No index.html found in "${dir}".`);
@@ -144,7 +209,7 @@ export function buildPreview(files: Record<string, string>, dir = "app"): Previe
           next.push(name); // a dependency is not ready yet
           continue;
         }
-        let source = own[name];
+        let source = withAssets(own[name]);
         for (const spec of relativeImports(own[name])) {
           const target = urlFor.get(baseName(spec));
           if (target)
@@ -167,7 +232,7 @@ export function buildPreview(files: Record<string, string>, dir = "app"): Previe
     // different attribute order all failed to match. An unrewritten relative
     // URL then resolves against the PARENT page (a srcdoc iframe inherits the
     // host's base URL), 404s, and the app renders blank with no clue why.
-    let page = html;
+    let page = withAssets(html);
     const resolveLocal = (raw: string): string | null => {
       const name = baseName(raw.trim().replace(/^\.\//, "").split(/[?#]/)[0]);
       return own[name] !== undefined ? name : null;
@@ -179,7 +244,7 @@ export function buildPreview(files: Record<string, string>, dir = "app"): Previe
       if (!href) return tag;
       const name = resolveLocal(href);
       if (!name || !name.endsWith(".css")) return tag;
-      return `<style>\n${own[name]}\n</style>`;
+      return `<style>\n${withAssets(own[name])}\n</style>`;
     });
 
     // Scripts point at the module's data: URL.

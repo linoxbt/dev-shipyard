@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MockProvider } from "../../../src/lib/agent/providers";
@@ -9,6 +9,7 @@ import {
   createWorkspace,
   getWorkspace,
   parseWorkspaceSource,
+  previewAssets,
   previewDist,
   previewPlan,
   sendWorkspaceMessage,
@@ -277,6 +278,65 @@ describe("the preview", () => {
       phase: "error",
       message: "The build step failed.",
     });
+  });
+
+  it("sends the project's images to the build, and keeps the built ones", async () => {
+    // The reported failure: a Vite app importing ./assets/hero.png, built from
+    // the text files alone, could not resolve the import.
+    const session = await blank();
+    await say(
+      session.id,
+      "vite",
+      new MockProvider([
+        {
+          toolCalls: [
+            {
+              id: "1",
+              name: "write_file",
+              input: {
+                path: "frontend/package.json",
+                content: '{"scripts":{"build":"tsc -b && vite build"}}',
+              },
+            },
+            {
+              id: "2",
+              name: "write_file",
+              input: {
+                path: "frontend/src/App.tsx",
+                content: 'import heroImg from "./assets/hero.png";\nexport default heroImg;\n',
+              },
+            },
+          ],
+        },
+        { text: "ok" },
+      ]),
+    );
+    const root = getWorkspace(session.id)!.root;
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0xff]);
+    mkdirSync(join(root, "frontend/src/assets"), { recursive: true });
+    writeFileSync(join(root, "frontend/src/assets/hero.png"), png);
+    // An installed package's images are not the project's.
+    mkdirSync(join(root, "frontend/node_modules/pkg"), { recursive: true });
+    writeFileSync(join(root, "frontend/node_modules/pkg/logo.png"), png);
+
+    const seen: { files?: Record<string, string>; binary?: Record<string, string> } = {};
+    startWorkspacePreview(session.id, async (files, _outDir, binary = {}) => {
+      seen.files = files;
+      seen.binary = binary;
+      return {
+        ok: true,
+        dist: { "index.html": '<img src="/assets/hero-abc.png">' },
+        distBinary: { "assets/hero-abc.png": png.toString("base64") },
+        message: "",
+      };
+    });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(seen.files?.["src/App.tsx"]).toContain("./assets/hero.png");
+    expect(Object.keys(seen.binary ?? {})).toEqual(["src/assets/hero.png"]);
+    expect(Buffer.from(seen.binary!["src/assets/hero.png"], "base64").equals(png)).toBe(true);
+    expect(getWorkspace(session.id)!.preview.phase).toBe("ready");
+    expect(previewAssets(session.id)).toEqual({ "assets/hero-abc.png": png.toString("base64") });
   });
 
   it("finds the front end in the root or a conventional folder", () => {

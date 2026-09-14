@@ -102,9 +102,11 @@ describe("buildPreview", () => {
     expect(() =>
       buildPreview({
         "app/index.html":
-          '<html><head></head><body><div id="root"></div><script type="module" src="./app.js"></script><img src="./logo.png"></body></html>',
+          '<html><head></head><body><div id="root"></div><script type="module" src="./app.js"></script><iframe src="./other.html"></iframe></body></html>',
         "app/app.js": "console.log(1);",
-        "app/logo.png": "binary-ish",
+        // A second page is held but cannot be inlined the way a script, a
+        // stylesheet or an image is.
+        "app/other.html": "<p>another page</p>",
       }),
     ).toThrow(/Could not rewrite/);
   });
@@ -155,5 +157,35 @@ describe("buildPreview, built output", () => {
       .map((m) => m[2])
       .filter((v) => !/^(https?:|data:|#)/i.test(v));
     expect(refs).toEqual([]);
+  });
+
+  it("shows the project's images, fonts and icons instead of broken links", () => {
+    // A Vite app imports ./assets/hero.png. The build hashes it and the bundle
+    // refers to it by URL, which in a srcdoc frame resolves against DevStation
+    // and 404s. Built images arrive as base64; an SVG arrives as text.
+    const png = "iVBORw0KGgo=";
+    const { srcdoc } = buildPreview(
+      {
+        "index.html":
+          '<!doctype html><html><head><link rel="icon" type="image/svg+xml" href="/vite.svg">' +
+          '<script type="module" crossorigin src="/assets/index-abc123.js"></script>' +
+          '<link rel="stylesheet" crossorigin href="/assets/index-def456.css">' +
+          '</head><body><div id="root"></div></body></html>',
+        "assets/index-abc123.js":
+          'const heroImg = "/assets/hero-9f8e.png"; document.body.append(heroImg);',
+        "assets/index-def456.css":
+          "body{background:url(./hero-9f8e.png?v=1)} @font-face{src:url('/assets/inter.woff2')}",
+        "vite.svg": '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
+      },
+      "",
+      { "assets/hero-9f8e.png": png, "assets/inter.woff2": "d09GMgAB" },
+    );
+    const entry = /src="(data:text\/javascript[^"]*)"/.exec(srcdoc)?.[1] ?? "";
+    const bundle = decodeURIComponent(entry.split(",")[1] ?? "");
+    expect(bundle).toContain(`"data:image/png;base64,${png}"`);
+    expect(bundle).not.toContain("/assets/hero-9f8e.png");
+    expect(srcdoc).toContain(`url(data:image/png;base64,${png})`);
+    expect(srcdoc).toContain("url('data:font/woff2;base64,d09GMgAB')");
+    expect(srcdoc).toContain('href="data:image/svg+xml;charset=utf-8,');
   });
 });

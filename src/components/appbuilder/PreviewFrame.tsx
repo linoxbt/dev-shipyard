@@ -29,6 +29,8 @@ const ALLOWED_METHODS = new Set([
 interface Props {
   files: Record<string, string>;
   dir?: string;
+  /** Images, fonts and other files that are not text, as base64. */
+  assets?: Record<string, string>;
   /** Chain the app was generated for, shown so it is obvious what a
    *  transaction from the preview would actually touch. */
   chainName: string;
@@ -38,7 +40,7 @@ interface Props {
   className?: string;
 }
 
-export function PreviewFrame({ files, dir = "app", chainName, onError, className }: Props) {
+export function PreviewFrame({ files, dir = "app", assets, chainName, onError, className }: Props) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [runtimeErrors, setRuntimeErrors] = useState<PreviewError[]>([]);
@@ -49,12 +51,12 @@ export function PreviewFrame({ files, dir = "app", chainName, onError, className
   const bundle = useMemo(() => {
     try {
       setError(null);
-      return buildPreview(files, dir);
+      return buildPreview(files, dir, assets);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not build the preview.");
       return null;
     }
-  }, [files, dir]);
+  }, [files, dir, assets]);
 
   useEffect(() => () => bundle?.revoke(), [bundle]);
   // A rebuilt app starts from a clean slate.

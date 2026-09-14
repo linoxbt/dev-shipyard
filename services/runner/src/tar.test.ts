@@ -44,6 +44,15 @@ describe("tar", () => {
     expect(back).toEqual(files);
   });
 
+  it("keeps the bytes of a file that is not text", () => {
+    // An image a project imports. Written as UTF-8 it became something else,
+    // and a build that imports ./assets/hero.png had nothing to resolve.
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0xff]);
+    const entries = unpackTar(packTar({ "index.html": "<img>", "src/assets/hero.png": png }));
+    expect(entries.find((e) => e.path === "src/assets/hero.png")!.content.equals(png)).toBe(true);
+    expect(entries.find((e) => e.path === "index.html")!.content.toString()).toBe("<img>");
+  });
+
   it("reads an archive produced by REAL tar", () => {
     // Build output comes back from `docker cp`, i.e. GNU tar's output.
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tar-"));
