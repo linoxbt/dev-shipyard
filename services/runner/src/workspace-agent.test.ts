@@ -133,6 +133,33 @@ describe("a conversation over one workspace", () => {
   });
 });
 
+describe("running commands for someone on a web page", () => {
+  it("does the work instead of asking for shell access nobody can grant", async () => {
+    const session = await blank();
+    const sent = sendWorkspaceMessage(session.id, "make a folder", {
+      ...offline,
+      approve: true,
+      provider: new MockProvider([
+        {
+          toolCalls: [
+            {
+              id: "1",
+              name: "run_shell",
+              input: { command: "mkdir -p made-it && touch made-it/ok.txt" },
+            },
+          ],
+        },
+        { text: "Made it." },
+      ]),
+    });
+    if (!sent.ok) throw new Error(sent.message);
+    await whenWorkspaceIdle(session.id);
+    expect(Object.keys(workspaceFiles(session.id) ?? {})).toContain("made-it/ok.txt");
+    const refused = getWorkspace(session.id)!.events.filter((e) => e.kind === "approval.denied");
+    expect(refused).toHaveLength(0);
+  });
+});
+
 describe("where a workspace starts", () => {
   it("takes uploaded files, and keeps the repository they belong to", async () => {
     const parsed = parseWorkspaceSource({

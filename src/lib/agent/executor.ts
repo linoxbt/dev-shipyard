@@ -89,6 +89,10 @@ const ALLOWED_ENV = [
   "npm_config_cache",
   "PYTHONPATH",
   "JAVA_HOME",
+  // Where tools keep their configuration, including gh's login. Locations,
+  // not secrets: the token itself stays in the file they point at.
+  "GH_CONFIG_DIR",
+  "XDG_CONFIG_HOME",
 ] as const;
 
 export function allowedEnv(

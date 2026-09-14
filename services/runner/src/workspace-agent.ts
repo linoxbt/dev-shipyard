@@ -392,6 +392,11 @@ export interface SendOptions {
   provider?: ModelProvider;
   sandbox?: boolean;
   network?: boolean;
+  /** Approve every gated action. Defaults to true when commands run in the
+   *  sandbox: there is nobody at the other end of a web page to answer a
+   *  permission prompt, and the container is what keeps the machine safe, so
+   *  asking only made the agent stop and ask for "shell write access". */
+  approve?: boolean;
   /** Tests turn the automatic preview off; it builds through the runner's own
    *  HTTP queue, which is not running under a unit test. */
   preview?: boolean;
@@ -551,6 +556,11 @@ async function runTurn(
       embeddings,
       systemAddendum: sandboxNote + WORKSPACE_ADDENDUM + repoNote + context,
       offerPersonTools: personTools,
+      // Without an approver every gated action is refused, which in a web
+      // conversation meant no installs, no builds and no scaffolding at all.
+      ...((opts.approve ?? executor.kind === "sandbox")
+        ? { autonomy: "autonomous" as const, requestApproval: async () => true }
+        : {}),
       onDelta: (chunk) => touch({ reply: session.reply + chunk }),
       onEvent: (event) => {
         session.events.push(event);
