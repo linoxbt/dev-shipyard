@@ -178,10 +178,12 @@ function UnlockWindow() {
         </select>
       </Row>
       <p className="mt-1 font-mono text-[10px] text-meta">
-        The DevStation wallet stays unlocked for this long after your last action, surviving
-        refreshes and browser restarts. The seed phrase is encrypted with a key the browser will not
-        hand back to any script, but a longer window is still longer for an unattended tab to be
-        used. Only applies to the in-app wallet.
+        By default the DevStation wallet stays unlocked and connected, through refreshes and browser
+        restarts, until you lock it or clear this site&apos;s browser data. Pick a time to have it
+        lock itself that long after your last action instead. The seed phrase is encrypted with a
+        key the browser will not hand back to any script, but an unlocked wallet can be used by
+        anyone at this browser. Only applies to the in-app wallet: QIE Wallet and MetaMask stay
+        connected until you disconnect them.
       </p>
     </div>
   );

@@ -23,8 +23,13 @@ const DB_NAME = "devstation-wallet";
 const STORE = "keys";
 const KEY_ID = "session-key";
 
+/** An unlock window with no end: the wallet stays unlocked, and connected,
+ *  until the person locks it or clears this site's browser data. */
+export const UNLOCK_NEVER = 0;
+
 /** How long the wallet stays unlocked with no activity. Offered in settings. */
 export const UNLOCK_OPTIONS = [
+  { label: "Until I clear my browser data", ms: UNLOCK_NEVER },
   { label: "5 minutes", ms: 5 * 60 * 1000 },
   { label: "30 minutes", ms: 30 * 60 * 1000 },
   { label: "1 hour", ms: 60 * 60 * 1000 },
@@ -33,14 +38,25 @@ export const UNLOCK_OPTIONS = [
 ] as const;
 
 const UNLOCK_PREF_KEY = "devstation-burner-unlock-ms";
-/** Deliberately the shortest option: this is how long a stolen tab stays
- *  useful, so a longer window is a choice the user makes, not a default. */
-export const DEFAULT_UNLOCK_MS = UNLOCK_OPTIONS[0].ms;
+/** The wallet stays connected until the browser's data is cleared, the way an
+ *  extension wallet does: asking for the password on every visit made people
+ *  think they had been disconnected. A shorter window, the mitigation
+ *  described above, is one choice away in settings. */
+export const DEFAULT_UNLOCK_MS = UNLOCK_NEVER;
+
+/** When a session unlocked now, under the chosen window, stops being usable. */
+function expiryFromNow(): number {
+  const ms = getUnlockMs();
+  return ms === UNLOCK_NEVER ? Number.MAX_SAFE_INTEGER : Date.now() + ms;
+}
 
 export function getUnlockMs(): number {
   try {
     if (typeof localStorage === "undefined") return DEFAULT_UNLOCK_MS;
-    const raw = Number(localStorage.getItem(UNLOCK_PREF_KEY));
+    const stored = localStorage.getItem(UNLOCK_PREF_KEY);
+    // Number(null) is 0, which is UNLOCK_NEVER: only a value somebody saved counts.
+    if (stored === null) return DEFAULT_UNLOCK_MS;
+    const raw = Number(stored);
     return UNLOCK_OPTIONS.some((o) => o.ms === raw) ? raw : DEFAULT_UNLOCK_MS;
   } catch {
     return DEFAULT_UNLOCK_MS;
@@ -153,7 +169,7 @@ export async function saveBurnerSession(mnemonic: string): Promise<void> {
     const blob: SessionBlob = {
       ct: b64(ct),
       iv: b64(iv.buffer),
-      expiresAt: Date.now() + getUnlockMs(),
+      expiresAt: expiryFromNow(),
     };
     localStorage.setItem(BLOB_KEY, JSON.stringify(blob));
   } catch {
@@ -167,10 +183,7 @@ export function touchBurnerSession(): void {
   if (!blob) return;
   if (blob.expiresAt <= Date.now()) return;
   try {
-    localStorage.setItem(
-      BLOB_KEY,
-      JSON.stringify({ ...blob, expiresAt: Date.now() + getUnlockMs() }),
-    );
+    localStorage.setItem(BLOB_KEY, JSON.stringify({ ...blob, expiresAt: expiryFromNow() }));
   } catch {
     /* ignore */
   }
