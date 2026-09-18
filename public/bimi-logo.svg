@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.2" baseProfile="tiny-ps" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>DevStation</title>
+  <rect x="0" y="0" width="64" height="64" fill="#0a0e13"/>
+  <path d="M22 20L34 32L22 44" fill="none" stroke="#e67e22" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M39 44H50" fill="none" stroke="#1294a9" stroke-width="6" stroke-linecap="round"/>
+</svg>
