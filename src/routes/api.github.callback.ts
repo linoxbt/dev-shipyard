@@ -11,6 +11,8 @@ import {
   sealSession,
   stateValid,
 } from "@/lib/github-oauth.server";
+import { githubUser, grantedOwner, toAccounts } from "@/lib/accounts.server";
+import { clientKeyFromRequest } from "@/lib/rateLimit.server";
 
 // Where GitHub sends the user back. Exchanges the code for a token, stores it
 // in an httpOnly cookie, and returns to the page they started from.
@@ -67,6 +69,24 @@ export const Route = createFileRoute("/api/github/callback")({
           error?: string;
         } | null;
         if (!body?.access_token) return back(body?.error || "no_token");
+
+        // A GitHub account belongs to one wallet, and a wallet to one GitHub
+        // account. This redirect is the one place where both are known: the
+        // claim cookie rides back from GitHub with it.
+        const owner = grantedOwner(request);
+        if (!owner) return back("connect_wallet");
+        const user = await githubUser(body.access_token);
+        if (!user) return back("no_account");
+        const linked = await toAccounts(
+          "/account/github",
+          { method: "POST", body: JSON.stringify({ id: user.id, login: user.login }) },
+          owner,
+          clientKeyFromRequest(request),
+        );
+        if (!linked) return back("unreachable");
+        // Refused: no session cookie either, so the browser is not left signed
+        // in to an account this wallet may not use.
+        if (!linked.ok) return back(String(linked.body.error ?? "link_failed"));
 
         return new Response(null, {
           status: 302,

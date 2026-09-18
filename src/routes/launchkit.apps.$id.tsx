@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useProjects, fileCount } from "@/lib/appgen/projects";
+import { fetchWithGrant } from "@/lib/agent-access/grant";
 import { PublishDialog } from "@/components/appbuilder/PublishDialog";
 import { usePublishApp } from "@/hooks/usePublishApp";
 import { repoNameFrom } from "@/lib/github";
@@ -130,7 +131,7 @@ function AppDetail() {
   const doPush = async () => {
     setPushing(true);
     try {
-      const res = await fetch("/api/github/push", {
+      const res = await fetchWithGrant("/api/github/push", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -373,7 +374,7 @@ function AppDetail() {
                 Connect your GitHub account once, then push this app to a repository.
               </p>
               <a
-                href="/api/github?start=1"
+                href={`/api/github?start=1&return=${encodeURIComponent(`/launchkit/apps/${id}`)}`}
                 className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
               >
                 <Github className="h-3 w-3" /> Connect GitHub

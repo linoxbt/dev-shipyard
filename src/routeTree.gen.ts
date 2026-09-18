@@ -60,6 +60,7 @@ import { Route as ApiBuildRouteImport } from './routes/api.build'
 import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as ApiAgentRouteImport } from './routes/api.agent'
+import { Route as ApiAccountRouteImport } from './routes/api.account'
 import { Route as ApiAccessRouteImport } from './routes/api.access'
 import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
 import { Route as LaunchkitMarketplaceIndexRouteImport } from './routes/launchkit.marketplace.index'
@@ -347,6 +348,11 @@ const ApiAgentRoute = ApiAgentRouteImport.update({
   path: '/api/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAccountRoute = ApiAccountRouteImport.update({
+  id: '/api/account',
+  path: '/api/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAccessRoute = ApiAccessRouteImport.update({
   id: '/api/access',
   path: '/api/access',
@@ -522,6 +528,7 @@ export interface FileRoutesByFullPath {
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
   '/api/access': typeof ApiAccessRoute
+  '/api/account': typeof ApiAccountRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
@@ -604,6 +611,7 @@ export interface FileRoutesByTo {
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
   '/api/access': typeof ApiAccessRoute
+  '/api/account': typeof ApiAccountRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
@@ -687,6 +695,7 @@ export interface FileRoutesById {
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
   '/api/access': typeof ApiAccessRoute
+  '/api/account': typeof ApiAccountRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
@@ -773,6 +782,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/settings'
     | '/api/access'
+    | '/api/account'
     | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
@@ -855,6 +865,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/settings'
     | '/api/access'
+    | '/api/account'
     | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
@@ -937,6 +948,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/settings'
     | '/api/access'
+    | '/api/account'
     | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
@@ -1022,6 +1034,7 @@ export interface RootRouteChildren {
   OverviewRoute: typeof OverviewRoute
   SettingsRoute: typeof SettingsRoute
   ApiAccessRoute: typeof ApiAccessRoute
+  ApiAccountRoute: typeof ApiAccountRoute
   ApiAgentRoute: typeof ApiAgentRoute
   ApiAiRoute: typeof ApiAiRoute
   ApiAppsDeployRoute: typeof ApiAppsDeployRoute
@@ -1409,6 +1422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/account': {
+      id: '/api/account'
+      path: '/api/account'
+      fullPath: '/api/account'
+      preLoaderRoute: typeof ApiAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/access': {
       id: '/api/access'
       path: '/api/access'
@@ -1780,6 +1800,7 @@ const rootRouteChildren: RootRouteChildren = {
   OverviewRoute: OverviewRoute,
   SettingsRoute: SettingsRoute,
   ApiAccessRoute: ApiAccessRoute,
+  ApiAccountRoute: ApiAccountRoute,
   ApiAgentRoute: ApiAgentRoute,
   ApiAiRoute: ApiAiRoute,
   ApiAppsDeployRoute: ApiAppsDeployRoute,

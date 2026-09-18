@@ -60,6 +60,8 @@ import {
   unpublishSite,
 } from "./publish";
 import { ActivityStore, activityFile } from "./activity";
+import { AccountsStore, accountsFile } from "./accounts";
+import { codeMessage, mailConfigured, sendMail } from "./mail";
 import {
   cancelWorkspace,
   createWorkspace,
@@ -93,6 +95,8 @@ import {
 const PORT = Number(process.env.PORT ?? 8792);
 /** Clones and downloads of marketplace listings. See activity.ts. */
 const activity = new ActivityStore(activityFile());
+/** What each wallet is linked to: one GitHub account, one email. See accounts.ts. */
+const accounts = new AccountsStore(accountsFile());
 const HOST = process.env.RUNNER_HOST ?? "127.0.0.1";
 /** Separate from RUNNER_TOKEN on purpose: see session.ts. Unset means the
  *  dashboard is off entirely rather than open. */
@@ -464,6 +468,103 @@ const server = createServer(async (req, res) => {
   //
   // Same bearer token as the rest: writing a site is a privileged operation,
   // and the owning wallet comes from DevStation's server, which has verified it.
+  // What a wallet is linked to: one GitHub account, one verified email.
+  //
+  // The wallet is the owner header, set by DevStation's server from the signed
+  // claim; a browser cannot name a wallet here. See accounts.ts for why the
+  // link is one-to-one in both directions.
+  if (path === "/account" || path.startsWith("/account/")) {
+    if (!tokenMatches(req.headers.authorization, TOKEN)) {
+      return json(res, 401, { ok: false, message: "Unauthorized" });
+    }
+    const owner = String(req.headers["x-devstation-owner"] ?? "").slice(0, 100);
+    if (!/^0x[a-fA-F0-9]{40}$/.test(owner)) {
+      return json(res, 400, { ok: false, message: "A wallet address is required." });
+    }
+    const caller = String(req.headers["x-devstation-caller"] ?? "").slice(0, 100) || clientKey(req);
+    if (!withinRateLimit(`account:${caller}`, 120)) {
+      return json(res, 429, { ok: false, message: "Too many requests from this client." });
+    }
+    const rest = path.slice("/account".length).replace(/^\//, "");
+
+    if (!rest && req.method === "GET") {
+      return json(res, 200, {
+        ok: true,
+        account: accounts.view(owner),
+        mailConfigured: mailConfigured(),
+      });
+    }
+
+    if (rest === "github" && req.method === "POST") {
+      const body = await readJsonBody<{ id?: unknown; login?: unknown }>(req, 2_000);
+      if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
+      const linked = accounts.linkGithub(owner, {
+        id: Number(body.value.id),
+        login: String(body.value.login ?? "").slice(0, 100),
+      });
+      if (!linked.ok) {
+        return json(res, linked.error === "bad_request" ? 400 : 409, {
+          ok: false,
+          error: linked.error,
+          message: linked.message,
+        });
+      }
+      return json(res, 200, { ok: true, account: linked.view });
+    }
+
+    if (rest === "github" && req.method === "DELETE") {
+      return json(res, 200, { ok: true, account: accounts.unlinkGithub(owner) });
+    }
+
+    if (rest === "email/start" && req.method === "POST") {
+      const body = await readJsonBody<{ email?: unknown }>(req, 2_000);
+      if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
+      const started = accounts.startEmail(owner, String(body.value.email ?? ""));
+      if (!started.ok) {
+        return json(res, started.error === "cooldown" ? 429 : 400, {
+          ok: false,
+          error: started.error,
+          message: started.message,
+          retryIn: started.retryIn,
+        });
+      }
+      const { subject, text } = codeMessage(started.code);
+      const sent = await sendMail({ to: started.address, subject, text });
+      if (!sent.ok) {
+        // Nothing arrived, so nothing is pending: the person can try again at
+        // once rather than waiting out a cooldown for a code they never got.
+        accounts.cancelEmail(owner);
+        return json(res, sent.reason === "not_configured" ? 503 : 502, {
+          ok: false,
+          error: sent.reason,
+          message: sent.message,
+        });
+      }
+      return json(res, 200, { ok: true, account: accounts.view(owner) });
+    }
+
+    if (rest === "email/verify" && req.method === "POST") {
+      const body = await readJsonBody<{ code?: unknown }>(req, 2_000);
+      if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
+      const done = accounts.verifyEmail(owner, String(body.value.code ?? ""));
+      if (!done.ok) {
+        return json(res, 400, {
+          ok: false,
+          error: done.error,
+          message: done.message,
+          left: done.left,
+        });
+      }
+      return json(res, 200, { ok: true, account: done.view });
+    }
+
+    if (rest === "email" && req.method === "DELETE") {
+      return json(res, 200, { ok: true, account: accounts.unlinkEmail(owner) });
+    }
+
+    return json(res, 404, { ok: false, message: "Not found" });
+  }
+
   if (path.startsWith("/publish")) {
     if (!tokenMatches(req.headers.authorization, TOKEN)) {
       return json(res, 401, { ok: false, message: "Unauthorized" });

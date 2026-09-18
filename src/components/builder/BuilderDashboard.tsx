@@ -45,6 +45,7 @@ import {
 import type { BuilderChain, BuilderOverview } from "@/lib/api/builder.functions";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { BuilderName, Identicon } from "./BuilderName";
+import { AccountPanel } from "./AccountPanel";
 
 // A builder's dashboard and public profile, in one component.
 //
@@ -431,6 +432,11 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
           </Card>
         </div>
       </section>
+
+      {/* ------------------------------------------------------------ account */}
+      {/* Owner only: what this wallet is linked to is nobody else's business,
+          and this same component renders the public profile. */}
+      {owner && <AccountPanel />}
 
       {/* ----------------------------------------------------------- contracts */}
       <ContractsSection model={model} loading={overview.isLoading} />

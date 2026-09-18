@@ -12,6 +12,8 @@ import {
   readCookie,
   stateCookie,
 } from "@/lib/github-oauth.server";
+import { accountOf, githubUser, grantedOwner } from "@/lib/accounts.server";
+import { clientKeyFromRequest } from "@/lib/rateLimit.server";
 
 // GitHub sign-in status, start, and sign-out.
 //
@@ -60,14 +62,8 @@ export const Route = createFileRoute("/api/github")({
         const token = openSession(readCookie(request.headers.get("cookie"), COOKIE_NAME));
         if (!token) return Response.json({ configured: true, user: null });
 
-        const res = await fetch("https://api.github.com/user", {
-          headers: {
-            authorization: `Bearer ${token}`,
-            accept: "application/vnd.github+json",
-            "x-github-api-version": "2022-11-28",
-          },
-        }).catch(() => null);
-        if (!res || !res.ok) {
+        const user = await githubUser(token);
+        if (!user) {
           // The token was revoked on GitHub's side. Drop the cookie rather than
           // leaving the UI claiming a connection that no longer works.
           return new Response(JSON.stringify({ configured: true, user: null }), {
@@ -77,10 +73,22 @@ export const Route = createFileRoute("/api/github")({
             },
           });
         }
-        const u = (await res.json()) as { login: string; avatar_url: string; name?: string };
+
+        // A GitHub session alone is not a connection any more: it counts when
+        // the connected wallet is the one that linked this account.
+        const owner = grantedOwner(request);
+        const account = owner ? await accountOf(owner, clientKeyFromRequest(request)) : null;
+        const linked = account?.github ?? null;
         return Response.json({
           configured: true,
-          user: { login: u.login, avatarUrl: u.avatar_url, name: u.name ?? null },
+          user: { login: user.login, avatarUrl: user.avatarUrl, name: user.name },
+          link: {
+            wallet: owner,
+            linked: linked?.id === user.id,
+            linkedLogin: linked?.login ?? null,
+            /** Signed in as an account this wallet did not link. */
+            mismatch: !!linked && linked.id !== user.id,
+          },
         });
       },
 
