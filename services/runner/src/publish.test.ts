@@ -23,6 +23,10 @@ describe("whether an address can be had", () => {
   it("refuses names that cannot be a subdomain, and says why", () => {
     expect(slugStatus("admin", ALICE)).toMatchObject({ state: "unusable", reason: "reserved" });
     expect(slugStatus("docs", ALICE)).toMatchObject({ state: "unusable", reason: "reserved" });
+    // The mail records live on these labels; an app there would never resolve.
+    for (const label of ["send", "rsend", "resend"]) {
+      expect(slugStatus(label, ALICE)).toMatchObject({ state: "unusable", reason: "reserved" });
+    }
     expect(slugStatus("a", ALICE)).toMatchObject({ state: "unusable", reason: "invalid" });
     expect(slugStatus("42", ALICE)).toMatchObject({ state: "unusable", reason: "invalid" });
     expect(slugStatus("x".repeat(41), ALICE)).toMatchObject({ state: "unusable" });

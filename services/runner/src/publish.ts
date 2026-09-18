@@ -43,6 +43,12 @@ const RESERVED = new Set([
   "assets",
   "static",
   "mail",
+  // Mail: these labels carry the DKIM key and the return path for
+  // noreply@devstation.online. An app published on one of them would never
+  // resolve, because an explicit record beats the wildcard that serves apps.
+  "send",
+  "rsend",
+  "resend",
   "smtp",
   "imap",
   "ftp",
