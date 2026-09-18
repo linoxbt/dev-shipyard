@@ -117,7 +117,7 @@ export function ListingCard({ item }: { item: CatalogItem }) {
       to="/launchkit/marketplace/$listingId"
       params={{ listingId: item.id }}
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-lg border bg-surface p-4 transition",
+        "group relative flex flex-col overflow-hidden rounded-lg border bg-surface p-3 transition",
         "hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-[0_8px_30px_-12px] hover:shadow-primary/30",
         item.featured ? "border-primary/40" : "border-border",
       )}
@@ -147,15 +147,15 @@ export function ListingCard({ item }: { item: CatalogItem }) {
         </div>
       </div>
 
-      <h3 className="relative mt-3 line-clamp-1 font-mono text-base font-bold text-foreground">
+      <h3 className="relative mt-2 line-clamp-1 font-mono text-sm font-bold text-foreground">
         {item.name}
       </h3>
-      <p className="relative mt-1.5 line-clamp-2 min-h-[2.5rem] text-xs leading-relaxed text-muted-foreground">
+      <p className="relative mt-1 line-clamp-2 min-h-[2rem] text-[11px] leading-relaxed text-muted-foreground">
         {description}
       </p>
 
       {item.tags.length > 0 && (
-        <div className="relative mt-3 flex flex-wrap gap-1">
+        <div className="relative mt-2 flex flex-wrap gap-1">
           {item.tags.slice(0, 3).map((tag) => (
             <span
               key={tag}
@@ -167,7 +167,7 @@ export function ListingCard({ item }: { item: CatalogItem }) {
         </div>
       )}
 
-      <div className="relative mt-auto flex items-center justify-between gap-2 border-t border-border pt-3 font-mono text-[10px] text-meta">
+      <div className="relative mt-auto flex items-center justify-between gap-2 border-t border-border pt-2 font-mono text-[10px] text-meta">
         <span className="truncate">
           {item.official ? (
             "by DevStation"
@@ -207,7 +207,7 @@ function Stat({
 
 export function CardSkeleton() {
   return (
-    <div className="flex h-48 animate-pulse flex-col rounded-lg border border-border bg-surface p-4">
+    <div className="flex h-36 animate-pulse flex-col rounded-lg border border-border bg-surface p-3">
       <div className="h-4 w-24 rounded bg-surface-2" />
       <div className="mt-4 h-5 w-2/3 rounded bg-surface-2" />
       <div className="mt-3 h-3 w-full rounded bg-surface-2" />

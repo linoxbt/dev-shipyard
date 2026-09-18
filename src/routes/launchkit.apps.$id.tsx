@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useProjects, fileCount } from "@/lib/appgen/projects";
+import { PublishDialog } from "@/components/appbuilder/PublishDialog";
 import { usePublishApp } from "@/hooks/usePublishApp";
 import { repoNameFrom } from "@/lib/github";
 import { chainConfig } from "@/lib/chains";
@@ -70,7 +71,9 @@ function AppDetail() {
 
   const project = projects.find((p) => p.id === id) ?? null;
 
-  const { publish, unpublish, publishing } = usePublishApp();
+  const { unpublish } = usePublishApp();
+  // Publishing runs inside the dialog, which is where the address is chosen.
+  const [publishOpen, setPublishOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [confirming, setConfirming] = useState(false);
@@ -297,6 +300,15 @@ function AppDetail() {
         </Section>
 
         <Section title="Live">
+          {publishOpen && (
+            <div className="mb-3 overflow-hidden rounded border border-border">
+              <PublishDialog
+                project={project}
+                files={project.dist ?? project.files}
+                onClose={() => setPublishOpen(false)}
+              />
+            </div>
+          )}
           {project.liveUrl ? (
             <>
               <Row label="URL">
@@ -312,11 +324,10 @@ function AppDetail() {
               </Row>
               <div className="mt-2 flex gap-2">
                 <button
-                  onClick={() => void publish(project)}
-                  disabled={publishing}
-                  className="flex-1 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
+                  onClick={() => setPublishOpen(true)}
+                  className="flex-1 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
                 >
-                  {publishing ? "Publishing…" : "Republish"}
+                  Republish
                 </button>
                 <button
                   onClick={() => void unpublish(project)}
@@ -332,8 +343,8 @@ function AppDetail() {
                 Not published. Publishing puts the built app on its own subdomain.
               </p>
               <button
-                onClick={() => void publish(project)}
-                disabled={publishing || !isConnected}
+                onClick={() => setPublishOpen(true)}
+                disabled={!isConnected}
                 title={
                   isConnected
                     ? undefined
@@ -341,11 +352,7 @@ function AppDetail() {
                 }
                 className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
               >
-                {publishing ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Globe className="h-3 w-3" />
-                )}
+                <Globe className="h-3 w-3" />
                 {isConnected ? "Publish" : "Connect a wallet to publish"}
               </button>
             </>

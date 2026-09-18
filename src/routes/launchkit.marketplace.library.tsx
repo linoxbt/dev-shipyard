@@ -37,7 +37,7 @@ function LibraryPage() {
             body="Your purchases are recorded on-chain against your wallet. Connect it to see them."
           />
         ) : loading ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {Array.from({ length: 3 }, (_, i) => (
               <CardSkeleton key={i} />
             ))}
@@ -57,7 +57,7 @@ function LibraryPage() {
             }
           />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {owned.map((item) => (
               <ListingCard key={item.id} item={item} />
             ))}

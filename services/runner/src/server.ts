@@ -49,7 +49,16 @@ import {
   startAgentJob,
   type StartAgentInput,
 } from "./agent";
-import { canServe, publishSite, serveFile, siteCounts, sitesFor, unpublishSite } from "./publish";
+import {
+  canServe,
+  publishSite,
+  serveFile,
+  siteCounts,
+  sitesFor,
+  slugStatus,
+  suggestSlugs,
+  unpublishSite,
+} from "./publish";
 import { ActivityStore, activityFile } from "./activity";
 import {
   cancelWorkspace,
@@ -460,6 +469,21 @@ const server = createServer(async (req, res) => {
       return json(res, 401, { ok: false, message: "Unauthorized" });
     }
     const owner = String(req.headers["x-devstation-owner"] ?? "").slice(0, 100);
+
+    // Is an address free? Asked before anything is uploaded, so a name clash is
+    // something the person sees and fixes rather than something they run into.
+    // A wallet is optional here: without one the answer never says "yours".
+    const wanted = new URL(req.url ?? "/", "http://runner.local").searchParams.get("slug");
+    if (req.method === "GET" && wanted !== null) {
+      const status = slugStatus(wanted, owner);
+      const settled = status.state === "free" || status.state === "yours";
+      return json(res, 200, {
+        ok: true,
+        ...status,
+        suggestions: settled ? [] : suggestSlugs(wanted, owner),
+      });
+    }
+
     if (!/^0x[a-fA-F0-9]{40}$/.test(owner)) {
       return json(res, 400, { ok: false, message: "A wallet address is required to publish." });
     }
@@ -480,7 +504,7 @@ const server = createServer(async (req, res) => {
       });
       await new Promise((r) => req.on("end", r).on("close", r));
       if (tooBig) return json(res, 413, { ok: false, message: "Request too large" });
-      let body: { slug?: string; files?: Record<string, string> };
+      let body: { slug?: string; files?: Record<string, string>; fallback?: boolean };
       try {
         body = JSON.parse(raw || "{}") as typeof body;
       } catch {
@@ -499,6 +523,7 @@ const server = createServer(async (req, res) => {
         slug: String(body.slug ?? ""),
         files: body.files ?? {},
         owner,
+        fallback: body.fallback === true,
       });
       return json(res, result.ok ? 200 : 400, result);
     }

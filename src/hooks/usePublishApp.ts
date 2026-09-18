@@ -14,6 +14,17 @@ export interface PublishResult {
   ok: boolean;
   url?: string;
   message?: string;
+  /** The address asked for, when it was taken and a free one was used. */
+  renamedFrom?: string;
+}
+
+export interface PublishOptions {
+  /** The address to publish at. Defaults to the project's name, as before. */
+  slug?: string;
+  /** Publish at a free address rather than failing on a clash. */
+  fallback?: boolean;
+  /** What to publish, when the caller has already worked it out. */
+  files?: Record<string, string>;
 }
 
 export function usePublishApp() {
@@ -21,7 +32,7 @@ export function usePublishApp() {
   const [publishing, setPublishing] = useState(false);
 
   const publish = useCallback(
-    async (project: AppProject): Promise<PublishResult> => {
+    async (project: AppProject, options: PublishOptions = {}): Promise<PublishResult> => {
       if (!wallet) {
         const message = "Connect a wallet: publishing is rate limited per wallet.";
         toast.error(message);
@@ -30,7 +41,7 @@ export function usePublishApp() {
       // Publish what actually RUNS. For a Vite project that is the built
       // output, not the source: publishing src/app.js would put a page on the
       // internet that cannot load.
-      const source = project.dist ?? project.files;
+      const source = options.files ?? project.dist ?? project.files;
       if (!source || Object.keys(source).length === 0) {
         const message = "There is nothing to publish yet.";
         toast.error(message);
@@ -50,7 +61,12 @@ export function usePublishApp() {
         const own = await fetchWithGrant("/api/publish", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ slug: project.name || "app", files: payload, owner: wallet }),
+          body: JSON.stringify({
+            slug: options.slug || project.name || "app",
+            files: payload,
+            owner: wallet,
+            fallback: options.fallback === true,
+          }),
         }).catch(() => null);
 
         if (own) {
@@ -58,11 +74,17 @@ export function usePublishApp() {
             ok?: boolean;
             url?: string;
             message?: string;
+            renamedFrom?: string;
           } | null;
           if (body?.ok && body.url) {
             useProjects.getState().update(project.id, { liveUrl: body.url });
-            toast.success("Published");
-            return { ok: true, url: body.url };
+            const address = body.url.replace(/^https?:\/\//, "");
+            toast.success(
+              body.renamedFrom
+                ? `${body.renamedFrom} was taken, so this is live at ${address}`
+                : `Live at ${address}`,
+            );
+            return { ok: true, url: body.url, renamedFrom: body.renamedFrom };
           }
           // A name clash or an invalid name is the user's to resolve, not
           // something to silently work around by publishing somewhere else

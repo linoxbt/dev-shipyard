@@ -16,6 +16,9 @@ import { CLAIM_COOKIE, openClaims, ownerOf, readCookie } from "@/lib/agent-acces
 // wallet that first claims a name is the only one that can overwrite it.
 
 const PER_IP_LIMIT = 20;
+/** Availability checks are typed one keystroke at a time, so this is far
+ *  higher than the publish limits: it costs a file-system stat. */
+const CHECK_LIMIT = 300;
 const PER_WALLET_LIMIT = 10;
 const WINDOW_MS = 60 * 60 * 1000;
 
@@ -25,6 +28,9 @@ const publishSchema = z.object({
   slug: z.string().min(1).max(60),
   files: z.record(z.string(), z.string()),
   owner: z.string().regex(ADDRESS),
+  /** Publish at a free address instead of failing when the wanted one was
+   *  claimed between the check and this call. */
+  fallback: z.boolean().optional(),
 });
 
 const removeSchema = z.object({
@@ -77,7 +83,30 @@ export const Route = createFileRoute("/api/publish")({
       // Reports availability, or lists the caller's own sites.
       GET: async ({ request }) => {
         const cfg = serverConfig();
-        const owner = new URL(request.url).searchParams.get("owner");
+        const url = new URL(request.url);
+
+        // Is this address free? The wallet comes from the signed grant, never
+        // from the query: whether an address is YOURS is nobody else's to ask.
+        const slug = url.searchParams.get("slug");
+        if (slug !== null) {
+          const caller = clientKeyFromRequest(request);
+          if (!checkRateLimit(`publish:check:${caller}`, CHECK_LIMIT, WINDOW_MS)) {
+            return fail("rate_limited", "Too many checks. Wait a moment.", 429);
+          }
+          const res = await toRunner(
+            `/publish?slug=${encodeURIComponent(slug)}`,
+            { method: "GET" },
+            grantedOwner(request) ?? "",
+            caller,
+          );
+          if (!res) return fail("unreachable", "Publishing is unavailable.", 502);
+          return new Response(await res.text(), {
+            status: res.status,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        const owner = url.searchParams.get("owner");
         if (!owner) {
           return Response.json({ configured: cfg.url.length > 0 && cfg.token.length > 0 });
         }
@@ -124,7 +153,11 @@ export const Route = createFileRoute("/api/publish")({
           {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ slug: parsed.data.slug, files: parsed.data.files }),
+            body: JSON.stringify({
+              slug: parsed.data.slug,
+              files: parsed.data.files,
+              fallback: parsed.data.fallback === true,
+            }),
           },
           owner,
           ip,

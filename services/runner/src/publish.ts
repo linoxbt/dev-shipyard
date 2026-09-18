@@ -79,13 +79,18 @@ export interface Manifest {
   bytes: number;
 }
 
-export function normaliseSlug(raw: string): string | null {
-  const slug = raw
+/** The label a name would become, before it is judged usable. */
+function cleanLabel(raw: string): string {
+  return raw
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+export function normaliseSlug(raw: string): string | null {
+  const slug = cleanLabel(raw);
   if (slug.length < 2 || slug.length > 40) return null;
   if (RESERVED.has(slug)) return null;
   // A label that is all digits, or looks like an IP part, invites confusion
@@ -128,6 +133,81 @@ export interface PublishResult {
   slug?: string;
   url?: string;
   message?: string;
+  /** Set when the wanted address was taken and a free one was used instead. */
+  renamedFrom?: string;
+}
+
+// --- is this address free? ---------------------------------------------------
+//
+// A published app is named by its owner, and the name is a hostname everybody
+// shares. Before this, the only way to find out a name was taken was to upload
+// the whole app and read a 400 back, which is why two people who both left a
+// project called "Untitled app" met a dead end instead of an address.
+
+export type SlugState = "free" | "yours" | "taken" | "unusable";
+
+export interface SlugStatus {
+  /** The address as it would be used, or null when the name cannot be one. */
+  slug: string | null;
+  state: SlugState;
+  reason?: "invalid" | "reserved";
+  message?: string;
+}
+
+export function slugStatus(raw: string, owner: string): SlugStatus {
+  const label = cleanLabel(raw);
+  if (RESERVED.has(label)) {
+    return {
+      slug: null,
+      state: "unusable",
+      reason: "reserved",
+      message: `"${label}" is kept for DevStation itself. Try another name.`,
+    };
+  }
+  const slug = normaliseSlug(raw);
+  if (!slug) {
+    return {
+      slug: null,
+      state: "unusable",
+      reason: "invalid",
+      message: "Use 2 to 40 letters, numbers or hyphens. Digits alone will not do.",
+    };
+  }
+  const manifest = readManifest(slug);
+  if (!manifest) return { slug, state: "free" };
+  if (manifest.owner.toLowerCase() === owner.toLowerCase()) {
+    return { slug, state: "yours", message: "Your app is already here. Publishing replaces it." };
+  }
+  return { slug, state: "taken", message: "That address is taken by another wallet." };
+}
+
+/** Free addresses near the wanted one. The wallet-tailed suggestion is there so
+ *  a popular name does not turn everybody into -2, -3, -4. */
+export function suggestSlugs(raw: string, owner: string, count = 3): string[] {
+  const base = cleanLabel(raw).slice(0, 34).replace(/-+$/, "") || "my-app";
+  const tail = /^0x[a-fA-F0-9]{40}$/.test(owner) ? owner.slice(2, 6).toLowerCase() : "";
+  const candidates = [
+    `${base}-2`,
+    `${base}-3`,
+    ...(tail ? [`${base}-${tail}`] : []),
+    `${base}-app`,
+    `${base}-live`,
+    ...[4, 5, 6, 7, 8, 9].map((n) => `${base}-${n}`),
+  ];
+  const out: string[] = [];
+  for (const candidate of candidates) {
+    if (out.length >= count) break;
+    const status = slugStatus(candidate, owner);
+    if (status.slug && status.state === "free" && !out.includes(status.slug)) out.push(status.slug);
+  }
+  return out;
+}
+
+/** The wanted address when it can be had, otherwise the nearest free one. */
+export function firstFreeSlug(raw: string, owner: string): string | null {
+  const status = slugStatus(raw, owner);
+  if (status.slug && (status.state === "free" || status.state === "yours")) return status.slug;
+  return suggestSlugs(raw, owner, 1)[0] ?? null;
 }
 
 /** Rejects anything that would escape the site directory. A published app is
@@ -144,8 +224,11 @@ export function publishSite(input: {
   slug: string;
   files: Record<string, string>;
   owner: string;
+  /** Publish at a free address rather than failing when the wanted one is
+   *  taken. The caller is told which address was used. */
+  fallback?: boolean;
 }): PublishResult {
-  const slug = normaliseSlug(input.slug);
+  let slug = normaliseSlug(input.slug);
   if (!slug) {
     return {
       ok: false,
@@ -165,10 +248,21 @@ export function publishSite(input: {
     return { ok: false, message: "A published app needs an index.html." };
   }
 
-  const existing = readManifest(slug);
-  if (existing && existing.owner.toLowerCase() !== input.owner.toLowerCase()) {
-    return { ok: false, message: "That name is taken by another wallet." };
+  let renamedFrom: string | undefined;
+  const claimed = readManifest(slug);
+  if (claimed && claimed.owner.toLowerCase() !== input.owner.toLowerCase()) {
+    if (!input.fallback) return { ok: false, message: "That name is taken by another wallet." };
+    const free = suggestSlugs(slug, input.owner, 1)[0];
+    if (!free) {
+      return {
+        ok: false,
+        message: "That name is taken, and no address near it is free. Try a different one.",
+      };
+    }
+    renamedFrom = slug;
+    slug = free;
   }
+  const existing = readManifest(slug);
 
   // Build the new version beside the live one and swap it in. A publish that
   // fails halfway must not leave a half-replaced site being served.
@@ -202,7 +296,7 @@ export function publishSite(input: {
     cpSync(staging, target, { recursive: true });
     rmSync(staging, { recursive: true, force: true });
     rmSync(retired, { recursive: true, force: true });
-    return { ok: true, slug, url: `https://${slug}.devstation.online` };
+    return { ok: true, slug, url: `https://${slug}.devstation.online`, renamedFrom };
   } catch (e) {
     rmSync(staging, { recursive: true, force: true });
     return { ok: false, message: e instanceof Error ? e.message : "The publish failed." };

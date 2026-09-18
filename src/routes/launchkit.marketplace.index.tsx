@@ -151,7 +151,7 @@ function Browse() {
             <h2 className="mb-3 flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-foreground">
               <Star className="h-3.5 w-3.5 text-primary" /> Featured
             </h2>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {featured.slice(0, 3).map((item) => (
                 <ListingCard key={item.id} item={item} />
               ))}
@@ -246,7 +246,7 @@ function Browse() {
             )}
           </div>
           {loading && items.length === 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {Array.from({ length: 6 }, (_, i) => (
                 <CardSkeleton key={i} />
               ))}
@@ -266,7 +266,7 @@ function Browse() {
               }
             />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {filtered.map((item) => (
                 <ListingCard key={item.id} item={item} />
               ))}
