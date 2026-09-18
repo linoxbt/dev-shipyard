@@ -164,9 +164,9 @@ describe("sending the code", () => {
       calls.push({ url, init });
       return new Response(JSON.stringify({ id: "1" }), { status: 200 });
     }) as unknown as typeof fetch;
-    const { subject, text } = codeMessage("481920");
+    const { subject, text, html: body } = codeMessage("481920");
     const result = await sendMail(
-      { to: "me@example.com", subject, text },
+      { to: "me@example.com", subject, text, html: body },
       { RESEND_API_KEY: "re_test", MAIL_FROM: "DevStation <noreply@devstation.online>" },
       fake,
     );
@@ -179,6 +179,15 @@ describe("sending the code", () => {
     });
     expect(String(sent.subject)).toContain("481920");
     expect(String(sent.text)).toContain("expires in 10 minutes");
+    // Both parts go out: HTML for people, text for clients that refuse it.
+    const html = String(sent.html);
+    expect(html).toContain("481920");
+    expect(html).toContain("https://devstation.online/icon-192.png");
+    // The wordmark is live text, so the brand survives blocked images.
+    expect(html).toContain("Station</span>");
+    // Email is not a browser: nothing external can load or run.
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain("stylesheet");
   });
 
   it("reports why a send failed, without inventing success", async () => {

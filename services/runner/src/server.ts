@@ -528,8 +528,8 @@ const server = createServer(async (req, res) => {
           retryIn: started.retryIn,
         });
       }
-      const { subject, text } = codeMessage(started.code);
-      const sent = await sendMail({ to: started.address, subject, text });
+      const { subject, text, html } = codeMessage(started.code);
+      const sent = await sendMail({ to: started.address, subject, text, html });
       if (!sent.ok) {
         // Nothing arrived, so nothing is pending: the person can try again at
         // once rather than waiting out a cooldown for a code they never got.
