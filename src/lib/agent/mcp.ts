@@ -1,6 +1,9 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { VERSION } from "./cli/args";
+import { allowedEnv } from "./executor";
 
 // Talking to MCP servers.
 //
@@ -51,12 +54,89 @@ export function configPaths(root: string, home = process.env.HOME ?? ""): string
   ];
 }
 
+/** The two files that live inside a project, as opposed to the user's own. */
+function projectPaths(root: string): string[] {
+  return configPaths(root, "").slice(0, 2);
+}
+
+/** Where trusted project configs are remembered: path -> sha256 of contents. */
+export function trustFile(home = process.env.HOME ?? ""): string | null {
+  return home ? join(home, ".devstation", "mcp-trust.json") : null;
+}
+
+function readTrust(home: string): Record<string, string> {
+  const file = trustFile(home);
+  if (!file || !existsSync(file)) return {};
+  try {
+    const parsed = JSON.parse(readFileSync(file, "utf8")) as Record<string, string>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function digest(path: string): string {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+export interface UntrustedConfig {
+  path: string;
+  servers: string[];
+}
+
+/**
+ * Project MCP configs that have not been trusted, or have changed since.
+ *
+ * An MCP server is a program the CLI starts on this machine with this user's
+ * rights. A `.mcp.json` inside a repository is therefore a way for whoever
+ * wrote the repository to run code the moment somebody clones it and types
+ * `devstation`, and the agent's own file writes were a way to plant one for
+ * next time. So a project's file is only read once a person has said so, and
+ * the trust is pinned to its exact contents: edit the file and it asks again.
+ * The user's own ~/.devstation/mcp.json is theirs and needs no such step.
+ */
+export function untrustedConfigs(root: string, home = process.env.HOME ?? ""): UntrustedConfig[] {
+  const trust = readTrust(home);
+  const out: UntrustedConfig[] = [];
+  for (const path of projectPaths(root)) {
+    if (!existsSync(path)) continue;
+    if (trust[resolve(path)] === digest(path)) continue;
+    let servers: string[] = [];
+    try {
+      servers = Object.keys((JSON.parse(readFileSync(path, "utf8")) as McpConfig).mcpServers ?? {});
+    } catch {
+      /* listed with no servers; loadConfig ignores it either way */
+    }
+    out.push({ path, servers });
+  }
+  return out;
+}
+
+/** Trust the project configs at `root` as they are now. Returns what was trusted. */
+export function trustProjectConfigs(root: string, home = process.env.HOME ?? ""): string[] {
+  const file = trustFile(home);
+  if (!file) return [];
+  const trust = readTrust(home);
+  const trusted: string[] = [];
+  for (const path of projectPaths(root)) {
+    if (!existsSync(path)) continue;
+    trust[resolve(path)] = digest(path);
+    trusted.push(path);
+  }
+  mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(tmp, JSON.stringify(trust, null, 2), { mode: 0o600 });
+  renameSync(tmp, file);
+  return trusted;
+}
+
 export function loadConfig(root: string, home = process.env.HOME ?? ""): McpConfig {
   const merged: McpConfig = { mcpServers: {} };
+  const untrusted = new Set(untrustedConfigs(root, home).map((u) => u.path));
   // Read furthest-first so nearer files overwrite: the project has the last
-  // word about its own servers.
+  // word about its own servers, once it is trusted.
   for (const path of configPaths(root, home).reverse()) {
-    if (!existsSync(path)) continue;
+    if (!existsSync(path) || untrusted.has(path)) continue;
     try {
       const parsed = JSON.parse(readFileSync(path, "utf8")) as Partial<McpConfig>;
       for (const [name, server] of Object.entries(parsed.mcpServers ?? {})) {
@@ -119,7 +199,9 @@ export class McpServer {
     try {
       this.child = spawn(this.config.command, this.config.args ?? [], {
         stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env, ...this.config.env },
+        // The allow-listed environment plus what the config asks for, not
+        // every secret the CLI was started with.
+        env: allowedEnv(process.env, this.config.env ?? {}),
       });
     } catch (error) {
       this.startError = error instanceof Error ? error.message : String(error);
@@ -142,7 +224,7 @@ export class McpServer {
         {
           protocolVersion: "2024-11-05",
           capabilities: {},
-          clientInfo: { name: "devstation", version: "0.1.0" },
+          clientInfo: { name: "devstation", version: VERSION },
         },
         START_TIMEOUT_MS,
       );

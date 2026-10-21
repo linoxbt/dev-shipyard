@@ -21,7 +21,13 @@ const PATTERNS: Array<{ name: string; re: RegExp }> = [
   { name: "stripe", re: /\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}\b/g },
   { name: "paystack", re: /\bsk_(?:live|test)_[A-Za-z0-9]{16,}\b/g },
   { name: "netlify", re: /\bnfp_[A-Za-z0-9]{16,}\b/g },
-  { name: "aws-access-key", re: /\bAKIA[0-9A-Z]{16}\b/g },
+  { name: "aws-access-key", re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g },
+  { name: "npm", re: /\bnpm_[A-Za-z0-9]{30,}\b/g },
+  { name: "gitlab", re: /\bglpat-[A-Za-z0-9_-]{20,}\b/g },
+  { name: "xai", re: /\bxai-[A-Za-z0-9]{20,}\b/g },
+  { name: "docker", re: /\bdckr_pat_[A-Za-z0-9_-]{20,}\b/g },
+  { name: "freemodel", re: /\bfe_oa_[A-Za-z0-9_-]{16,}\b/g },
+  { name: "bearer", re: /\b(?:Bearer|Basic|token)\s+[A-Za-z0-9._~+/=-]{16,}/gi },
   { name: "slack", re: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g },
   { name: "google-api", re: /\bAIza[0-9A-Za-z_-]{35}\b/g },
   { name: "jwt", re: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g },
@@ -38,8 +44,15 @@ const PATTERNS: Array<{ name: string; re: RegExp }> = [
 // serialised as JSON, so the key arrives as "DATABASE_PASSWORD": rather than
 // DATABASE_PASSWORD=. Without it, secrets in structured payloads: the common
 // case: passed straight through unredacted.
+//
+// Case-insensitive: config files and JSON spell these `password:`,
+// `github_token=` and `"accessToken":` far more often than in capitals, and the
+// upper-case-only version let every one of those through.
 const SECRET_KEY =
-  /\b([A-Z0-9_]*(?:SECRET|PASSWORD|PRIVATE_KEY|API_KEY|TOKEN|CREDENTIAL|PASSPHRASE)[A-Z0-9_]*)(["']?\s*[:=]\s*)(["']?)([^\s"',;}]{6,})\3/g;
+  /\b([A-Z0-9_]*(?:SECRET|PASSWORD|PASSWD|PRIVATE_KEY|API_KEY|ACCESS_KEY|TOKEN|CREDENTIAL|PASSPHRASE|AUTHORIZATION)[A-Z0-9_]*)(["']?\s*[:=]\s*)(["']?)([^\s"',;}]{6,})\3/gi;
+
+/** `scheme://user:password@host`: the password, not the whole URL. */
+const URL_CREDENTIALS = /\b([a-z][a-z0-9+.-]*:\/\/[^\s:/@]+:)([^\s@/]+)@/gi;
 
 export const REDACTED = "[redacted]";
 
@@ -60,6 +73,11 @@ export function redact(input: string): RedactionResult {
   text = text.replace(SECRET_KEY, (_m, key: string, sep: string, q: string) => {
     kinds.add("assignment");
     return `${key}${sep}${q}${REDACTED}${q}`;
+  });
+
+  text = text.replace(URL_CREDENTIALS, (_m, head: string) => {
+    kinds.add("url-credentials");
+    return `${head}${REDACTED}@`;
   });
 
   for (const { name, re } of PATTERNS) {

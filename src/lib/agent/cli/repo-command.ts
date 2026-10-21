@@ -9,7 +9,13 @@ import {
   parseRepo,
 } from "../../github-repos";
 import { filesFromArchive, readTarGz } from "../../repo-archive";
-import { initLocalRepo, materialise, proposalFor, readWorkspace } from "../repo-session";
+import {
+  acceptedFiles,
+  initLocalRepo,
+  materialise,
+  proposalFor,
+  readWorkspace,
+} from "../repo-session";
 import { runCommand, type CommandContext, type RunOutcome } from "./commands";
 import type { Handoff, RunResult } from "../orchestrator";
 import type { Proposal } from "../repo-session";
@@ -128,7 +134,7 @@ export async function repoCommand(
     offerPersonTools: ["open_pull_request"],
   });
 
-  const change = changedFiles(before, readWorkspace(workspace));
+  const change = changedFiles(acceptedFiles(before, written), readWorkspace(workspace));
   const changedPaths = [...Object.keys(change.files), ...change.deleted].sort();
 
   terminal.out("");

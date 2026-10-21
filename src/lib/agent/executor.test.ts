@@ -196,3 +196,21 @@ describe("where the orchestrator may spawn a process", () => {
     expect(source).not.toContain("runShell(");
   });
 });
+
+describe("refusedForSecret, home directory and globs", () => {
+  it("refuses CLI logins and globbed secrets", () => {
+    for (const command of [
+      "cat ~/.claude/.credentials.json",
+      "cat ~/.codex/auth.json",
+      "cat ~/.config/gh/hosts.yml",
+      "cat ~/.netrc",
+      "cat ~/.docker/config.json",
+      "cat .e?v",
+      "cat .en*",
+      "cat ~/.ssh/config",
+    ]) {
+      expect(refusedForSecret(command)).not.toBeNull();
+    }
+    expect(refusedForSecret("cat src/*.ts")).toBeNull();
+  });
+});

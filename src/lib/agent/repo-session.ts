@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { looksBinary, Workspace } from "./workspace";
-import { runShell } from "./shell";
+import { runGit } from "./git";
 import type { RunResult } from "./orchestrator";
 
 // Running the agent against a repository somebody already has.
@@ -57,17 +57,40 @@ export function materialise(files: Record<string, string>, root: string): Materi
 }
 
 /**
+ * The files that actually went in, to compare against what comes out.
+ *
+ * A path the workspace refused (a `.mcp.json`, a credentials file) was never
+ * on disk, so it is missing from the read-back, and comparing against the
+ * original map would propose deleting it from somebody's repository.
+ */
+export function acceptedFiles(
+  files: Record<string, string>,
+  materialised: Materialised,
+): Record<string, string> {
+  const refused = new Set(materialised.refused.map((r) => r.path));
+  const out: Record<string, string> = {};
+  for (const [path, content] of Object.entries(files)) if (!refused.has(path)) out[path] = content;
+  return out;
+}
+
+/**
  * A local repository, so checkpoints and undo behave normally.
  *
  * The identity is supplied per-invocation and no remote is added. A workspace
  * that cannot push is a workspace that cannot push by accident.
  */
 export async function initLocalRepo(root: string, ref: string): Promise<boolean> {
-  const result = await runShell(
-    "git init -q && git add -A && " +
-      "git -c user.name='DevStation agent' -c user.email='agent@devstation.online' " +
+  // Three hardened invocations rather than one `&&` string, so the second and
+  // third pick up the overrides computed from the config the first one wrote.
+  const init = await runGit(root, "init -q", 60_000);
+  if (!init.ok) return false;
+  const add = await runGit(root, "add -A", 120_000);
+  if (!add.ok) return false;
+  const result = await runGit(
+    root,
+    "-c user.name='DevStation agent' -c user.email='agent@devstation.online' " +
       `commit -q -m ${JSON.stringify(`base: ${ref}`)} --allow-empty`,
-    { cwd: root, timeoutMs: 120_000 },
+    120_000,
   );
   return result.ok;
 }

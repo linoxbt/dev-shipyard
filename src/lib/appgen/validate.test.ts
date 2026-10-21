@@ -161,3 +161,38 @@ describe("an empty workspace is not a broken app", () => {
     expect(issues.some((i) => i.message.includes("no index.html"))).toBe(true);
   });
 });
+
+describe("validateApp parses real modules", () => {
+  const fatal = (files: Record<string, string>, target: "esm" | "vite" = "esm") =>
+    validateApp({ "app/index.html": html, ...files }, "app", target).filter((i) => i.fatal);
+
+  it("accepts top-level await and import.meta", () => {
+    expect(
+      fatal({ "app/app.js": "const r = await fetch(import.meta.url);\nexport default r;" }),
+    ).toHaveLength(0);
+  });
+
+  it("still sees an error after a multi-line import with no semicolon", () => {
+    const issues = fatal({
+      "app/app.js": 'import {\n  html\n} from "htm/preact"\nconst x = ;\n',
+    });
+    expect(issues.map((i) => i.message).join(" ")).toContain("Invalid JavaScript");
+  });
+
+  it("reads imports split across lines", () => {
+    const issues = fatal({
+      "app/app.js": 'import {\n  thing\n} from "./missing.js"\nexport { thing };\n',
+    });
+    expect(issues.map((i) => i.message).join(" ")).toContain("./missing.js");
+  });
+
+  it("checks .mjs and refuses .jsx without a build step", () => {
+    expect(fatal({ "app/util.mjs": "export const = 1;" })).toHaveLength(1);
+    expect(fatal({ "app/view.jsx": "export const V = () => <div/>;" })[0].message).toContain("JSX");
+  });
+
+  it("syntax-checks the Vite target, with JSX allowed", () => {
+    expect(fatal({ "app/src/App.jsx": "export const A = () => <div/>;" }, "vite")).toHaveLength(0);
+    expect(fatal({ "app/src/App.jsx": "export const A = () => <div>;" }, "vite")).toHaveLength(1);
+  });
+});

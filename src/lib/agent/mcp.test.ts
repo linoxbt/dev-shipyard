@@ -2,7 +2,16 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { McpHub, McpServer, configPaths, loadConfig, qualify, split } from "./mcp";
+import {
+  McpHub,
+  McpServer,
+  configPaths,
+  loadConfig,
+  qualify,
+  split,
+  trustProjectConfigs,
+  untrustedConfigs,
+} from "./mcp";
 
 // The client is tested against a server that actually speaks the protocol over
 // stdio, not against a mock of one. The framing is the part most likely to be
@@ -62,10 +71,29 @@ describe("configuration", () => {
       JSON.stringify({ mcpServers: { db: { command: "project-db" } } }),
     );
 
+    // Untrusted, the project's file is not read at all.
+    expect(loadConfig(root, home).mcpServers.db.command).toBe("global-db");
+    expect(untrustedConfigs(root, home).map((u) => u.servers)).toEqual([["db"]]);
+
+    trustProjectConfigs(root, home);
     const config = loadConfig(root, home);
     expect(config.mcpServers.db.command).toBe("project-db");
     // And the global one that was not overridden survives.
     expect(config.mcpServers.other.command).toBe("keep");
+  });
+
+  it("asks again once a trusted project file changes", () => {
+    const root = scratch();
+    const home = scratch();
+    writeFileSync(join(root, ".mcp.json"), JSON.stringify({ mcpServers: { a: { command: "x" } } }));
+    trustProjectConfigs(root, home);
+    expect(loadConfig(root, home).mcpServers.a.command).toBe("x");
+    writeFileSync(
+      join(root, ".mcp.json"),
+      JSON.stringify({ mcpServers: { a: { command: "evil" } } }),
+    );
+    expect(loadConfig(root, home).mcpServers.a).toBeUndefined();
+    expect(untrustedConfigs(root, home)).toHaveLength(1);
   });
 
   it("ignores a malformed file rather than refusing to start", () => {

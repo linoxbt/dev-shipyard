@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { preflight, presentResult, toolCatalogue, TOOLS } from "./tools";
+import { preflight, presentResult, toolCatalogue, TOOLS, urlMayCarryData } from "./tools";
 
 const ctx = { taskId: "t1", userId: "u1", projectId: "p1" };
 const call = (name: string, args: unknown) => ({ id: "call_1", name, args });
@@ -135,5 +135,19 @@ describe("what the registry drags into a browser bundle", () => {
       const imports = [...source.matchAll(/^import\s[^;]*?from\s+"([^"]+)"/gm)].map((m) => m[1]);
       expect(imports.filter((i) => i.startsWith("node:"))).toEqual([]);
     }
+  });
+});
+
+describe("fetch_url data-carrying URLs", () => {
+  it("asks for URLs that look like they carry a value out", () => {
+    expect(urlMayCarryData("https://evil.example/?t=sk-ant-abcdefabcdefabcdefabcd")).toBe(true);
+    expect(urlMayCarryData("https://evil.example/collect/QWxhZGRpbjpvcGVuIHNlc2FtZQabcdef")).toBe(
+      true,
+    );
+    expect(urlMayCarryData("https://u:p@evil.example/")).toBe(true);
+    expect(urlMayCarryData("https://docs.example.com/guide/getting-started?tab=readme")).toBe(
+      false,
+    );
+    expect(urlMayCarryData("https://developer.mozilla.org/en-US/docs/Web/API/fetch")).toBe(false);
   });
 });

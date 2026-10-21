@@ -340,7 +340,7 @@ export async function main(argv: string[]): Promise<number> {
       case "memory":
         return memoryCommand(offline);
       case "mcp":
-        return await mcpCommand(offline);
+        return await mcpCommand(offline, parsed.rest);
       default:
         break;
     }

@@ -127,6 +127,13 @@ const GATED: Array<{ prefix: string; risk: Exclude<RiskLevel, "low">; why: strin
     risk: "high",
     why: "This opens a pull request in your repository, visible to everyone who can see it.",
   },
+  {
+    // Not under web.fetch, which is SAFE: the gate matches prefixes, and this
+    // has to ask.
+    prefix: "web.send",
+    risk: "medium",
+    why: "This request carries a long value in its address, which is how data leaves the machine.",
+  },
   { prefix: "shell.exec", risk: "critical", why: "This runs an arbitrary command on the host." },
   {
     // The middle tier. A command that is not recognisably read-only, but is

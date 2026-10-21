@@ -24,6 +24,15 @@ die() {
   exit 1
 }
 
+# The checksum comes from the same release as the binary: it catches a broken
+# download, not a different publisher. An override trusts that publisher fully.
+warn_override() {
+  if [ -n "${DEVSTATION_REPO:-}" ] || [ -n "${DEVSTATION_VERSION:-}" ]; then
+    printf 'devstation: WARNING: installing %s at %s because DEVSTATION_REPO/DEVSTATION_VERSION is set.\n' "$REPO" "$VERSION" >&2
+    printf 'devstation: only do this for a repository you trust: it decides what runs on this machine.\n' >&2
+  fi
+}
+
 need() {
   command -v "$1" >/dev/null 2>&1 || die "this needs $1, which is not installed."
 }
@@ -94,6 +103,7 @@ The download does not match what was published. Nothing was installed."
 
 main() {
   need uname
+  warn_override
   target=$(detect_target)
   tmp=$(mktemp -d)
   # Whatever happens next, do not leave a half-downloaded binary behind.

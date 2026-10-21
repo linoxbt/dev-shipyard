@@ -1,4 +1,6 @@
 import { lookup } from "node:dns/promises";
+import http from "node:http";
+import https from "node:https";
 import { isIP } from "node:net";
 
 // Reading the web, carefully.
@@ -33,24 +35,62 @@ const MAX_BYTES = 400_000;
 const MAX_REDIRECTS = 5;
 const TIMEOUT_MS = 20_000;
 
+/** Expand an IPv6 address to eight 16-bit groups, or null. */
+function ipv6Groups(ip: string): number[] | null {
+  let text = ip.toLowerCase().split("%")[0];
+  // A trailing dotted quad (::ffff:1.2.3.4, ::1.2.3.4) becomes two groups.
+  const dotted = /(\d+\.\d+\.\d+\.\d+)$/.exec(text);
+  if (dotted) {
+    const parts = dotted[1].split(".").map(Number);
+    if (parts.some((n) => n > 255)) return null;
+    text =
+      text.slice(0, -dotted[1].length) +
+      `${((parts[0] << 8) | parts[1]).toString(16)}:${((parts[2] << 8) | parts[3]).toString(16)}`;
+  }
+  const halves = text.split("::");
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const missing = 8 - head.length - tail.length;
+  if (halves.length === 1 ? missing !== 0 : missing < 0) return null;
+  const groups = [...head, ...Array(halves.length === 2 ? missing : 0).fill("0"), ...tail].map(
+    (g) => parseInt(g, 16),
+  );
+  return groups.length === 8 && groups.every((g) => g >= 0 && g <= 0xffff) ? groups : null;
+}
+
+function v4FromGroups(hi: number, lo: number): string {
+  return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+}
+
 /** Ranges nobody on the public internet lives in, and the metadata endpoints
- *  that make this matter. */
-function isPrivateAddress(ip: string): boolean {
+ *  that make this matter.
+ *
+ *  IPv6 is checked by value, not by spelling: NAT64 (64:ff9b::/96), 6to4
+ *  (2002::/16), IPv4-compatible (::a.b.c.d) and IPv4-mapped addresses all
+ *  carry an IPv4 address inside them, and each was a way past a prefix test. */
+export function isPrivateAddress(ip: string): boolean {
   if (isIP(ip) === 6) {
-    const lower = ip.toLowerCase();
-    return (
-      lower === "::1" ||
-      lower === "::" ||
-      lower.startsWith("fc") ||
-      lower.startsWith("fd") ||
-      lower.startsWith("fe80") ||
-      // IPv4 mapped into IPv6, which is otherwise a way straight past this.
-      (lower.startsWith("::ffff:") && isPrivateAddress(lower.slice(7)))
-    );
+    const g = ipv6Groups(ip);
+    if (!g) return true;
+    const zeroHead = (n: number) => g.slice(0, n).every((x) => x === 0);
+    if (g.every((x) => x === 0)) return true; // ::
+    if (zeroHead(7) && g[7] === 1) return true; // ::1
+    if (zeroHead(5) && g[5] === 0xffff) return isPrivateAddress(v4FromGroups(g[6], g[7])); // mapped
+    if (zeroHead(6)) return isPrivateAddress(v4FromGroups(g[6], g[7])); // compatible
+    if (g[0] === 0x64 && g[1] === 0xff9b) return isPrivateAddress(v4FromGroups(g[6], g[7])); // NAT64
+    if (g[0] === 0x2002) return isPrivateAddress(v4FromGroups(g[1], g[2])); // 6to4
+    if ((g[0] & 0xfe00) === 0xfc00) return true; // unique local fc00::/7
+    if ((g[0] & 0xffc0) === 0xfe80) return true; // link-local
+    if ((g[0] & 0xffc0) === 0xfec0) return true; // site-local (deprecated)
+    if ((g[0] & 0xff00) === 0xff00) return true; // multicast
+    if (g[0] === 0x2001 && g[1] === 0x0db8) return true; // documentation
+    if (g[0] === 0x0100 && g[1] === 0 && g[2] === 0 && g[3] === 0) return true; // discard 100::/64
+    return false;
   }
   const parts = ip.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return true;
-  const [a, b] = parts;
+  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n) || n < 0 || n > 255)) return true;
+  const [a, b, c] = parts;
   return (
     a === 0 ||
     a === 10 ||
@@ -58,14 +98,21 @@ function isPrivateAddress(ip: string): boolean {
     (a === 169 && b === 254) || // link-local, and the cloud metadata endpoint
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) ||
+    (a === 192 && b === 0 && (c === 0 || c === 2)) || // IETF and documentation
+    (a === 198 && (b === 18 || b === 19)) || // benchmarking
+    (a === 198 && b === 51 && c === 100) ||
+    (a === 203 && b === 0 && c === 113) ||
     (a === 100 && b >= 64 && b <= 127) || // carrier-grade NAT
-    a >= 224
+    a >= 224 // multicast and reserved
   );
 }
 
 export interface UrlCheck {
   ok: boolean;
   reason?: string;
+  /** The address that was checked, which is the one the request must use. */
+  address?: string;
+  family?: 4 | 6;
 }
 
 /** Everything that can be decided without a network round trip. */
@@ -97,10 +144,11 @@ export async function checkResolves(raw: string): Promise<UrlCheck> {
 
   const url = new URL(raw);
   const host = url.hostname.replace(/^\[|\]$/g, "");
-  if (isIP(host)) return { ok: true };
+  if (isIP(host)) return { ok: true, address: host, family: isIP(host) as 4 | 6 };
 
   try {
     const addresses = await lookup(host, { all: true });
+    if (addresses.length === 0) return { ok: false, reason: `${host} could not be resolved.` };
     for (const { address } of addresses) {
       if (isPrivateAddress(address)) {
         return {
@@ -112,10 +160,10 @@ export async function checkResolves(raw: string): Promise<UrlCheck> {
         };
       }
     }
+    return { ok: true, address: addresses[0].address, family: addresses[0].family as 4 | 6 };
   } catch {
     return { ok: false, reason: `${host} could not be resolved.` };
   }
-  return { ok: true };
 }
 
 /** Strip a page down to something worth spending context on. */
@@ -147,6 +195,136 @@ export function htmlToText(html: string): string {
   );
 }
 
+interface Hop {
+  status: number;
+  headers: { get(name: string): string | null };
+  /** Read at most `limit` bytes of the body. */
+  read(limit: number): Promise<{ body: Buffer; truncated: boolean }>;
+  /** Stop reading and release the connection. */
+  close(): void;
+}
+
+/** How one hop is made. Swappable so tests can stand in for the network. */
+export type Transport = (
+  url: string,
+  address: string,
+  family: 4 | 6,
+  signal: AbortSignal,
+) => Promise<Hop>;
+
+const REQUEST_HEADERS = {
+  accept: "text/html,text/plain,application/json;q=0.9,*/*;q=0.8",
+  "user-agent": "DevStation-Agent/0.1 (+https://devstation.online)",
+};
+
+/**
+ * One request, connected to exactly the address that was checked.
+ *
+ * Checking a name and then letting fetch resolve it again is two lookups, and
+ * a rebinding DNS server answers them differently: public for the check,
+ * 169.254.169.254 for the request. node:http(s) takes a `lookup`, so the
+ * socket goes to the checked address while the Host header and TLS name stay
+ * the URL's. Works the same under Bun and Node.
+ */
+export const pinnedTransport: Transport = (url, address, family, signal) =>
+  new Promise((resolve, reject) => {
+    const target = new URL(url);
+    const mod = target.protocol === "https:" ? https : http;
+    const req = mod.request(
+      target,
+      {
+        method: "GET",
+        headers: REQUEST_HEADERS,
+        signal,
+        lookup: ((_host: string, opts: { all?: boolean }, cb: (...a: unknown[]) => void) =>
+          opts?.all ? cb(null, [{ address, family }]) : cb(null, address, family)) as never,
+      },
+      (res) => {
+        resolve({
+          status: res.statusCode ?? 0,
+          headers: {
+            get: (name) => {
+              const v = res.headers[name.toLowerCase()];
+              return Array.isArray(v) ? v.join(", ") : (v ?? null);
+            },
+          },
+          read: (limit) =>
+            new Promise((done, fail) => {
+              const chunks: Buffer[] = [];
+              let size = 0;
+              let truncated = false;
+              res.on("data", (chunk: Buffer) => {
+                if (truncated) return;
+                chunks.push(chunk);
+                size += chunk.length;
+                if (size > limit) {
+                  truncated = true;
+                  res.destroy();
+                  done({ body: Buffer.concat(chunks).subarray(0, limit), truncated });
+                }
+              });
+              res.on("end", () => !truncated && done({ body: Buffer.concat(chunks), truncated }));
+              res.on("error", (e) => (truncated ? undefined : fail(e)));
+              res.on("close", () => !truncated && done({ body: Buffer.concat(chunks), truncated }));
+            }),
+          close: () => res.destroy(),
+        });
+      },
+    );
+    req.on("error", reject);
+    req.end();
+  });
+
+/**
+ * One request through fetch, for when an HTTP proxy is configured.
+ *
+ * Behind a proxy the proxy resolves the name, so there is no local connection
+ * to pin; the check above still refuses private literals and names that
+ * resolve privately here. Also what the tests use, by replacing fetch.
+ */
+export const fetchTransport: Transport = async (url, _address, _family, signal) => {
+  const response = await fetch(url, { redirect: "manual", signal, headers: REQUEST_HEADERS });
+  return {
+    status: response.status,
+    headers: response.headers,
+    read: async (limit) => {
+      if (!response.body) return { body: Buffer.alloc(0), truncated: false };
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        size += value.length;
+        if (size > limit) {
+          await reader.cancel().catch(() => undefined);
+          return { body: Buffer.concat(chunks).subarray(0, limit), truncated: true };
+        }
+      }
+      return { body: Buffer.concat(chunks), truncated: false };
+    },
+    close: () => {
+      response.body?.cancel().catch(() => undefined);
+    },
+  };
+};
+
+function proxyConfigured(): boolean {
+  const e = process.env;
+  return Boolean(e.HTTPS_PROXY || e.https_proxy || e.HTTP_PROXY || e.http_proxy || e.ALL_PROXY);
+}
+
+let transportOverride: Transport | null = null;
+/** Tests only: route every hop through `t`, or back to the default. */
+export function setTransport(t: Transport | null): void {
+  transportOverride = t;
+}
+
+function transport(): Transport {
+  return transportOverride ?? (proxyConfigured() ? fetchTransport : pinnedTransport);
+}
+
 /**
  * Fetch one page as text.
  *
@@ -154,66 +332,99 @@ export function htmlToText(html: string): string {
  * every hop is checked. A URL that passes the check and then redirects to the
  * metadata endpoint is exactly the shape this is guarding against, and
  * `redirect: "follow"` would sail straight through it.
+ *
+ * One timer covers the whole read, body included: it used to be cleared once
+ * headers arrived, so a server that trickled its body could hold the agent
+ * indefinitely. The body is read with a byte cap rather than in full and then
+ * cut, so a huge response costs at most the cap.
  */
 export async function fetchPage(
   raw: string,
   options: { signal?: AbortSignal; maxBytes?: number } = {},
 ): Promise<FetchResult> {
   let url = raw;
-
-  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const allowed = await checkResolves(url);
-    if (!allowed.ok) return { ok: false, url, text: allowed.reason ?? "Refused." };
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    options.signal?.addEventListener("abort", () => controller.abort(), { once: true });
-
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        redirect: "manual",
-        signal: controller.signal,
-        headers: {
-          accept: "text/html,text/plain,application/json;q=0.9,*/*;q=0.8",
-          "user-agent": "DevStation-Agent/0.1 (+https://devstation.online)",
-        },
-      });
-    } catch (error) {
-      clearTimeout(timer);
-      const why = error instanceof Error ? error.message : String(error);
-      return { ok: false, url, text: `Could not fetch ${url}: ${why}` };
-    }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const onAbort = () => controller.abort();
+  options.signal?.addEventListener("abort", onAbort, { once: true });
+  const finish = (result: FetchResult) => {
     clearTimeout(timer);
+    options.signal?.removeEventListener("abort", onAbort);
+    return result;
+  };
 
-    if (response.status >= 300 && response.status < 400) {
-      const next = response.headers.get("location");
-      if (!next)
-        return { ok: false, url, status: response.status, text: "Redirect with no target." };
-      url = new URL(next, url).toString();
-      continue;
-    }
+  try {
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      const allowed = await checkResolves(url);
+      if (!allowed.ok || !allowed.address) {
+        return finish({ ok: false, url, text: allowed.reason ?? "Refused." });
+      }
 
-    if (!response.ok) {
-      return {
-        ok: false,
+      let response: Hop;
+      try {
+        response = await transport()(url, allowed.address, allowed.family ?? 4, controller.signal);
+      } catch (error) {
+        const why = controller.signal.aborted
+          ? "timed out"
+          : error instanceof Error
+            ? error.message
+            : String(error);
+        return finish({ ok: false, url, text: `Could not fetch ${url}: ${why}` });
+      }
+
+      if (response.status >= 300 && response.status < 400) {
+        const next = response.headers.get("location");
+        response.close();
+        if (!next) {
+          return finish({
+            ok: false,
+            url,
+            status: response.status,
+            text: "Redirect with no target.",
+          });
+        }
+        url = new URL(next, url).toString();
+        continue;
+      }
+
+      if (response.status < 200 || response.status >= 300) {
+        response.close();
+        return finish({
+          ok: false,
+          url,
+          status: response.status,
+          text: `${url} returned ${response.status}.`,
+        });
+      }
+
+      const contentType = response.headers.get("content-type") ?? "";
+      const limit = options.maxBytes ?? MAX_BYTES;
+      let read: { body: Buffer; truncated: boolean };
+      try {
+        read = await response.read(limit);
+      } catch (error) {
+        const why = controller.signal.aborted
+          ? "timed out"
+          : error instanceof Error
+            ? error.message
+            : String(error);
+        return finish({ ok: false, url, text: `Could not read ${url}: ${why}` });
+      }
+      const clipped = read.body.toString("utf8");
+      const text = /html/i.test(contentType) ? htmlToText(clipped) : clipped;
+      return finish({
+        ok: true,
         url,
         status: response.status,
-        text: `${url} returned ${response.status}.`,
-      };
+        contentType,
+        text,
+        truncated: read.truncated,
+      });
     }
-
-    const contentType = response.headers.get("content-type") ?? "";
-    const limit = options.maxBytes ?? MAX_BYTES;
-    const body = await response.text();
-    const truncated = body.length > limit;
-    const clipped = truncated ? body.slice(0, limit) : body;
-
-    const text = /html/i.test(contentType) ? htmlToText(clipped) : clipped;
-    return { ok: true, url, status: response.status, contentType, text, truncated };
+    return finish({ ok: false, url, text: `Gave up after ${MAX_REDIRECTS} redirects.` });
+  } catch (error) {
+    return finish({ ok: false, url, text: `Could not fetch ${url}: ${String(error)}` });
   }
-
-  return { ok: false, url, text: `Gave up after ${MAX_REDIRECTS} redirects.` };
 }
 
 export interface SearchResult {

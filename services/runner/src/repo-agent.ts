@@ -17,6 +17,7 @@ import { randomBytes } from "node:crypto";
 import { Orchestrator, type AgentEvent } from "../../../src/lib/agent/orchestrator";
 import { Workspace } from "../../../src/lib/agent/workspace";
 import {
+  acceptedFiles,
   initLocalRepo,
   materialise,
   proposalFor,
@@ -35,6 +36,7 @@ import { embeddingsFromEnv } from "../../../src/lib/agent/memory/embeddings";
 import { indexWorkspace, openStore } from "../../../src/lib/agent/memory/workspace-index";
 import type { MemoryStore } from "../../../src/lib/agent/memory/store";
 import { fileStore } from "../../../src/lib/agent/store";
+import { stateDir } from "./state-dir";
 
 export const REPO_JOB_TTL_MS = 6 * 60 * 60 * 1000;
 export const MAX_REPO_JOBS = 40;
@@ -43,7 +45,7 @@ export const MAX_REPO_JOBS = 40;
 const MAX_STEPS = 40;
 const MAX_MS = 15 * 60_000;
 
-const STATE_DIR = process.env.RUNNER_STATE_DIR ?? "/var/lib/devstation-runner";
+const STATE_DIR = stateDir();
 const REPO_DIR = join(STATE_DIR, "repo-agent");
 
 export type RepoJobPhase = "running" | "done" | "error" | "cancelled";
@@ -295,7 +297,7 @@ async function run(job: RepoJob, input: StartRepoJobInput, signal: AbortSignal) 
       },
     }).run(job.goal);
 
-    const change = changedFiles(files, readWorkspace(root));
+    const change = changedFiles(acceptedFiles(files, written), readWorkspace(root));
     const paths = [...Object.keys(change.files), ...change.deleted].sort();
     const proposed = [...result.handoffs].reverse().find((h) => h.tool === "open_pull_request");
     const fallback = proposalFor(job.goal, result, paths);

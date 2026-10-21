@@ -32,7 +32,7 @@ import {
   type ProviderUsage,
 } from "./providers";
 import { agentDiff, agentStatus, git as gitOp, type GitOp } from "./git";
-import { cloneDirName, cloneUrlProblem } from "./git-ops";
+import { cloneDirName, cloneUrlProblem, gitArgsProblem } from "./git-ops";
 import { CODING_AGENT_SYSTEM, GIT_ADDENDUM } from "./system-prompt";
 import { renderContext, retrieve } from "./memory/retrieve";
 import { webSearch, fetchPage } from "./web";
@@ -714,6 +714,10 @@ export class Orchestrator {
         const op = String(args.op ?? "status") as GitOp;
         const extra = (args.args as string[]) ?? [];
         if (op === "clone") return this.clone(String(args.url ?? ""), args.target_dir);
+        // Also checked by the tool schema; repeated here because this is the
+        // line that hands the arguments to git.
+        const argsProblem = gitArgsProblem(op, extra);
+        if (argsProblem) return { ok: false, output: argsProblem };
         // diff and status are answered against the last commit this run did
         // not make, because the run's own checkpoints would otherwise hide the
         // agent's work from it. See agentDiff in git.ts.

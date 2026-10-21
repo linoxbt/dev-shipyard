@@ -1,8 +1,11 @@
 import {
   appendFileSync,
+  closeSync,
   existsSync,
   mkdirSync,
+  openSync,
   readFileSync,
+  readSync,
   readdirSync,
   renameSync,
   rmSync,
@@ -61,7 +64,8 @@ export class SessionStore {
   }
 
   private ensure() {
-    mkdirSync(this.dir, { recursive: true });
+    // Transcripts hold whatever the run had in context. Owner-only.
+    mkdirSync(this.dir, { recursive: true, mode: 0o700 });
     // The agent's own bookkeeping must never end up in the user's history.
     // A checkpoint commits whatever changed, so without this the first one
     // sweeps the session files into their repo, and every turn after that
@@ -110,8 +114,12 @@ export class SessionStore {
     this.ensure();
     record.updatedAt = new Date().toISOString();
     const target = this.jsonPath(record.id);
-    const temporary = `${target}.tmp`;
-    writeFileSync(temporary, JSON.stringify(record, null, 2));
+    // A temporary name of its own per write: two processes on one session
+    // sharing `${id}.json.tmp` could rename each other's half-written file.
+    // The last complete write still wins, which is what a rewrite-in-full
+    // store can promise.
+    const temporary = `${target}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`;
+    writeFileSync(temporary, JSON.stringify(record, null, 2), { mode: 0o600 });
     renameSync(temporary, target);
   }
 
@@ -155,24 +163,33 @@ export class SessionStore {
 
   appendEvent(id: string, event: AgentEvent) {
     this.ensure();
-    appendFileSync(this.eventPath(id), `${JSON.stringify(event)}\n`);
+    appendFileSync(this.eventPath(id), `${JSON.stringify(event)}\n`, { mode: 0o600 });
   }
 
   /** Reads from a byte offset so a watcher can poll cheaply without re-reading
-   *  the whole log, and returns the new offset to carry into the next call. */
+   *  the whole log, and returns the new offset to carry into the next call.
+   *
+   *  Offsets are bytes, read as bytes. They used to be string lengths applied
+   *  to a decoded file, which drifted on the first non-ASCII character and then
+   *  skipped or repeated events; and every poll re-read the whole log. */
   readEvents(id: string, fromByte = 0): { events: AgentEvent[]; offset: number } {
     const path = this.eventPath(id);
     if (!existsSync(path)) return { events: [], offset: 0 };
     const size = statSync(path).size;
     if (size <= fromByte) return { events: [], offset: size };
-    const text = readFileSync(path, "utf8").slice(fromByte);
+    const buffer = Buffer.alloc(size - fromByte);
+    const fd = openSync(path, "r");
+    try {
+      readSync(fd, buffer, 0, buffer.length, fromByte);
+    } finally {
+      closeSync(fd);
+    }
+    // A partial final line means the writer is mid-append. Leave it for the
+    // next poll rather than dropping the event.
+    const end = buffer.lastIndexOf(0x0a);
+    if (end === -1) return { events: [], offset: fromByte };
     const events: AgentEvent[] = [];
-    let consumed = 0;
-    for (const line of text.split("\n")) {
-      // A partial final line means the writer is mid-append. Leave it for the
-      // next poll rather than dropping the event.
-      if (!text.slice(consumed).includes("\n")) break;
-      consumed += line.length + 1;
+    for (const line of buffer.subarray(0, end).toString("utf8").split("\n")) {
       if (!line.trim()) continue;
       try {
         events.push(JSON.parse(line) as AgentEvent);
@@ -180,6 +197,6 @@ export class SessionStore {
         // A line that will not parse is skipped, not fatal.
       }
     }
-    return { events, offset: fromByte + consumed };
+    return { events, offset: fromByte + end + 1 };
   }
 }

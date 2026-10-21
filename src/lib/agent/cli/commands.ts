@@ -1,6 +1,6 @@
 import { accessSync, constants, existsSync } from "node:fs";
 import { LiveView } from "./live";
-import { checkpointBase, isRepo, listCheckpoints, undoCheckpoint } from "../git";
+import { checkpointBase, isRepo, listCheckpoints, runGit, undoCheckpoint } from "../git";
 import { listSnapshots, undoSnapshot } from "../snapshots";
 import { evaluate } from "../policy";
 import { runShell } from "../shell";
@@ -30,7 +30,7 @@ import {
 import { embeddingsFromEnv } from "../memory/embeddings";
 import { indexWorkspace, openStore } from "../memory/workspace-index";
 import { formatEntry, memoryPath, readMemory } from "../memory/project-memory";
-import { McpHub, configPaths, loadConfig } from "../mcp";
+import { McpHub, configPaths, loadConfig, trustProjectConfigs, untrustedConfigs } from "../mcp";
 import { hostExecutor, type Executor } from "../executor";
 import {
   sandboxNetworkEnabled,
@@ -268,6 +268,13 @@ export async function runCommand(
   // across the session: a server that died between turns would otherwise stay
   // in the tool list, and offering a tool that cannot run is worse than not
   // offering it.
+  for (const pending of untrustedConfigs(context.root)) {
+    terminal.err(
+      `mcp: ${pending.path} names ${pending.servers.length} server(s) (${pending.servers.join(", ") || "none"}) ` +
+        "that were not started, because this project's MCP config has not been trusted. " +
+        "Read it, then run `devstation mcp trust` to allow it.",
+    );
+  }
   const mcp = await McpHub.start(loadConfig(context.root));
   for (const status of mcp.status) {
     if (status.ok) terminal.out(`mcp ${status.server}: ${status.tools} tool(s)`);
@@ -626,8 +633,11 @@ export async function diffCommand(context: CommandContext): Promise<number> {
   const base = await checkpointBase(context.root);
   // Against the last commit that was not the agent's, so this shows the
   // agent's work as one change rather than one commit at a time.
-  const command = base ? `git diff ${base}` : "git diff HEAD";
-  const result = await runShell(command, { cwd: context.root, timeoutMs: 60_000 });
+  const result = await runGit(
+    context.root,
+    base ? `diff --no-ext-diff --no-textconv ${base}` : "diff --no-ext-diff --no-textconv HEAD",
+    60_000,
+  );
   if (!result.ok) {
     context.terminal.err(result.stderr || "git diff failed.");
     return 1;
@@ -1070,7 +1080,23 @@ export function memoryCommand(context: CommandContext): number {
   return 0;
 }
 
-export async function mcpCommand(context: CommandContext): Promise<number> {
+export async function mcpCommand(context: CommandContext, action = ""): Promise<number> {
+  if (action.trim() === "trust") {
+    const trusted = trustProjectConfigs(context.root);
+    if (trusted.length === 0) {
+      context.terminal.out("This project has no MCP config to trust.");
+      return 0;
+    }
+    for (const path of trusted) context.terminal.out(`trusted ${path} as it is now`);
+    context.terminal.out("Any later change to it will need trusting again.");
+    return 0;
+  }
+  for (const pending of untrustedConfigs(context.root)) {
+    context.terminal.out(
+      `not trusted: ${pending.path} (${pending.servers.join(", ") || "no servers"}). ` +
+        "Read it, then run `devstation mcp trust`.",
+    );
+  }
   const config = loadConfig(context.root);
   const names = Object.keys(config.mcpServers);
 

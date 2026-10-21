@@ -1,9 +1,22 @@
-import { afterEach, describe, expect, it } from "bun:test";
-import { checkResolves, checkUrlShape, fetchPage, htmlToText } from "./web";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import {
+  checkResolves,
+  checkUrlShape,
+  fetchPage,
+  fetchTransport,
+  htmlToText,
+  isPrivateAddress,
+  pinnedTransport,
+  setTransport,
+} from "./web";
 
 const realFetch = globalThis.fetch;
+// The stubs below replace fetch, so every hop goes through the fetch transport
+// whatever the environment's proxy settings would pick.
+beforeEach(() => setTransport(fetchTransport));
 afterEach(() => {
   globalThis.fetch = realFetch;
+  setTransport(null);
 });
 
 function stub(pages: Array<{ status?: number; headers?: Record<string, string>; body?: string }>) {
@@ -195,5 +208,63 @@ describe("a page with nothing in it", () => {
     const result = await fetchPage("https://example.com/empty");
     expect(result.ok).toBe(true);
     expect(result.text.trim()).toBe("");
+  });
+});
+
+describe("private addresses hidden inside IPv6", () => {
+  it("are refused", () => {
+    for (const ip of [
+      "64:ff9b::7f00:1",
+      "64:ff9b::a9fe:a9fe",
+      "2002:7f00:1::",
+      "2002:a9fe:a9fe::1",
+      "::127.0.0.1",
+      "::ffff:127.0.0.1",
+      "::ffff:7f00:1",
+      "fec0::1",
+      "ff02::1",
+      "fd00::1",
+      "fe80::1",
+      "198.18.0.1",
+      "100.64.0.1",
+      "224.0.0.1",
+    ]) {
+      expect(isPrivateAddress(ip)).toBe(true);
+    }
+  });
+
+  it("let public addresses through", () => {
+    for (const ip of ["2606:4700:4700::1111", "64:ff9b::808:808", "1.1.1.1", "93.184.216.34"]) {
+      expect(isPrivateAddress(ip)).toBe(false);
+    }
+  });
+});
+
+describe("pinned transport", () => {
+  it("connects to the checked address, keeping the URL's host name", async () => {
+    let host = "";
+    const server = Bun.serve({
+      port: 0,
+      hostname: "127.0.0.1",
+      fetch(req) {
+        host = req.headers.get("host") ?? "";
+        return new Response("x".repeat(5000));
+      },
+    });
+    try {
+      const hop = await pinnedTransport(
+        `http://rebind.example.invalid:${server.port}/`,
+        "127.0.0.1",
+        4,
+        new AbortController().signal,
+      );
+      const read = await hop.read(1000);
+      expect(hop.status).toBe(200);
+      expect(host).toBe(`rebind.example.invalid:${server.port}`);
+      expect(read.truncated).toBe(true);
+      expect(read.body.length).toBe(1000);
+    } finally {
+      server.stop(true);
+    }
   });
 });

@@ -78,3 +78,147 @@ export function cloneTargetProblem(target: string): string | null {
   }
   return null;
 }
+
+/** The flags each operation may take. Anything else starting with `-` is
+ *  refused.
+ *
+ *  The arguments are shell-quoted, which stops `; curl x | sh` but not git's
+ *  own options, and several of those run programs or write files: `git log
+ *  --output=/home/u/.bashrc --format=...` wrote anywhere on the host as an
+ *  "inspect" that never asked. `--ext-diff`, `--textconv`, `--exec-path`,
+ *  `-c`, `--upload-pack` are the same shape. A deny-list would be one flag
+ *  behind git forever, so this is an allow-list. Values may be attached with
+ *  `=`; a value given as the next argument is positional and passes as one. */
+const FLAGS: Record<Exclude<GitOp, "clone">, readonly string[]> = {
+  status: ["-s", "--short", "--porcelain", "-b", "--branch", "-u", "--untracked-files"],
+  log: [
+    "-n",
+    "--max-count",
+    "--oneline",
+    "--stat",
+    "--shortstat",
+    "--numstat",
+    "--name-only",
+    "--name-status",
+    "-p",
+    "--patch",
+    "--no-patch",
+    "--graph",
+    "--decorate",
+    "--all",
+    "--since",
+    "--until",
+    "--after",
+    "--before",
+    "--author",
+    "--grep",
+    "--format",
+    "--pretty",
+    "--reverse",
+    "--follow",
+    "--no-merges",
+    "--merges",
+    "--abbrev-commit",
+    "--date",
+    "--first-parent",
+    "-S",
+    "-G",
+    "--no-color",
+    "--no-ext-diff",
+    "--no-textconv",
+  ],
+  show: [
+    "--stat",
+    "--shortstat",
+    "--numstat",
+    "--name-only",
+    "--name-status",
+    "--format",
+    "--pretty",
+    "--oneline",
+    "-p",
+    "--patch",
+    "--no-patch",
+    "-s",
+    "--abbrev-commit",
+    "--no-color",
+    "--no-ext-diff",
+    "--no-textconv",
+  ],
+  diff: [
+    "--stat",
+    "--shortstat",
+    "--numstat",
+    "--name-only",
+    "--name-status",
+    "--cached",
+    "--staged",
+    "-U",
+    "--unified",
+    "--word-diff",
+    "--no-color",
+    "-w",
+    "--ignore-all-space",
+    "-b",
+    "--ignore-space-change",
+    "--minimal",
+    "--patience",
+    "--histogram",
+    "--diff-filter",
+    "-M",
+    "--find-renames",
+    "--summary",
+    "--check",
+    "--no-ext-diff",
+    "--no-textconv",
+  ],
+  branch: [
+    "-a",
+    "--all",
+    "-r",
+    "--remotes",
+    "-v",
+    "-vv",
+    "--verbose",
+    "--list",
+    "--show-current",
+    "--merged",
+    "--no-merged",
+    "--contains",
+  ],
+  add: ["-A", "--all", "-u", "--update", "-N", "--intent-to-add", "-n", "--dry-run", "-v"],
+  commit: ["-m", "--message", "-a", "--all", "--allow-empty", "-q", "--quiet"],
+  init: ["-q", "--quiet", "-b", "--initial-branch"],
+  checkout: ["-b", "-q", "--quiet"],
+  "rev-parse": [
+    "--abbrev-ref",
+    "--short",
+    "--verify",
+    "--show-toplevel",
+    "--is-inside-work-tree",
+    "--symbolic-full-name",
+  ],
+};
+
+/** Why these arguments are not acceptable for `op`, or null. */
+export function gitArgsProblem(op: GitOp, args: readonly string[]): string | null {
+  if (op === "clone") return args.length ? "clone takes url and target_dir, not args." : null;
+  const allowed = new Set(FLAGS[op] ?? []);
+  let afterSeparator = false;
+  for (const arg of args) {
+    if (afterSeparator) continue;
+    if (arg === "--") {
+      afterSeparator = true;
+      continue;
+    }
+    if (!arg.startsWith("-") || arg === "-") continue;
+    // -5 is `log -n 5`, and -U3 is `diff -U 3`.
+    if (op === "log" && /^-\d+$/.test(arg)) continue;
+    if (op === "diff" && /^-U\d+$/.test(arg)) continue;
+    const name = arg.includes("=") ? arg.slice(0, arg.indexOf("=")) : arg;
+    if (!allowed.has(name)) {
+      return `git ${op} does not accept ${name} here. Allowed: ${[...allowed].join(" ")}.`;
+    }
+  }
+  return null;
+}

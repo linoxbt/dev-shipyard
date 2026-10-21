@@ -26,7 +26,7 @@ import { join, relative, sep } from "node:path";
 import { randomBytes } from "node:crypto";
 import { Orchestrator, type AgentEvent, type Handoff } from "../../../src/lib/agent/orchestrator";
 import type { ProviderMessage } from "../../../src/lib/agent/providers/types";
-import { looksBinary, Workspace } from "../../../src/lib/agent/workspace";
+import { isControlPath, looksBinary, Workspace } from "../../../src/lib/agent/workspace";
 import { initLocalRepo, materialise, readWorkspace } from "../../../src/lib/agent/repo-session";
 import { providerFromEnv, type ModelProvider } from "../../../src/lib/agent/providers";
 import { SANDBOX_ADDENDUM, SANDBOX_NETWORK_ADDENDUM } from "../../../src/lib/agent/system-prompt";
@@ -43,8 +43,9 @@ import { filesFromArchive, readTarGz } from "../../../src/lib/repo-archive";
 import { parseRepo } from "../../../src/lib/github-repos";
 import { sandboxEnabled } from "./repo-agent";
 import { LIMITS } from "./limits";
+import { stateDir } from "./state-dir";
 
-const STATE_DIR = process.env.RUNNER_STATE_DIR ?? "/var/lib/devstation-runner";
+const STATE_DIR = stateDir();
 const DEFAULT_DIR = join(STATE_DIR, "workspaces");
 
 /** A workspace is kept this long after it was last touched. The browser holds
@@ -226,6 +227,10 @@ export function parseWorkspaceSource(
     let bytes = 0;
     for (const [path, content] of Object.entries(r.files as Record<string, unknown>)) {
       if (typeof content !== "string") continue;
+      // A folder dragged in from disk often brings its .git with it. Those
+      // files configure programs git runs on this host, so they are dropped
+      // here as well as refused by the workspace.
+      if (isControlPath(path)) continue;
       files[path] = content;
       bytes += content.length;
     }

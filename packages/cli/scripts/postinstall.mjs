@@ -46,6 +46,16 @@ async function get(url) {
 async function main() {
   if (process.env.DEVSTATION_SKIP_DOWNLOAD === "1") return;
 
+  // The checksum file comes from the same release as the binary, so it proves
+  // the download arrived intact, not who built it. Pointing either variable
+  // somewhere else therefore trusts that somewhere completely: said loudly.
+  if (process.env.DEVSTATION_REPO || process.env.DEVSTATION_VERSION) {
+    note(
+      `WARNING: installing from ${REPO} at ${TAG} because DEVSTATION_REPO/DEVSTATION_VERSION is set. ` +
+        "Only do this for a repository you trust: it decides what runs on this machine.",
+    );
+  }
+
   const target = targetFor();
   if (!target) {
     note(

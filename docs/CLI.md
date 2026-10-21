@@ -40,7 +40,7 @@ is not on your `PATH`.
 Pick a specific version, or install somewhere else:
 
 ```sh
-DEVSTATION_VERSION=v0.1.0 curl -fsSL https://devstation.online/install.sh | sh
+DEVSTATION_VERSION=v0.3.0 curl -fsSL https://devstation.online/install.sh | sh
 DEVSTATION_INSTALL_DIR=/usr/local/bin curl -fsSL https://devstation.online/install.sh | sh
 ```
 
@@ -235,6 +235,7 @@ devstation diff                 show what the agent has changed
 devstation index                index this project so the agent can search it
 devstation memory               show what it has been told about this project
 devstation mcp                  the MCP servers configured here, and their tools
+devstation mcp trust            allow this project's own MCP config, as it is now
 devstation tools                list the tools it can use, and which ones ask first
 devstation config               show the settings this run would use
 devstation upgrade [--check]    update to the latest version
@@ -461,6 +462,13 @@ nearer file wins, so a project has the last word about its own servers.
 `disabled: true` skips one without removing it. `devstation mcp` lists what is
 configured and every tool each server actually offers, which is the quickest
 way to see whether a server is starting at all.
+
+A project's own config (`.mcp.json`, `.devstation/mcp.json`) is not started
+until you run `devstation mcp trust` in it: an MCP server is a program run as
+you, and a cloned repository should not be able to start one by itself. Trust
+is pinned to the file's exact contents, so any later edit asks again. Servers
+start with a minimal environment (PATH, HOME and the like) plus the `env` their
+config names, not with every key your shell holds.
 
 ## Debugging
 

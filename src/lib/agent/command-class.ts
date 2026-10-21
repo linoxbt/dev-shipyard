@@ -22,6 +22,8 @@
 // always-ask-even-in-full-auto. Anything unrecognised lands in the middle
 // rather than being assumed safe.
 
+import { gitArgsProblem, type GitOp } from "./git-ops";
+
 export type CommandRisk = "safe" | "writes" | "destructive";
 
 /** Commands that only read. The first word of the command has to be one of
@@ -55,27 +57,41 @@ const READ_ONLY = new Set([
   "wc",
   "grep",
   "rg",
-  "find",
+  // find, date, sort, tree and env are read-only only with some flags: see
+  // FLAGGED below.
   "which",
   "file",
   "stat",
   "du",
   "df",
-  "date",
   "whoami",
-  "env",
   "printenv",
-  "sort",
   "uniq",
   "diff",
-  "tree",
 ]);
+
+/** Commands that read, until a particular flag makes them run something or
+ *  write a file. Each of these was on the read-only list outright, so
+ *  `find . -exec rm {} +`, `rg --pre ./evil`, `sort -o ~/.bashrc` and
+ *  `date -s` ran without asking. */
+const FLAGGED: Record<string, (args: string[]) => boolean> = {
+  find: (args) =>
+    !args.some((a) => /^-(exec|execdir|ok|okdir|delete|fprint0?|fprintf|fls)$/.test(a)),
+  date: (args) => !args.some((a) => /^(-s|--set(=.*)?)$/.test(a) || /^-s./.test(a)),
+  sort: (args) =>
+    !args.some((a) => /^(-o|--output(=.*)?|--compress-program(=.*)?)$/.test(a) || /^-o./.test(a)),
+  tree: (args) => !args.some((a) => /^-[a-zA-Z]*[oR]/.test(a) || a.startsWith("--output")),
+  rg: (args) => !args.some((a) => /^--pre(=.*)?$/.test(a)),
+  grep: (args) => !args.some((a) => /^--pre(=.*)?$/.test(a)),
+};
 
 /** Read-only subcommands of tools whose other subcommands are not. */
 const READ_ONLY_SUBCOMMANDS: Record<string, Set<string>> = {
   git: new Set(["status", "log", "diff", "show", "branch", "remote", "rev-parse", "ls-files"]),
   npm: new Set(["ls", "list", "view", "outdated", "--version", "-v"]),
   bun: new Set(["--version", "-v", "pm"]),
+  // `bun pm trust --all` runs every dependency's install scripts.
+  "bun pm": new Set(["ls", "bin", "hash", "version"]),
   docker: new Set(["ps", "images", "version"]),
 };
 
@@ -141,7 +157,7 @@ const DESTRUCTIVE_WINDOWS: RegExp[] = [
 
 /** Metacharacters that chain, redirect or substitute. Their presence means the
  *  first word no longer tells you what the command does. */
-const CHAINING = /[;&|`$><]|\$\(|&&|\|\|/;
+const CHAINING = /[;&|`$><\n\r]|\$\(|&&|\|\|/;
 
 /**
  * Both sets, on every platform, whatever `platform` says.
@@ -188,7 +204,8 @@ export function classifyCommand(
     // permission as a high-risk command, which is how prompts get clicked
     // through unread. Each part is judged on its own; any part that is not
     // plainly read-only, or any redirect into a file, keeps the whole chain gated.
-    const segments = trimmed.split(/\s*(?:&&|\|\||;|\|)\s*/).filter(Boolean);
+    // A newline separates commands exactly as `;` does, so it splits too.
+    const segments = trimmed.split(/\s*(?:&&|\|\||;|\||\r?\n|\r)\s*/).filter(Boolean);
     return segments.length > 0 && segments.every(segmentReadsOnly) ? "safe" : "writes";
   }
 
@@ -208,6 +225,10 @@ function segmentReadsOnly(segment: string): boolean {
   if (/>/.test(cleaned)) return false;
   const words = cleaned.split(/\s+/);
   const [head, sub, verb] = words;
+  // Reading outside the project is not routine inspection: the home directory
+  // holds every CLI's login. An absolute path, `~`, `$HOME` or a `..` segment
+  // asks first, whatever the command is.
+  if (words.slice(1).some(reachesOutside)) return false;
   // `git config` reads with --get or --list and writes with anything else.
   if (head === "git" && sub === "config") {
     return words.some((word) => /^(--get(-all|-regexp)?|--list|-l)$/.test(word));
@@ -216,9 +237,41 @@ function segmentReadsOnly(segment: string): boolean {
   if (head === "gh") return Boolean(sub && verb && GH_READS.has(`${sub} ${verb}`));
   // `command -v x` only looks x up; `command x` runs it.
   if (head === "command") return sub === "-v" || sub === "-V";
+  // `env` prints the environment; `env X=1 cmd` runs cmd, and is only as
+  // read-only as cmd is.
+  if (head === "env") {
+    let i = 1;
+    while (
+      i < words.length &&
+      (/^(-0|--null|-i|--ignore-environment)$/.test(words[i]) ||
+        /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[i]))
+    )
+      i++;
+    if (i < words.length && /^(-u|--unset)$/.test(words[i])) return false;
+    return i >= words.length || segmentReadsOnly(words.slice(i).join(" "));
+  }
+  if (head === "git" && sub && READ_ONLY_SUBCOMMANDS.git.has(sub)) {
+    const rest = words.slice(2);
+    // Their flags are checked the same way as the git tool's: `log --output`,
+    // `diff --ext-diff` and `-c` all read as these subcommands.
+    if (sub === "remote") return rest.length === 0 || (rest.length === 1 && rest[0] === "-v");
+    if (sub === "ls-files") return rest.every((w) => !w.startsWith("--with-tree") && w !== "--");
+    if (sub === "branch" && rest.some((w) => !w.startsWith("-"))) return false;
+    return gitArgsProblem(sub as GitOp, rest) === null;
+  }
+  if (head === "bun" && sub === "pm")
+    return Boolean(verb && READ_ONLY_SUBCOMMANDS["bun pm"].has(verb));
   const subcommands = READ_ONLY_SUBCOMMANDS[head];
   if (subcommands) return Boolean(sub && subcommands.has(sub));
+  const flagged = FLAGGED[head];
+  if (flagged) return flagged(words.slice(1));
   return READ_ONLY.has(head);
+}
+
+function reachesOutside(word: string): boolean {
+  const w = word.replace(/^["']|["']$/g, "").replace(/^-[^=]*=/, "");
+  if (w === "/dev/null") return false;
+  return /^(\/|~|\$HOME|\$\{HOME\})/.test(w) || /(^|\/)\.\.(\/|$)/.test(w);
 }
 
 /** The policy operation a command maps to, so risk is decided by the same

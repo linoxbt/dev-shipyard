@@ -119,11 +119,40 @@ export function allowedEnv(
  * The real answers are the sandbox and not having secrets to find. This stops
  * the accident and the first thing anyone tries.
  */
+/** Names a glob in a command is checked against: `cat .e?v` is `cat .env`. */
+const SECRET_NAMES = [
+  ".env",
+  ".env.local",
+  ".env.production",
+  "id_rsa",
+  "id_ed25519",
+  ".npmrc",
+  ".netrc",
+  "credentials",
+  "credentials.json",
+  ".git-credentials",
+];
+
+function globMatchesSecret(token: string): boolean {
+  if (!/[*?[]/.test(token)) return false;
+  const base = token.split("/").pop() ?? token;
+  const source = base
+    .replace(/[.+^${}()|\\]/g, "\\$&")
+    .replace(/\*/g, ".*")
+    .replace(/\?/g, ".");
+  try {
+    const re = new RegExp(`^${source}$`, "i");
+    return SECRET_NAMES.some((name) => re.test(name));
+  } catch {
+    return true;
+  }
+}
+
 export function refusedForSecret(command: string): string | null {
   for (const token of command.split(/[\s;&|<>()"']+/)) {
-    const path = token.replace(/^\.\//, "");
+    const path = token.replace(/^\.\//, "").replace(/^(~|\$HOME|\$\{HOME\})\//, "");
     if (!path || path.startsWith("-")) continue;
-    if (looksLikeSecret(path)) {
+    if (looksLikeSecret(path) || globMatchesSecret(path)) {
       return (
         `That command names ${path}, which looks like a credentials file, so it was not run. ` +
         "Ask the user for anything you need from it."

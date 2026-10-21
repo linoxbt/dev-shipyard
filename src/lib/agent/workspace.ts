@@ -32,7 +32,41 @@ const SECRET_PATTERNS: RegExp[] = [
   /(^|\/)\.npmrc$/i,
   /(^|\/)credentials(\.json)?$/i,
   /(^|\/)\.git-credentials$/i,
+  // Where CLIs keep their logins. Reachable by `cat ~/...` from a host shell,
+  // and every one of them is a token for somebody's account.
+  /(^|\/)\.netrc$/i,
+  /(^|\/)\.pypirc$/i,
+  /(^|\/)\.ssh(\/|$)/i,
+  /(^|\/)\.aws(\/|$)/i,
+  /(^|\/)\.gnupg(\/|$)/i,
+  /(^|\/)\.kube\/config$/i,
+  /(^|\/)\.docker\/config\.json$/i,
+  /(^|\/)\.config\/(gh|gcloud|hub)(\/|$)/i,
+  /(^|\/)\.claude\/\.credentials\.json$/i,
+  /(^|\/)\.codex\/auth\.json$/i,
+  /(^|\/)\.azure(\/|$)/i,
 ];
+
+/** Paths that are configuration for the tools running on this machine rather
+ *  than part of the project, and that those tools execute from.
+ *
+ *  `.git/config` can name programs git runs on `status` and `add` (fsmonitor,
+ *  filters, hooks), and the agent's own checkpoint runs exactly those on the
+ *  host after every turn. `.mcp.json` and `.devstation/` name MCP servers the
+ *  CLI starts. `.agent/` holds the run's own transcript. A write to any of
+ *  them is a way to run code later, so `write_file` and every upload refuse
+ *  them outright. Matched on any path segment, so `sub/.git/hooks` is caught. */
+const CONTROL_SEGMENTS = new Set([".git", ".agent", ".devstation"]);
+const CONTROL_FILES = new Set([".mcp.json"]);
+
+export function isControlPath(relativePath: string): boolean {
+  const segments = relativePath
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter((s) => s && s !== ".");
+  if (segments.some((s) => CONTROL_SEGMENTS.has(s.toLowerCase()))) return true;
+  return CONTROL_FILES.has((segments[segments.length - 1] ?? "").toLowerCase());
+}
 
 /** How much of a file to sniff for a null byte. The standard heuristic, and
  *  cheap: a text file will not have one in its first few KB. */
@@ -143,7 +177,21 @@ export class Workspace {
         reason: `${relativePath} looks like a credentials file and was not written.`,
       };
     }
+    if (isControlPath(relativePath)) {
+      return {
+        ok: false,
+        reason: `${relativePath} is tool configuration (git, MCP or the agent's own state), not project source, and was not written.`,
+      };
+    }
     const resolved = this.resolve(relativePath);
+    // A path that only reaches a control directory through a symlink is the
+    // same write by another name.
+    if (resolved.ok && isControlPath(this.relative(resolved.absolute))) {
+      return {
+        ok: false,
+        reason: `${relativePath} resolves into tool configuration and was not written.`,
+      };
+    }
     if (!resolved.ok) return { ok: false, reason: resolved.reason };
     if (existsSync(resolved.absolute)) {
       if (statSync(resolved.absolute).isDirectory()) {

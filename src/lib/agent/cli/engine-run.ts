@@ -15,6 +15,7 @@ import {
   type ProviderUsage,
 } from "../providers";
 import { SessionStore, type SessionRecord } from "../session-store";
+import { allowedEnv } from "../executor";
 import { CLI_NAME } from "./args";
 import type { CommandContext, RunOutcome } from "./commands";
 import { LiveView, clip, formatElapsed } from "./live";
@@ -88,13 +89,56 @@ function agentEvent(
   };
 }
 
+/** What a model name or session id may look like. Both come from config and
+ *  session files, and both end up as arguments: one starting with `-` would be
+ *  read by the engine as a flag. */
+const SAFE_ID = /^[\w.:/-]+$/;
+
+export function checkedId(value: string, what: string): string {
+  if (!SAFE_ID.test(value) || value.startsWith("-")) {
+    throw new Error(`${JSON.stringify(value)} is not a valid ${what}.`);
+  }
+  return value;
+}
+
+/** Whether Codex turns may reach the network. Off unless asked for: a
+ *  workspace-write sandbox with network on is a sandbox that can send the
+ *  project anywhere. */
+export function codexNetworkAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
+  return /^(1|true|yes|on)$/i.test(env.DEVSTATION_CODEX_NETWORK ?? "");
+}
+
+/** The environment an engine runs with: the executor's allow-list, plus the
+ *  variables that engine needs to sign in and reach its API, and no others. */
+export function engineEnv(
+  engine: EngineId,
+  from: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const wanted =
+    engine === "claude-code" ? /^(ANTHROPIC_|CLAUDE_|CLAUDE_CODE_)/ : /^(OPENAI_|CODEX_)/;
+  const extra: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(from)) {
+    if (value === undefined) continue;
+    if (
+      wanted.test(key) ||
+      /^(HTTPS?_PROXY|NO_PROXY|ALL_PROXY|https?_proxy|no_proxy|SSL_CERT_FILE|NODE_EXTRA_CA_CERTS)$/.test(
+        key,
+      )
+    ) {
+      extra[key] = value;
+    }
+  }
+  return allowedEnv(from, extra);
+}
+
 /** The command line for one turn. The prompt goes in on standard input, where
  *  it cannot be taken for a flag and no argument length limit applies. */
 export function engineInvocation(
   engine: EngineId,
-  opts: { model?: string | null; resume?: string; plan: boolean },
+  opts: { model?: string | null; resume?: string; plan: boolean; network?: boolean },
 ): { command: string; args: string[] } {
-  const model = opts.model && opts.model !== "default" ? opts.model : null;
+  const model = opts.model && opts.model !== "default" ? checkedId(opts.model, "model") : null;
+  if (opts.resume) checkedId(opts.resume, "session id");
   if (engine === "claude-code") {
     return {
       command: ENGINE_BINARY[engine],
@@ -117,7 +161,7 @@ export function engineInvocation(
     "-c",
     `sandbox_mode="${opts.plan ? "read-only" : "workspace-write"}"`,
     "-c",
-    "sandbox_workspace_write.network_access=true",
+    `sandbox_workspace_write.network_access=${(opts.network ?? codexNetworkAllowed()) ? "true" : "false"}`,
     ...(model ? ["-m", model] : []),
   ];
   return {
@@ -701,6 +745,7 @@ export async function runEngineCommand(
       input: options.readOnly ? `${PLAN_NOTE}\n\n${goal}` : goal,
       onLine: (line) => stream.feed(line),
       signal: context.signal,
+      env: engineEnv(engine),
     });
     totals = stream.finish(exit);
   } finally {

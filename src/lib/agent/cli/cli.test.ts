@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MockProvider, resolveSettings } from "../providers";
@@ -353,6 +361,27 @@ describe("status and sessions", () => {
     store.appendEvent(record.id, { kind: "plan", message: "two", at });
     const third = store.readEvents(record.id, second.offset);
     expect(third.events.map((e) => e.message)).toEqual(["two"]);
+  });
+
+  it("keeps its place across non-ASCII events and a half-written line", () => {
+    const root = scratch();
+    const store = new SessionStore(root);
+    const record = store.create("x", { provider: "mock", model: "mock" });
+    const at = new Date().toISOString();
+    store.appendEvent(record.id, { kind: "plan", message: "café ✓ 日本", at });
+    const first = store.readEvents(record.id, 0);
+    store.appendEvent(record.id, { kind: "plan", message: "next", at });
+    const second = store.readEvents(record.id, first.offset);
+    expect(second.events.map((e) => e.message)).toEqual(["next"]);
+
+    const path = join(root, ".agent", "sessions", `${record.id}.jsonl`);
+    appendFileSync(path, '{"kind":"plan","mess');
+    const partial = store.readEvents(record.id, second.offset);
+    expect(partial.events).toHaveLength(0);
+    expect(partial.offset).toBe(second.offset);
+    expect(statSync(join(root, ".agent", "sessions", `${record.id}.json`)).mode & 0o777).toBe(
+      0o600,
+    );
   });
 
   it("lists sessions newest first", async () => {

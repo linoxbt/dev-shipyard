@@ -93,3 +93,28 @@ describe("untrusted content", () => {
     expect(wrapped).not.toContain("sk-abcdefghijklmnopqrstuvwx");
   });
 });
+
+describe("redaction coverage", () => {
+  it("catches lower-case key names and the common token formats", () => {
+    const samples = [
+      "password: hunter2hunter2",
+      "github_token=abcdef123456",
+      '"accessToken": "abcdefabcdef"',
+      "refresh_token=abcdefabcdef",
+      "aws_secret_access_key = abcdefabcdefabcdef",
+      "Authorization: Bearer abcdefabcdefabcdefabcdef",
+      "npm_" + "a".repeat(36),
+      "glpat-" + "a".repeat(20),
+      "ASIA" + "A".repeat(16),
+      "xai-" + "a".repeat(30),
+      "dckr_pat_" + "a".repeat(27),
+      "fe_oa_" + "a".repeat(24),
+      "postgres://user:s3cretpass@db.example.com/x",
+    ];
+    for (const sample of samples) {
+      const out = redact(sample);
+      expect(out.kinds.length).toBeGreaterThan(0);
+    }
+    expect(redact("postgres://user:s3cretpass@db/x").text).toBe("postgres://user:[redacted]@db/x");
+  });
+});

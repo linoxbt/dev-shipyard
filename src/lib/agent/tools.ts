@@ -1,8 +1,14 @@
 import { z } from "zod";
 import { evaluate, type Verdict } from "./policy";
-import { asUntrusted, redact } from "./secrets";
+import { asUntrusted, containsSecret, redact } from "./secrets";
 import { operationForCommand } from "./command-class";
-import { cloneDirName, cloneTargetProblem, cloneUrlProblem, READ_ONLY_OPS } from "./git-ops";
+import {
+  cloneDirName,
+  cloneTargetProblem,
+  cloneUrlProblem,
+  gitArgsProblem,
+  READ_ONLY_OPS,
+} from "./git-ops";
 import type { ProtectedAction } from "./authorization";
 
 // The tool boundary.
@@ -90,6 +96,30 @@ const filePath = z
   // A tool must never reach outside the workspace, whatever the model asks.
   .refine((p) => !p.includes(".."), "path traversal is not allowed")
   .refine((p) => !p.startsWith("/"), "absolute paths are not allowed");
+
+/**
+ * Whether a URL looks like it carries data rather than names a page.
+ *
+ * Heuristic, and documented as one: anything credential-shaped (by the same
+ * redaction rules the logs use), any query or path segment holding a long
+ * opaque value, or embedded user:password. Documentation URLs almost never
+ * have 24+ character opaque values; tokens almost always do. A secret split
+ * into short chunks gets past this, which is why reads of credential files are
+ * refused upstream rather than relying on this alone.
+ */
+export function urlMayCarryData(raw: string): boolean {
+  if (containsSecret(raw)) return true;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (url.username || url.password) return true;
+  const opaque = /^[A-Za-z0-9_+/=.~-]{24,}$/;
+  const values = [...url.searchParams.values(), ...url.pathname.split("/"), url.hash.slice(1)];
+  return values.some((v) => opaque.test(decodeURIComponent(v)) && !/^[a-z-]+$/.test(v));
+}
 
 export const TOOLS: Record<string, ToolDefinition> = {
   list_files: {
@@ -240,7 +270,12 @@ export const TOOLS: Record<string, ToolDefinition> = {
       // to authorise something and then failing it for a reason that was
       // knowable beforehand teaches them that the prompt means nothing.
       .superRefine((value, ctx) => {
-        if (value.op !== "clone") return;
+        if (value.op !== "clone") {
+          const argsProblem = gitArgsProblem(value.op, value.args ?? []);
+          if (argsProblem)
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["args"], message: argsProblem });
+          return;
+        }
         const urlProblem = cloneUrlProblem(value.url ?? "");
         if (urlProblem)
           ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["url"], message: urlProblem });
@@ -340,6 +375,11 @@ export const TOOLS: Record<string, ToolDefinition> = {
     schema: z.object({
       url: z.string().min(1).max(2000),
     }),
+    // A plain page read never asks. A URL that could be carrying data out
+    // does: a prompt injection that gets a token read can send it to any host
+    // in a query string or path, and fetch_url used to do that unasked.
+    operationFrom: (a) =>
+      urlMayCarryData(String((a as { url: string }).url)) ? "web.send" : "web.fetch",
     resourcesFrom: (a) => [`url:${(a as { url: string }).url}`],
     // Somebody else's page. It is data, never instructions.
     returnsUntrustedContent: true,

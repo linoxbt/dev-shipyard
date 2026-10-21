@@ -22,6 +22,8 @@
 // earlier, and leaves the rest to install, lint, build and test, which say it
 // far better.
 
+import { Parser, type Node } from "acorn";
+import jsx from "acorn-jsx";
 import type { BuildTarget } from "./generate";
 
 export interface ValidationIssue {
@@ -31,12 +33,10 @@ export interface ValidationIssue {
   fatal: boolean;
 }
 
-const BARE_IMPORT = /(?:^|\n)\s*import\s[^;]*?from\s*["']([^"'./][^"']*)["']/g;
-const SIDE_EFFECT_IMPORT = /(?:^|\n)\s*import\s*["']([^"']+)["']/g;
-const RELATIVE_IMPORT = /from\s*["'](\.\/[^"']+)["']/g;
-/** Also matches "../", which only the Vite layout can produce: its source
- *  sits in src/, so a module can legitimately reach above itself. */
-const RELATIVE_IMPORT_ANY = /from\s*["'](\.\.?\/[^"']+)["']/g;
+const JsxParser = Parser.extend(jsx());
+
+/** Files the browser or Vite will load as JavaScript modules. */
+const MODULE_FILE = /\.(js|mjs|jsx)$/;
 
 function importMapSpecifiers(html: string): Set<string> {
   const out = new Set<string>();
@@ -51,23 +51,57 @@ function importMapSpecifiers(html: string): Set<string> {
   return out;
 }
 
-/** Does this JavaScript actually parse? */
-function syntaxError(source: string): string | null {
+interface Parsed {
+  error: string | null;
+  /** Every module specifier: static imports, re-exports, and literal dynamic imports. */
+  specifiers: string[];
+}
+
+/**
+ * Parse as what it is: an ES module.
+ *
+ * This used to strip import and export lines with regexes and hand the rest to
+ * `new Function`, which is a script parser. Top-level `await` and
+ * `import.meta`, both normal in a module, were then reported as fatal syntax
+ * errors and spent the repair budget on code that was fine; and an import split
+ * across lines without a semicolon took the code after it with it, so a real
+ * error went unreported. acorn parses modules properly, and the specifiers come
+ * from the tree rather than from a pattern.
+ */
+function parseModule(source: string, allowJsx: boolean): Parsed {
+  let ast: Node;
   try {
-    // Function() parses without executing. Module syntax is not valid inside a
-    // function body, so strip the statements that only appear at module scope
-    // before checking: we are looking for JSX and broken expressions, which
-    // is what models actually get wrong here.
-    const stripped = source
-      .replace(/^\s*import\s[^;]*;?\s*$/gm, "")
-      .replace(/^\s*import\s*["'][^"']+["'];?\s*$/gm, "")
-      .replace(/^\s*export\s+default\s+/gm, "")
-      .replace(/^\s*export\s+/gm, "");
-    new Function(stripped);
-    return null;
+    ast = (allowJsx ? JsxParser : Parser).parse(source, {
+      ecmaVersion: "latest",
+      sourceType: "module",
+    });
   } catch (e) {
-    return e instanceof Error ? e.message : String(e);
+    return { error: e instanceof Error ? e.message : String(e), specifiers: [] };
   }
+  const specifiers: string[] = [];
+  const visit = (node: unknown) => {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      for (const child of node) visit(child);
+      return;
+    }
+    const n = node as { type?: string; source?: { type?: string; value?: unknown } };
+    if (
+      (n.type === "ImportDeclaration" ||
+        n.type === "ExportNamedDeclaration" ||
+        n.type === "ExportAllDeclaration" ||
+        n.type === "ImportExpression") &&
+      n.source?.type === "Literal" &&
+      typeof n.source.value === "string"
+    ) {
+      specifiers.push(n.source.value);
+    }
+    for (const [key, value] of Object.entries(node)) {
+      if (key !== "loc" && value && typeof value === "object") visit(value);
+    }
+  };
+  visit(ast);
+  return { error: null, specifiers };
 }
 
 /** Resolve a relative specifier against the file that imports it. */
@@ -118,19 +152,32 @@ export function validateApp(
     // module does surface in the build, but a hundred lines later and phrased
     // as a rollup resolution failure.
     for (const [name, source] of Object.entries(own)) {
-      if (!/\.(js|jsx|mjs)$/.test(name)) continue;
-      RELATIVE_IMPORT_ANY.lastIndex = 0;
-      let rel: RegExpExecArray | null;
-      while ((rel = RELATIVE_IMPORT_ANY.exec(source)) !== null) {
-        const target_ = resolveRelative(name, rel[1]);
+      if (!MODULE_FILE.test(name)) continue;
+      const parsed = parseModule(source, true);
+      if (parsed.error) {
+        issues.push({
+          path: prefix + name,
+          message: `Invalid JavaScript: ${parsed.error}`,
+          fatal: true,
+        });
+        continue;
+      }
+      for (const spec of parsed.specifiers) {
+        if (!spec.startsWith("./") && !spec.startsWith("../")) continue;
+        const target_ = resolveRelative(name, spec);
         // Vite resolves an extensionless import against several extensions.
-        const found = [target_, `${target_}.js`, `${target_}.jsx`, `${target_}/index.js`].some(
-          (candidate) => own[candidate] !== undefined,
-        );
+        const found = [
+          target_,
+          `${target_}.js`,
+          `${target_}.jsx`,
+          `${target_}.mjs`,
+          `${target_}/index.js`,
+          `${target_}/index.jsx`,
+        ].some((candidate) => own[candidate] !== undefined);
         if (!found) {
           issues.push({
             path: prefix + name,
-            message: `Imports "${rel[1]}", which does not exist.`,
+            message: `Imports "${spec}", which does not exist.`,
             fatal: true,
           });
         }
@@ -149,16 +196,17 @@ export function validateApp(
   }
 
   for (const [name, source] of Object.entries(own)) {
-    if (!name.endsWith(".js")) continue;
+    if (!MODULE_FILE.test(name)) continue;
     const path = prefix + name;
 
-    const syntax = syntaxError(source);
-    if (syntax) {
+    // No build step here, so JSX never parses, in a .jsx file or any other.
+    const parsed = parseModule(source, false);
+    if (parsed.error) {
       issues.push({
         path,
         message:
-          `Invalid JavaScript: ${syntax}` +
-          (/[<>]/.test(source) && /return\s*\(?\s*</.test(source)
+          `Invalid JavaScript: ${parsed.error}` +
+          (name.endsWith(".jsx") || (/[<>]/.test(source) && /return\s*\(?\s*</.test(source))
             ? ": this looks like JSX, which cannot run without a build step. Use htm tagged templates."
             : ""),
         fatal: true,
@@ -166,41 +214,24 @@ export function validateApp(
       continue; // an unparseable file makes its imports meaningless
     }
 
-    for (const re of [BARE_IMPORT, SIDE_EFFECT_IMPORT]) {
-      re.lastIndex = 0;
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(source)) !== null) {
-        const spec = m[1];
-        if (
-          spec.startsWith("./") ||
-          spec.startsWith("../") ||
-          /^https?:/.test(spec) ||
-          spec.startsWith("data:")
-        ) {
-          continue;
+    for (const spec of parsed.specifiers) {
+      if (/^https?:/.test(spec) || spec.startsWith("data:")) continue;
+      if (spec.startsWith("./") || spec.startsWith("../")) {
+        const target = resolveRelative(name, spec);
+        if (own[target] === undefined) {
+          issues.push({ path, message: `Imports "${spec}", which does not exist.`, fatal: true });
         }
-        // Sub-paths resolve if their prefix is mapped ("preact/hooks").
-        const mapped = [...known].some(
-          (k) => spec === k || spec.startsWith(k.replace(/\/$/, "") + "/"),
-        );
-        if (!mapped) {
-          issues.push({
-            path,
-            message: `Imports "${spec}", which is not in the import map. Add it there, or import it by full https://esm.sh URL.`,
-            fatal: true,
-          });
-        }
+        continue;
       }
-    }
-
-    RELATIVE_IMPORT.lastIndex = 0;
-    let rel: RegExpExecArray | null;
-    while ((rel = RELATIVE_IMPORT.exec(source)) !== null) {
-      const target = rel[1].replace(/^\.\//, "");
-      if (own[target] === undefined) {
+      if (spec.startsWith("/")) continue;
+      // Sub-paths resolve if their prefix is mapped ("preact/hooks").
+      const mapped = [...known].some(
+        (k) => spec === k || spec.startsWith(k.replace(/\/$/, "") + "/"),
+      );
+      if (!mapped) {
         issues.push({
           path,
-          message: `Imports "./${target}", which does not exist.`,
+          message: `Imports "${spec}", which is not in the import map. Add it there, or import it by full https://esm.sh URL.`,
           fatal: true,
         });
       }
