@@ -8,8 +8,18 @@
 // `hasAccess(id, wallet)` is true, and the wallet comes from DevStation's
 // server, which verified it with a signature before calling this.
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
+import { stateDir } from "./state-dir";
 import { createPublicClient, fallback, http } from "viem";
 import { bundleHash, bundleProblem, type Bundle } from "../../../src/lib/marketplace/bundle";
 import { devStationMarketplaceAbi } from "../../../src/lib/abis/devStationMarketplace";
@@ -38,7 +48,7 @@ const HASH = /^0x[0-9a-fA-F]{64}$/;
 
 /** Under the service's StateDirectory: the unit mounts /root read-only. */
 export function listingsDir(env: NodeJS.ProcessEnv = process.env): string {
-  return env.LISTINGS_DIR ?? join(env.STATE_DIRECTORY ?? "/var/lib/devstation-runner", "listings");
+  return env.LISTINGS_DIR ?? join(stateDir(env), "listings");
 }
 
 function fail(status: number, message: string): ListingResult {
@@ -50,6 +60,11 @@ function validIds(chainId: number, id: number): boolean {
     Number.isInteger(chainId) && chainId > 0 && chainId < 2 ** 32 && Number.isInteger(id) && id >= 0
   );
 }
+
+/** Earlier uploads kept per listing, newest first, so a creator replacing the
+ *  files after a sale cannot take away what a buyer paid for. Bounded, so a
+ *  creator re-uploading in a loop cannot fill the disk. */
+export const KEEP_VERSIONS = 5;
 
 function fileFor(root: string, chainId: number, id: number, hash: string): string {
   // Every segment is validated as an integer or a 32-byte hex hash before it
@@ -89,7 +104,21 @@ export async function storeListingFiles(input: {
   const temporary = `${target}.tmp`;
   writeFileSync(temporary, JSON.stringify(files));
   renameSync(temporary, target);
+  pruneVersions(join(target, ".."));
   return { status: 200, body: { ok: true, contentHash: hash } };
+}
+
+/** Drops all but the newest KEEP_VERSIONS bundles in one listing's directory. */
+function pruneVersions(dir: string): void {
+  try {
+    const versions = readdirSync(dir)
+      .filter((name) => /^0x[0-9a-f]{64}\.json$/.test(name))
+      .map((name) => ({ name, mtime: statSync(join(dir, name)).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime);
+    for (const old of versions.slice(KEEP_VERSIONS)) rmSync(join(dir, old.name), { force: true });
+  } catch {
+    // Pruning is housekeeping; a failure here must not fail the upload.
+  }
 }
 
 export async function readListingFiles(input: {
@@ -97,9 +126,16 @@ export async function readListingFiles(input: {
   chainId: number;
   id: number;
   wallet: string;
+  /** A specific earlier version, by content hash. Defaults to the one the
+   *  listing records now. Only versions the creator uploaded and the chain
+   *  recorded at the time exist to be served. */
+  version?: string;
   root?: string;
 }): Promise<ListingResult> {
   const { chain, chainId, id, wallet } = input;
+  if (input.version !== undefined && !HASH.test(input.version)) {
+    return fail(400, "That is not a content hash.");
+  }
   if (!validIds(chainId, id)) return fail(400, "Unknown listing.");
   if (!ADDRESS.test(wallet)) return fail(401, "Connect a wallet to download.");
 
@@ -108,11 +144,17 @@ export async function readListingFiles(input: {
   if (!(await chain.hasAccess(chainId, id, wallet))) {
     return fail(403, "Buy this listing to download its files.");
   }
-  if (!HASH.test(facts.contentHash)) return fail(404, "This listing has no files.");
+  const wanted = input.version ?? facts.contentHash;
+  if (!HASH.test(wanted)) return fail(404, "This listing has no files.");
 
-  const path = fileFor(input.root ?? listingsDir(), chainId, id, facts.contentHash);
+  const path = fileFor(input.root ?? listingsDir(), chainId, id, wanted);
   if (!existsSync(path)) {
-    return fail(404, "The creator has not uploaded the files for this listing yet.");
+    return fail(
+      404,
+      input.version
+        ? "That version of this listing is not stored."
+        : "The creator has not uploaded the files for this listing yet.",
+    );
   }
   let files: Bundle;
   try {
@@ -120,7 +162,7 @@ export async function readListingFiles(input: {
   } catch {
     return fail(500, "The stored files could not be read.");
   }
-  return { status: 200, body: { ok: true, contentHash: facts.contentHash, files } };
+  return { status: 200, body: { ok: true, contentHash: wanted.toLowerCase(), files } };
 }
 
 /** Reads DevStationMarketplace over each chain's public RPC. */

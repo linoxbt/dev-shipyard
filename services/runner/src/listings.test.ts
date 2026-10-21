@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bundleHash } from "../../../src/lib/marketplace/bundle";
-import { readListingFiles, storeListingFiles, type ListingChain } from "./listings";
+import { KEEP_VERSIONS, readListingFiles, storeListingFiles, type ListingChain } from "./listings";
 
 // The chain decides, this module obeys. Each case below is a way a paid file
 // could leak or be swapped, checked against a fake chain.
@@ -157,5 +157,95 @@ describe("downloading a listing's files", () => {
       root: scratch(),
     });
     expect(r.status).toBe(401);
+  });
+});
+
+describe("versions a buyer paid for", () => {
+  const V2 = { "SKILL.md": "# Review\nSomething else entirely." };
+
+  it("keeps serving an earlier version after the creator replaces it", async () => {
+    const root = scratch();
+    const v1Hash = await bundleHash(FILES);
+    await storeListingFiles({
+      chain: await fakeChain(),
+      chainId: 1990,
+      id: 0,
+      owner: CREATOR,
+      files: FILES,
+      root,
+    });
+    const now = await fakeChain({ hash: await bundleHash(V2) });
+    await storeListingFiles({ chain: now, chainId: 1990, id: 0, owner: CREATOR, files: V2, root });
+
+    const current = await readListingFiles({
+      chain: now,
+      chainId: 1990,
+      id: 0,
+      wallet: BUYER,
+      root,
+    });
+    expect(current.body.files).toEqual(V2);
+    const earlier = await readListingFiles({
+      chain: now,
+      chainId: 1990,
+      id: 0,
+      wallet: BUYER,
+      version: v1Hash,
+      root,
+    });
+    expect(earlier.status).toBe(200);
+    expect(earlier.body.files).toEqual(FILES);
+  });
+
+  it("still requires access, and refuses a malformed or unknown version", async () => {
+    const root = scratch();
+    const chain = await fakeChain();
+    await storeListingFiles({ chain, chainId: 1990, id: 0, owner: CREATOR, files: FILES, root });
+    const v1Hash = await bundleHash(FILES);
+    const stranger = await readListingFiles({
+      chain,
+      chainId: 1990,
+      id: 0,
+      wallet: STRANGER,
+      version: v1Hash,
+      root,
+    });
+    expect(stranger.status).toBe(403);
+    const bad = await readListingFiles({
+      chain,
+      chainId: 1990,
+      id: 0,
+      wallet: BUYER,
+      version: "../../etc",
+      root,
+    });
+    expect(bad.status).toBe(400);
+    const missing = await readListingFiles({
+      chain,
+      chainId: 1990,
+      id: 0,
+      wallet: BUYER,
+      version: `0x${"ab".repeat(32)}`,
+      root,
+    });
+    expect(missing.status).toBe(404);
+  });
+
+  it("keeps only the newest few versions", async () => {
+    const root = scratch();
+    for (let i = 0; i < KEEP_VERSIONS + 3; i++) {
+      const files = { "SKILL.md": `version ${i}` };
+      await storeListingFiles({
+        chain: await fakeChain({ hash: await bundleHash(files) }),
+        chainId: 1990,
+        id: 0,
+        owner: CREATOR,
+        files,
+        root,
+      });
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    const kept = readdirSync(join(root, "1990", "0")).filter((n) => n.endsWith(".json"));
+    expect(kept.length).toBe(KEEP_VERSIONS);
   });
 });

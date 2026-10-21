@@ -11,6 +11,7 @@
 
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { stateDir } from "./state-dir";
 
 /** Jobs retained. Two hundred is a few days of real use and keeps the file
  *  small enough to read and rewrite whole. */
@@ -27,7 +28,7 @@ export const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const FAIL_LOG_CHARS = 2500;
 const PASS_LOG_CHARS = 400;
 
-const STATE_DIR = process.env.RUNNER_STATE_DIR ?? "/var/lib/devstation-runner";
+const STATE_DIR = stateDir();
 const HISTORY_FILE = join(STATE_DIR, "history.json");
 
 export interface PhaseRecord {

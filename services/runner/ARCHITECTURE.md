@@ -38,20 +38,20 @@ dependencies use the runner; simple ones still preview instantly.
 
 Every job gets its own container, destroyed afterwards.
 
-| Control | Setting | Why |
-|---|---|---|
-| User | `--user 1000:1000` | Never root, even if the image defaults to it |
-| Capabilities | `--cap-drop ALL` | No raw sockets, no mount, no ptrace |
-| Escalation | `--security-opt no-new-privileges` | setuid binaries cannot regain root |
-| Root filesystem | `--read-only` | The image cannot be modified |
-| Writable paths | tmpfs only, `mode=1777` | Nothing survives the job; nothing touches the host |
-| Host paths | none mounted | Files arrive over tar on stdin, leave the same way |
-| Memory | 1g, swap capped equal | A runaway build is killed, not swapped |
-| CPU | 1.0 | One job cannot starve the host |
-| Processes | `--pids-limit 256` | Fork bombs |
-| Network | **only during `install`** | Built code and tests cannot phone home |
-| Time | per-phase and per-job deadlines | Enforced by the runner and by docker |
-| Output | log and artifact byte caps | A job cannot flood the response |
+| Control         | Setting                            | Why                                                |
+| --------------- | ---------------------------------- | -------------------------------------------------- |
+| User            | `--user 1000:1000`                 | Never root, even if the image defaults to it       |
+| Capabilities    | `--cap-drop ALL`                   | No raw sockets, no mount, no ptrace                |
+| Escalation      | `--security-opt no-new-privileges` | setuid binaries cannot regain root                 |
+| Root filesystem | `--read-only`                      | The image cannot be modified                       |
+| Writable paths  | tmpfs only, `mode=1777`            | Nothing survives the job; nothing touches the host |
+| Host paths      | none mounted                       | Files arrive over tar on stdin, leave the same way |
+| Memory          | 1g, swap capped equal              | A runaway build is killed, not swapped             |
+| CPU             | 1.0                                | One job cannot starve the host                     |
+| Processes       | `--pids-limit 256`                 | Fork bombs                                         |
+| Network         | **only during `install`**          | Built code and tests cannot phone home             |
+| Time            | per-phase and per-job deadlines    | Enforced by the runner and by docker               |
+| Output          | log and artifact byte caps         | A job cannot flood the response                    |
 
 The network rule is the one worth stressing. A package manager needs the
 registry, so the container is created with the bridge attached and keeps it for
@@ -66,6 +66,23 @@ reduce the blast radius to a disposable container with no host filesystem, no
 capabilities and no network. For a stronger boundary the next step is a
 VM-isolated runtime (Firecracker, gVisor, or a dedicated throwaway host).
 
+## Who the runner trusts
+
+The runner verifies no wallet signatures itself. DevStation's server does that
+(the signed grant cookie, see `src/lib/agent-access/claims.server.ts`) and then
+calls the runner with `RUNNER_TOKEN` and an `x-devstation-owner` header naming
+the wallet. The runner believes that header whenever the token is right.
+
+So **`RUNNER_TOKEN` is a full-trust credential**: whoever holds it can act as
+any wallet: read and remove any wallet's published sites, upload a listing's
+files as its creator, read any job. DevStation's server is meant to be its only
+holder. Keep it out of the browser, out of logs and out of any other service;
+rotate it (on both sides) if it may have leaked. The runner refuses to start
+with a token shorter than 32 characters.
+
+`x-devstation-caller` is different: it is only a rate-limit key, taken from a
+client-supplied header upstream, and nothing is authorised by it.
+
 ## Notes for whoever maintains this
 
 - **`vite preview` binds `localhost`, which is `::1` here, and Playwright
@@ -75,21 +92,21 @@ VM-isolated runtime (Firecracker, gVisor, or a dedicated throwaway host).
   `--host 127.0.0.1` so both sides name the same literal address.
 - **Under gVisor, a network cannot be hot-plugged into a running container.**
   The sandbox configures its netstack when it starts, so `docker network
-  connect` on a running `runsc` container reports success and changes nothing
+connect` on a running `runsc` container reports success and changes nothing
   inside: DNS resolves nothing and npm fails with `EAI_AGAIN`. Disconnecting
-  works in that direction, which is why the container is created *with* the
+  works in that direction, which is why the container is created _with_ the
   network and loses it once, rather than starting bare and being granted it for
   install. The failure is easy to miss because the warm image already carries
   every dependency a generated project starts with: npm only needs the registry
-  when the model *adds* a package, which is exactly the feature the Vite target
+  when the model _adds_ a package, which is exactly the feature the Vite target
   exists for.
 - **After the cut, gVisor blocks by timeout rather than `ENETUNREACH`.** Its
   netstack keeps the route and drops the traffic, so a probe hangs for its
   timeout instead of failing instantly. Tests should assert "blocked", not a
   specific errno.
 - **A container created with `--network none` can never be given a network.**
-  Docker refuses with *"cannot be connected to multiple networks with one of
-  the networks in private (none) mode"*, so the obvious shape for this, start
+  Docker refuses with _"cannot be connected to multiple networks with one of
+  the networks in private (none) mode"_, so the obvious shape for this, start
   with nothing and attach the bridge for `install`, does not work. Containers
   are created on the bridge and detached immediately instead, which isolates
   them identically but can be reversed. Docker reports the refusal on stderr
@@ -125,7 +142,10 @@ Node 22, plus two things baked in, both about time rather than convenience:
   were failing by seconds. The install phase copies `/opt/warm/node_modules`
   into the workspace first, so npm has only what the model added left to fetch.
   That took install to about 45s. `warm-package.json` mirrors `VITE_DEPS` in
-  `src/lib/appgen/generate.ts`, and a test fails if they drift.
+  `src/lib/appgen/generate.ts`, and a test fails if they drift. It is
+  installed with `npm ci` from `warm-package-lock.json`, so the transitive set
+  is fixed too; `src/warm-lock.test.ts` fails if the lockfile and the package
+  file disagree, and the Dockerfile says how to regenerate it.
 
 Installing also gets a longer deadline than the other phases, because it is the
 only one that touches the network and the only one whose cost depends on what

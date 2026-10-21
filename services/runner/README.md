@@ -67,9 +67,20 @@ is not a token, and the job route accepts only a token.
 
 Unset the password and the dashboard is **off**, not open: the routes 404.
 
-History lives in `$RUNNER_STATE_DIR/history.json` (systemd provides
-`/var/lib/devstation-runner`), written atomically via a temp file and rename so
+History lives in `$RUNNER_STATE_DIR/history.json`, written atomically via a temp file and rename so
 a crash mid-write cannot corrupt it. Losing history never fails a build.
+
+## Configuration
+
+| Variable                         | Default                                               | What it is                                                                                                                                                                                             |
+| -------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `RUNNER_TOKEN`                   | none                                                  | Bearer token for every route but `/health` and the dashboard. **At least 32 characters**, or the runner refuses to start (`openssl rand -hex 32`). Full trust: see ARCHITECTURE.md.                    |
+| `SESSION_SECRET`                 | `RUNNER_TOKEN`                                        | Key for hashing email codes. One of the two must be set, or the runner refuses to start.                                                                                                               |
+| `RUNNER_STATE_DIR`               | `$STATE_DIRECTORY`, then `/var/lib/devstation-runner` | Everything kept across restarts: jobs, history, accounts, listings, marketplace activity. One directory; `STATE_DIRECTORY` (systemd's `StateDirectory=`) is honoured when `RUNNER_STATE_DIR` is unset. |
+| `PORT` / `RUNNER_HOST`           | `8792` / `127.0.0.1`                                  | Where it listens.                                                                                                                                                                                      |
+| `RUNNER_IMAGE`, `RUNNER_RUNTIME` | `devstation-runner:3`, `runsc`                        | The job image and isolation runtime.                                                                                                                                                                   |
+| `DASHBOARD_PASSWORD`             | none                                                  | Dashboard off when unset.                                                                                                                                                                              |
+| `RESEND_API_KEY`, `MAIL_FROM`    | none                                                  | Email verification is off without them.                                                                                                                                                                |
 
 ## Isolation runtime
 
@@ -81,12 +92,12 @@ their secrets rather than on a throwaway machine.
 It costs speed, and the cost is not small. Measured on the deployment host,
 same job, warm image:
 
-| phase | runc | runsc | |
-|---|---|---|---|
-| install | 43s | 138s | 3.2x |
-| lint | 6s | 10s | 1.6x |
-| build | 22s | 29s | 1.4x |
-| test | 22s | 43s | 1.9x |
+| phase   | runc | runsc |      |
+| ------- | ---- | ----- | ---- |
+| install | 43s  | 138s  | 3.2x |
+| lint    | 6s   | 10s   | 1.6x |
+| build   | 22s  | 29s   | 1.4x |
+| test    | 22s  | 43s   | 1.9x |
 
 `npm install` suffers most because it is almost pure syscall. The phase and job
 deadlines in `limits.ts` are sized for those numbers.

@@ -4,7 +4,10 @@
 # job has a hard deadline, and a cold `npm install` of a generated project came
 # in at 175s against a 180s limit. Warming the image is what makes the first
 # build of an app finish rather than flake.
-FROM node:22-bookworm-slim
+# Pinned by digest, not just tag: a tag is a pointer anyone with push access
+# to it can move, and this image runs every user's build. Bump both together
+# (the tag documents which release the digest is).
+FROM node:22.22.0-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
 
 # Chromium's shared libraries, for the Playwright browser installed below.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -24,14 +27,24 @@ RUN npx --yes playwright@1.62.1 install chromium \
 # so a job can copy it into place instead of fetching it. A project that adds a
 # package still only downloads the difference, because npm finds the rest
 # already present.
+#
+# Installed from a lockfile with `npm ci`, so the transitive set is the one that
+# was reviewed rather than whatever the registry serves on build day. After
+# changing warm-package.json, regenerate it from this directory with:
+#   cp warm-package.json /tmp/w/package.json && (cd /tmp/w && npm install --package-lock-only)
+# and copy /tmp/w/package-lock.json back to warm-package-lock.json.
 COPY warm-package.json /opt/warm/package.json
+COPY warm-package-lock.json /opt/warm/package-lock.json
 RUN cd /opt/warm \
-  && npm install --no-audit --no-fund --loglevel=error \
+  && npm ci --no-audit --no-fund --loglevel=error \
   && rm -rf /root/.npm \
   && chmod -R a+rX /opt/warm
 
 # Unprivileged. The runner also passes --user, but an image that defaults to
 # root is a trap for anyone who runs it another way.
-RUN useradd -m -u 1000 runner || true
-USER 1000:1000
+# The base image already has an unprivileged `node` user at uid 1000, so it is
+# used by name. (A `useradd -u 1000 ... || true` here used to fail on that uid
+# and hide the failure.)
+USER node
+
 WORKDIR /work

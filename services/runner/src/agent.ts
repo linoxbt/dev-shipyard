@@ -17,6 +17,7 @@
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
+import { stateDir } from "./state-dir";
 import { runTurn } from "../../../src/lib/appgen/session";
 import { projectFiles } from "../../../src/lib/appgen/build";
 import { preflight } from "../../../src/lib/agent/tools";
@@ -56,7 +57,7 @@ export const AGENT_TTL_MS = 24 * 60 * 60 * 1000;
 /** Hard cap on retained jobs, oldest evicted first. */
 export const MAX_AGENT_JOBS = 100;
 
-const STATE_DIR = process.env.RUNNER_STATE_DIR ?? "/var/lib/devstation-runner";
+const STATE_DIR = stateDir();
 const AGENT_DIR = join(STATE_DIR, "agent");
 /** Grants and decisions live in their OWN directory, not beside the jobs.
  *

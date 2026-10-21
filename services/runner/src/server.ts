@@ -102,6 +102,18 @@ const HOST = process.env.RUNNER_HOST ?? "127.0.0.1";
  *  dashboard is off entirely rather than open. */
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD ?? "";
 const TOKEN = process.env.RUNNER_TOKEN ?? "";
+/** RUNNER_TOKEN is full trust: whoever holds it can name any wallet as the
+ *  owner of a request (see ARCHITECTURE.md). A short one is guessable, so the
+ *  runner will not start with it. Unset leaves every authenticated route
+ *  closed (gate.ts); the accounts store then needs SESSION_SECRET to start. */
+const MIN_TOKEN_LENGTH = 32;
+if (TOKEN && TOKEN.length < MIN_TOKEN_LENGTH) {
+  console.error(
+    `[runner] RUNNER_TOKEN is ${TOKEN.length} characters; it must be at least ${MIN_TOKEN_LENGTH}. ` +
+      "Generate one with: openssl rand -hex 32",
+  );
+  process.exit(1);
+}
 const IMAGE = process.env.RUNNER_IMAGE ?? "devstation-runner:3";
 /** Reads DevStationMarketplace, the only authority on who may download a listing. */
 const listingChain = rpcListingChain();
@@ -225,7 +237,10 @@ function validate(body: JobBody): string | null {
   return null;
 }
 
-const server = createServer(async (req, res) => {
+async function route(
+  req: import("node:http").IncomingMessage,
+  res: import("node:http").ServerResponse,
+) {
   // No CORS headers at all, deliberately. Only DevStation's server calls this,
   // server-to-server, where CORS does not apply. Advertising "*" on an endpoint
   // that runs code invites a browser to try, and the answer is always no.
@@ -375,7 +390,9 @@ const server = createServer(async (req, res) => {
     const wallet = String(req.headers["x-devstation-owner"] ?? "").slice(0, 100);
 
     if (req.method === "GET") {
-      const result = await readListingFiles({ chain: listingChain, chainId, id, wallet });
+      const version =
+        new URL(req.url ?? "/", "http://runner").searchParams.get("version") ?? undefined;
+      const result = await readListingFiles({ chain: listingChain, chainId, id, wallet, version });
       return json(res, result.status, result.body);
     }
 
@@ -439,14 +456,23 @@ const server = createServer(async (req, res) => {
         4_000,
       );
       if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
-      const wallet =
-        typeof body.value.wallet === "string" && /^0x[a-fA-F0-9]{40}$/.test(body.value.wallet)
-          ? body.value.wallet
-          : "";
+      // Counted only for a wallet DevStation verified from its signed grant,
+      // sent as the owner header or (older callers) the body's `wallet`; only
+      // DevStation holds the token that reaches this route. Anonymous visitors
+      // used to be counted once per IP, and an IP is whatever a client puts
+      // in X-Forwarded-For: rotating it farmed clones onto a listing and up
+      // the leaderboard.
+      const named =
+        String(req.headers["x-devstation-owner"] ?? "") ||
+        (typeof body.value.wallet === "string" ? body.value.wallet : "");
+      const wallet = /^0x[a-fA-F0-9]{40}$/.test(named) ? named : "";
+      if (!wallet) {
+        return json(res, 200, { ok: true, counted: false });
+      }
       const counted = activity.record(
         String(body.value.listing ?? ""),
         String(body.value.action ?? ""),
-        wallet || caller,
+        wallet,
       );
       if (counted === null) {
         return json(res, 400, { ok: false, message: "Unknown listing or action." });
@@ -521,12 +547,16 @@ const server = createServer(async (req, res) => {
       if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
       const started = accounts.startEmail(owner, String(body.value.email ?? ""));
       if (!started.ok) {
-        return json(res, started.error === "cooldown" ? 429 : 400, {
-          ok: false,
-          error: started.error,
-          message: started.message,
-          retryIn: started.retryIn,
-        });
+        return json(
+          res,
+          started.error === "cooldown" || started.error === "rate_limited" ? 429 : 400,
+          {
+            ok: false,
+            error: started.error,
+            message: started.message,
+            retryIn: started.retryIn,
+          },
+        );
       }
       const { subject, text, html } = codeMessage(started.code);
       const sent = await sendMail({ to: started.address, subject, text, html });
@@ -1093,6 +1123,27 @@ const server = createServer(async (req, res) => {
     });
   }
   return json(res, outcome.status, outcome.body);
+}
+
+// A handler that throws used to reject the request callback's promise with
+// nothing attached, and an unhandled rejection takes the whole process down:
+// every job in flight, every waiting approval, for one bad request. Caught
+// here, logged, and answered with a 500 that names nothing internal.
+const server = createServer((req, res) => {
+  route(req, res).catch((err: unknown) => {
+    console.error(`[runner] ${req.method} ${req.url} failed:`, err);
+    if (res.headersSent) return void res.destroy();
+    json(res, 500, { ok: false, message: "The runner hit an internal error." });
+  });
+});
+
+// Anything that still escapes (a timer, a stream callback) is logged rather
+// than allowed to end the process.
+process.on("unhandledRejection", (reason) => {
+  console.error("[runner] unhandled rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[runner] uncaught exception:", err);
 });
 
 // Loopback by default, and deliberately.

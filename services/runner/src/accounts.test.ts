@@ -2,7 +2,16 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AccountsStore, MAX_ATTEMPTS, normaliseEmail } from "./accounts";
+import {
+  AccountsStore,
+  MAX_ATTEMPTS,
+  MAX_SENDS_PER_ADDRESS_DAY,
+  MAX_SENDS_PER_ADDRESS_HOUR,
+  MAX_SENDS_PER_HOUR,
+  RESEND_MS,
+  accountsSecret,
+  normaliseEmail,
+} from "./accounts";
 import { codeMessage, sendMail } from "./mail";
 
 const ALICE = "0x1111111111111111111111111111111111111111";
@@ -202,6 +211,59 @@ describe("sending the code", () => {
         fake,
       ),
     ).toMatchObject({ ok: false, reason: "failed", message: "domain is not verified" });
+  });
+});
+
+describe("the hashing key", () => {
+  it("has no built-in fallback", () => {
+    expect(() => accountsSecret({})).toThrow(/SESSION_SECRET/);
+    expect(accountsSecret({ RUNNER_TOKEN: "t" })).toBe("t");
+    expect(accountsSecret({ SESSION_SECRET: "s", RUNNER_TOKEN: "t" })).toBe("s");
+  });
+});
+
+describe("how much mail one address can be sent", () => {
+  const wallet = (i: number) => `0x${i.toString(16).padStart(40, "0")}`;
+
+  it("caps codes to one address per hour and per day, across wallets", () => {
+    let t = 1_000_000;
+    const s = store(() => t);
+    for (let i = 0; i < MAX_SENDS_PER_ADDRESS_HOUR; i++) {
+      expect(s.startEmail(wallet(i + 1), "victim@example.com").ok).toBe(true);
+    }
+    expect(s.startEmail(wallet(99), "victim@example.com")).toMatchObject({
+      ok: false,
+      error: "rate_limited",
+    });
+    // A different address is unaffected.
+    expect(s.startEmail(wallet(98), "other@example.com").ok).toBe(true);
+
+    // Hour by hour, the day cap still holds.
+    let sent = MAX_SENDS_PER_ADDRESS_HOUR;
+    let n = 200;
+    while (sent < MAX_SENDS_PER_ADDRESS_DAY) {
+      t += 61 * 60_000;
+      if (s.startEmail(wallet(n++), "victim@example.com").ok) sent++;
+    }
+    t += 61 * 60_000;
+    expect(s.startEmail(wallet(n++), "victim@example.com")).toMatchObject({
+      ok: false,
+      error: "rate_limited",
+    });
+  });
+
+  it("caps the runner's total sends per hour", () => {
+    let t = 1_000_000;
+    const s = store(() => t);
+    for (let i = 0; i < MAX_SENDS_PER_HOUR; i++) {
+      expect(s.startEmail(wallet(i + 1), `u${i}@example.com`).ok).toBe(true);
+    }
+    expect(s.startEmail(wallet(9999), "late@example.com")).toMatchObject({
+      ok: false,
+      error: "rate_limited",
+    });
+    t += RESEND_MS + 60 * 60_000;
+    expect(s.startEmail(wallet(9999), "late@example.com").ok).toBe(true);
   });
 });
 

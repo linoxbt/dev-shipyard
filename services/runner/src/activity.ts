@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { stateDir } from "./state-dir";
 
 // Marketplace activity that leaves no trace on chain: an app or UI kit cloned
 // into the App Builder, a skill or kit downloaded. Sales, deploys and tips are
@@ -23,10 +24,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_SEEN = 100_000;
 
 export function activityFile(env: NodeJS.ProcessEnv = process.env): string {
-  return (
-    env.ACTIVITY_FILE ??
-    join(env.STATE_DIRECTORY ?? "/var/lib/devstation-runner", "marketplace-activity.json")
-  );
+  return env.ACTIVITY_FILE ?? join(stateDir(env), "marketplace-activity.json");
 }
 
 export class ActivityStore {

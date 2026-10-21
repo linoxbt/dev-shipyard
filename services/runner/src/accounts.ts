@@ -1,6 +1,7 @@
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { stateDir } from "./state-dir";
 
 // What a wallet is linked to: one GitHub account, one verified email.
 //
@@ -56,10 +57,38 @@ const WALLET = /^0x[a-fA-F0-9]{40}$/;
 const EMAIL = /^[^\s@]{1,64}@[^\s@.]+(\.[^\s@.]+)+$/;
 
 export function accountsFile(env: NodeJS.ProcessEnv = process.env): string {
-  return (
-    env.ACCOUNTS_FILE ?? join(env.STATE_DIRECTORY ?? "/var/lib/devstation-runner", "accounts.json")
-  );
+  return env.ACCOUNTS_FILE ?? join(stateDir(env), "accounts.json");
 }
+
+/**
+ * The key that turns a code into its stored hash.
+ *
+ * There used to be a last-resort fallback to the literal "devstation". A runner
+ * started without either variable then hashed every code with a key printed in
+ * this repository, so the stored hashes could be brute-forced offline in a
+ * million guesses. No key is a configuration error, and saying so at startup
+ * beats running with a public one.
+ */
+export function accountsSecret(env: NodeJS.ProcessEnv = process.env): string {
+  const secret = env.SESSION_SECRET || env.RUNNER_TOKEN;
+  if (!secret) {
+    throw new Error(
+      "Set SESSION_SECRET (or RUNNER_TOKEN) before starting the runner: email codes are hashed with it.",
+    );
+  }
+  return secret;
+}
+
+/** Codes one recipient address may be sent, per hour and per day, whichever
+ *  wallet asks. The per-wallet cooldown alone let any number of free wallets
+ *  aim this service's mail at one inbox. */
+export const MAX_SENDS_PER_ADDRESS_HOUR = 3;
+export const MAX_SENDS_PER_ADDRESS_DAY = 10;
+/** Codes the whole runner sends per hour, so a burst of wallets and addresses
+ *  cannot spend the mail provider's quota or its sender reputation. */
+export const MAX_SENDS_PER_HOUR = 200;
+const HOUR_MS = 60 * 60_000;
+const DAY_MS = 24 * HOUR_MS;
 
 export function normaliseEmail(raw: string): string {
   return raw.trim().toLowerCase().slice(0, 254);
@@ -73,17 +102,22 @@ export type EmailError =
   | "no_pending"
   | "expired"
   | "too_many"
+  | "rate_limited"
   | "wrong_code"
   | "bad_request";
 
 export class AccountsStore {
   private readonly rows = new Map<string, Account>();
+  /** When each code went out, by recipient, and for the runner as a whole.
+   *  In memory on purpose: a restart forgets them, which costs at most one
+   *  more window's worth of mail, and keeps addresses that were never
+   *  verified out of the file on disk. */
+  private readonly sentTo = new Map<string, number[]>();
+  private sentAll: number[] = [];
 
   constructor(
     private readonly file: string | null,
-    private readonly secret = process.env.SESSION_SECRET ||
-      process.env.RUNNER_TOKEN ||
-      "devstation",
+    private readonly secret: string = accountsSecret(),
     private readonly now: () => number = Date.now,
   ) {
     if (!file || !existsSync(file)) return;
@@ -219,6 +253,8 @@ export class AccountsStore {
         retryIn,
       };
     }
+    const limited = this.sendLimit(email, now);
+    if (limited) return { ok: false, error: "rate_limited", message: limited };
     const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
     this.rows.set(key, {
       ...row,
@@ -294,6 +330,31 @@ export class AccountsStore {
     const key = wallet.toLowerCase();
     this.clearPending(key);
     return this.view(key);
+  }
+
+  /** Records a send to `email` if the limits allow it, else says why not. */
+  private sendLimit(email: string, now: number): string | null {
+    this.sentAll = this.sentAll.filter((t) => now - t < HOUR_MS);
+    const recent = (this.sentTo.get(email) ?? []).filter((t) => now - t < DAY_MS);
+    if (this.sentAll.length >= MAX_SENDS_PER_HOUR) {
+      return "Too many codes are going out right now. Try again in a few minutes.";
+    }
+    if (
+      recent.length >= MAX_SENDS_PER_ADDRESS_DAY ||
+      recent.filter((t) => now - t < HOUR_MS).length >= MAX_SENDS_PER_ADDRESS_HOUR
+    ) {
+      return "Too many codes have been sent to that address. Try again later.";
+    }
+    recent.push(now);
+    this.sentTo.set(email, recent);
+    this.sentAll.push(now);
+    // Bounded: an address with nothing in the last day is forgotten.
+    if (this.sentTo.size > 10_000) {
+      for (const [addr, times] of this.sentTo) {
+        if (!times.some((t) => now - t < DAY_MS)) this.sentTo.delete(addr);
+      }
+    }
+    return null;
   }
 
   private row(wallet: string): Account | undefined {
