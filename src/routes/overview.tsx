@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
@@ -127,6 +127,7 @@ function Overview() {
   });
 
   const [quickHash, setQuickHash] = useState("");
+  const navigate = useNavigate();
   const [inspections, setInspections] = useState<string[] | null>(null);
   useEffect(() => setInspections(storage.loadInspections()), []);
 
@@ -606,10 +607,20 @@ function Overview() {
               <label className="font-mono text-[10px] uppercase tracking-wider text-meta">
                 Inspect a transaction
               </label>
-              <div className="mt-2 flex gap-2">
+              <form
+                className="mt-2 flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const h = quickHash.trim();
+                  if (/^0x[0-9a-fA-F]{64}$/.test(h)) {
+                    navigate({ to: "/routebook/$txHash", params: { txHash: h } });
+                  }
+                }}
+              >
                 <input
                   value={quickHash}
                   onChange={(e) => setQuickHash(e.target.value)}
+                  aria-label="Transaction hash to inspect"
                   placeholder="0x… transaction hash"
                   className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 font-mono text-xs text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
                 />
@@ -624,6 +635,7 @@ function Overview() {
                   </Link>
                 ) : (
                   <button
+                    type="button"
                     disabled
                     className="inline-flex items-center rounded-md border border-border px-3 text-meta opacity-50"
                     aria-label="Decode transaction"
@@ -631,7 +643,7 @@ function Overview() {
                     <Search className="h-3.5 w-3.5" />
                   </button>
                 )}
-              </div>
+              </form>
               {quickHash.trim() && !/^0x[0-9a-fA-F]{64}$/.test(quickHash.trim()) && (
                 <p className="mt-1.5 text-[10px] text-meta">
                   A transaction hash is 0x followed by 64 hex characters.

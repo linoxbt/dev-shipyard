@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 import { formatPrice, kindInfo, type ListingKind } from "@/lib/marketplace/listing";
 import { useMarketplace } from "@/hooks/useMarketplace";
+import { useInView } from "@/hooks/useInView";
 import type { CatalogItem } from "./catalog";
 import { BuilderName } from "@/components/builder/BuilderName";
 
@@ -97,12 +98,13 @@ export function PriceTag({
 }
 
 /** A market listing's description, read on demand: the summary page leaves
- *  the long strings out, so a card fetches its own when it renders. */
-function useDescription(item: CatalogItem): string {
+ *  the long strings out, so a card fetches its own. Only once the card is on
+ *  screen: a grid of fifty cards used to fire fifty listing reads at once. */
+function useDescription(item: CatalogItem, visible: boolean): string {
   const market = useMarketplace();
   const { data } = useQuery({
     queryKey: ["marketplace", "description", market.chainId, item.key],
-    enabled: item.source === "market" && !item.description && market.configured,
+    enabled: visible && item.source === "market" && !item.description && market.configured,
     staleTime: 5 * 60_000,
     queryFn: async () => (await market.fetchListing(Number(item.key)))?.description ?? "",
   });
@@ -111,9 +113,11 @@ function useDescription(item: CatalogItem): string {
 
 export function ListingCard({ item }: { item: CatalogItem }) {
   const style = KIND_STYLE[item.kind];
-  const description = useDescription(item);
+  const { ref, inView } = useInView<HTMLAnchorElement>(0);
+  const description = useDescription(item, inView);
   return (
     <Link
+      ref={ref}
       to="/launchkit/marketplace/$listingId"
       params={{ listingId: item.id }}
       className={cn(
@@ -167,8 +171,8 @@ export function ListingCard({ item }: { item: CatalogItem }) {
         </div>
       )}
 
-      <div className="relative mt-auto flex items-center justify-between gap-2 border-t border-border pt-2 font-mono text-[10px] text-meta">
-        <span className="truncate">
+      <div className="relative mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-border pt-2 font-mono text-[10px] text-meta">
+        <span className="min-w-0 truncate">
           {item.official ? (
             "by DevStation"
           ) : item.creator ? (
@@ -177,7 +181,7 @@ export function ListingCard({ item }: { item: CatalogItem }) {
             </span>
           ) : null}
         </span>
-        <span className="flex shrink-0 items-center gap-2">
+        <span className="flex flex-wrap items-center gap-2">
           {item.price > 0n && <Stat icon={ShoppingBag} value={item.sales} label="sold" />}
           {item.kind === "template" && <Stat icon={Rocket} value={item.deploys} label="deploys" />}
           {item.source === "market" && <Stat icon={Heart} value={item.tips} label="tips" />}

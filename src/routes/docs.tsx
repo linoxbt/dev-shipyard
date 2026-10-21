@@ -5,6 +5,7 @@ import { DOC_NAV, DOC_ORDER, normaliseDocPath, type DocLink } from "@/components
 import { LogoMark } from "@/components/shared/Logo";
 import { useTheme } from "@/lib/theme";
 import { consoleHref, siteHref } from "@/lib/site-hosts";
+import { useDialog } from "@/components/shared/useDialog";
 
 // The documentation site. In production it is docs.devstation.online, with its
 // own header, navigation and search, and no console chrome around it.
@@ -28,6 +29,7 @@ function DocsLayout() {
   const path = normaliseDocPath(useRouterState({ select: (r) => r.location.pathname }));
   const [navOpen, setNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const navDialog = useDialog(() => setNavOpen(false), navOpen);
 
   useEffect(() => {
     setNavOpen(false);
@@ -77,7 +79,12 @@ function DocsLayout() {
 
       {navOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div className="flex w-80 max-w-[85%] flex-col overflow-y-auto border-r border-border bg-background p-5">
+          <div
+            {...navDialog.dialogProps}
+            aria-labelledby={undefined}
+            aria-label="Documentation menu"
+            className="flex w-80 max-w-[85%] flex-col overflow-y-auto border-r border-border bg-background p-5"
+          >
             <div className="mb-6 flex items-center justify-between">
               <span className="flex items-center gap-2 text-sm font-semibold">
                 <LogoMark className="h-6 w-6" /> Documentation
@@ -274,6 +281,7 @@ function OnThisPage({ path }: { path: string }) {
 }
 
 function SearchDialog({ onClose }: { onClose: () => void }) {
+  const { dialogProps } = useDialog(onClose);
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
@@ -310,7 +318,12 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center bg-background/70 px-4 pt-[12vh] backdrop-blur-sm">
       <button className="absolute inset-0" onClick={onClose} aria-label="Close search" />
-      <div className="relative w-full max-w-xl overflow-hidden rounded-xl border border-border bg-background shadow-2xl">
+      <div
+        {...dialogProps}
+        aria-labelledby={undefined}
+        aria-label="Search documentation"
+        className="relative w-full max-w-xl overflow-hidden rounded-xl border border-border bg-background shadow-2xl"
+      >
         <div className="flex items-center gap-3 border-b border-border px-4">
           <Search className="h-4 w-4 text-meta" />
           <input

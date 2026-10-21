@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Coins } from "lucide-react";
-import { useExplorer } from "@/hooks/useExplorer";
-import { useLabelName } from "@/hooks/useContractLabels";
+import { useExplorer, usePagedExplorer, isNotFound } from "@/hooks/useExplorer";
+import { useChainLabel } from "@/components/shared/useChainLabel";
 import {
   Card,
   StatCard,
@@ -12,7 +12,9 @@ import {
   Tabs,
   Spinner,
   Empty,
+  ErrorState,
 } from "@/components/explorer/ui";
+import { Pager } from "@/components/explorer/lists";
 import { formatUnits, timeAgo, withCommas } from "@/lib/explorer/format";
 import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
 import { tokenStandardWithTechnical } from "@/lib/terminology";
@@ -20,15 +22,29 @@ import type { ExToken, ExHolder, ExTokenTransfer } from "@/lib/explorer/types";
 
 export const Route = createFileRoute("/explorer/$network/token/$hash")({
   head: () => ({ meta: [{ title: "Token - Explorer" }] }),
-  component: TokenPage,
+  component: TokenRoute,
 });
 
-function TokenPage() {
-  const { hash } = Route.useParams();
+/** Blockscout v2's fixed list page size, so holder ranks continue across pages. */
+const BLOCKSCOUT_PAGE_SIZE = 50;
+
+/** Keyed on the token so tab and paging state reset between tokens. */
+function TokenRoute() {
+  const { hash, network } = Route.useParams();
+  return <TokenPage key={`${network}:${hash.toLowerCase()}`} hash={hash} />;
+}
+
+function TokenPage({ hash }: { hash: string }) {
   // Chain being browsed comes from the route, not the selected network.
   const chainId = chainIdForSlug(useExplorerNetwork());
   const [tab, setTab] = useState("transfers");
-  const { data: token, isLoading } = useExplorer<ExToken>(`/tokens/${hash}`);
+  const {
+    data: token,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useExplorer<ExToken>(`/tokens/${hash}`);
   const { data: counters } = useExplorer<{
     token_holders_count?: string;
     transfers_count?: string;
@@ -36,9 +52,16 @@ function TokenPage() {
   // DevStation's own project name for this contract (from the deploy
   // wizard), when it differs from the token's own on-chain name(): e.g. a
   // project called "Q1 Airdrop" whose ERC-20 name() is "AirdropToken".
-  const projectLabel = useLabelName(hash);
+  // Read for the URL's chain; a community label is marked as unverified.
+  const label = useChainLabel(hash, chainId);
 
   if (isLoading) return <Spinner label="Loading token" />;
+  if (isError && !isNotFound(error))
+    return (
+      <Card title="Token">
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      </Card>
+    );
   if (!token)
     return (
       <Card title="Token not found">
@@ -67,8 +90,18 @@ function TokenPage() {
           {token.address} <CopyBtn value={token.address} />
         </span>
       </div>
-      {projectLabel && projectLabel !== token.name && (
-        <p className="-mt-2 font-mono text-[11px] text-meta">Project: {projectLabel}</p>
+      {label && label.name !== token.name && (
+        <p className="-mt-2 font-mono text-[11px] text-meta">
+          Project: {label.name}
+          {!label.trusted && (
+            <span
+              className="ml-1.5 text-warning"
+              title="Anyone can submit a label for any address."
+            >
+              (community label · unverified)
+            </span>
+          )}
+        </p>
       )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -108,7 +141,15 @@ function TokenTransfers({
   dec: number;
   symbol?: string | null;
 }) {
-  const { data } = useExplorer<{ items: ExTokenTransfer[] }>(`/tokens/${hash}/transfers`);
+  const { data, isError, error, refetch, pager } = usePagedExplorer<ExTokenTransfer>(
+    `/tokens/${hash}/transfers`,
+  );
+  if (isError)
+    return (
+      <Card>
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      </Card>
+    );
   if (!data)
     return (
       <Card>
@@ -156,6 +197,7 @@ function TokenTransfers({
           </tbody>
         </table>
       </div>
+      <Pager {...pager} />
     </Card>
   );
 }
@@ -171,7 +213,15 @@ function TokenHolders({
   supply?: string | null;
   symbol?: string | null;
 }) {
-  const { data } = useExplorer<{ items: ExHolder[] }>(`/tokens/${hash}/holders`);
+  const { data, isError, error, refetch, pager, pageIndex } = usePagedExplorer<ExHolder>(
+    `/tokens/${hash}/holders`,
+  );
+  if (isError)
+    return (
+      <Card>
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      </Card>
+    );
   if (!data)
     return (
       <Card>
@@ -202,7 +252,7 @@ function TokenHolders({
               const pct = total > 0 ? (Number(h.value) / total) * 100 : 0;
               return (
                 <tr key={i} className="border-t border-border hover:bg-surface-2/50">
-                  <Td className="text-meta">{i + 1}</Td>
+                  <Td className="text-meta">{pageIndex * BLOCKSCOUT_PAGE_SIZE + i + 1}</Td>
                   <Td>
                     <AddrLink hash={h.address.hash} name={h.address.name} short={false} />
                   </Td>
@@ -218,6 +268,7 @@ function TokenHolders({
           </tbody>
         </table>
       </div>
+      <Pager {...pager} />
     </Card>
   );
 }

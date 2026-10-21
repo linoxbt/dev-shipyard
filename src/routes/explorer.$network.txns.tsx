@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { useExplorer, withPageParams, type PagedResponse } from "@/hooks/useExplorer";
+import { usePagedExplorer } from "@/hooks/useExplorer";
 import { Card, Spinner, ErrorState } from "@/components/explorer/ui";
 import { TxTable, Pager } from "@/components/explorer/lists";
 import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
@@ -14,10 +13,7 @@ export const Route = createFileRoute("/explorer/$network/txns")({
 
 function TxnsPage() {
   const symbol = nativeSymbol(chainIdForSlug(useExplorerNetwork()));
-  const [stack, setStack] = useState<Array<Record<string, unknown> | null>>([null]);
-  const cursor = stack[stack.length - 1];
-  const path = withPageParams("/transactions", cursor);
-  const { data, isFetching, isError, error, refetch } = useExplorer<PagedResponse<ExTx>>(path);
+  const { data, isError, error, refetch, pager } = usePagedExplorer<ExTx>("/transactions");
 
   return (
     <div className="space-y-4">
@@ -30,12 +26,7 @@ function TxnsPage() {
         ) : (
           <>
             <TxTable txs={data.items} symbol={symbol} />
-            <Pager
-              hasPrev={stack.length > 1}
-              hasNext={!!data.next_page_params && !isFetching}
-              onPrev={() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))}
-              onNext={() => data.next_page_params && setStack((s) => [...s, data.next_page_params])}
-            />
+            <Pager {...pager} />
           </>
         )}
       </Card>

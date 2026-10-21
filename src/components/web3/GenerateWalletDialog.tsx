@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useConnect } from "wagmi";
 import { useBurner } from "@/lib/burner/store";
 import { copySensitive } from "@/lib/clipboard";
+import { useDialog } from "@/components/shared/useDialog";
 
 type Mode = "menu" | "create" | "backup" | "unlock" | "import";
 
@@ -11,6 +12,7 @@ type Mode = "menu" | "create" | "backup" | "unlock" | "import";
 // encrypted wallet, unlock an existing one, or import a seed phrase. After a
 // successful create/unlock it connects the burner wagmi connector.
 export function GenerateWalletDialog({ onClose }: { onClose: () => void }) {
+  const { dialogProps, titleId } = useDialog(onClose);
   const burner = useBurner();
   const { connect, connectors } = useConnect();
   const [mode, setMode] = useState<Mode>(burner.exists ? "unlock" : "menu");
@@ -81,10 +83,12 @@ export function GenerateWalletDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded border border-border bg-surface p-6">
+      <div {...dialogProps} className="w-full max-w-md rounded border border-border bg-surface p-6">
         <div className="mb-4 flex items-center gap-2">
           <Wallet className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-base font-bold text-foreground">DevStation Wallet</h2>
+          <h2 id={titleId} className="font-mono text-base font-bold text-foreground">
+            DevStation Wallet
+          </h2>
         </div>
 
         {mode === "menu" && (

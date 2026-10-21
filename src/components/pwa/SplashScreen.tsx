@@ -34,10 +34,17 @@ const MIN_VISIBLE_MS = 400;
 // for seconds on a slow connection even though the app itself is ready.
 const MAX_WAIT_MS = 1200;
 
-// Full-screen branded loading state shown while the app boots: especially as a
-// PWA launch/splash. Fades out once the DOM is parsed (not full window load)
-// and a minimum duration has passed so it never just flickers, with a hard
-// cap so a slow subresource can never hold it open indefinitely.
+// Full-screen branded loading state for an installed-PWA launch. Fades out once
+// the DOM is parsed (not full window load) and a minimum duration has passed so
+// it never just flickers, with a hard cap so a slow subresource can never hold
+// it open indefinitely.
+//
+// In an ordinary browser tab it is never shown: there it covered the
+// server-rendered page for up to 1.2s on every hard load, throwing away the
+// whole point of SSR. The server cannot know which it is, so the choice is
+// made in CSS (display-mode), which applies before first paint.
+const STANDALONE_ONLY_CSS =
+  "@media not all and (display-mode: standalone){.pwa-splash{display:none!important}}";
 export function SplashScreen() {
   const [visible, setVisible] = useState(!splashDone);
   const [fading, setFading] = useState(false);
@@ -81,11 +88,12 @@ export function SplashScreen() {
       role="status"
       aria-label="Loading DevStation"
       className={cn(
-        "fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background transition-opacity ease-out",
+        "pwa-splash fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background transition-opacity ease-out",
         fading ? "pointer-events-none opacity-0" : "opacity-100",
       )}
       style={{ transitionDuration: `${FADE_MS}ms` }}
     >
+      <style>{STANDALONE_ONLY_CSS}</style>
       <div className="h-40 w-40">
         <Suspense
           fallback={

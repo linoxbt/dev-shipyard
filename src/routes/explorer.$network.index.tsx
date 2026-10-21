@@ -39,10 +39,10 @@ function ExplorerHome() {
   const family = familyForSlug(slug);
   const { stats, gas, coinPrice, change24h, marketCap } = useStatsOverview(chainId);
   const { data: blocks, error: blocksError } = useExplorer<ExBlock[]>("/main-page/blocks", {
-    refetchInterval: 12_000,
+    refetchInterval: 15_000,
   });
   const { data: txs, error: txsError } = useExplorer<ExTx[]>("/main-page/transactions", {
-    refetchInterval: 12_000,
+    refetchInterval: 15_000,
   });
   // With placeholderData: keepPreviousData (see useExplorer), a failed
   // background refetch leaves `data` as the last successful snapshot instead

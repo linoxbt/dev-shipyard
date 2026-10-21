@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { useExplorer } from "@/hooks/useExplorer";
-import { Card, Spinner } from "@/components/explorer/ui";
+import { Card, Spinner, ErrorState } from "@/components/explorer/ui";
 import { withCommas } from "@/lib/explorer/format";
 import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
 import { SUPPORTED_CHAINS } from "@/lib/chains";
@@ -77,9 +77,10 @@ export function ExplorerCharts({ symbol = "QIE" }: { symbol?: string }) {
 }
 
 function TransactionsChart() {
-  const { data } = useExplorer<{ chart_data?: TxPoint[] }>("/stats/charts/transactions", {
-    refetchInterval: 60_000,
-  });
+  const { data, isError, error, refetch } = useExplorer<{ chart_data?: TxPoint[] }>(
+    "/stats/charts/transactions",
+    { refetchInterval: 60_000 },
+  );
   const points = (data?.chart_data ?? [])
     .slice(0, 30)
     .reverse()
@@ -91,7 +92,9 @@ function TransactionsChart() {
   return (
     <Card title="Daily Transactions (30d)">
       <div className="h-56 px-2 py-3">
-        {!data ? (
+        {isError && !data ? (
+          <ErrorState message={error?.message} onRetry={() => refetch()} />
+        ) : !data ? (
           <Spinner />
         ) : points.length === 0 ? (
           <div className="flex h-full items-center justify-center font-mono text-xs text-meta">
@@ -134,7 +137,7 @@ function PriceChart({ symbol = "QIE" }: { symbol?: string }) {
   const chainId = chainIdForSlug(network);
   const isTestnet = SUPPORTED_CHAINS.find((c) => c.id === chainId)?.testnet ?? true;
 
-  const { data } = useExplorer<{ chart_data?: MarketPoint[] }>("/stats/charts/market", {
+  const { data, isError } = useExplorer<{ chart_data?: MarketPoint[] }>("/stats/charts/market", {
     refetchInterval: 60_000,
     enabled: !isTestnet,
   });
@@ -149,8 +152,10 @@ function PriceChart({ symbol = "QIE" }: { symbol?: string }) {
   // Fall back to
   // CoinGecko's own history wherever a coin id is known, same chains that
   // already get a live price/market-cap fallback in StatsOverview.
-  const needsFallback = !isTestnet && data != null && explorerPoints.length === 0;
-  const { data: history } = useQuery({
+  // An explorer that errors is treated like one with no history: CoinGecko
+  // still answers, and a spinner that never resolves is the worst outcome.
+  const needsFallback = !isTestnet && (isError || (data != null && explorerPoints.length === 0));
+  const { data: history, isError: historyError } = useQuery({
     queryKey: ["chain-price-history", chainId],
     queryFn: () => getChainPriceHistory({ data: { chainId } }),
     enabled: needsFallback,
@@ -164,7 +169,9 @@ function PriceChart({ symbol = "QIE" }: { symbol?: string }) {
       : [];
 
   const points = explorerPoints.length > 0 ? explorerPoints : fallbackPoints;
-  const loading = isTestnet ? false : !data || (needsFallback && !history);
+  const loading = isTestnet
+    ? false
+    : (!data && !isError) || (needsFallback && !history && !historyError);
 
   return (
     <Card title={`${symbol} Price (30d)`}>

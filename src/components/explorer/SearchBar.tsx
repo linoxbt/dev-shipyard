@@ -2,15 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Search, FileCode2, Wallet, Receipt, Boxes, Clock, X } from "lucide-react";
 import { toast } from "sonner";
-import { useExplorerNetwork } from "@/lib/explorer/network";
+import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
+import { getExplorerData } from "@/lib/api/explorer.functions";
 import { storage, type SearchEntry } from "@/lib/storage";
 import { shortAddr, shortHash } from "@/lib/explorer/format";
 
 // Universal explorer search: routes a query to the right detail page by shape.
-// Address/contract (0x + 40), tx hash (0x + 64), or block number. Stays on the
+// Address/contract (0x + 40), block number, or a 0x + 64 hash, which is a
+// transaction OR a block hash (checked in that order). Anything else is a
+// name, handed to Blockscout's /search (tokens, contracts, labels). Stays on the
 // network in the current URL. Recent searches are persisted to localStorage and
 // surfaced in a dropdown when the input is focused: Etherscan-style; for
 // contracts the resolved name is shown once the address page has loaded it.
+/** The fields of a Blockscout /search item this bar routes on. */
+interface SearchHit {
+  type?: string;
+  name?: string;
+  address?: string;
+  transaction_hash?: string;
+  block_number?: number | string;
+}
+
 export function SearchBar() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -33,13 +45,70 @@ export function SearchBar() {
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
-  // Classify a query, record it, and navigate. Returns false on an invalid one.
-  const go = (value: string): boolean => {
-    const v = value.trim();
-    if (!v) return false;
-    if (/^0x[0-9a-fA-F]{64}$/.test(v)) {
+  const [busy, setBusy] = useState(false);
+  const chainId = chainIdForSlug(network);
+  const exists = async (path: string) =>
+    ((await getExplorerData({ data: { chainId, path } })) as { ok: boolean }).ok;
+
+  // A 32-byte hash: a transaction if the explorer knows one, else a block.
+  const goHash = async (v: string) => {
+    if (await exists(`/transactions/${v}`)) {
       storage.addSearch({ query: v, kind: "tx", network });
       navigate({ to: "/explorer/$network/tx/$hash", params: { network, hash: v } });
+      return true;
+    }
+    if (await exists(`/blocks/${v}`)) {
+      storage.addSearch({ query: v, kind: "block", network });
+      navigate({ to: "/explorer/$network/block/$height", params: { network, height: v } });
+      return true;
+    }
+    toast.error("No transaction or block with that hash on this network");
+    return false;
+  };
+
+  // Free text: the first result Blockscout's own search returns.
+  const goName = async (v: string) => {
+    const res = (await getExplorerData({
+      data: { chainId, path: `/search?q=${encodeURIComponent(v)}` },
+    })) as { ok: boolean; data?: { items?: SearchHit[] } };
+    const hit = res.ok ? res.data?.items?.[0] : undefined;
+    if (hit?.type === "token" && hit.address) {
+      navigate({ to: "/explorer/$network/token/$hash", params: { network, hash: hit.address } });
+    } else if ((hit?.type === "address" || hit?.type === "contract") && hit.address) {
+      storage.addSearch({ query: hit.address, kind: "address", network, name: hit.name });
+      navigate({ to: "/explorer/$network/address/$hash", params: { network, hash: hit.address } });
+    } else if (hit?.type === "transaction" && hit.transaction_hash) {
+      navigate({
+        to: "/explorer/$network/tx/$hash",
+        params: { network, hash: hit.transaction_hash },
+      });
+    } else if (hit?.type === "block" && hit.block_number != null) {
+      navigate({
+        to: "/explorer/$network/block/$height",
+        params: { network, height: String(hit.block_number) },
+      });
+    } else {
+      toast.error(res.ok ? `Nothing on this network matches "${v}"` : "Search is unavailable");
+      return false;
+    }
+    return true;
+  };
+
+  // Classify a query, record it, and navigate. Resolves false on an invalid one.
+  const go = async (value: string): Promise<boolean> => {
+    const v = value.trim();
+    if (!v || busy) return false;
+    if (/^0x[0-9a-fA-F]{64}$/.test(v) || (!/^0x/i.test(v) && !/^\d+$/.test(v))) {
+      setBusy(true);
+      try {
+        const ok = /^0x/i.test(v) ? await goHash(v) : await goName(v);
+        if (!ok) return false;
+      } catch {
+        toast.error("The explorer could not be reached");
+        return false;
+      } finally {
+        setBusy(false);
+      }
     } else if (/^0x[0-9a-fA-F]{40}$/.test(v)) {
       storage.addSearch({ query: v, kind: "address", network });
       navigate({ to: "/explorer/$network/address/$hash", params: { network, hash: v } });
@@ -47,7 +116,7 @@ export function SearchBar() {
       storage.addSearch({ query: v, kind: "block", network });
       navigate({ to: "/explorer/$network/block/$height", params: { network, height: v } });
     } else {
-      toast.error("Enter a transaction hash, address, or block number");
+      toast.error("Enter a transaction or block hash, address, block number, or a name");
       return false;
     }
     refreshRecent();
@@ -57,7 +126,7 @@ export function SearchBar() {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    go(q);
+    void go(q);
   };
 
   // Recent entries scoped to the network in the current URL.
@@ -71,14 +140,16 @@ export function SearchBar() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onFocus={() => setOpen(true)}
-          placeholder="Search by address / txn hash / block number"
+          aria-label="Search the explorer"
+          placeholder="Search by address / txn or block hash / block number / name"
           className="w-full rounded border border-border bg-background py-2.5 pl-9 pr-24 font-mono text-xs text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
         />
         <button
           type="submit"
+          disabled={busy}
           className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded bg-primary px-3 py-1.5 font-mono text-xs font-medium text-primary-foreground hover:bg-primary-hover"
         >
-          Search
+          {busy ? "…" : "Search"}
         </button>
       </form>
 
@@ -108,7 +179,7 @@ export function SearchBar() {
                   // Navigate directly (also re-records, bumping it to the top).
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    go(s.query);
+                    void go(s.query);
                   }}
                   className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-surface-2"
                 >

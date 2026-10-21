@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useContractLabels, useAllLabels, type OnChainLabel } from "@/hooks/useContractLabels";
 import { toast } from "sonner";
 import { LABEL_CATEGORIES } from "@/lib/labels/categories";
+import { useDialog } from "@/components/shared/useDialog";
 
 export const Route = createFileRoute("/routebook/labels")({
   head: () => ({ meta: [{ title: "Label Registry: DevStation Routebook" }] }),
@@ -178,6 +179,7 @@ function Stat({ value, label }: { value: number; label: string }) {
 }
 
 function SubmitLabelModal({ onClose }: { onClose: () => void }) {
+  const { dialogProps, titleId } = useDialog(onClose);
   const { submitLabel, onChain } = useContractLabels();
   const [addr, setAddr] = useState("");
   const [name, setName] = useState("");
@@ -218,10 +220,12 @@ function SubmitLabelModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded border border-border bg-surface p-6">
+      <div {...dialogProps} className="w-full max-w-md rounded border border-border bg-surface p-6">
         <div className="mb-4 flex items-start justify-between">
-          <h2 className="font-mono text-base font-bold text-foreground">Submit a Contract Label</h2>
-          <button onClick={onClose} className="text-meta hover:text-foreground">
+          <h2 id={titleId} className="font-mono text-base font-bold text-foreground">
+            Submit a Contract Label
+          </h2>
+          <button onClick={onClose} className="text-meta hover:text-foreground" aria-label="Close">
             <X className="h-4 w-4" />
           </button>
         </div>

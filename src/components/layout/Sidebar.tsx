@@ -6,6 +6,7 @@ import {
   Code2,
   Compass,
   Home,
+  FolderGit2,
   LayoutDashboard,
   Store,
   Trophy,
@@ -28,6 +29,7 @@ import { useUi } from "@/lib/ui-state";
 import { useTheme } from "@/lib/theme";
 import { isComingSoon } from "@/lib/coming-soon";
 import { docsHref } from "@/lib/site-hosts";
+import { useDialog } from "@/components/shared/useDialog";
 
 const NAV = [
   { to: "/overview", label: "Overview", icon: Home, exact: true },
@@ -43,9 +45,10 @@ const NAV = [
       { to: "/launchkit/ai", label: "Code with AI", icon: Sparkles },
       { to: "/launchkit/deploy", label: "Deploy", icon: Rocket },
       { to: "/launchkit/coding-agent", label: "Coding Agent", icon: Bot },
-      // My Apps and Projects are reached from the dashboard, not from here.
-      // They are personal views of your own work rather than tools, so they
-      // belong behind the dashboard that summarises them.
+      // My Apps is reached from the dashboard. Projects is listed here because
+      // nothing else led to it except the deploy success screen, so a deploy
+      // history you did not land on straight after deploying was unfindable.
+      { to: "/launchkit/projects", label: "My Projects", icon: FolderGit2 },
     ],
   },
   {
@@ -139,6 +142,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function Sidebar() {
   const { mobileNavOpen, closeMobileNav, sidebarCollapsed } = useUi();
+  const { dialogProps } = useDialog(closeMobileNav, mobileNavOpen);
 
   return (
     <>
@@ -152,7 +156,12 @@ export function Sidebar() {
       {/* Mobile drawer */}
       {mobileNavOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
-          <div className="flex w-72 max-w-[85%] flex-col border-r border-border bg-surface">
+          <div
+            {...dialogProps}
+            aria-labelledby={undefined}
+            aria-label="Navigation"
+            className="flex w-72 max-w-[85%] flex-col border-r border-border bg-surface"
+          >
             <SidebarContent onNavigate={closeMobileNav} />
           </div>
           <button

@@ -97,13 +97,21 @@ export function CopyBtn({ value, className }: { value: string; className?: strin
   const [copied, setCopied] = useState(false);
   return (
     <button
+      type="button"
       onClick={() => {
-        navigator.clipboard.writeText(value);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1200);
+        navigator.clipboard
+          .writeText(value)
+          .then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1200);
+          })
+          .catch(() => {
+            /* clipboard blocked: the value is still on screen to select */
+          });
       }}
       className={cn("text-meta transition hover:text-foreground", className)}
       title="Copy"
+      aria-label={copied ? "Copied" : "Copy to clipboard"}
     >
       {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
     </button>

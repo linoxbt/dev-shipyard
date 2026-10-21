@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useExplorer } from "@/hooks/useExplorer";
-import { Card, Row, AddrLink, CopyBtn, Tabs, Spinner } from "@/components/explorer/ui";
+import { useExplorer, isNotFound } from "@/hooks/useExplorer";
+import { Card, Row, AddrLink, CopyBtn, Tabs, Spinner, ErrorState } from "@/components/explorer/ui";
 import { TxTable } from "@/components/explorer/lists";
 import { formatQie, formatGwei, timeAgo, withCommas } from "@/lib/explorer/format";
 import {
@@ -16,25 +16,36 @@ import type { ExBlock, ExTx } from "@/lib/explorer/types";
 
 export const Route = createFileRoute("/explorer/$network/block/$height")({
   head: () => ({ meta: [{ title: "Block - Explorer" }] }),
-  component: BlockPage,
+  component: BlockRoute,
 });
 
-function BlockPage() {
+/** Keyed on the height so the open tab resets between blocks. */
+function BlockRoute() {
   const { network, height } = Route.useParams();
+  return <BlockPage key={`${network}:${height}`} network={network} height={height} />;
+}
+
+function BlockPage({ network, height }: { network: string; height: string }) {
   const slug = (isNetworkSlug(network) ? network : DEFAULT_NETWORK_SLUG) as NetworkSlug;
   const symbol = nativeSymbol(chainIdForSlug(slug));
   const [tab, setTab] = useState("overview");
-  const { data: block, isLoading, error } = useExplorer<ExBlock>(`/blocks/${height}`);
+  const { data: block, isLoading, error, refetch } = useExplorer<ExBlock>(`/blocks/${height}`);
   const { data: txs } = useExplorer<{ items: ExTx[] }>(`/blocks/${height}/transactions`, {
     enabled: tab === "txns",
   });
 
   if (isLoading) return <Spinner label="Loading block" />;
-  if (error || !block)
+  if (error && !isNotFound(error))
+    return (
+      <Card title="Block">
+        <ErrorState message={error.message} onRetry={() => refetch()} />
+      </Card>
+    );
+  if (!block)
     return (
       <Card title="Block not found">
         <div className="px-4 py-8 font-mono text-xs text-meta">
-          Could not load block {height}. {error?.message}
+          There is no block {height} on this network.
         </div>
       </Card>
     );

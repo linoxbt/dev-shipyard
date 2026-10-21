@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Search as SearchIcon } from "lucide-react";
-import { useExplorer } from "@/hooks/useExplorer";
+import { useExplorer, isNotFound } from "@/hooks/useExplorer";
 import {
   Card,
   Row,
@@ -12,6 +12,7 @@ import {
   Tabs,
   Spinner,
   Empty,
+  ErrorState,
 } from "@/components/explorer/ui";
 import { formatQie, formatUnits, formatGwei, timeAgo, withCommas } from "@/lib/explorer/format";
 import { useExplorerNetwork, chainIdForSlug } from "@/lib/explorer/network";
@@ -20,7 +21,7 @@ import type { ExTx, ExLog, ExTokenTransfer } from "@/lib/explorer/types";
 
 export const Route = createFileRoute("/explorer/$network/tx/$hash")({
   head: () => ({ meta: [{ title: "Transaction - Explorer" }] }),
-  component: TxPage,
+  component: TxRoute,
 });
 
 interface TxDetail extends ExTx {
@@ -38,18 +39,29 @@ interface TxDetail extends ExTx {
   token_transfers?: ExTokenTransfer[];
 }
 
-function TxPage() {
-  const { hash } = Route.useParams();
+/** Keyed on the hash so the open tab resets between transactions. */
+function TxRoute() {
+  const { hash, network } = Route.useParams();
+  return <TxPage key={`${network}:${hash.toLowerCase()}`} hash={hash} />;
+}
+
+function TxPage({ hash }: { hash: string }) {
   const network = useExplorerNetwork();
   const symbol = nativeSymbol(chainIdForSlug(network));
   const [tab, setTab] = useState("overview");
-  const { data: tx, isLoading, error } = useExplorer<TxDetail>(`/transactions/${hash}`);
+  const { data: tx, isLoading, error, refetch } = useExplorer<TxDetail>(`/transactions/${hash}`);
   const { data: logs } = useExplorer<{ items: ExLog[] }>(`/transactions/${hash}/logs`, {
     enabled: tab === "logs",
   });
 
   if (isLoading) return <Spinner label="Loading transaction" />;
-  if (error || !tx) return <NotFound what="transaction" hash={hash} message={error?.message} />;
+  if (error && !isNotFound(error))
+    return (
+      <Card title="Transaction">
+        <ErrorState message={error.message} onRetry={() => refetch()} />
+      </Card>
+    );
+  if (!tx) return <NotFound what="transaction" hash={hash} />;
 
   const ok = tx.status === "ok";
   const transfers = tx.token_transfers ?? [];

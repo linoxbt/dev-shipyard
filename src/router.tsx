@@ -4,7 +4,20 @@ import { routeTree } from "./routeTree.gen";
 import { hostKind, toInternalPath, toPublicPath } from "@/lib/site-hosts";
 
 export const getRouter = () => {
-  const queryClient = new QueryClient();
+  // Defaults for every query that does not set its own. With none, data was
+  // stale the instant it arrived and every window focus refetched every
+  // mounted query: on the landing page that was dozens of RPC and explorer
+  // calls for an alt-tab. Polling queries keep their own intervals, and React
+  // Query already stops those while the tab is hidden.
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 15_000,
+        refetchOnWindowFocus: false,
+        retry: 2,
+      },
+    },
+  });
 
   const router = createRouter({
     routeTree,

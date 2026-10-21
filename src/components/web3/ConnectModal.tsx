@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Wallet, Plus, X } from "lucide-react";
 import { useConnect, type Connector } from "wagmi";
+import { toast } from "sonner";
+import { useDialog } from "@/components/shared/useDialog";
 import { GenerateWalletDialog } from "./GenerateWalletDialog";
 
 // Lightweight connect picker that replaces the RainbowKit modal. It lists the
@@ -10,6 +12,7 @@ import { GenerateWalletDialog } from "./GenerateWalletDialog";
 export function ConnectModal({ onClose }: { onClose: () => void }) {
   const { connectors, connect, isPending } = useConnect();
   const [showGenerate, setShowGenerate] = useState(false);
+  const { dialogProps, titleId } = useDialog(onClose, !showGenerate);
 
   // Exclude the burner (it has its own create/unlock flow) and dedupe by name.
   const seen = new Set<string>();
@@ -27,10 +30,12 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded border border-border bg-surface p-5">
+      <div {...dialogProps} className="w-full max-w-sm rounded border border-border bg-surface p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-mono text-base font-bold text-foreground">Connect a Wallet</h2>
-          <button onClick={onClose} className="text-meta hover:text-foreground">
+          <h2 id={titleId} className="font-mono text-base font-bold text-foreground">
+            Connect a Wallet
+          </h2>
+          <button onClick={onClose} className="text-meta hover:text-foreground" aria-label="Close">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -55,7 +60,22 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
               key={c.uid}
               connector={c}
               pending={isPending}
-              onClick={() => connect({ connector: c }, { onSuccess: onClose })}
+              onClick={() =>
+                connect(
+                  { connector: c },
+                  {
+                    onSuccess: onClose,
+                    // A declined or failed connection used to leave the modal
+                    // sitting there with no word on what happened.
+                    onError: (e) =>
+                      toast.error(`Couldn't connect ${c.name}`, {
+                        description: /reject|denied/i.test(e.message)
+                          ? "The request was declined in the wallet."
+                          : e.message.slice(0, 160),
+                      }),
+                  },
+                )
+              }
             />
           ))}
 

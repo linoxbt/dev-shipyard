@@ -2,7 +2,6 @@ import { createFileRoute, Outlet, Link, redirect, useNavigate } from "@tanstack/
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, ShieldCheck, ChevronDown, Check } from "lucide-react";
 import { ChainLogo } from "@/lib/chain-logos";
-import { useActiveChain } from "@/hooks/useActiveChain";
 import { chainConfig } from "@/lib/chains";
 import {
   isNetworkSlug,
@@ -37,16 +36,13 @@ export const Route = createFileRoute("/explorer/$network")({
 function EvmExplorerLayout() {
   const { network } = Route.useParams();
   const slug = (isNetworkSlug(network) ? network : DEFAULT_NETWORK_SLUG) as NetworkSlug;
-  const { select } = useActiveChain();
   const chainId = chainIdForSlug(slug);
   const cfg = chainConfig(chainId);
   const family = familyForSlug(slug);
   const isMainnet = slug === family.mainnetSlug;
-  // Keep the app-wide selected chain in sync with the URL being viewed.
-  useEffect(() => {
-    select(chainId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chainId]);
+  // Deliberately NOT synced to the app-wide network preference: opening an
+  // explorer link must never prompt the wallet to switch or overwrite the
+  // user's chosen network. Every explorer read takes its chain from the URL.
 
   return (
     <div>

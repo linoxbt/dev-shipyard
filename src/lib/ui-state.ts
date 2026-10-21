@@ -7,8 +7,11 @@ import { create } from "zustand";
 const COLLAPSE_KEY = "devstation-sidebar-collapsed";
 
 function loadCollapsed(): boolean {
-  if (typeof window === "undefined" || typeof localStorage === "undefined") return false;
-  return localStorage.getItem(COLLAPSE_KEY) === "1";
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 interface UiState {
@@ -18,19 +21,25 @@ interface UiState {
   closeMobileNav: () => void;
   toggleMobileNav: () => void;
   toggleSidebar: () => void;
+  /** Read the persisted rail state. Called once after mount (AppShell), so the
+   *  first client render matches the server's, which cannot see storage. */
+  hydrate: () => void;
 }
 
 export const useUi = create<UiState>((set) => ({
   mobileNavOpen: false,
-  sidebarCollapsed: loadCollapsed(),
+  sidebarCollapsed: false,
+  hydrate: () => set({ sidebarCollapsed: loadCollapsed() }),
   openMobileNav: () => set({ mobileNavOpen: true }),
   closeMobileNav: () => set({ mobileNavOpen: false }),
   toggleMobileNav: () => set((s) => ({ mobileNavOpen: !s.mobileNavOpen })),
   toggleSidebar: () =>
     set((s) => {
       const next = !s.sidebarCollapsed;
-      if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      try {
         localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+      } catch {
+        /* not persisted; the toggle still applies for this page */
       }
       return { sidebarCollapsed: next };
     }),

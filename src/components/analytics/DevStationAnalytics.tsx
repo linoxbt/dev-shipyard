@@ -127,6 +127,38 @@ export function DevStationAnalytics() {
     );
   }
 
+  // A failed read must not render as a network with zero deployments.
+  if ((deploysQ.isError && !deploysQ.data) || (statsQ.isError && !statsQ.data)) {
+    const err = (deploysQ.error ?? statsQ.error) as Error | null;
+    return (
+      <div className="py-4 lg:py-6 px-5 sm:px-8 lg:px-12">
+        <div className="mx-auto max-w-lg rounded border border-danger/40 bg-surface p-6 text-center font-mono text-xs">
+          <p className="text-danger">
+            Couldn&apos;t load analytics for {chain.name}
+            {err?.message ? `: ${err.message}` : "."}
+          </p>
+          <button
+            onClick={() => {
+              void deploysQ.refetch();
+              void statsQ.refetch();
+            }}
+            className="mt-3 rounded border border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (deploysQ.isLoading || statsQ.isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16 font-mono text-xs text-meta">
+        Loading analytics…
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-4 lg:p-6">
       {/* KPI row */}

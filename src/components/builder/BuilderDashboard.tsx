@@ -64,9 +64,13 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
   useEffect(() => {
     if (owner) hydrateApps();
   }, [owner, hydrateApps]);
-  const myApps = owner
-    ? apps.filter((a) => !a.owner || a.owner.toLowerCase() === address.toLowerCase())
-    : [];
+  // Memoised: a fresh array each render made the heatmap and timeline memos
+  // below recompute on every render.
+  const myApps = useMemo(
+    () =>
+      owner ? apps.filter((a) => !a.owner || a.owner.toLowerCase() === address.toLowerCase()) : [],
+    [owner, apps, address],
+  );
 
   const data = overview.data;
   const model = useMemo(() => (data ? summarize(data) : null), [data]);

@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { useExplorer, withPageParams, type PagedResponse } from "@/hooks/useExplorer";
+import { usePagedExplorer } from "@/hooks/useExplorer";
 import { Card, Spinner, ErrorState } from "@/components/explorer/ui";
 import { BlockTable, Pager } from "@/components/explorer/lists";
 import type { ExBlock } from "@/lib/explorer/types";
@@ -11,10 +10,7 @@ export const Route = createFileRoute("/explorer/$network/blocks")({
 });
 
 function BlocksPage() {
-  const [stack, setStack] = useState<Array<Record<string, unknown> | null>>([null]);
-  const cursor = stack[stack.length - 1];
-  const path = withPageParams("/blocks", cursor);
-  const { data, isFetching, isError, error, refetch } = useExplorer<PagedResponse<ExBlock>>(path);
+  const { data, isError, error, refetch, pager } = usePagedExplorer<ExBlock>("/blocks");
 
   return (
     <div className="space-y-4">
@@ -27,12 +23,7 @@ function BlocksPage() {
         ) : (
           <>
             <BlockTable blocks={data.items} />
-            <Pager
-              hasPrev={stack.length > 1}
-              hasNext={!!data.next_page_params && !isFetching}
-              onPrev={() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))}
-              onNext={() => data.next_page_params && setStack((s) => [...s, data.next_page_params])}
-            />
+            <Pager {...pager} />
           </>
         )}
       </Card>

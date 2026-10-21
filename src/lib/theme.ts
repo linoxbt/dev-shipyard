@@ -2,19 +2,28 @@ import { create } from "zustand";
 
 // Light/dark theme, persisted to localStorage and applied as a class on <html>.
 // Dark is the default (tokens live in :root); the `light` class overrides them
-// (see styles.css). SSR-safe: all DOM/storage access is guarded.
+// (see styles.css).
+//
+// The store always STARTS as "dark", on the server and on the client alike,
+// so the first client render matches the server's markup. The inline script
+// in __root.tsx sets the <html> class from storage before paint, so the page
+// never flashes; hydrate() then brings the store in line after mount.
 
 export type Theme = "dark" | "light";
 
 const KEY = "devstation-theme";
 
 function load(): Theme {
-  if (typeof window === "undefined" || typeof localStorage === "undefined") return "dark";
-  return localStorage.getItem(KEY) === "light" ? "light" : "dark";
+  try {
+    return localStorage.getItem(KEY) === "light" ? "light" : "dark";
+  } catch {
+    // No storage (SSR, a private window, blocked site data): the default.
+    return "dark";
+  }
 }
 
 // Toggle the class on <html> so the CSS tokens switch.
-export function applyTheme(theme: Theme) {
+function applyTheme(theme: Theme) {
   if (typeof document === "undefined") return;
   const el = document.documentElement;
   el.classList.toggle("light", theme === "light");
@@ -30,14 +39,12 @@ interface ThemeState {
 }
 
 export const useTheme = create<ThemeState>((set, get) => ({
-  theme: load(),
+  theme: "dark",
   setTheme: (t) => {
-    if (typeof localStorage !== "undefined") {
-      try {
-        localStorage.setItem(KEY, t);
-      } catch {
-        /* ignore */
-      }
+    try {
+      localStorage.setItem(KEY, t);
+    } catch {
+      /* not persisted; still applied for this page */
     }
     applyTheme(t);
     set({ theme: t });

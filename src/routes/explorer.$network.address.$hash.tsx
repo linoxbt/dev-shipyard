@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Wallet, FileCode2, CheckCircle2 } from "lucide-react";
-import { useExplorer } from "@/hooks/useExplorer";
-import { useLabelName } from "@/hooks/useContractLabels";
+import { useExplorer, usePagedExplorer, isNotFound } from "@/hooks/useExplorer";
+import { useChainLabel } from "@/components/shared/useChainLabel";
 import { useExplorerNetwork, chainIdForSlug, familyForSlug } from "@/lib/explorer/network";
 import { nativeSymbol } from "@/lib/chains";
 import { storage } from "@/lib/storage";
@@ -19,7 +19,7 @@ import {
   Empty,
   ErrorState,
 } from "@/components/explorer/ui";
-import { TxTable } from "@/components/explorer/lists";
+import { TxTable, Pager } from "@/components/explorer/lists";
 import { formatQie, formatUnits, timeAgo, withCommas } from "@/lib/explorer/format";
 import type {
   ExAddress,
@@ -33,16 +33,28 @@ import type {
 
 export const Route = createFileRoute("/explorer/$network/address/$hash")({
   head: () => ({ meta: [{ title: "Address - Explorer" }] }),
-  component: AddressPage,
+  component: AddressRoute,
 });
 
-function AddressPage() {
-  const { hash } = Route.useParams();
+/** Keyed on the address so tab and paging state never carry over from the
+ *  previous address (a "Contract" tab left open on an EOA showed nothing). */
+function AddressRoute() {
+  const { hash, network } = Route.useParams();
+  return <AddressPage key={`${network}:${hash.toLowerCase()}`} hash={hash} />;
+}
+
+function AddressPage({ hash }: { hash: string }) {
   const network = useExplorerNetwork();
   const chainId = chainIdForSlug(network);
   const symbol = nativeSymbol(chainId);
   const [tab, setTab] = useState("txns");
-  const { data: addr, isLoading } = useExplorer<ExAddress>(`/addresses/${hash}`);
+  const {
+    data: addr,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useExplorer<ExAddress>(`/addresses/${hash}`);
   const { data: counters } = useExplorer<ExAddrCounters>(`/addresses/${hash}/counters`);
   // The name the user actually gave this contract when deploying through
   // DevStation (the deploy wizard's "Project Name" field), read from the
@@ -50,17 +62,30 @@ function AddressPage() {
   // Preferred over Blockscout's own `addr.name`/`token.name`, which for a
   // verified contract is just its Solidity contract/template name (e.g.
   // "SimpleERC20"), not what the user actually called their project.
-  const projectLabel = useLabelName(hash);
+  //
+  // Read for the chain in the URL. Only a label written by the registry's
+  // autoLabeler leads the page: a community label is whatever the first
+  // submitter typed (the registry lets anyone label any address), so it is
+  // shown beside the explorer's own name, marked unverified, never as the title.
+  const label = useChainLabel(hash, chainId);
+  const trustedLabel = label?.trusted ? label.name : null;
+  const explorerName = addr?.name || addr?.token?.name || null;
 
   // Backfill the resolved name + contract flag onto the recent-search entry, so
   // the SearchBar dropdown can show a human-readable label next time.
-  const resolvedName = projectLabel || addr?.name || addr?.token?.name || undefined;
+  const resolvedName = trustedLabel || explorerName || undefined;
   useEffect(() => {
     if (!addr) return;
     storage.updateSearchName(network, hash, resolvedName, addr.is_contract);
   }, [addr, network, hash, resolvedName]);
 
   if (isLoading) return <Spinner label="Loading address" />;
+  if (isError && !isNotFound(error))
+    return (
+      <Card title="Address">
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      </Card>
+    );
   if (!addr)
     return (
       <Card title="Address not found">
@@ -89,11 +114,19 @@ function AddressPage() {
           <Wallet className="h-5 w-5 text-primary" />
         )}
         <h1 className="font-mono text-base font-bold text-foreground">
-          {projectLabel || (isContract ? "Contract" : "Address")}
+          {trustedLabel || explorerName || (isContract ? "Contract" : "Address")}
         </h1>
-        {projectLabel && (
+        {(trustedLabel || explorerName) && (
           <span className="font-mono text-[10px] uppercase tracking-wider text-meta">
             {isContract ? "Contract" : "Address"}
+          </span>
+        )}
+        {label && !label.trusted && (
+          <span
+            className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 font-mono text-[10px] text-warning"
+            title="Anyone can submit a label for any address. This one has not been verified."
+          >
+            Community label · unverified: {label.name}
           </span>
         )}
         {addr.is_verified && (
@@ -168,7 +201,7 @@ function AddressPage() {
 }
 
 function AddrTxns({ hash, symbol }: { hash: string; symbol: string }) {
-  const { data, isError, error, refetch } = useExplorer<{ items: ExTx[] }>(
+  const { data, isError, error, refetch, pager } = usePagedExplorer<ExTx>(
     `/addresses/${hash}/transactions`,
   );
   if (isError)
@@ -177,11 +210,22 @@ function AddrTxns({ hash, symbol }: { hash: string; symbol: string }) {
         <ErrorState message={error?.message} onRetry={() => refetch()} />
       </Card>
     );
-  return <Card>{!data ? <Spinner /> : <TxTable txs={data.items} symbol={symbol} />}</Card>;
+  return (
+    <Card>
+      {!data ? (
+        <Spinner />
+      ) : (
+        <>
+          <TxTable txs={data.items} symbol={symbol} />
+          <Pager {...pager} />
+        </>
+      )}
+    </Card>
+  );
 }
 
 function AddrTransfers({ hash }: { hash: string }) {
-  const { data, isError, error, refetch } = useExplorer<{ items: ExTokenTransfer[] }>(
+  const { data, isError, error, refetch, pager } = usePagedExplorer<ExTokenTransfer>(
     `/addresses/${hash}/token-transfers`,
   );
   if (isError)
@@ -248,6 +292,7 @@ function AddrTransfers({ hash }: { hash: string }) {
           </tbody>
         </table>
       </div>
+      <Pager {...pager} />
     </Card>
   );
 }
@@ -310,7 +355,7 @@ function AddrTokens({ hash }: { hash: string }) {
 }
 
 function AddrInternal({ hash, symbol }: { hash: string; symbol: string }) {
-  const { data, isError, error, refetch } = useExplorer<{ items: ExInternalTx[] }>(
+  const { data, isError, error, refetch, pager } = usePagedExplorer<ExInternalTx>(
     `/addresses/${hash}/internal-transactions`,
   );
   if (isError)
@@ -357,12 +402,13 @@ function AddrInternal({ hash, symbol }: { hash: string; symbol: string }) {
           </tbody>
         </table>
       </div>
+      <Pager {...pager} />
     </Card>
   );
 }
 
 function AddrLogs({ hash }: { hash: string }) {
-  const { data, isError, error, refetch } = useExplorer<{ items: ExLog[] }>(
+  const { data, isError, error, refetch, pager } = usePagedExplorer<ExLog>(
     `/addresses/${hash}/logs`,
   );
   if (isError)
@@ -384,7 +430,7 @@ function AddrLogs({ hash }: { hash: string }) {
       </Card>
     );
   return (
-    <Card title={`Event Logs (${data.items.length})`}>
+    <Card title="Event Logs">
       <div className="divide-y divide-border">
         {data.items.map((log, i) => (
           <div key={i} className="space-y-1 px-4 py-3 font-mono text-[11px]">
@@ -406,6 +452,7 @@ function AddrLogs({ hash }: { hash: string }) {
           </div>
         ))}
       </div>
+      <Pager {...pager} />
     </Card>
   );
 }
@@ -431,8 +478,24 @@ function ContractTab({ addr }: { addr: ExAddress }) {
   const chainId = chainIdForSlug(network);
   const family = familyForSlug(network);
   const [sub, setSub] = useState<ContractSubTab>("code");
-  const { data } = useExplorer<SmartContract>(`/smart-contracts/${addr.hash}`);
+  const { data, isError, error, refetch } = useExplorer<SmartContract>(
+    `/smart-contracts/${addr.hash}`,
+  );
 
+  if (isError && !isNotFound(error))
+    return (
+      <Card>
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
+      </Card>
+    );
+  // Blockscout answers 404 for a contract it has no metadata for at all:
+  // that is "unverified, nothing to show", not a spinner that never ends.
+  if (isError)
+    return (
+      <Card title="Contract">
+        <Empty>The explorer has no source or bytecode for this contract yet.</Empty>
+      </Card>
+    );
   if (!data)
     return (
       <Card>

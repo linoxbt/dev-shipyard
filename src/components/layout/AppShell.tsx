@@ -13,9 +13,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const openMobileNav = useUi((s) => s.openMobileNav);
   const toggleSidebar = useUi((s) => s.toggleSidebar);
   const collapsed = useUi((s) => s.sidebarCollapsed);
+  const hydrateUi = useUi((s) => s.hydrate);
   useEffect(() => {
     hydrate();
-  }, [hydrate]);
+    hydrateUi();
+  }, [hydrate, hydrateUi]);
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
