@@ -110,9 +110,18 @@ function starterFor(path: string): string {
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
+  // Every mutation persists the WHOLE workspace. Mutating before hydrate()
+  // therefore saved the default starter (plus the change) over everything the
+  // user had stored, which is what happened when the AI agent wrote files on a
+  // page that never mounted the editor. So a mutation first adopts what is in
+  // storage, then applies itself on top of that.
+  const current = (): WorkspaceState => {
+    if (!get().hydrated) set({ ...readStored(), hydrated: true });
+    return get();
+  };
   const commit = (next: Persisted) => {
     save(next);
-    set(next);
+    set({ ...next, hydrated: true });
   };
 
   return {
@@ -125,7 +134,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     openFile: (path) => {
-      const s = get();
+      const s = current();
       const files =
         s.files[path] === undefined
           ? {
@@ -139,7 +148,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     setContent: (path, content) => {
-      const s = get();
+      const s = current();
       commit({
         activePath: s.activePath,
         files: { ...s.files, [path]: content },
@@ -148,7 +157,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     addFile: (path, content) => {
-      const s = get();
+      const s = current();
       if (s.files[path] !== undefined) {
         commit({ activePath: path, files: s.files, folders: s.folders });
         return;
@@ -161,14 +170,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     addFolder: (path) => {
-      const s = get();
+      const s = current();
       if (!path || s.folders.includes(path)) return;
       commit({ activePath: s.activePath, files: s.files, folders: [...s.folders, path] });
     },
 
     renameFile: (oldPath, newPath) => {
       if (!newPath || oldPath === newPath) return;
-      const s = get();
+      const s = current();
       const remap = (k: string) =>
         k === oldPath
           ? newPath
@@ -181,7 +190,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     },
 
     deleteFile: (path) => {
-      const s = get();
+      const s = current();
       const under = (k: string) => k === path || k.startsWith(path + "/");
       const files: Record<string, string> = {};
       for (const [k, v] of Object.entries(s.files)) if (!under(k)) files[k] = v;
@@ -194,14 +203,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
     importEntries: (entries) => {
       if (entries.length === 0) return;
-      const s = get();
+      const s = current();
       const { files, folders } = mergeEntries(s, entries);
       commit({ activePath: entries[0]?.path ?? s.activePath, files, folders });
     },
 
     writeFiles: (entries) => {
       if (entries.length === 0) return;
-      const s = get();
+      const s = current();
       const { files, folders } = mergeEntries(s, entries);
       commit({ activePath: s.activePath, files, folders });
     },

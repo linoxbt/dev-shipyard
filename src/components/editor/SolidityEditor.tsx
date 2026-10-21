@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Editor, { useMonaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 import { languageForPath } from "@/lib/editor-language";
@@ -18,7 +18,40 @@ interface Props {
   gotoLine?: { line: number; nonce: number };
 }
 
-export function SolidityEditor({ value, filename, onChange, diagnostics, gotoLine }: Props) {
+/** Mounts the editor only once Monaco is configured to load from the app's
+ *  own bundle (see monaco-setup.ts); before that, the library's loader would
+ *  fetch Monaco from a CDN. */
+export function SolidityEditor(props: Props) {
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    import("./monaco-setup")
+      .then((m) => m.ensureLocalMonaco())
+      .then(() => live && setReady(true))
+      .catch((e) => live && setFailed(e instanceof Error ? e.message : "unknown error"));
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (failed) {
+    return (
+      <div className="flex h-full items-center justify-center font-mono text-xs text-danger">
+        The editor failed to load ({failed}). Reload the page to try again.
+      </div>
+    );
+  }
+  if (!ready) {
+    return (
+      <div className="flex h-full items-center justify-center font-mono text-xs text-meta">
+        Loading editor…
+      </div>
+    );
+  }
+  return <LoadedEditor {...props} />;
+}
+
+function LoadedEditor({ value, filename, onChange, diagnostics, gotoLine }: Props) {
   const monaco = useMonaco();
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const modelRef = useRef<editor.ITextModel | null>(null);

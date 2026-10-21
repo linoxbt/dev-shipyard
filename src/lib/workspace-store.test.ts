@@ -13,13 +13,21 @@ const store: Record<string, string> = {};
 
 const { useWorkspaceStore, buildTree } = await import("./workspace-store");
 
-const reset = () =>
+/** A page reload: memory back to the SSR default, storage untouched. */
+const reload = () =>
   useWorkspaceStore.setState({
     hydrated: false,
     activePath: "contracts/MyContract.sol",
     files: { "contracts/MyContract.sol": "// x" },
     folders: ["contracts"],
   });
+
+const reset = () => {
+  // Each test starts with nothing stored: a mutation adopts storage first, so
+  // a previous test's saved workspace would otherwise leak into the next.
+  for (const k of Object.keys(store)) delete store[k];
+  reload();
+};
 
 describe("workspace store", () => {
   beforeEach(reset);
@@ -87,7 +95,7 @@ describe("workspace store", () => {
 
   it("persists to localStorage and hydrates back", () => {
     useWorkspaceStore.getState().writeFiles([{ path: "app/x.js", content: "kept" }]);
-    reset();
+    reload();
     useWorkspaceStore.getState().hydrate();
     const s = useWorkspaceStore.getState();
     expect(s.hydrated).toBe(true);
@@ -101,5 +109,26 @@ describe("buildTree", () => {
     expect(t.children[0].type).toBe("dir");
     expect(t.children[0].path).toBe("a");
     expect(t.children[1].path).toBe("top.js");
+  });
+});
+
+describe("workspace store before hydrate", () => {
+  beforeEach(reset);
+
+  it("a write before hydrate() merges into the stored workspace instead of replacing it", () => {
+    // What the user had saved in an earlier session.
+    store["devstation-workspace-v2"] = JSON.stringify({
+      activePath: "contracts/Mine.sol",
+      files: { "contracts/Mine.sol": "contract Mine {}" },
+      folders: ["contracts"],
+    });
+    // The AI agent writes generated files on a page that never hydrated.
+    useWorkspaceStore.getState().writeFiles([{ path: "app/app.js", content: "x" }]);
+
+    const saved = JSON.parse(store["devstation-workspace-v2"]) as { files: Record<string, string> };
+    expect(saved.files["contracts/Mine.sol"]).toBe("contract Mine {}");
+    expect(saved.files["app/app.js"]).toBe("x");
+    expect(useWorkspaceStore.getState().hydrated).toBe(true);
+    expect(useWorkspaceStore.getState().activePath).toBe("contracts/Mine.sol");
   });
 });

@@ -51,6 +51,9 @@ import {
 } from "@/lib/staticAnalysis";
 import { cn } from "@/lib/utils";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
+import { useDialog } from "@/components/shared/useDialog";
+
+const MAX_TERMINAL_LINES = 2000;
 
 export const Route = createFileRoute("/launchkit/editor")({
   validateSearch: z.object({ template: z.string().optional() }),
@@ -98,6 +101,7 @@ function EditorPage() {
   // Code block the user asked to apply from the AI panel, awaiting confirm
   // before it overwrites a non-empty file.
   const [pendingApply, setPendingApply] = useState<string | null>(null);
+  const applyDialog = useDialog(() => setPendingApply(null), pendingApply !== null);
   // Static-analysis findings (Inspector), bottom-panel tab, and line-jump nonce.
   const [findings, setFindings] = useState<AnalysisFinding[]>([]);
   const [bottomTab, setBottomTab] = useState<"terminal" | "inspector">("terminal");
@@ -111,14 +115,26 @@ function EditorPage() {
 
   const activeSol = ws.activePath.endsWith(".sol") ? ws.activeContent : "";
 
+  // Bounded: every line is rendered, and a long session of auto-compiles
+  // otherwise grows the terminal (and the page's memory) without limit.
   function logT(line: TerminalLine) {
-    setLines((p) => [...p, line]);
+    setLines((p) =>
+      p.length >= MAX_TERMINAL_LINES ? [...p.slice(-(MAX_TERMINAL_LINES - 1)), line] : [...p, line],
+    );
   }
+
+  // Compiles can finish out of order (a version switch, or a slow first
+  // compile overtaken by the next keystroke's). Only the newest one may set
+  // the result: an older one landing last would hand the Deploy panel stale
+  // bytecode for source the editor no longer shows.
+  const compileSeq = useRef(0);
 
   const runCompile = useCallback(
     async (source?: string) => {
       const src = source ?? activeSol;
       if (!src.trim()) return;
+      const seq = ++compileSeq.current;
+      const isLatest = () => seq === compileSeq.current;
       setCompiling(true);
       const ts = new Date().toLocaleTimeString();
       logT({
@@ -137,12 +153,13 @@ function EditorPage() {
           optimize: false,
           optimizerRuns: 200,
         });
+        if (!isLatest()) return;
         setLastResult(result);
 
         // Import resolution feedback (OpenZeppelin, etc.)
         for (const imp of result.resolvedImports) {
           logT({
-            text: `[${ts}] [Compiler] ✓ Resolved ${imp.path} via CDN (OpenZeppelin v5.0.2)`,
+            text: `[${ts}] [Compiler] ✓ Resolved ${imp.path} via CDN (OpenZeppelin v5.0.2, checksum verified)`,
             status: "success",
           });
         }
@@ -196,12 +213,13 @@ function EditorPage() {
           }
         }
       } catch (err) {
+        if (!isLatest()) return;
         logT({
           text: `[${ts}] [Error] ${err instanceof Error ? err.message : "Compilation failed"}`,
           status: "error",
         });
       } finally {
-        setCompiling(false);
+        if (isLatest()) setCompiling(false);
       }
     },
     [activeSol, ws.activePath, ws.solFiles, version],
@@ -770,12 +788,16 @@ function EditorPage() {
           onClick={() => setPendingApply(null)}
         >
           <div
+            {...applyDialog.dialogProps}
             className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border bg-[#0d1117]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
               <Wrench className="h-4 w-4 text-primary" />
-              <span className="font-mono text-xs font-semibold text-foreground">
+              <span
+                id={applyDialog.titleId}
+                className="font-mono text-xs font-semibold text-foreground"
+              >
                 Replace {ws.activePath}?
               </span>
             </div>

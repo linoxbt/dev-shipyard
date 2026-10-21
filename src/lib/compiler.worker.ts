@@ -5,6 +5,8 @@
 // soljson bundle (~8s for cold cache, ~2s warm); subsequent compiles of the
 // same version are fast (~100-400ms).
 
+import { OZ_CONTRACTS_5_0_2_SHA256, OZ_UPGRADEABLE_5_0_2_SHA256 } from "./oz-integrity";
+
 type WorkerRequest = {
   id: number;
   sources: Record<string, string>;
@@ -37,15 +39,28 @@ let solc: unknown = null;
 // solc builds on binaries.soliditylang.org are named with a commit hash, e.g.
 // `soljson-v0.8.20+commit.a1b79de6.js`: there is NO `soljson-v0.8.20.js` or
 // `+commit.latest.js`. The canonical bin/list.json maps each version to its
-// exact filename, so we resolve through it (cached) before importScripts.
+// exact filename, and its `builds` entries carry that file's sha256, so we
+// resolve through it (cached) and check the download against the hash.
+interface SolcBuild {
+  path: string;
+  sha256: string;
+}
 let releaseMap: Record<string, string> | null = null;
+let buildHashes: Record<string, string> | null = null;
 
-async function resolveSolcUrl(version: string): Promise<string> {
-  if (!releaseMap) {
+async function resolveSolcBuild(version: string): Promise<SolcBuild> {
+  if (!releaseMap || !buildHashes) {
     const resp = await fetch("https://binaries.soliditylang.org/bin/list.json");
     if (!resp.ok) throw new Error(`Could not load solc version list (${resp.status})`);
-    const data = (await resp.json()) as { releases?: Record<string, string> };
+    const data = (await resp.json()) as {
+      releases?: Record<string, string>;
+      builds?: Array<{ path?: string; sha256?: string }>;
+    };
     releaseMap = data.releases ?? {};
+    buildHashes = {};
+    for (const b of data.builds ?? []) {
+      if (b.path && b.sha256) buildHashes[b.path] = b.sha256.replace(/^0x/, "").toLowerCase();
+    }
   }
   const file = releaseMap[version];
   if (!file) {
@@ -53,7 +68,14 @@ async function resolveSolcUrl(version: string): Promise<string> {
       `solc ${version} is not available on binaries.soliditylang.org. Pick another version.`,
     );
   }
-  return `https://binaries.soliditylang.org/bin/${file}`;
+  const sha256 = buildHashes[file];
+  if (!sha256) throw new Error(`solc ${version} has no published checksum; refusing to load it.`);
+  return { path: file, sha256 };
+}
+
+async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 // ─── Import resolution ──────────────────────────────────────────────────────
@@ -92,20 +114,47 @@ function resolveRelative(fromPath: string, importPath: string): string {
   return baseParts.join("/");
 }
 
+/** The sha256 a pinned package file must have, from the manifest generated
+ *  from the npm tarball (see oz-integrity.ts). Null for an unknown path. */
+function expectedHash(importPath: string): string | null {
+  if (importPath.startsWith("@openzeppelin/contracts/")) {
+    return OZ_CONTRACTS_5_0_2_SHA256[importPath.replace("@openzeppelin/contracts/", "")] ?? null;
+  }
+  if (importPath.startsWith("@openzeppelin/contracts-upgradeable/")) {
+    return (
+      OZ_UPGRADEABLE_5_0_2_SHA256[importPath.replace("@openzeppelin/contracts-upgradeable/", "")] ??
+      null
+    );
+  }
+  return null;
+}
+
+/** Library sources go straight into deployed bytecode, so a CDN that served a
+ *  modified file would change what users deploy. Every file is checked against
+ *  the pinned release's hash; anything else is refused, not compiled. */
 async function fetchSource(importPath: string): Promise<string | null> {
   if (importCache.has(importPath)) return importCache.get(importPath)!;
   const url = cdnUrlFor(importPath);
   if (!url) return null;
+  const expected = expectedHash(importPath);
+  if (!expected) return null;
   try {
     const resp = await fetch(url);
     if (!resp.ok) return null;
-    const text = await resp.text();
+    const bytes = await resp.arrayBuffer();
+    if ((await sha256Hex(bytes)) !== expected) {
+      throw new IntegrityError(`${importPath} does not match OpenZeppelin ${OZ_VERSION}; refused.`);
+    }
+    const text = new TextDecoder().decode(bytes);
     importCache.set(importPath, text);
     return text;
-  } catch {
+  } catch (err) {
+    if (err instanceof IntegrityError) throw err;
     return null;
   }
 }
+
+class IntegrityError extends Error {}
 
 const IMPORT_RE = /import\s+(?:(?:\{[^}]*\}|[\w*]+(?:\s+as\s+\w+)?)\s+from\s+)?["']([^"']+)["']/g;
 
@@ -174,9 +223,31 @@ async function collectImports(userSources: Record<string, string>): Promise<{
 
 async function loadVersion(version: string): Promise<unknown> {
   if (version === cachedVersion && solc) return solc;
+  // One soljson per worker: a second importScripts would load another
+  // Emscripten Module into the same global scope, which is unreliable and
+  // keeps every version in memory. compiler.ts starts a fresh worker for a new
+  // version, so reaching this is a bug, not a user error.
+  if (cachedVersion) {
+    throw new Error(`This compiler worker already holds solc ${cachedVersion}.`);
+  }
 
-  const url = await resolveSolcUrl(version);
-  importScripts(url);
+  const build = await resolveSolcBuild(version);
+  const resp = await fetch(`https://binaries.soliditylang.org/bin/${build.path}`);
+  if (!resp.ok) throw new Error(`Could not download solc ${version} (${resp.status})`);
+  const bytes = await resp.arrayBuffer();
+  const actual = await sha256Hex(bytes);
+  if (actual !== build.sha256) {
+    throw new Error(
+      `The downloaded solc ${version} does not match its published checksum; it was not loaded.`,
+    );
+  }
+  // Load exactly the bytes that were checked, not a second download of the URL.
+  const blobUrl = URL.createObjectURL(new Blob([bytes], { type: "text/javascript" }));
+  try {
+    importScripts(blobUrl);
+  } finally {
+    URL.revokeObjectURL(blobUrl);
+  }
 
   // soljson registers Module globally; Vite bundler may shadow this so we
   // access via the global scope.

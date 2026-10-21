@@ -53,5 +53,8 @@ export function useQusdcBalance(address: `0x${string}` | null | undefined, chain
 
   if (!enabled || raw === undefined) return null;
   const dec = typeof decimals === "number" ? decimals : 6;
-  return { raw: raw as bigint, formatted: Number(formatUnits(raw as bigint, dec)).toFixed(2) };
+  // Truncated to two decimals on the string. toFixed(2) rounds, so a balance
+  // of 0.999 showed as "1.00": more than the wallet can actually spend.
+  const [whole, fraction = ""] = formatUnits(raw as bigint, dec).split(".");
+  return { raw: raw as bigint, formatted: `${whole}.${fraction.padEnd(2, "0").slice(0, 2)}` };
 }

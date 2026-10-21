@@ -21,6 +21,7 @@ import { ManualVerify } from "@/components/deploy/ManualVerify";
 import { useProjectRegistry } from "@/hooks/useProjectRegistry";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { qieMainnet } from "@/lib/chains";
+import { useDialog } from "@/components/shared/useDialog";
 
 export const Route = createFileRoute("/launchkit/projects")({
   head: () => ({ meta: [{ title: "My Projects: DevStation" }] }),
@@ -41,6 +42,8 @@ function ProjectsPage() {
   const [selected, setSelected] = useState<DeployedProject | null>(null);
   const [interact, setInteract] = useState<DeployedProject | null>(null);
   const [registering, setRegistering] = useState(false);
+  const detailDialog = useDialog(() => setSelected(null), !!selected);
+  const interactDialog = useDialog(() => setInteract(null), !!interact);
 
   const handleRegister = async (p: DeployedProject) => {
     setRegistering(true);
@@ -276,16 +279,25 @@ function ProjectsPage() {
             className="flex-1 bg-background/60 backdrop-blur-sm"
             onClick={() => setSelected(null)}
           />
-          <aside className="w-full max-w-md overflow-y-auto border-l border-border bg-surface p-6">
+          <aside
+            {...detailDialog.dialogProps}
+            className="w-full max-w-md overflow-y-auto border-l border-border bg-surface p-6"
+          >
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
                   Project
                 </div>
-                <h2 className="font-mono text-lg font-bold text-foreground">{selected.name}</h2>
+                <h2
+                  id={detailDialog.titleId}
+                  className="font-mono text-lg font-bold text-foreground"
+                >
+                  {selected.name}
+                </h2>
               </div>
               <button
                 onClick={() => setSelected(null)}
+                aria-label="Close"
                 className="rounded p-1 text-meta hover:text-foreground"
               >
                 <X className="h-4 w-4" />
@@ -411,17 +423,26 @@ function ProjectsPage() {
             className="flex-1 bg-background/60 backdrop-blur-sm"
             onClick={() => setInteract(null)}
           />
-          <aside className="w-full max-w-md overflow-y-auto border-l border-border bg-surface p-5">
+          <aside
+            {...interactDialog.dialogProps}
+            className="w-full max-w-md overflow-y-auto border-l border-border bg-surface p-5"
+          >
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
                   Interact
                 </div>
-                <h2 className="font-mono text-lg font-bold text-foreground">{interact.name}</h2>
+                <h2
+                  id={interactDialog.titleId}
+                  className="font-mono text-lg font-bold text-foreground"
+                >
+                  {interact.name}
+                </h2>
                 <AddressChip address={interact.address} showLabel={false} full />
               </div>
               <button
                 onClick={() => setInteract(null)}
+                aria-label="Close"
                 className="rounded p-1 text-meta hover:text-foreground"
               >
                 <X className="h-4 w-4" />

@@ -248,7 +248,9 @@ function DeployWizard() {
         toast.error("Compilation failed");
         return;
       }
-      const contract = result.contracts[template.name];
+      const contract =
+        result.contracts[template.name] ??
+        result.contracts[`${template.name}.sol:${template.name}`];
       if (!contract) {
         log(`[${ts()}] [Error] Compiled output missing ${template.name}`, "error");
         return;
@@ -322,9 +324,15 @@ function DeployWizard() {
       log(`[${ts()}] [Deploy] Transaction submitted: ${hash}`, "success");
       log(`[${ts()}] [Deploy] Waiting for confirmation...`);
 
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      if (!receipt.contractAddress) {
-        log(`[${ts()}] [Error] No contract address in receipt`, "error");
+      const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 180_000 });
+      // A reverted CREATE still has a receipt; only status says it worked.
+      if (receipt.status !== "success" || !receipt.contractAddress) {
+        const why =
+          receipt.status !== "success"
+            ? "The deploy transaction reverted on-chain. Nothing was deployed."
+            : "No contract address in the receipt.";
+        log(`[${ts()}] [Error] ${why}`, "error");
+        toast.error(why);
         return;
       }
       const deployedAddr = receipt.contractAddress as `0x${string}`;
@@ -369,11 +377,14 @@ function DeployWizard() {
             name: projectName || template.name,
             category: labelCategoryForTemplate(template.category),
             description: template.description,
-            autoLabeled: true,
           });
-          log(`[${ts()}] [Verify] ✓ Name registered in ContractLabelRegistry`, "success");
-        } catch {
-          log(`[${ts()}] [Verify] Name registration skipped (rejected or unavailable)`, "warning");
+          log(
+            `[${ts()}] [Verify] ✓ Name submitted to ContractLabelRegistry (community label, awaiting approval)`,
+            "success",
+          );
+        } catch (err) {
+          const why = err instanceof Error ? err.message.split("\n")[0] : "rejected or unavailable";
+          log(`[${ts()}] [Verify] Name not registered: ${why}`, "warning");
         }
       }
 

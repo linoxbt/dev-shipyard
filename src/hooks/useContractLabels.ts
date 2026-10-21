@@ -1,10 +1,11 @@
 import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useWriteContract } from "wagmi";
+import { usePublicClient, useWriteContract } from "wagmi";
 import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
 import { labelRegistryAddress, isContractConfigured, ONCHAIN_WRITE_GAS } from "@/lib/contracts";
 import { useNetworkPref } from "@/lib/active-chain";
 import { getAllLabels } from "@/lib/api/chain.functions";
+import { useChainLabel, type ChainLabel } from "@/components/shared/useChainLabel";
 
 export interface OnChainLabel {
   address: string;
@@ -23,7 +24,6 @@ interface SubmitParams {
   name: string;
   category: string;
   description: string;
-  autoLabeled?: boolean;
 }
 
 // On-chain ContractLabelRegistry write access. submitLabel writes a tx; when
@@ -34,6 +34,7 @@ export function useContractLabels() {
   const selectedChainId = useNetworkPref((s) => s.preferredChainId);
   const registry = labelRegistryAddress(selectedChainId);
   const onChain = isContractConfigured(registry);
+  const client = usePublicClient({ chainId: selectedChainId });
 
   // Deliberately does NOT call the contract's own getLabeledContracts(): that
   // view returns a single global array with no size cap, so it's a
@@ -42,23 +43,35 @@ export function useContractLabels() {
   // consumed this read, so it's dropped entirely rather than made safe: the
   // Label Registry page already sources everything from useAllLabels()
   // (tx-history based, paginated implicitly by the explorer API).
+  //
+  // Always a community label. The registry only lets its autoLabeler account
+  // submit autoLabeled=true, so the same call from a user's wallet reverts:
+  // every deploy used to spend gas on a label transaction that could only
+  // fail, while the UI reported it as registered.
+  //
+  // Resolves only once the transaction is mined and succeeded; a revert throws.
   const submitLabel = useCallback(
     async (p: SubmitParams) => {
       if (!onChain) return false;
       // Target the selected chain explicitly so the write can't land on the
       // wrong network, and pin an explicit gas limit (QIE's estimator lowballs
       // storage writes, which would otherwise run out of gas).
-      await writeContractAsync({
+      const hash = await writeContractAsync({
         address: registry,
         abi: contractLabelRegistryAbi,
         functionName: "submitLabel",
-        args: [p.contractAddress, p.name, p.category, p.description, p.autoLabeled ?? false],
+        args: [p.contractAddress, p.name, p.category, p.description, false],
         chainId: selectedChainId,
         gas: ONCHAIN_WRITE_GAS,
       });
+      if (!client) throw new Error("No RPC for this network to confirm the label.");
+      const receipt = await client.waitForTransactionReceipt({ hash, timeout: 120_000 });
+      if (receipt.status !== "success") {
+        throw new Error("The label transaction reverted on-chain.");
+      }
       return true;
     },
-    [onChain, registry, writeContractAsync, selectedChainId],
+    [client, onChain, registry, writeContractAsync, selectedChainId],
   );
 
   return { onChain, submitLabel };
@@ -102,12 +115,20 @@ export function useAllLabels(opts?: { refetchInterval?: number }): {
   return { labels, onChain, refetch: () => void refetch() };
 }
 
-// Single label-name lookup, used by Routebook to resolve onchain labels.
+// Single label lookup, used by Routebook to resolve onchain labels.
 // Derived from the full label set (tx-history based) because the registry's
 // string-returning view functions revert on QIE (missing MCOPY opcode).
-export function useLabelName(address: string | undefined) {
-  const { labels } = useAllLabels();
-  if (!address) return null;
-  const a = address.toLowerCase();
-  return labels.find((l) => l.address.toLowerCase() === a)?.name ?? null;
+//
+// Pass the chain the address belongs to (a transaction's or a URL's chain).
+// Without one it falls back to the selected network, which is only right when
+// the page itself is about the selected network.
+export function useLabel(address: string | undefined, chainId?: number): ChainLabel | null {
+  const selectedChainId = useNetworkPref((s) => s.preferredChainId);
+  return useChainLabel(address, chainId ?? selectedChainId);
+}
+
+/** The label's name alone. Callers that display it as a contract's name should
+ *  use useLabel and check `trusted`: anyone can label any address first. */
+export function useLabelName(address: string | undefined, chainId?: number): string | null {
+  return useLabel(address, chainId)?.name ?? null;
 }

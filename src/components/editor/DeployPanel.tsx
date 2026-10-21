@@ -19,7 +19,8 @@ import { chainConfig, nativeSymbol } from "@/lib/chains";
 import { chainById } from "@/lib/active-chain";
 import { slugForChainId } from "@/lib/explorer/network";
 import { encodeConstructorArgs } from "@/lib/verify/constructorArgs";
-import { parseArgs as parseAbiArgs } from "@/lib/abiArgParser";
+import { argKey, parseArgs as parseAbiArgs } from "@/lib/abiArgParser";
+import { defaultDeployable } from "@/lib/compiler";
 import { ONCHAIN_WRITE_GAS } from "@/lib/contracts";
 import { paddedTopupCost, isSponsorEligibleChain } from "@/lib/sponsor/pricing";
 import type { TerminalLine } from "@/components/shared/TerminalOutput";
@@ -52,7 +53,9 @@ export function DeployPanel({
   onLog,
 }: Props) {
   const names = Object.keys(contracts);
-  const [selected, setSelected] = useState(names[0] ?? "");
+  // Start on a deployable contract from the user's own files, not whatever
+  // solc sorted first (with OpenZeppelin imports that was an abstract ERC20).
+  const [selected, setSelected] = useState(() => defaultDeployable(contracts) || names[0] || "");
   const contract = contracts[selected];
   const { address, isConnected, chainId: walletChainId } = useAccount();
   const { switchChainAsync } = useSwitchChain();
@@ -74,13 +77,23 @@ export function DeployPanel({
   // ABI-encoded constructor args, captured at deploy time for source verification.
   const [encodedCtorArgs, setEncodedCtorArgs] = useState<`0x${string}` | undefined>(undefined);
   const [mismatchOpen, setMismatchOpen] = useState(false);
+  const [deployError, setDeployError] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
 
   // Selected network (chainId prop) must match the wallet before broadcasting.
   const walletMismatch = isConnected && walletChainId !== chainId;
 
-  const { data: receipt } = useWaitForTransactionReceipt({
-    hash: txHash as `0x${string}` | undefined,
+  // Pinned to the deploy's chain, with a timeout, so a wallet that changes
+  // network mid-wait cannot leave "Waiting for confirmation" up forever.
+  const {
+    data: receipt,
+    error: receiptError,
+    isLoading: confirming,
+  } = useWaitForTransactionReceipt({
+    hash: txHash ?? undefined,
+    chainId,
+    timeout: 180_000,
+    query: { enabled: !!txHash },
   });
 
   // Parse constructor args from ABI
@@ -148,6 +161,9 @@ export function DeployPanel({
       return;
     }
     setDeploying(true);
+    setDeployed(null);
+    setTxHash(null);
+    setDeployError(null);
     const ts = new Date().toLocaleTimeString();
     const cfg = chainConfig(chainId);
     try {
@@ -232,13 +248,26 @@ export function DeployPanel({
 
   // Once the deployment receipt arrives, record it (on-chain registry when
   // configured, always localStorage) and surface the address.
-  const recordedRef = useRef(false);
+  //
+  // Keyed by transaction hash, so every deploy from this panel is recorded,
+  // not only the first. And only a successful receipt counts: a reverted
+  // CREATE also produces a receipt (with no contract address), which used to
+  // be shown as "Confirmed" and recorded in the registry.
+  const recordedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!receipt || !txHash || recordedRef.current) return;
-    recordedRef.current = true;
+    if (!receipt || !txHash || recordedRef.current === txHash) return;
+    if (receipt.transactionHash.toLowerCase() !== txHash.toLowerCase()) return;
+    recordedRef.current = txHash;
+    const ts = new Date().toLocaleTimeString();
+    if (receipt.status !== "success" || !receipt.contractAddress) {
+      const why = "The deploy transaction reverted on-chain. Nothing was deployed.";
+      setDeployError(why);
+      onLog({ text: `[${ts}] [Error] ${why}`, status: "error" });
+      toast.error(why);
+      return;
+    }
     const addr = receipt.contractAddress as `0x${string}`;
     setDeployed({ addr });
-    const ts = new Date().toLocaleTimeString();
     onLog({ text: `[${ts}] [Deploy] ✓ Confirmed: address: ${addr}`, status: "success" });
     const cfg = chainConfig(chainId);
     void recordDeployment({
@@ -279,7 +308,15 @@ export function DeployPanel({
     encodedCtorArgs,
   ]);
 
+  useEffect(() => {
+    if (!receiptError || !txHash) return;
+    const why = `Could not confirm the deploy: ${receiptError.message.split("\n")[0]}`;
+    setDeployError(why);
+    onLog({ text: `[${new Date().toLocaleTimeString()}] [Error] ${why}`, status: "error" });
+  }, [receiptError, txHash, onLog]);
+
   const [copied, setCopied] = useState(false);
+  const pending = deploying || (!!txHash && confirming && !receipt);
 
   return (
     <div className="fixed inset-y-0 right-0 z-50 w-[400px] max-w-[92vw] border-l border-border bg-surface shadow-lg">
@@ -287,7 +324,7 @@ export function DeployPanel({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="font-mono text-sm font-bold text-primary">Deploy</h2>
-          <button onClick={onClose} className="text-meta hover:text-foreground">
+          <button onClick={onClose} aria-label="Close" className="text-meta hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -320,42 +357,45 @@ export function DeployPanel({
               <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-meta">
                 Constructor Arguments
               </div>
-              {constructorArgs.map((a) => (
-                <div key={a.name} className="mb-2">
-                  <div className="flex items-baseline justify-between font-mono text-[10px]">
-                    <span className="text-foreground">{a.name}</span>
-                    <span className="text-meta">{a.type}</span>
-                  </div>
-                  {a.type === "bool" ? (
-                    <button
-                      onClick={() =>
-                        setArgs((p) => ({
-                          ...p,
-                          [a.name]: p[a.name] === "true" ? "false" : "true",
-                        }))
-                      }
-                      className={`mt-0.5 inline-flex h-5 w-9 items-center rounded-full border border-border ${args[a.name] === "true" ? "bg-primary" : "bg-background"}`}
-                    >
-                      <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-foreground transition ${args[a.name] === "true" ? "translate-x-5" : "translate-x-0.5"}`}
+              {constructorArgs.map((a, i) => {
+                const key = argKey(a, i);
+                return (
+                  <div key={key} className="mb-2">
+                    <div className="flex items-baseline justify-between font-mono text-[10px]">
+                      <span className="text-foreground">{a.name || `(unnamed ${i + 1})`}</span>
+                      <span className="text-meta">{a.type}</span>
+                    </div>
+                    {a.type === "bool" ? (
+                      <button
+                        onClick={() =>
+                          setArgs((p) => ({
+                            ...p,
+                            [key]: p[key] === "true" ? "false" : "true",
+                          }))
+                        }
+                        className={`mt-0.5 inline-flex h-5 w-9 items-center rounded-full border border-border ${args[key] === "true" ? "bg-primary" : "bg-background"}`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-foreground transition ${args[key] === "true" ? "translate-x-5" : "translate-x-0.5"}`}
+                        />
+                      </button>
+                    ) : (
+                      <input
+                        value={args[key] ?? ""}
+                        onChange={(e) => setArgs((p) => ({ ...p, [key]: e.target.value }))}
+                        placeholder={a.type === "address" ? "0x..." : ""}
+                        className={`mt-0.5 w-full rounded border bg-background px-2 py-1 font-mono text-[11px] text-foreground placeholder:text-meta ${
+                          a.type === "address" &&
+                          (args[key] ?? "").length > 0 &&
+                          !/^0x[a-fA-F0-9]{40}$/.test((args[key] ?? "").trim())
+                            ? "border-danger focus:border-danger"
+                            : "border-border"
+                        }`}
                       />
-                    </button>
-                  ) : (
-                    <input
-                      value={args[a.name] ?? ""}
-                      onChange={(e) => setArgs((p) => ({ ...p, [a.name]: e.target.value }))}
-                      placeholder={a.type === "address" ? "0x..." : ""}
-                      className={`mt-0.5 w-full rounded border bg-background px-2 py-1 font-mono text-[11px] text-foreground placeholder:text-meta ${
-                        a.type === "address" &&
-                        (args[a.name] ?? "").length > 0 &&
-                        !/^0x[a-fA-F0-9]{40}$/.test((args[a.name] ?? "").trim())
-                          ? "border-danger focus:border-danger"
-                          : "border-border"
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="font-mono text-[11px] text-meta">No constructor arguments</p>
@@ -403,11 +443,17 @@ export function DeployPanel({
           {/* Deploy button */}
           <button
             onClick={handleDeploy}
-            disabled={deploying || !address}
+            disabled={pending || !address}
             className="flex w-full items-center justify-center gap-2 rounded bg-primary px-3 py-2 font-mono text-xs font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
           >
-            <Rocket className="h-3.5 w-3.5" /> {deploying ? "Deploying…" : "Deploy Contract"}
+            <Rocket className="h-3.5 w-3.5" />{" "}
+            {deploying ? "Deploying…" : pending ? "Waiting for confirmation…" : "Deploy Contract"}
           </button>
+          {deployError && (
+            <p role="alert" className="font-mono text-[10px] text-danger">
+              {deployError}
+            </p>
+          )}
           {!address && (
             <p className="text-center font-mono text-[10px] text-meta">
               Connect a wallet to deploy

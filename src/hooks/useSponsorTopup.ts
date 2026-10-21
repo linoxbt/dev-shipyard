@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSignMessage } from "wagmi";
 import { topupMessage } from "@/lib/sponsor/request-auth";
+import { fetchWithGrant } from "@/lib/agent-access/grant";
 
 interface SponsorStatusResponse {
   configured: boolean;
@@ -84,7 +85,9 @@ export function useSponsorTopup(chainId: number) {
           throw err;
         }
 
-        const res = await fetch("/api/sponsor-topup", {
+        // With the wallet grant: the endpoint spends the operator's funds, so the
+        // server can tie each top-up to a signed-in wallet, not just a signature.
+        const res = await fetchWithGrant("/api/sponsor-topup", {
           method: "POST",
           headers: { "content-type": "application/json" },
           // Constructor args like a uint256 initial supply are parsed as

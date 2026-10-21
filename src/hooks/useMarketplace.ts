@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { decodeEventLog, erc20Abi } from "viem";
-import { useAccount, usePublicClient, useWriteContract } from "wagmi";
+import { useAccount, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
 import { devStationMarketplaceAbi } from "@/lib/abis/devStationMarketplace";
 import { isContractConfigured, marketplaceAddress, qusdcAddress } from "@/lib/contracts";
 import { useNetworkPref } from "@/lib/active-chain";
@@ -104,8 +104,9 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
 }
 
 export function useMarketplace() {
-  const { address } = useAccount();
+  const { address, chainId: walletChainId } = useAccount();
   const chainId = useNetworkPref((s) => s.preferredChainId);
+  const { switchChainAsync } = useSwitchChain();
   const contract = marketplaceAddress(chainId);
   const configured = isContractConfigured(contract);
   const qusdc = qusdcAddress(chainId);
@@ -233,10 +234,22 @@ export function useMarketplace() {
     [client],
   );
 
-  const requireReady = useCallback(() => {
+  // Every write names the marketplace's chain. Without it a wallet sitting on
+  // another network would send the payment there, to an address with no
+  // contract behind it: a plain transfer that succeeds and cannot be undone.
+  const requireReady = useCallback(async () => {
     if (!configured || !client) throw new Error("The marketplace is not live on this network yet.");
     if (!address) throw new Error("Connect a wallet first.");
-  }, [address, client, configured]);
+    if (walletChainId !== chainId) {
+      try {
+        await switchChainAsync({ chainId });
+      } catch {
+        throw new Error(
+          "Your wallet is on a different network from this marketplace. Switch networks and try again.",
+        );
+      }
+    }
+  }, [address, chainId, client, configured, switchChainAsync, walletChainId]);
 
   /** Makes sure the marketplace may pull `amount` QUSDC, asking once if not. */
   const ensureAllowance = useCallback(
@@ -259,6 +272,7 @@ export function useMarketplace() {
       if (balance < amount) throw new Error("Not enough QUSDC in this wallet.");
       await mined(
         await writeContractAsync({
+          chainId,
           address: qusdc,
           abi: erc20Abi,
           functionName: "approve",
@@ -267,7 +281,7 @@ export function useMarketplace() {
         }),
       );
     },
-    [address, client, contract, mined, qusdc, writeContractAsync],
+    [address, client, contract, mined, qusdc, writeContractAsync, chainId],
   );
 
   /** Sends a payable call in the listing's currency: QIE as value, QUSDC after approval. */
@@ -278,10 +292,11 @@ export function useMarketplace() {
       currency: Currency,
       amount: bigint,
     ) => {
-      requireReady();
+      await requireReady();
       if (currency === "QUSDC") await ensureAllowance(amount);
       return mined(
         await writeContractAsync({
+          chainId,
           address: contract,
           abi: devStationMarketplaceAbi,
           functionName,
@@ -291,7 +306,7 @@ export function useMarketplace() {
         }),
       );
     },
-    [contract, ensureAllowance, mined, requireReady, writeContractAsync],
+    [contract, ensureAllowance, mined, requireReady, writeContractAsync, chainId],
   );
 
   const uploadFiles = useCallback(
@@ -335,7 +350,7 @@ export function useMarketplace() {
       metadata: ListingMetadata;
       files: Bundle;
     }): Promise<{ id: number }> => {
-      requireReady();
+      await requireReady();
       const problem = bundleProblem(input.files);
       if (problem) throw new Error(problem);
       const contentHash = await bundleHash(input.files);
@@ -345,6 +360,7 @@ export function useMarketplace() {
       ).length;
       const receipt = await mined(
         await writeContractAsync({
+          chainId,
           address: contract,
           abi: devStationMarketplaceAbi,
           functionName: "publish",
@@ -381,15 +397,16 @@ export function useMarketplace() {
       await uploadFiles(id, input.files);
       return { id };
     },
-    [contract, mined, requireReady, uploadFiles, writeContractAsync],
+    [contract, mined, requireReady, uploadFiles, writeContractAsync, chainId],
   );
 
   const update = useCallback(
     async (id: number, price: bigint, active: boolean, metadata: ListingMetadata) => {
-      requireReady();
+      await requireReady();
       const metadataJson = serializeMetadata(metadata);
       return mined(
         await writeContractAsync({
+          chainId,
           address: contract,
           abi: devStationMarketplaceAbi,
           functionName: "update",
@@ -398,14 +415,15 @@ export function useMarketplace() {
         }),
       );
     },
-    [contract, mined, requireReady, writeContractAsync],
+    [contract, mined, requireReady, writeContractAsync, chainId],
   );
 
   const withdraw = useCallback(
     async (currency: Currency) => {
-      requireReady();
+      await requireReady();
       return mined(
         await writeContractAsync({
+          chainId,
           address: contract,
           abi: devStationMarketplaceAbi,
           functionName: "withdraw",
@@ -414,22 +432,53 @@ export function useMarketplace() {
         }),
       );
     },
-    [contract, mined, qusdc, requireReady, writeContractAsync],
+    [contract, mined, qusdc, requireReady, writeContractAsync, chainId],
+  );
+
+  // The contract charges whatever the listing's price is when the call lands,
+  // and a creator can change it at any time. So the price is read again right
+  // before paying, and a price that moved since the buyer saw it is refused
+  // rather than paid: approving and paying exactly what was shown.
+  const currentPrice = useCallback(
+    async (id: number): Promise<bigint> => {
+      const raw = (await client!.readContract({
+        address: contract,
+        abi: devStationMarketplaceAbi,
+        functionName: "getListing",
+        args: [BigInt(id)],
+      })) as { price: bigint };
+      return raw.price;
+    },
+    [client, contract],
+  );
+
+  const assertPriceUnchanged = useCallback(
+    async (listing: MarketSummary) => {
+      await requireReady();
+      const now = await currentPrice(listing.id);
+      if (now !== listing.price) {
+        throw new Error(
+          "The creator changed this listing's price since you opened it. Reload to see the new price.",
+        );
+      }
+    },
+    [currentPrice, requireReady],
   );
 
   const buy = useCallback(
-    (listing: MarketSummary) => pay("buy", [BigInt(listing.id)], listing.currency, listing.price),
-    [pay],
+    async (listing: MarketSummary) => {
+      await assertPriceUnchanged(listing);
+      return pay("buy", [BigInt(listing.id)], listing.currency, listing.price);
+    },
+    [assertPriceUnchanged, pay],
   );
   const recordDeploy = useCallback(
-    (listing: MarketSummary) =>
-      pay(
-        "recordDeploy",
-        [BigInt(listing.id)],
-        listing.currency,
-        address?.toLowerCase() === listing.creator.toLowerCase() ? 0n : listing.price,
-      ),
-    [address, pay],
+    async (listing: MarketSummary) => {
+      const own = address?.toLowerCase() === listing.creator.toLowerCase();
+      if (!own) await assertPriceUnchanged(listing);
+      return pay("recordDeploy", [BigInt(listing.id)], listing.currency, own ? 0n : listing.price);
+    },
+    [address, assertPriceUnchanged, pay],
   );
   const tip = useCallback(
     (listing: MarketSummary, amount: bigint) =>

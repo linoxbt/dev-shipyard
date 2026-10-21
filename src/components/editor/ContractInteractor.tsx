@@ -305,14 +305,24 @@ function WriteFunctionRow({
   const { writeContractAsync, isPending } = useWriteContract();
   const { address } = useAccount();
   const publicClient = usePublicClient({ chainId });
+  // wagmi's isSuccess means "a receipt arrived", which a reverted call also
+  // produces: the receipt's own status is what says whether it worked.
   const {
     isLoading: isConfirming,
-    isSuccess,
     data: receipt,
-  } = useWaitForTransactionReceipt({ hash: txHash });
+    error: receiptError,
+  } = useWaitForTransactionReceipt({
+    hash: txHash,
+    chainId,
+    timeout: 180_000,
+    query: { enabled: !!txHash },
+  });
+  const confirmed = receipt?.status === "success";
+  const reverted = receipt?.status === "reverted";
 
   const send = async () => {
     setErr(null);
+    setTxHash(undefined);
     try {
       const args = parseArgs(fn.inputs, values);
       const value = payable && ethValue ? parseEther(ethValue) : undefined;
@@ -411,9 +421,19 @@ function WriteFunctionRow({
             </Link>
           </span>
         )}
-        {isSuccess && (
+        {reverted && (
+          <span className="break-all text-danger">
+            ✗ Reverted in block {Number(receipt.blockNumber)}: the call failed and changed nothing.
+          </span>
+        )}
+        {receiptError && !receipt && (
+          <span className="break-all text-danger">
+            ✗ Could not confirm: {receiptError.message.split("\n")[0]}
+          </span>
+        )}
+        {confirmed && (
           <div className="text-success">
-            ✓ Confirmed in block {receipt ? Number(receipt.blockNumber) : ""}
+            ✓ Confirmed in block {Number(receipt.blockNumber)}
             <p className="mt-0.5 text-meta">
               State may have changed. Re-query read functions to see updated values.
             </p>

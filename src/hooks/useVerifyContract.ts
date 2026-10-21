@@ -6,6 +6,7 @@ import {
   getIsContractIndexed,
 } from "@/lib/api/verify.functions";
 import { DEFAULT_EVM_VERSION } from "@/lib/compiler";
+import { markProjectStatus } from "@/hooks/useProjectRegistry";
 
 export type VerifyState = "idle" | "submitting" | "pending" | "verified" | "failed";
 
@@ -47,6 +48,7 @@ export function useVerifyContract() {
     // Already verified? Skip submission.
     const pre = await getVerificationStatus({ data: { chainId: p.chainId, address: p.address } });
     if (pre.verified) {
+      markProjectStatus(p.address, p.chainId, "VERIFIED");
       setState("verified");
       setMessage("Already verified on the QIE explorer.");
       return true;
@@ -93,6 +95,7 @@ export function useVerifyContract() {
           },
         });
     if (!res.ok) {
+      markProjectStatus(p.address, p.chainId, "FAILED");
       setState("failed");
       setMessage(res.message);
       return false;
@@ -107,6 +110,7 @@ export function useVerifyContract() {
         data: { chainId: p.chainId, address: p.address },
       });
       if (s.verified) {
+        markProjectStatus(p.address, p.chainId, "VERIFIED");
         setState("verified");
         setMessage("Contract verified on the QIE explorer.");
         return true;

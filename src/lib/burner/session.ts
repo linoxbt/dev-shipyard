@@ -1,22 +1,23 @@
 // Session persistence for the in-app generated ("burner") wallet.
 //
-// The wallet must survive a browser close, not just a refresh, so the unlocked
-// mnemonic has to reach disk. It is NOT written in plaintext: it is encrypted
-// with AES-GCM under a key that lives in IndexedDB and is created
+// The unlocked mnemonic is never written in plaintext. It is encrypted with
+// AES-GCM under a key that lives in IndexedDB and is created
 // `extractable: false`, so script can ask the key to decrypt but can never read
 // the key itself out of the browser.
 //
 // What that does and does not buy:
-//   - No plaintext seed phrase at rest. Copying localStorage off the machine
-//     yields ciphertext and nothing else.
+//   - No plaintext seed phrase at rest. Copying storage off the machine yields
+//     ciphertext and nothing else.
 //   - The key cannot be exfiltrated, so it cannot be replayed elsewhere.
 //   - It does NOT stop script running on this origin from asking the key to
-//     decrypt while the session is live. XSS on the page can still reach the
-//     mnemonic. The unlock window is the mitigation, which is why it is capped
-//     and why the shortest usable value is the right default.
+//     decrypt while the session is live, and it does not stop anyone with this
+//     browser profile. The unlock window is the real mitigation.
 //
-// The encrypted vault in localStorage remains the durable, at-rest store; this
-// is only the "already unlocked" shortcut.
+// So the default is a short, idle-based window (30 minutes), with the session
+// kept in sessionStorage: it ends when the browser closes as well as when the
+// window runs out. "Stay unlocked until I clear my browser data" is still
+// offered, as an explicit opt-in that says what it costs; only that choice
+// writes the session to localStorage, where it survives a restart.
 
 const BLOB_KEY = "devstation-burner-session-v2";
 const DB_NAME = "devstation-wallet";
@@ -29,20 +30,21 @@ export const UNLOCK_NEVER = 0;
 
 /** How long the wallet stays unlocked with no activity. Offered in settings. */
 export const UNLOCK_OPTIONS = [
-  { label: "Until I clear my browser data", ms: UNLOCK_NEVER },
   { label: "5 minutes", ms: 5 * 60 * 1000 },
   { label: "30 minutes", ms: 30 * 60 * 1000 },
   { label: "1 hour", ms: 60 * 60 * 1000 },
   { label: "5 hours", ms: 5 * 60 * 60 * 1000 },
   { label: "1 day", ms: 24 * 60 * 60 * 1000 },
+  {
+    label: "Until I clear my browser data (less safe: anyone using this browser can sign)",
+    ms: UNLOCK_NEVER,
+  },
 ] as const;
 
 const UNLOCK_PREF_KEY = "devstation-burner-unlock-ms";
-/** The wallet stays connected until the browser's data is cleared, the way an
- *  extension wallet does: asking for the password on every visit made people
- *  think they had been disconnected. A shorter window, the mitigation
- *  described above, is one choice away in settings. */
-export const DEFAULT_UNLOCK_MS = UNLOCK_NEVER;
+/** Thirty idle minutes. Long enough not to nag during a working session,
+ *  short enough that a forgotten unlocked wallet does not stay that way. */
+export const DEFAULT_UNLOCK_MS = 30 * 60 * 1000;
 
 /** When a session unlocked now, under the chosen window, stops being usable. */
 function expiryFromNow(): number {
@@ -66,7 +68,15 @@ export function getUnlockMs(): number {
 export function setUnlockMs(ms: number): void {
   try {
     if (!UNLOCK_OPTIONS.some((o) => o.ms === ms)) return;
+    // A live session moves to wherever the new choice keeps it, so switching
+    // away from "until I clear my browser data" really does take it off disk.
+    const live =
+      localStorage.getItem(BLOB_KEY) ??
+      (typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(BLOB_KEY));
     localStorage.setItem(UNLOCK_PREF_KEY, String(ms));
+    localStorage.removeItem(BLOB_KEY);
+    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(BLOB_KEY);
+    if (live) sessionStore()?.setItem(BLOB_KEY, live);
   } catch {
     /* ignore */
   }
@@ -144,10 +154,23 @@ interface SessionBlob {
 const b64 = (b: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(b)));
 const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
+/** Where the session lives: localStorage only for the explicit "until I clear
+ *  my browser data" choice, otherwise sessionStorage, which the browser drops
+ *  when it closes. */
+function sessionStore(): Storage | null {
+  try {
+    if (getUnlockMs() === UNLOCK_NEVER) {
+      return typeof localStorage === "undefined" ? null : localStorage;
+    }
+    return typeof sessionStorage === "undefined" ? null : sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
 function readBlob(): SessionBlob | null {
   try {
-    if (typeof localStorage === "undefined") return null;
-    const raw = localStorage.getItem(BLOB_KEY);
+    const raw = sessionStore()?.getItem(BLOB_KEY);
     if (!raw) return null;
     const b = JSON.parse(raw) as SessionBlob;
     return typeof b?.ct === "string" && typeof b?.iv === "string" ? b : null;
@@ -171,7 +194,11 @@ export async function saveBurnerSession(mnemonic: string): Promise<void> {
       iv: b64(iv.buffer),
       expiresAt: expiryFromNow(),
     };
-    localStorage.setItem(BLOB_KEY, JSON.stringify(blob));
+    const store = sessionStore();
+    if (!store) return;
+    // Only ever in one place: a session saved under the other setting goes.
+    (store === localStorage ? sessionStorage : localStorage)?.removeItem(BLOB_KEY);
+    store.setItem(BLOB_KEY, JSON.stringify(blob));
   } catch {
     /* a failure here means the user re-enters their password, which is safe */
   }
@@ -183,7 +210,7 @@ export function touchBurnerSession(): void {
   if (!blob) return;
   if (blob.expiresAt <= Date.now()) return;
   try {
-    localStorage.setItem(BLOB_KEY, JSON.stringify({ ...blob, expiresAt: expiryFromNow() }));
+    sessionStore()?.setItem(BLOB_KEY, JSON.stringify({ ...blob, expiresAt: expiryFromNow() }));
   } catch {
     /* ignore */
   }
@@ -232,6 +259,7 @@ export function clearBurnerSession(): void {
   try {
     if (typeof localStorage === "undefined") return;
     localStorage.removeItem(BLOB_KEY);
+    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(BLOB_KEY);
     // v1 kept the plaintext mnemonic in sessionStorage. Anyone upgrading may
     // still have one sitting there; remove it rather than leave it behind.
     if (typeof sessionStorage !== "undefined") {

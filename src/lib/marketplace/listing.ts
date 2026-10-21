@@ -119,9 +119,12 @@ export function formatAmount(amount: bigint, currency: Currency): string {
   const [whole, fraction = ""] = text.split(".");
   // At most 4 decimals on screen; exact amounts live in the transaction.
   const trimmed = fraction.slice(0, 4).replace(/0+$/, "");
-  return trimmed
-    ? `${Number(whole).toLocaleString("en-US")}.${trimmed}`
-    : Number(whole).toLocaleString("en-US");
+  // Grouped on the string, not through Number(): past 2^53 a Number rounds,
+  // and a whole part of 9007199254740993 would show as ...992.
+  const negative = whole.startsWith("-");
+  const digits = negative ? whole.slice(1) : whole;
+  const grouped = (negative ? "-" : "") + digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return trimmed ? `${grouped}.${trimmed}` : grouped;
 }
 
 // --- ids --------------------------------------------------------------------

@@ -11,7 +11,7 @@ import {
   saveVault,
   unlockVault,
 } from "./vault";
-import { setBurnerAccount } from "./connector";
+import { onBurnerDisconnect, setBurnerAccount } from "./connector";
 import { clearBurnerSession, loadBurnerSession, saveBurnerSession } from "./session";
 interface BurnerState {
   exists: boolean;
@@ -98,3 +98,7 @@ export const useBurner = create<BurnerState>((set) => ({
     }
   },
 }));
+
+// Disconnecting the in-app wallet locks it. Otherwise "disconnected" left the
+// key unlocked in memory and its session restorable on the next visit.
+onBurnerDisconnect(() => useBurner.getState().lock());

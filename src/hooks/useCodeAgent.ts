@@ -54,6 +54,8 @@ import {
   suggestedFormValues,
 } from "@/lib/ai-agent";
 import type { ChatMessage } from "@/lib/ai";
+import { argKey, parseArgs } from "@/lib/abiArgParser";
+import { toast } from "sonner";
 
 const MAX_FIX_ATTEMPTS = 5; // failed compiles before the agent gives up
 const MAX_TEST_ATTEMPTS = 4; // failed test runs before the agent stops retrying
@@ -172,28 +174,16 @@ function constructorInputsOf(abi: unknown[]): ConstructorInput[] {
   return ctor?.inputs ?? [];
 }
 
-// Coerce a single value to the type viem needs for an ABI input.
-function coerceValue(type: string, v: unknown): unknown {
-  if (type.endsWith("[]")) {
-    if (Array.isArray(v)) return v;
-    const s = String(v ?? "").trim();
-    if (!s) return [];
-    try {
-      const parsed = JSON.parse(s);
-      if (Array.isArray(parsed)) return parsed;
-    } catch {
-      /* fall through to comma-split */
-    }
-    return s.split(",").map((x) => x.trim());
-  }
-  if (type.startsWith("uint") || type.startsWith("int")) return BigInt((v ?? 0) as string);
-  if (type === "bool") return v === true || v === "true";
-  return v;
-}
-
-// Build the ordered, typed constructor args from a form's {name: value} map.
+// Build the ordered, typed constructor args from a form's {name: value} map,
+// through the same strict parser the deploy forms use: "1.5" for a uint is a
+// named, readable error ("supply (uint256) must be a whole number") rather
+// than BigInt's bare SyntaxError surfacing as "Deploy failed".
 function argsFromForm(inputs: ConstructorInput[], values: Record<string, string>): unknown[] {
-  return inputs.map((inp) => coerceValue(inp.type, values[inp.name]));
+  const keyed: Record<string, string> = {};
+  inputs.forEach((inp, i) => {
+    keyed[argKey(inp, i)] = values[inp.name] ?? values[argKey(inp, i)] ?? "";
+  });
+  return parseArgs(inputs, keyed);
 }
 
 export function useCodeAgent() {
@@ -384,7 +374,10 @@ export function useCodeAgent() {
         chainId,
       });
       updateStep(sIdx, { title: `Deploying ${artifact.name}… confirming`, txHash: hash });
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 180_000 });
+      if (receipt.status !== "success") {
+        throw new Error("The deploy transaction reverted on-chain. Nothing was deployed.");
+      }
       const addr = receipt.contractAddress as `0x${string}` | null;
       if (!addr) throw new Error("Deploy mined but no contract address in the receipt.");
       deployedAddressRef.current = addr; // target for a follow-up @@LABEL
@@ -508,6 +501,11 @@ export function useCodeAgent() {
   const runModelLoop = async (controller: AbortController) => {
     try {
       let turn = 0;
+      // Set when the model stops on its own (done, or no directive). Falling
+      // out of the for-loop without it is what "ran out of turns" means: the
+      // old check (turn >= MAX_TURNS - 1) also fired on a clean finish at the
+      // last turn.
+      let finished = false;
       for (; turn < MAX_TURNS; turn++) {
         const aIdx = push({ type: "assistant", text: "" });
         const full = await chatStream({
@@ -529,6 +527,17 @@ export function useCodeAgent() {
                 "[TOOL RESULT] No Solidity code block found in your message. Include the full contract in a ```solidity block and @@COMPILE again.",
             });
             continue;
+          }
+          // The fix budget is enforced here, not only announced to the model:
+          // once it is spent, another @@COMPILE is refused and the run ends.
+          if (compileFailsRef.current >= MAX_FIX_ATTEMPTS) {
+            push({
+              type: "assistant",
+              text: `⚠ Stopped: the contract still did not compile after ${MAX_FIX_ATTEMPTS} attempts. Change the request or fix the code by hand, then try again.`,
+            });
+            commitSave();
+            finished = true;
+            break;
           }
           const sIdx = push({
             type: "tool",
@@ -758,7 +767,13 @@ export function useCodeAgent() {
         }
 
         if (action.kind === "writefile") {
-          const path = (action.path ?? "").trim();
+          // Normalised before any check: "app//Contract.js" and "./app/contract.js"
+          // are the same file to the workspace, so they must be to the guard.
+          const path = (action.path ?? "")
+            .trim()
+            .replace(/\\/g, "/")
+            .replace(/\/{2,}/g, "/")
+            .replace(/^(\.\/)+/, "");
           if (!path || !action.content) {
             convoRef.current.push({
               role: "user",
@@ -773,7 +788,7 @@ export function useCodeAgent() {
           // The contract binding is generated, never model-written: it holds
           // the address, chain and ABI, so a bad rewrite silently points the
           // app at the wrong contract. Enforced here, not just in the prompt.
-          if (/(^|\/)contract\.js$/.test(path)) {
+          if (/(^|\/)contract\.js$/i.test(path)) {
             convoRef.current.push({
               role: "user",
               content: writeFileErrorMessage(
@@ -823,7 +838,6 @@ export function useCodeAgent() {
               name: labelName,
               category: normalizeLabelCategory(action.category),
               description: `Deployed with the DevStation AI agent.`,
-              autoLabeled: true,
             });
             updateStep(sIdx, {
               status: "ok",
@@ -879,12 +893,13 @@ export function useCodeAgent() {
           continue;
         }
 
+        finished = true;
         break; // done or no directive
       }
 
       // Fell out of the loop by exhausting the turn budget rather than by
       // finishing. Say so: silently stopping mid-build looks like a hang.
-      if (turn >= MAX_TURNS - 1) {
+      if (!finished) {
         push({
           type: "assistant",
           text: `⚠ Stopped after ${MAX_TURNS} steps without finishing. The run is saved: send a follow-up message to continue from here, or Reset to start over.`,
@@ -927,11 +942,19 @@ export function useCodeAgent() {
     if (running) return;
     const form = timelineRef.current.find((t) => t.type === "deploy-form" && t.id === formId);
     if (!form || form.type !== "deploy-form" || form.status !== "pending") return;
+    let args: unknown[];
+    try {
+      args = argsFromForm(form.inputs, values);
+    } catch (e) {
+      // Invalid input: say which field and why, and leave the form open.
+      toast.error(e instanceof Error ? e.message : "Invalid constructor arguments");
+      return;
+    }
     setFormStatus(formId, "submitted");
     const controller = new AbortController();
     abortRef.current = controller;
     setRunning(true);
-    await doDeploy(argsFromForm(form.inputs, values));
+    await doDeploy(args);
     await runModelLoop(controller);
   };
 

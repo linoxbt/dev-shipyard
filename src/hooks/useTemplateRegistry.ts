@@ -131,6 +131,9 @@ export function useTemplateRegistry() {
       if (!configured) throw new Error("No template registry on this network.");
       if (!address) throw new Error("Connect a wallet to publish.");
       return writeContractAsync({
+        // Pinned: a wallet on another network would otherwise send the value
+        // to an address with no contract behind it.
+        chainId,
         address: registry,
         abi: templateRegistryAbi,
         functionName: "publish",
@@ -138,7 +141,7 @@ export function useTemplateRegistry() {
         gas: publishGasFor(t.source.length),
       });
     },
-    [address, configured, registry, writeContractAsync],
+    [address, chainId, configured, registry, writeContractAsync],
   );
 
   /** Pay for and record a deploy against template `id`. */
@@ -146,6 +149,7 @@ export function useTemplateRegistry() {
     async (id: number, priceWei: bigint) => {
       if (!configured) throw new Error("No template registry on this network.");
       return writeContractAsync({
+        chainId,
         address: registry,
         abi: templateRegistryAbi,
         functionName: "deployWithTemplate",
@@ -154,18 +158,19 @@ export function useTemplateRegistry() {
         gas: 600_000n,
       });
     },
-    [configured, registry, writeContractAsync],
+    [chainId, configured, registry, writeContractAsync],
   );
 
   const withdraw = useCallback(async () => {
     if (!configured) throw new Error("No template registry on this network.");
     return writeContractAsync({
+      chainId,
       address: registry,
       abi: templateRegistryAbi,
       functionName: "withdraw",
       gas: 200_000n,
     });
-  }, [configured, registry, writeContractAsync]);
+  }, [chainId, configured, registry, writeContractAsync]);
 
   /** What this wallet is owed from template sales. */
   const earnings = useQuery({

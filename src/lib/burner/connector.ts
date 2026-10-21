@@ -15,16 +15,28 @@ import {
   type Hex,
 } from "viem";
 import type { HDAccount } from "viem/accounts";
-import { qieTestnet, qieMainnet, SUPPORTED_CHAINS } from "../chains";
+import { qieTestnet, qieMainnet, DEFAULT_CHAIN, SUPPORTED_CHAINS } from "../chains";
+import { useNetworkPref } from "../active-chain";
+import { confirmSign, consumePreapproval, describeRequest, userRejected } from "./confirm";
 
 let activeAccount: HDAccount | null = null;
-let activeChainId: number = qieTestnet.id;
+// Starts on the app's default network, not testnet: the selected network
+// defaults to mainnet, and a burner restored onto testnet made every write
+// start out on a different chain from the one the page was reading.
+let activeChainId: number = DEFAULT_CHAIN.id;
 const listeners = new Set<(account: HDAccount | null) => void>();
 
 /** Set (or clear) the unlocked burner account and notify the connector. */
 export function setBurnerAccount(account: HDAccount | null) {
   activeAccount = account;
   for (const fn of listeners) fn(account);
+}
+
+// Called when wagmi disconnects the burner: the store locks the wallet, so a
+// "disconnected" in-app wallet is not one that can still sign.
+let onDisconnectRequest: (() => void) | null = null;
+export function onBurnerDisconnect(fn: () => void) {
+  onDisconnectRequest = fn;
 }
 
 export function getBurnerAccount(): HDAccount | null {
@@ -40,6 +52,15 @@ function chainById(id: number) {
 function makeProvider() {
   function publicClient(chainId: number) {
     return createPublicClient({ chain: chainById(chainId), transport: http() });
+  }
+
+  /** Every method that signs needs the person's approval first, or a matching
+   *  approval the preview bridge already obtained for this exact request. */
+  async function approve(method: string, params: unknown) {
+    if (!activeAccount) throw new Error("Wallet locked");
+    if (consumePreapproval(method, params)) return;
+    const req = describeRequest(method, params, chainById(activeChainId).name, "app");
+    if (!req || !(await confirmSign(req))) throw userRejected();
   }
 
   async function request({ method, params }: EIP1193Parameters): Promise<unknown> {
@@ -58,6 +79,7 @@ function makeProvider() {
         return null;
       }
       case "eth_sendTransaction": {
+        await approve(method, params);
         if (!activeAccount) throw new Error("Wallet locked");
         const wallet = createWalletClient({
           account: activeAccount,
@@ -68,15 +90,24 @@ function makeProvider() {
         return wallet.sendTransaction(tx as never);
       }
       case "personal_sign": {
+        await approve(method, params);
         if (!activeAccount) throw new Error("Wallet locked");
         const [message] = params as [Hex, string];
         return activeAccount.signMessage({ message: { raw: message } });
       }
       case "eth_signTypedData_v4": {
+        await approve(method, params);
         if (!activeAccount) throw new Error("Wallet locked");
         const [, json] = params as [string, string];
         return activeAccount.signTypedData(JSON.parse(json));
       }
+      case "eth_sign":
+      case "eth_signTransaction":
+      case "eth_signTypedData":
+      case "eth_signTypedData_v3":
+        // Raw-hash and legacy signing: nothing in DevStation uses them, and
+        // forwarding them to the node would only produce a confusing error.
+        throw new Error(`${method} is not supported by the DevStation wallet.`);
       default:
         // Read-only RPC methods → forward to the node.
         return publicClient(activeChainId).request({ method, params } as never);
@@ -107,13 +138,16 @@ export function burnerConnector() {
     },
     async connect({ chainId } = {}) {
       if (!activeAccount) throw new Error("No burner wallet unlocked");
-      if (chainId) activeChainId = chainId;
+      // Connect on the network the person has selected unless told otherwise.
+      activeChainId = chainId ?? useNetworkPref.getState().preferredChainId ?? activeChainId;
       // `accounts` cast: wagmi's connect return is generic over `withCapabilities`,
       // which a concrete value can't satisfy. The runtime shape is correct.
       return { accounts: [activeAccount.address] as never, chainId: activeChainId };
     },
     async disconnect() {
-      /* account lifetime is owned by the vault store, not the connector */
+      // Account lifetime is owned by the vault store; ask it to lock.
+      if (onDisconnectRequest) onDisconnectRequest();
+      else setBurnerAccount(null);
     },
     async getAccounts() {
       return activeAccount ? [activeAccount.address] : [];
