@@ -68,7 +68,11 @@ jobs:
       - name: Dependency audit
         # High and critical only: the lower tiers are dominated by advisories
         # in dev-only transitive packages with no exploitable path here.
-        run: bun audit --audit-level=high
+        # GHSA-vfj7-8cjw-p6xm (braces <=3.0.3) has no patched release; braces
+        # is reached only through build/dev file watchers (chokidar,
+        # fast-glob) expanding glob patterns from this repo's own config,
+        # never from user input. Drop the ignore once braces ships a fix.
+        run: bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm
 
       - name: CLI bundle smoke test
         run: |
@@ -83,7 +87,7 @@ jobs:
           # Coinbase/MetaMask SDKs, Monaco): see DEPLOYMENT.md. The Netlify
           # preset (now the default, and what production builds) aborted at
           # 4096 and completes at 6144; a GitHub runner has the memory.
-          NODE_OPTIONS: --max-old-space-size=6144
+          NODE_OPTIONS: --max-old-space-size=8192
 
   secrets:
     runs-on: ubuntu-latest

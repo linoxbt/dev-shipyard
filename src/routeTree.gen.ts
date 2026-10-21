@@ -9,118 +9,93 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as OverviewRouteImport } from './routes/overview'
-import { Route as LeaderboardRouteImport } from './routes/leaderboard'
-import { Route as ExplorerRouteImport } from './routes/explorer'
-import { Route as DocsRouteImport } from './routes/docs'
-import { Route as AnalyticsRouteImport } from './routes/analytics'
-import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as RoutebookIndexRouteImport } from './routes/routebook.index'
-import { Route as ExplorerIndexRouteImport } from './routes/explorer.index'
-import { Route as DocsIndexRouteImport } from './routes/docs.index'
-import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
-import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
-import { Route as LaunchkitProjectsRouteImport } from './routes/launchkit.projects'
-import { Route as LaunchkitMarketplaceRouteImport } from './routes/launchkit.marketplace'
-import { Route as LaunchkitEditorRouteImport } from './routes/launchkit.editor'
-import { Route as LaunchkitDeployRouteImport } from './routes/launchkit.deploy'
-import { Route as LaunchkitCodingAgentRouteImport } from './routes/launchkit.coding-agent'
-import { Route as LaunchkitAppBuilderRouteImport } from './routes/launchkit.app-builder'
-import { Route as LaunchkitAiRouteImport } from './routes/launchkit.ai'
-import { Route as ExplorerNetworkRouteImport } from './routes/explorer.$network'
-import { Route as DocsWalletsRouteImport } from './routes/docs.wallets'
-import { Route as DocsVerificationRouteImport } from './routes/docs.verification'
-import { Route as DocsSellingRouteImport } from './routes/docs.selling'
-import { Route as DocsRoutebookRouteImport } from './routes/docs.routebook'
-import { Route as DocsRegistriesRouteImport } from './routes/docs.registries'
-import { Route as DocsQuickstartRouteImport } from './routes/docs.quickstart'
-import { Route as DocsQieIdRouteImport } from './routes/docs.qie-id'
-import { Route as DocsNetworksRouteImport } from './routes/docs.networks'
-import { Route as DocsMarketplaceRouteImport } from './routes/docs.marketplace'
-import { Route as DocsLaunchkitRouteImport } from './routes/docs.launchkit'
-import { Route as DocsLabelsRouteImport } from './routes/docs.labels'
-import { Route as DocsFaqRouteImport } from './routes/docs.faq'
-import { Route as DocsExplorerRouteImport } from './routes/docs.explorer'
-import { Route as DocsEditorRouteImport } from './routes/docs.editor'
-import { Route as DocsDashboardRouteImport } from './routes/docs.dashboard'
-import { Route as DocsConsoleRouteImport } from './routes/docs.console'
-import { Route as DocsCodingAgentRouteImport } from './routes/docs.coding-agent'
-import { Route as DocsAppsRouteImport } from './routes/docs.apps'
-import { Route as DocsAiRouteImport } from './routes/docs.ai'
-import { Route as DevAddressRouteImport } from './routes/dev.$address'
-import { Route as ApiWorkspaceRouteImport } from './routes/api.workspace'
-import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
-import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
-import { Route as ApiPublishRouteImport } from './routes/api.publish'
-import { Route as ApiListingsRouteImport } from './routes/api.listings'
-import { Route as ApiGithubRouteImport } from './routes/api.github'
-import { Route as ApiBuildRouteImport } from './routes/api.build'
-import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
-import { Route as ApiAiRouteImport } from './routes/api.ai'
-import { Route as ApiAgentRouteImport } from './routes/api.agent'
-import { Route as ApiAccountRouteImport } from './routes/api.account'
+import { Route as ActivityRouteImport } from './routes/activity'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as DocsRouteImport } from './routes/docs'
+import { Route as ExplorerRouteImport } from './routes/explorer'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as OverviewRouteImport } from './routes/overview'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiAccessRouteImport } from './routes/api.access'
-import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
-import { Route as LaunchkitMarketplaceIndexRouteImport } from './routes/launchkit.marketplace.index'
-import { Route as LaunchkitAppsIndexRouteImport } from './routes/launchkit.apps.index'
-import { Route as ExplorerNetworkIndexRouteImport } from './routes/explorer.$network.index'
-import { Route as DocsCliIndexRouteImport } from './routes/docs.cli.index'
-import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
-import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
-import { Route as LaunchkitMarketplaceSellRouteImport } from './routes/launchkit.marketplace.sell'
-import { Route as LaunchkitMarketplaceLibraryRouteImport } from './routes/launchkit.marketplace.library'
-import { Route as LaunchkitMarketplaceCreatorRouteImport } from './routes/launchkit.marketplace.creator'
-import { Route as LaunchkitMarketplaceListingIdRouteImport } from './routes/launchkit.marketplace.$listingId'
-import { Route as LaunchkitAppsIdRouteImport } from './routes/launchkit.apps.$id'
-import { Route as ExplorerNetworkVerifyRouteImport } from './routes/explorer.$network.verify'
-import { Route as ExplorerNetworkTxnsRouteImport } from './routes/explorer.$network.txns'
-import { Route as ExplorerNetworkTokensRouteImport } from './routes/explorer.$network.tokens'
-import { Route as ExplorerNetworkStatsRouteImport } from './routes/explorer.$network.stats'
-import { Route as ExplorerNetworkBlocksRouteImport } from './routes/explorer.$network.blocks'
-import { Route as DocsCliWorkspaceRouteImport } from './routes/docs.cli.workspace'
-import { Route as DocsCliTroubleshootingRouteImport } from './routes/docs.cli.troubleshooting'
-import { Route as DocsCliSessionsRouteImport } from './routes/docs.cli.sessions'
-import { Route as DocsCliReferenceRouteImport } from './routes/docs.cli.reference'
-import { Route as DocsCliPermissionsRouteImport } from './routes/docs.cli.permissions'
-import { Route as DocsCliModelsRouteImport } from './routes/docs.cli.models'
-import { Route as DocsCliInstallRouteImport } from './routes/docs.cli.install'
-import { Route as ApiGithubPushRouteImport } from './routes/api.github.push'
+import { Route as ApiAccountRouteImport } from './routes/api.account'
+import { Route as ApiAgentRouteImport } from './routes/api.agent'
+import { Route as ApiAiRouteImport } from './routes/api.ai'
+import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
+import { Route as ApiBuildRouteImport } from './routes/api.build'
+import { Route as ApiGithubRouteImport } from './routes/api.github'
+import { Route as ApiListingsRouteImport } from './routes/api.listings'
+import { Route as ApiPublishRouteImport } from './routes/api.publish'
+import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
+import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
+import { Route as ApiWorkspaceRouteImport } from './routes/api.workspace'
+import { Route as DevAddressRouteImport } from './routes/dev.$address'
+import { Route as DocsIndexRouteImport } from './routes/docs.index'
+import { Route as DocsAiRouteImport } from './routes/docs.ai'
+import { Route as DocsAppsRouteImport } from './routes/docs.apps'
+import { Route as DocsCodingAgentRouteImport } from './routes/docs.coding-agent'
+import { Route as DocsConsoleRouteImport } from './routes/docs.console'
+import { Route as DocsDashboardRouteImport } from './routes/docs.dashboard'
+import { Route as DocsEditorRouteImport } from './routes/docs.editor'
+import { Route as DocsExplorerRouteImport } from './routes/docs.explorer'
+import { Route as DocsFaqRouteImport } from './routes/docs.faq'
+import { Route as DocsLabelsRouteImport } from './routes/docs.labels'
+import { Route as DocsLaunchkitRouteImport } from './routes/docs.launchkit'
+import { Route as DocsMarketplaceRouteImport } from './routes/docs.marketplace'
+import { Route as DocsNetworksRouteImport } from './routes/docs.networks'
+import { Route as DocsQieIdRouteImport } from './routes/docs.qie-id'
+import { Route as DocsQuickstartRouteImport } from './routes/docs.quickstart'
+import { Route as DocsRegistriesRouteImport } from './routes/docs.registries'
+import { Route as DocsRoutebookRouteImport } from './routes/docs.routebook'
+import { Route as DocsSellingRouteImport } from './routes/docs.selling'
+import { Route as DocsVerificationRouteImport } from './routes/docs.verification'
+import { Route as DocsWalletsRouteImport } from './routes/docs.wallets'
+import { Route as ExplorerIndexRouteImport } from './routes/explorer.index'
+import { Route as ExplorerNetworkRouteImport } from './routes/explorer.$network'
+import { Route as LaunchkitAiRouteImport } from './routes/launchkit.ai'
+import { Route as LaunchkitAppBuilderRouteImport } from './routes/launchkit.app-builder'
+import { Route as LaunchkitCodingAgentRouteImport } from './routes/launchkit.coding-agent'
+import { Route as LaunchkitDeployRouteImport } from './routes/launchkit.deploy'
+import { Route as LaunchkitEditorRouteImport } from './routes/launchkit.editor'
+import { Route as LaunchkitMarketplaceRouteImport } from './routes/launchkit.marketplace'
+import { Route as LaunchkitProjectsRouteImport } from './routes/launchkit.projects'
+import { Route as RoutebookIndexRouteImport } from './routes/routebook.index'
+import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
+import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
-import { Route as ExplorerNetworkTxHashRouteImport } from './routes/explorer.$network.tx.$hash'
-import { Route as ExplorerNetworkTokenHashRouteImport } from './routes/explorer.$network.token.$hash'
-import { Route as ExplorerNetworkBlockHeightRouteImport } from './routes/explorer.$network.block.$height'
+import { Route as ApiGithubPushRouteImport } from './routes/api.github.push'
+import { Route as DocsCliIndexRouteImport } from './routes/docs.cli.index'
+import { Route as DocsCliInstallRouteImport } from './routes/docs.cli.install'
+import { Route as DocsCliModelsRouteImport } from './routes/docs.cli.models'
+import { Route as DocsCliPermissionsRouteImport } from './routes/docs.cli.permissions'
+import { Route as DocsCliReferenceRouteImport } from './routes/docs.cli.reference'
+import { Route as DocsCliSessionsRouteImport } from './routes/docs.cli.sessions'
+import { Route as DocsCliTroubleshootingRouteImport } from './routes/docs.cli.troubleshooting'
+import { Route as DocsCliWorkspaceRouteImport } from './routes/docs.cli.workspace'
+import { Route as ExplorerNetworkIndexRouteImport } from './routes/explorer.$network.index'
+import { Route as ExplorerNetworkBlocksRouteImport } from './routes/explorer.$network.blocks'
+import { Route as ExplorerNetworkStatsRouteImport } from './routes/explorer.$network.stats'
+import { Route as ExplorerNetworkTokensRouteImport } from './routes/explorer.$network.tokens'
+import { Route as ExplorerNetworkTxnsRouteImport } from './routes/explorer.$network.txns'
+import { Route as ExplorerNetworkVerifyRouteImport } from './routes/explorer.$network.verify'
+import { Route as LaunchkitAppsIndexRouteImport } from './routes/launchkit.apps.index'
+import { Route as LaunchkitAppsIdRouteImport } from './routes/launchkit.apps.$id'
+import { Route as LaunchkitMarketplaceIndexRouteImport } from './routes/launchkit.marketplace.index'
+import { Route as LaunchkitMarketplaceListingIdRouteImport } from './routes/launchkit.marketplace.$listingId'
+import { Route as LaunchkitMarketplaceCreatorRouteImport } from './routes/launchkit.marketplace.creator'
+import { Route as LaunchkitMarketplaceLibraryRouteImport } from './routes/launchkit.marketplace.library'
+import { Route as LaunchkitMarketplaceSellRouteImport } from './routes/launchkit.marketplace.sell'
+import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
+import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
+import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
 import { Route as ExplorerNetworkAddressHashRouteImport } from './routes/explorer.$network.address.$hash'
+import { Route as ExplorerNetworkBlockHeightRouteImport } from './routes/explorer.$network.block.$height'
+import { Route as ExplorerNetworkTokenHashRouteImport } from './routes/explorer.$network.token.$hash'
+import { Route as ExplorerNetworkTxHashRouteImport } from './routes/explorer.$network.tx.$hash'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OverviewRoute = OverviewRouteImport.update({
-  id: '/overview',
-  path: '/overview',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LeaderboardRoute = LeaderboardRouteImport.update({
-  id: '/leaderboard',
-  path: '/leaderboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExplorerRoute = ExplorerRouteImport.update({
-  id: '/explorer',
-  path: '/explorer',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DocsRoute = DocsRouteImport.update({
-  id: '/docs',
-  path: '/docs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AnalyticsRoute = AnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ActivityRoute = ActivityRouteImport.update({
@@ -128,229 +103,34 @@ const ActivityRoute = ActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RoutebookIndexRoute = RoutebookIndexRouteImport.update({
-  id: '/routebook/',
-  path: '/routebook/',
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ExplorerIndexRoute = ExplorerIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ExplorerRoute,
-} as any)
-const DocsIndexRoute = DocsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DocsRoute,
-} as any)
-const RoutebookLabelsRoute = RoutebookLabelsRouteImport.update({
-  id: '/routebook/labels',
-  path: '/routebook/labels',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RoutebookTxHashRoute = RoutebookTxHashRouteImport.update({
-  id: '/routebook/$txHash',
-  path: '/routebook/$txHash',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaunchkitProjectsRoute = LaunchkitProjectsRouteImport.update({
-  id: '/launchkit/projects',
-  path: '/launchkit/projects',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaunchkitMarketplaceRoute = LaunchkitMarketplaceRouteImport.update({
-  id: '/launchkit/marketplace',
-  path: '/launchkit/marketplace',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaunchkitEditorRoute = LaunchkitEditorRouteImport.update({
-  id: '/launchkit/editor',
-  path: '/launchkit/editor',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaunchkitDeployRoute = LaunchkitDeployRouteImport.update({
-  id: '/launchkit/deploy',
-  path: '/launchkit/deploy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaunchkitCodingAgentRoute = LaunchkitCodingAgentRouteImport.update({
-  id: '/launchkit/coding-agent',
-  path: '/launchkit/coding-agent',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaunchkitAppBuilderRoute = LaunchkitAppBuilderRouteImport.update({
-  id: '/launchkit/app-builder',
-  path: '/launchkit/app-builder',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaunchkitAiRoute = LaunchkitAiRouteImport.update({
-  id: '/launchkit/ai',
-  path: '/launchkit/ai',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExplorerNetworkRoute = ExplorerNetworkRouteImport.update({
-  id: '/$network',
-  path: '/$network',
-  getParentRoute: () => ExplorerRoute,
-} as any)
-const DocsWalletsRoute = DocsWalletsRouteImport.update({
-  id: '/wallets',
-  path: '/wallets',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsVerificationRoute = DocsVerificationRouteImport.update({
-  id: '/verification',
-  path: '/verification',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsSellingRoute = DocsSellingRouteImport.update({
-  id: '/selling',
-  path: '/selling',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsRoutebookRoute = DocsRoutebookRouteImport.update({
-  id: '/routebook',
-  path: '/routebook',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsRegistriesRoute = DocsRegistriesRouteImport.update({
-  id: '/registries',
-  path: '/registries',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsQuickstartRoute = DocsQuickstartRouteImport.update({
-  id: '/quickstart',
-  path: '/quickstart',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsQieIdRoute = DocsQieIdRouteImport.update({
-  id: '/qie-id',
-  path: '/qie-id',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsNetworksRoute = DocsNetworksRouteImport.update({
-  id: '/networks',
-  path: '/networks',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsMarketplaceRoute = DocsMarketplaceRouteImport.update({
-  id: '/marketplace',
-  path: '/marketplace',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsLaunchkitRoute = DocsLaunchkitRouteImport.update({
-  id: '/launchkit',
-  path: '/launchkit',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsLabelsRoute = DocsLabelsRouteImport.update({
-  id: '/labels',
-  path: '/labels',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsFaqRoute = DocsFaqRouteImport.update({
-  id: '/faq',
-  path: '/faq',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsExplorerRoute = DocsExplorerRouteImport.update({
+const ExplorerRoute = ExplorerRouteImport.update({
   id: '/explorer',
   path: '/explorer',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsEditorRoute = DocsEditorRouteImport.update({
-  id: '/editor',
-  path: '/editor',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsDashboardRoute = DocsDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsConsoleRoute = DocsConsoleRouteImport.update({
-  id: '/console',
-  path: '/console',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsCodingAgentRoute = DocsCodingAgentRouteImport.update({
-  id: '/coding-agent',
-  path: '/coding-agent',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsAppsRoute = DocsAppsRouteImport.update({
-  id: '/apps',
-  path: '/apps',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsAiRoute = DocsAiRouteImport.update({
-  id: '/ai',
-  path: '/ai',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DevAddressRoute = DevAddressRouteImport.update({
-  id: '/dev/$address',
-  path: '/dev/$address',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiWorkspaceRoute = ApiWorkspaceRouteImport.update({
-  id: '/api/workspace',
-  path: '/api/workspace',
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiSponsorTopupRoute = ApiSponsorTopupRouteImport.update({
-  id: '/api/sponsor-topup',
-  path: '/api/sponsor-topup',
+const OverviewRoute = OverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiRepoAgentRoute = ApiRepoAgentRouteImport.update({
-  id: '/api/repo-agent',
-  path: '/api/repo-agent',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublishRoute = ApiPublishRouteImport.update({
-  id: '/api/publish',
-  path: '/api/publish',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiListingsRoute = ApiListingsRouteImport.update({
-  id: '/api/listings',
-  path: '/api/listings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiGithubRoute = ApiGithubRouteImport.update({
-  id: '/api/github',
-  path: '/api/github',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiBuildRoute = ApiBuildRouteImport.update({
-  id: '/api/build',
-  path: '/api/build',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAppsDeployRoute = ApiAppsDeployRouteImport.update({
-  id: '/api/apps-deploy',
-  path: '/api/apps-deploy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAiRoute = ApiAiRouteImport.update({
-  id: '/api/ai',
-  path: '/api/ai',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAgentRoute = ApiAgentRouteImport.update({
-  id: '/api/agent',
-  path: '/api/agent',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAccountRoute = ApiAccountRouteImport.update({
-  id: '/api/account',
-  path: '/api/account',
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAccessRoute = ApiAccessRouteImport.update({
@@ -358,9 +138,314 @@ const ApiAccessRoute = ApiAccessRouteImport.update({
   path: '/api/access',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LaunchkitTemplatesIndexRoute = LaunchkitTemplatesIndexRouteImport.update({
-  id: '/launchkit/templates/',
-  path: '/launchkit/templates/',
+const ApiAccountRoute = ApiAccountRouteImport.update({
+  id: '/api/account',
+  path: '/api/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAgentRoute = ApiAgentRouteImport.update({
+  id: '/api/agent',
+  path: '/api/agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiRoute = ApiAiRouteImport.update({
+  id: '/api/ai',
+  path: '/api/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAppsDeployRoute = ApiAppsDeployRouteImport.update({
+  id: '/api/apps-deploy',
+  path: '/api/apps-deploy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBuildRoute = ApiBuildRouteImport.update({
+  id: '/api/build',
+  path: '/api/build',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGithubRoute = ApiGithubRouteImport.update({
+  id: '/api/github',
+  path: '/api/github',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiListingsRoute = ApiListingsRouteImport.update({
+  id: '/api/listings',
+  path: '/api/listings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublishRoute = ApiPublishRouteImport.update({
+  id: '/api/publish',
+  path: '/api/publish',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRepoAgentRoute = ApiRepoAgentRouteImport.update({
+  id: '/api/repo-agent',
+  path: '/api/repo-agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSponsorTopupRoute = ApiSponsorTopupRouteImport.update({
+  id: '/api/sponsor-topup',
+  path: '/api/sponsor-topup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWorkspaceRoute = ApiWorkspaceRouteImport.update({
+  id: '/api/workspace',
+  path: '/api/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevAddressRoute = DevAddressRouteImport.update({
+  id: '/dev/$address',
+  path: '/dev/$address',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsIndexRoute = DocsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsAiRoute = DocsAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsAppsRoute = DocsAppsRouteImport.update({
+  id: '/apps',
+  path: '/apps',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCodingAgentRoute = DocsCodingAgentRouteImport.update({
+  id: '/coding-agent',
+  path: '/coding-agent',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsConsoleRoute = DocsConsoleRouteImport.update({
+  id: '/console',
+  path: '/console',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsDashboardRoute = DocsDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsEditorRoute = DocsEditorRouteImport.update({
+  id: '/editor',
+  path: '/editor',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsExplorerRoute = DocsExplorerRouteImport.update({
+  id: '/explorer',
+  path: '/explorer',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsFaqRoute = DocsFaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsLabelsRoute = DocsLabelsRouteImport.update({
+  id: '/labels',
+  path: '/labels',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsLaunchkitRoute = DocsLaunchkitRouteImport.update({
+  id: '/launchkit',
+  path: '/launchkit',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsMarketplaceRoute = DocsMarketplaceRouteImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsNetworksRoute = DocsNetworksRouteImport.update({
+  id: '/networks',
+  path: '/networks',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsQieIdRoute = DocsQieIdRouteImport.update({
+  id: '/qie-id',
+  path: '/qie-id',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsQuickstartRoute = DocsQuickstartRouteImport.update({
+  id: '/quickstart',
+  path: '/quickstart',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsRegistriesRoute = DocsRegistriesRouteImport.update({
+  id: '/registries',
+  path: '/registries',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsRoutebookRoute = DocsRoutebookRouteImport.update({
+  id: '/routebook',
+  path: '/routebook',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsSellingRoute = DocsSellingRouteImport.update({
+  id: '/selling',
+  path: '/selling',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsVerificationRoute = DocsVerificationRouteImport.update({
+  id: '/verification',
+  path: '/verification',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsWalletsRoute = DocsWalletsRouteImport.update({
+  id: '/wallets',
+  path: '/wallets',
+  getParentRoute: () => DocsRoute,
+} as any)
+const ExplorerIndexRoute = ExplorerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const ExplorerNetworkRoute = ExplorerNetworkRouteImport.update({
+  id: '/$network',
+  path: '/$network',
+  getParentRoute: () => ExplorerRoute,
+} as any)
+const LaunchkitAiRoute = LaunchkitAiRouteImport.update({
+  id: '/launchkit/ai',
+  path: '/launchkit/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitAppBuilderRoute = LaunchkitAppBuilderRouteImport.update({
+  id: '/launchkit/app-builder',
+  path: '/launchkit/app-builder',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitCodingAgentRoute = LaunchkitCodingAgentRouteImport.update({
+  id: '/launchkit/coding-agent',
+  path: '/launchkit/coding-agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitDeployRoute = LaunchkitDeployRouteImport.update({
+  id: '/launchkit/deploy',
+  path: '/launchkit/deploy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitEditorRoute = LaunchkitEditorRouteImport.update({
+  id: '/launchkit/editor',
+  path: '/launchkit/editor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitMarketplaceRoute = LaunchkitMarketplaceRouteImport.update({
+  id: '/launchkit/marketplace',
+  path: '/launchkit/marketplace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitProjectsRoute = LaunchkitProjectsRouteImport.update({
+  id: '/launchkit/projects',
+  path: '/launchkit/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoutebookIndexRoute = RoutebookIndexRouteImport.update({
+  id: '/routebook/',
+  path: '/routebook/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoutebookTxHashRoute = RoutebookTxHashRouteImport.update({
+  id: '/routebook/$txHash',
+  path: '/routebook/$txHash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoutebookLabelsRoute = RoutebookLabelsRouteImport.update({
+  id: '/routebook/labels',
+  path: '/routebook/labels',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGithubCallbackRoute = ApiGithubCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => ApiGithubRoute,
+} as any)
+const ApiGithubPushRoute = ApiGithubPushRouteImport.update({
+  id: '/push',
+  path: '/push',
+  getParentRoute: () => ApiGithubRoute,
+} as any)
+const DocsCliIndexRoute = DocsCliIndexRouteImport.update({
+  id: '/cli/',
+  path: '/cli/',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliInstallRoute = DocsCliInstallRouteImport.update({
+  id: '/cli/install',
+  path: '/cli/install',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliModelsRoute = DocsCliModelsRouteImport.update({
+  id: '/cli/models',
+  path: '/cli/models',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliPermissionsRoute = DocsCliPermissionsRouteImport.update({
+  id: '/cli/permissions',
+  path: '/cli/permissions',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliReferenceRoute = DocsCliReferenceRouteImport.update({
+  id: '/cli/reference',
+  path: '/cli/reference',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliSessionsRoute = DocsCliSessionsRouteImport.update({
+  id: '/cli/sessions',
+  path: '/cli/sessions',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliTroubleshootingRoute = DocsCliTroubleshootingRouteImport.update({
+  id: '/cli/troubleshooting',
+  path: '/cli/troubleshooting',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsCliWorkspaceRoute = DocsCliWorkspaceRouteImport.update({
+  id: '/cli/workspace',
+  path: '/cli/workspace',
+  getParentRoute: () => DocsRoute,
+} as any)
+const ExplorerNetworkIndexRoute = ExplorerNetworkIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ExplorerNetworkRoute,
+} as any)
+const ExplorerNetworkBlocksRoute = ExplorerNetworkBlocksRouteImport.update({
+  id: '/blocks',
+  path: '/blocks',
+  getParentRoute: () => ExplorerNetworkRoute,
+} as any)
+const ExplorerNetworkStatsRoute = ExplorerNetworkStatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
+  getParentRoute: () => ExplorerNetworkRoute,
+} as any)
+const ExplorerNetworkTokensRoute = ExplorerNetworkTokensRouteImport.update({
+  id: '/tokens',
+  path: '/tokens',
+  getParentRoute: () => ExplorerNetworkRoute,
+} as any)
+const ExplorerNetworkTxnsRoute = ExplorerNetworkTxnsRouteImport.update({
+  id: '/txns',
+  path: '/txns',
+  getParentRoute: () => ExplorerNetworkRoute,
+} as any)
+const ExplorerNetworkVerifyRoute = ExplorerNetworkVerifyRouteImport.update({
+  id: '/verify',
+  path: '/verify',
+  getParentRoute: () => ExplorerNetworkRoute,
+} as any)
+const LaunchkitAppsIndexRoute = LaunchkitAppsIndexRouteImport.update({
+  id: '/launchkit/apps/',
+  path: '/launchkit/apps/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchkitAppsIdRoute = LaunchkitAppsIdRouteImport.update({
+  id: '/launchkit/apps/$id',
+  path: '/launchkit/apps/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LaunchkitMarketplaceIndexRoute =
@@ -369,42 +454,10 @@ const LaunchkitMarketplaceIndexRoute =
     path: '/',
     getParentRoute: () => LaunchkitMarketplaceRoute,
   } as any)
-const LaunchkitAppsIndexRoute = LaunchkitAppsIndexRouteImport.update({
-  id: '/launchkit/apps/',
-  path: '/launchkit/apps/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExplorerNetworkIndexRoute = ExplorerNetworkIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ExplorerNetworkRoute,
-} as any)
-const DocsCliIndexRoute = DocsCliIndexRouteImport.update({
-  id: '/cli/',
-  path: '/cli/',
-  getParentRoute: () => DocsRoute,
-} as any)
-const LaunchkitTemplatesSubmitRoute =
-  LaunchkitTemplatesSubmitRouteImport.update({
-    id: '/launchkit/templates/submit',
-    path: '/launchkit/templates/submit',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
-  id: '/launchkit/templates/$id',
-  path: '/launchkit/templates/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaunchkitMarketplaceSellRoute =
-  LaunchkitMarketplaceSellRouteImport.update({
-    id: '/sell',
-    path: '/sell',
-    getParentRoute: () => LaunchkitMarketplaceRoute,
-  } as any)
-const LaunchkitMarketplaceLibraryRoute =
-  LaunchkitMarketplaceLibraryRouteImport.update({
-    id: '/library',
-    path: '/library',
+const LaunchkitMarketplaceListingIdRoute =
+  LaunchkitMarketplaceListingIdRouteImport.update({
+    id: '/$listingId',
+    path: '/$listingId',
     getParentRoute: () => LaunchkitMarketplaceRoute,
   } as any)
 const LaunchkitMarketplaceCreatorRoute =
@@ -413,96 +466,38 @@ const LaunchkitMarketplaceCreatorRoute =
     path: '/creator',
     getParentRoute: () => LaunchkitMarketplaceRoute,
   } as any)
-const LaunchkitMarketplaceListingIdRoute =
-  LaunchkitMarketplaceListingIdRouteImport.update({
-    id: '/$listingId',
-    path: '/$listingId',
+const LaunchkitMarketplaceLibraryRoute =
+  LaunchkitMarketplaceLibraryRouteImport.update({
+    id: '/library',
+    path: '/library',
     getParentRoute: () => LaunchkitMarketplaceRoute,
   } as any)
-const LaunchkitAppsIdRoute = LaunchkitAppsIdRouteImport.update({
-  id: '/launchkit/apps/$id',
-  path: '/launchkit/apps/$id',
+const LaunchkitMarketplaceSellRoute =
+  LaunchkitMarketplaceSellRouteImport.update({
+    id: '/sell',
+    path: '/sell',
+    getParentRoute: () => LaunchkitMarketplaceRoute,
+  } as any)
+const LaunchkitTemplatesIndexRoute = LaunchkitTemplatesIndexRouteImport.update({
+  id: '/launchkit/templates/',
+  path: '/launchkit/templates/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ExplorerNetworkVerifyRoute = ExplorerNetworkVerifyRouteImport.update({
-  id: '/verify',
-  path: '/verify',
-  getParentRoute: () => ExplorerNetworkRoute,
+const LaunchkitTemplatesIdRoute = LaunchkitTemplatesIdRouteImport.update({
+  id: '/launchkit/templates/$id',
+  path: '/launchkit/templates/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ExplorerNetworkTxnsRoute = ExplorerNetworkTxnsRouteImport.update({
-  id: '/txns',
-  path: '/txns',
-  getParentRoute: () => ExplorerNetworkRoute,
-} as any)
-const ExplorerNetworkTokensRoute = ExplorerNetworkTokensRouteImport.update({
-  id: '/tokens',
-  path: '/tokens',
-  getParentRoute: () => ExplorerNetworkRoute,
-} as any)
-const ExplorerNetworkStatsRoute = ExplorerNetworkStatsRouteImport.update({
-  id: '/stats',
-  path: '/stats',
-  getParentRoute: () => ExplorerNetworkRoute,
-} as any)
-const ExplorerNetworkBlocksRoute = ExplorerNetworkBlocksRouteImport.update({
-  id: '/blocks',
-  path: '/blocks',
-  getParentRoute: () => ExplorerNetworkRoute,
-} as any)
-const DocsCliWorkspaceRoute = DocsCliWorkspaceRouteImport.update({
-  id: '/cli/workspace',
-  path: '/cli/workspace',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsCliTroubleshootingRoute = DocsCliTroubleshootingRouteImport.update({
-  id: '/cli/troubleshooting',
-  path: '/cli/troubleshooting',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsCliSessionsRoute = DocsCliSessionsRouteImport.update({
-  id: '/cli/sessions',
-  path: '/cli/sessions',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsCliReferenceRoute = DocsCliReferenceRouteImport.update({
-  id: '/cli/reference',
-  path: '/cli/reference',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsCliPermissionsRoute = DocsCliPermissionsRouteImport.update({
-  id: '/cli/permissions',
-  path: '/cli/permissions',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsCliModelsRoute = DocsCliModelsRouteImport.update({
-  id: '/cli/models',
-  path: '/cli/models',
-  getParentRoute: () => DocsRoute,
-} as any)
-const DocsCliInstallRoute = DocsCliInstallRouteImport.update({
-  id: '/cli/install',
-  path: '/cli/install',
-  getParentRoute: () => DocsRoute,
-} as any)
-const ApiGithubPushRoute = ApiGithubPushRouteImport.update({
-  id: '/push',
-  path: '/push',
-  getParentRoute: () => ApiGithubRoute,
-} as any)
-const ApiGithubCallbackRoute = ApiGithubCallbackRouteImport.update({
-  id: '/callback',
-  path: '/callback',
-  getParentRoute: () => ApiGithubRoute,
-} as any)
-const ExplorerNetworkTxHashRoute = ExplorerNetworkTxHashRouteImport.update({
-  id: '/tx/$hash',
-  path: '/tx/$hash',
-  getParentRoute: () => ExplorerNetworkRoute,
-} as any)
-const ExplorerNetworkTokenHashRoute =
-  ExplorerNetworkTokenHashRouteImport.update({
-    id: '/token/$hash',
-    path: '/token/$hash',
+const LaunchkitTemplatesSubmitRoute =
+  LaunchkitTemplatesSubmitRouteImport.update({
+    id: '/launchkit/templates/submit',
+    path: '/launchkit/templates/submit',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ExplorerNetworkAddressHashRoute =
+  ExplorerNetworkAddressHashRouteImport.update({
+    id: '/address/$hash',
+    path: '/address/$hash',
     getParentRoute: () => ExplorerNetworkRoute,
   } as any)
 const ExplorerNetworkBlockHeightRoute =
@@ -511,12 +506,17 @@ const ExplorerNetworkBlockHeightRoute =
     path: '/block/$height',
     getParentRoute: () => ExplorerNetworkRoute,
   } as any)
-const ExplorerNetworkAddressHashRoute =
-  ExplorerNetworkAddressHashRouteImport.update({
-    id: '/address/$hash',
-    path: '/address/$hash',
+const ExplorerNetworkTokenHashRoute =
+  ExplorerNetworkTokenHashRouteImport.update({
+    id: '/token/$hash',
+    path: '/token/$hash',
     getParentRoute: () => ExplorerNetworkRoute,
   } as any)
+const ExplorerNetworkTxHashRoute = ExplorerNetworkTxHashRouteImport.update({
+  id: '/tx/$hash',
+  path: '/tx/$hash',
+  getParentRoute: () => ExplorerNetworkRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -1065,46 +1065,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/overview': {
-      id: '/overview'
-      path: '/overview'
-      fullPath: '/overview'
-      preLoaderRoute: typeof OverviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/leaderboard': {
-      id: '/leaderboard'
-      path: '/leaderboard'
-      fullPath: '/leaderboard'
-      preLoaderRoute: typeof LeaderboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/explorer': {
-      id: '/explorer'
-      path: '/explorer'
-      fullPath: '/explorer'
-      preLoaderRoute: typeof ExplorerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/docs': {
-      id: '/docs'
-      path: '/docs'
-      fullPath: '/docs'
-      preLoaderRoute: typeof DocsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/analytics': {
-      id: '/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AnalyticsRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/activity': {
@@ -1114,319 +1079,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/routebook/': {
-      id: '/routebook/'
-      path: '/routebook'
-      fullPath: '/routebook/'
-      preLoaderRoute: typeof RoutebookIndexRouteImport
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/explorer/': {
-      id: '/explorer/'
-      path: '/'
-      fullPath: '/explorer/'
-      preLoaderRoute: typeof ExplorerIndexRouteImport
-      parentRoute: typeof ExplorerRoute
-    }
-    '/docs/': {
-      id: '/docs/'
-      path: '/'
-      fullPath: '/docs/'
-      preLoaderRoute: typeof DocsIndexRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/routebook/labels': {
-      id: '/routebook/labels'
-      path: '/routebook/labels'
-      fullPath: '/routebook/labels'
-      preLoaderRoute: typeof RoutebookLabelsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/routebook/$txHash': {
-      id: '/routebook/$txHash'
-      path: '/routebook/$txHash'
-      fullPath: '/routebook/$txHash'
-      preLoaderRoute: typeof RoutebookTxHashRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/launchkit/projects': {
-      id: '/launchkit/projects'
-      path: '/launchkit/projects'
-      fullPath: '/launchkit/projects'
-      preLoaderRoute: typeof LaunchkitProjectsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/launchkit/marketplace': {
-      id: '/launchkit/marketplace'
-      path: '/launchkit/marketplace'
-      fullPath: '/launchkit/marketplace'
-      preLoaderRoute: typeof LaunchkitMarketplaceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/launchkit/editor': {
-      id: '/launchkit/editor'
-      path: '/launchkit/editor'
-      fullPath: '/launchkit/editor'
-      preLoaderRoute: typeof LaunchkitEditorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/launchkit/deploy': {
-      id: '/launchkit/deploy'
-      path: '/launchkit/deploy'
-      fullPath: '/launchkit/deploy'
-      preLoaderRoute: typeof LaunchkitDeployRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/launchkit/coding-agent': {
-      id: '/launchkit/coding-agent'
-      path: '/launchkit/coding-agent'
-      fullPath: '/launchkit/coding-agent'
-      preLoaderRoute: typeof LaunchkitCodingAgentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/launchkit/app-builder': {
-      id: '/launchkit/app-builder'
-      path: '/launchkit/app-builder'
-      fullPath: '/launchkit/app-builder'
-      preLoaderRoute: typeof LaunchkitAppBuilderRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/launchkit/ai': {
-      id: '/launchkit/ai'
-      path: '/launchkit/ai'
-      fullPath: '/launchkit/ai'
-      preLoaderRoute: typeof LaunchkitAiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/explorer/$network': {
-      id: '/explorer/$network'
-      path: '/$network'
-      fullPath: '/explorer/$network'
-      preLoaderRoute: typeof ExplorerNetworkRouteImport
-      parentRoute: typeof ExplorerRoute
-    }
-    '/docs/wallets': {
-      id: '/docs/wallets'
-      path: '/wallets'
-      fullPath: '/docs/wallets'
-      preLoaderRoute: typeof DocsWalletsRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/verification': {
-      id: '/docs/verification'
-      path: '/verification'
-      fullPath: '/docs/verification'
-      preLoaderRoute: typeof DocsVerificationRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/selling': {
-      id: '/docs/selling'
-      path: '/selling'
-      fullPath: '/docs/selling'
-      preLoaderRoute: typeof DocsSellingRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/routebook': {
-      id: '/docs/routebook'
-      path: '/routebook'
-      fullPath: '/docs/routebook'
-      preLoaderRoute: typeof DocsRoutebookRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/registries': {
-      id: '/docs/registries'
-      path: '/registries'
-      fullPath: '/docs/registries'
-      preLoaderRoute: typeof DocsRegistriesRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/quickstart': {
-      id: '/docs/quickstart'
-      path: '/quickstart'
-      fullPath: '/docs/quickstart'
-      preLoaderRoute: typeof DocsQuickstartRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/qie-id': {
-      id: '/docs/qie-id'
-      path: '/qie-id'
-      fullPath: '/docs/qie-id'
-      preLoaderRoute: typeof DocsQieIdRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/networks': {
-      id: '/docs/networks'
-      path: '/networks'
-      fullPath: '/docs/networks'
-      preLoaderRoute: typeof DocsNetworksRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/marketplace': {
-      id: '/docs/marketplace'
-      path: '/marketplace'
-      fullPath: '/docs/marketplace'
-      preLoaderRoute: typeof DocsMarketplaceRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/launchkit': {
-      id: '/docs/launchkit'
-      path: '/launchkit'
-      fullPath: '/docs/launchkit'
-      preLoaderRoute: typeof DocsLaunchkitRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/labels': {
-      id: '/docs/labels'
-      path: '/labels'
-      fullPath: '/docs/labels'
-      preLoaderRoute: typeof DocsLabelsRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/faq': {
-      id: '/docs/faq'
-      path: '/faq'
-      fullPath: '/docs/faq'
-      preLoaderRoute: typeof DocsFaqRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/explorer': {
-      id: '/docs/explorer'
+    '/explorer': {
+      id: '/explorer'
       path: '/explorer'
-      fullPath: '/docs/explorer'
-      preLoaderRoute: typeof DocsExplorerRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/editor': {
-      id: '/docs/editor'
-      path: '/editor'
-      fullPath: '/docs/editor'
-      preLoaderRoute: typeof DocsEditorRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/dashboard': {
-      id: '/docs/dashboard'
-      path: '/dashboard'
-      fullPath: '/docs/dashboard'
-      preLoaderRoute: typeof DocsDashboardRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/console': {
-      id: '/docs/console'
-      path: '/console'
-      fullPath: '/docs/console'
-      preLoaderRoute: typeof DocsConsoleRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/coding-agent': {
-      id: '/docs/coding-agent'
-      path: '/coding-agent'
-      fullPath: '/docs/coding-agent'
-      preLoaderRoute: typeof DocsCodingAgentRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/apps': {
-      id: '/docs/apps'
-      path: '/apps'
-      fullPath: '/docs/apps'
-      preLoaderRoute: typeof DocsAppsRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/ai': {
-      id: '/docs/ai'
-      path: '/ai'
-      fullPath: '/docs/ai'
-      preLoaderRoute: typeof DocsAiRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/dev/$address': {
-      id: '/dev/$address'
-      path: '/dev/$address'
-      fullPath: '/dev/$address'
-      preLoaderRoute: typeof DevAddressRouteImport
+      fullPath: '/explorer'
+      preLoaderRoute: typeof ExplorerRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/workspace': {
-      id: '/api/workspace'
-      path: '/api/workspace'
-      fullPath: '/api/workspace'
-      preLoaderRoute: typeof ApiWorkspaceRouteImport
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/sponsor-topup': {
-      id: '/api/sponsor-topup'
-      path: '/api/sponsor-topup'
-      fullPath: '/api/sponsor-topup'
-      preLoaderRoute: typeof ApiSponsorTopupRouteImport
+    '/overview': {
+      id: '/overview'
+      path: '/overview'
+      fullPath: '/overview'
+      preLoaderRoute: typeof OverviewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/repo-agent': {
-      id: '/api/repo-agent'
-      path: '/api/repo-agent'
-      fullPath: '/api/repo-agent'
-      preLoaderRoute: typeof ApiRepoAgentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/publish': {
-      id: '/api/publish'
-      path: '/api/publish'
-      fullPath: '/api/publish'
-      preLoaderRoute: typeof ApiPublishRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/listings': {
-      id: '/api/listings'
-      path: '/api/listings'
-      fullPath: '/api/listings'
-      preLoaderRoute: typeof ApiListingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/github': {
-      id: '/api/github'
-      path: '/api/github'
-      fullPath: '/api/github'
-      preLoaderRoute: typeof ApiGithubRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/build': {
-      id: '/api/build'
-      path: '/api/build'
-      fullPath: '/api/build'
-      preLoaderRoute: typeof ApiBuildRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/apps-deploy': {
-      id: '/api/apps-deploy'
-      path: '/api/apps-deploy'
-      fullPath: '/api/apps-deploy'
-      preLoaderRoute: typeof ApiAppsDeployRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/ai': {
-      id: '/api/ai'
-      path: '/api/ai'
-      fullPath: '/api/ai'
-      preLoaderRoute: typeof ApiAiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/agent': {
-      id: '/api/agent'
-      path: '/api/agent'
-      fullPath: '/api/agent'
-      preLoaderRoute: typeof ApiAgentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/account': {
-      id: '/api/account'
-      path: '/api/account'
-      fullPath: '/api/account'
-      preLoaderRoute: typeof ApiAccountRouteImport
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/access': {
@@ -1436,165 +1128,333 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAccessRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/launchkit/templates/': {
-      id: '/launchkit/templates/'
-      path: '/launchkit/templates'
-      fullPath: '/launchkit/templates/'
-      preLoaderRoute: typeof LaunchkitTemplatesIndexRouteImport
+    '/api/account': {
+      id: '/api/account'
+      path: '/api/account'
+      fullPath: '/api/account'
+      preLoaderRoute: typeof ApiAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/launchkit/marketplace/': {
-      id: '/launchkit/marketplace/'
-      path: '/'
-      fullPath: '/launchkit/marketplace/'
-      preLoaderRoute: typeof LaunchkitMarketplaceIndexRouteImport
-      parentRoute: typeof LaunchkitMarketplaceRoute
-    }
-    '/launchkit/apps/': {
-      id: '/launchkit/apps/'
-      path: '/launchkit/apps'
-      fullPath: '/launchkit/apps/'
-      preLoaderRoute: typeof LaunchkitAppsIndexRouteImport
+    '/api/agent': {
+      id: '/api/agent'
+      path: '/api/agent'
+      fullPath: '/api/agent'
+      preLoaderRoute: typeof ApiAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/explorer/$network/': {
-      id: '/explorer/$network/'
+    '/api/ai': {
+      id: '/api/ai'
+      path: '/api/ai'
+      fullPath: '/api/ai'
+      preLoaderRoute: typeof ApiAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/apps-deploy': {
+      id: '/api/apps-deploy'
+      path: '/api/apps-deploy'
+      fullPath: '/api/apps-deploy'
+      preLoaderRoute: typeof ApiAppsDeployRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/build': {
+      id: '/api/build'
+      path: '/api/build'
+      fullPath: '/api/build'
+      preLoaderRoute: typeof ApiBuildRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/github': {
+      id: '/api/github'
+      path: '/api/github'
+      fullPath: '/api/github'
+      preLoaderRoute: typeof ApiGithubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/listings': {
+      id: '/api/listings'
+      path: '/api/listings'
+      fullPath: '/api/listings'
+      preLoaderRoute: typeof ApiListingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/publish': {
+      id: '/api/publish'
+      path: '/api/publish'
+      fullPath: '/api/publish'
+      preLoaderRoute: typeof ApiPublishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/repo-agent': {
+      id: '/api/repo-agent'
+      path: '/api/repo-agent'
+      fullPath: '/api/repo-agent'
+      preLoaderRoute: typeof ApiRepoAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sponsor-topup': {
+      id: '/api/sponsor-topup'
+      path: '/api/sponsor-topup'
+      fullPath: '/api/sponsor-topup'
+      preLoaderRoute: typeof ApiSponsorTopupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/workspace': {
+      id: '/api/workspace'
+      path: '/api/workspace'
+      fullPath: '/api/workspace'
+      preLoaderRoute: typeof ApiWorkspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/$address': {
+      id: '/dev/$address'
+      path: '/dev/$address'
+      fullPath: '/dev/$address'
+      preLoaderRoute: typeof DevAddressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/': {
+      id: '/docs/'
       path: '/'
-      fullPath: '/explorer/$network/'
-      preLoaderRoute: typeof ExplorerNetworkIndexRouteImport
-      parentRoute: typeof ExplorerNetworkRoute
+      fullPath: '/docs/'
+      preLoaderRoute: typeof DocsIndexRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/ai': {
+      id: '/docs/ai'
+      path: '/ai'
+      fullPath: '/docs/ai'
+      preLoaderRoute: typeof DocsAiRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/apps': {
+      id: '/docs/apps'
+      path: '/apps'
+      fullPath: '/docs/apps'
+      preLoaderRoute: typeof DocsAppsRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/coding-agent': {
+      id: '/docs/coding-agent'
+      path: '/coding-agent'
+      fullPath: '/docs/coding-agent'
+      preLoaderRoute: typeof DocsCodingAgentRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/console': {
+      id: '/docs/console'
+      path: '/console'
+      fullPath: '/docs/console'
+      preLoaderRoute: typeof DocsConsoleRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/dashboard': {
+      id: '/docs/dashboard'
+      path: '/dashboard'
+      fullPath: '/docs/dashboard'
+      preLoaderRoute: typeof DocsDashboardRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/editor': {
+      id: '/docs/editor'
+      path: '/editor'
+      fullPath: '/docs/editor'
+      preLoaderRoute: typeof DocsEditorRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/explorer': {
+      id: '/docs/explorer'
+      path: '/explorer'
+      fullPath: '/docs/explorer'
+      preLoaderRoute: typeof DocsExplorerRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/faq': {
+      id: '/docs/faq'
+      path: '/faq'
+      fullPath: '/docs/faq'
+      preLoaderRoute: typeof DocsFaqRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/labels': {
+      id: '/docs/labels'
+      path: '/labels'
+      fullPath: '/docs/labels'
+      preLoaderRoute: typeof DocsLabelsRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/launchkit': {
+      id: '/docs/launchkit'
+      path: '/launchkit'
+      fullPath: '/docs/launchkit'
+      preLoaderRoute: typeof DocsLaunchkitRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/marketplace': {
+      id: '/docs/marketplace'
+      path: '/marketplace'
+      fullPath: '/docs/marketplace'
+      preLoaderRoute: typeof DocsMarketplaceRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/networks': {
+      id: '/docs/networks'
+      path: '/networks'
+      fullPath: '/docs/networks'
+      preLoaderRoute: typeof DocsNetworksRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/qie-id': {
+      id: '/docs/qie-id'
+      path: '/qie-id'
+      fullPath: '/docs/qie-id'
+      preLoaderRoute: typeof DocsQieIdRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/quickstart': {
+      id: '/docs/quickstart'
+      path: '/quickstart'
+      fullPath: '/docs/quickstart'
+      preLoaderRoute: typeof DocsQuickstartRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/registries': {
+      id: '/docs/registries'
+      path: '/registries'
+      fullPath: '/docs/registries'
+      preLoaderRoute: typeof DocsRegistriesRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/routebook': {
+      id: '/docs/routebook'
+      path: '/routebook'
+      fullPath: '/docs/routebook'
+      preLoaderRoute: typeof DocsRoutebookRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/selling': {
+      id: '/docs/selling'
+      path: '/selling'
+      fullPath: '/docs/selling'
+      preLoaderRoute: typeof DocsSellingRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/verification': {
+      id: '/docs/verification'
+      path: '/verification'
+      fullPath: '/docs/verification'
+      preLoaderRoute: typeof DocsVerificationRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/wallets': {
+      id: '/docs/wallets'
+      path: '/wallets'
+      fullPath: '/docs/wallets'
+      preLoaderRoute: typeof DocsWalletsRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/explorer/': {
+      id: '/explorer/'
+      path: '/'
+      fullPath: '/explorer/'
+      preLoaderRoute: typeof ExplorerIndexRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/explorer/$network': {
+      id: '/explorer/$network'
+      path: '/$network'
+      fullPath: '/explorer/$network'
+      preLoaderRoute: typeof ExplorerNetworkRouteImport
+      parentRoute: typeof ExplorerRoute
+    }
+    '/launchkit/ai': {
+      id: '/launchkit/ai'
+      path: '/launchkit/ai'
+      fullPath: '/launchkit/ai'
+      preLoaderRoute: typeof LaunchkitAiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/app-builder': {
+      id: '/launchkit/app-builder'
+      path: '/launchkit/app-builder'
+      fullPath: '/launchkit/app-builder'
+      preLoaderRoute: typeof LaunchkitAppBuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/coding-agent': {
+      id: '/launchkit/coding-agent'
+      path: '/launchkit/coding-agent'
+      fullPath: '/launchkit/coding-agent'
+      preLoaderRoute: typeof LaunchkitCodingAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/deploy': {
+      id: '/launchkit/deploy'
+      path: '/launchkit/deploy'
+      fullPath: '/launchkit/deploy'
+      preLoaderRoute: typeof LaunchkitDeployRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/editor': {
+      id: '/launchkit/editor'
+      path: '/launchkit/editor'
+      fullPath: '/launchkit/editor'
+      preLoaderRoute: typeof LaunchkitEditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/marketplace': {
+      id: '/launchkit/marketplace'
+      path: '/launchkit/marketplace'
+      fullPath: '/launchkit/marketplace'
+      preLoaderRoute: typeof LaunchkitMarketplaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/projects': {
+      id: '/launchkit/projects'
+      path: '/launchkit/projects'
+      fullPath: '/launchkit/projects'
+      preLoaderRoute: typeof LaunchkitProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/routebook/': {
+      id: '/routebook/'
+      path: '/routebook'
+      fullPath: '/routebook/'
+      preLoaderRoute: typeof RoutebookIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/routebook/$txHash': {
+      id: '/routebook/$txHash'
+      path: '/routebook/$txHash'
+      fullPath: '/routebook/$txHash'
+      preLoaderRoute: typeof RoutebookTxHashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/routebook/labels': {
+      id: '/routebook/labels'
+      path: '/routebook/labels'
+      fullPath: '/routebook/labels'
+      preLoaderRoute: typeof RoutebookLabelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/github/callback': {
+      id: '/api/github/callback'
+      path: '/callback'
+      fullPath: '/api/github/callback'
+      preLoaderRoute: typeof ApiGithubCallbackRouteImport
+      parentRoute: typeof ApiGithubRoute
+    }
+    '/api/github/push': {
+      id: '/api/github/push'
+      path: '/push'
+      fullPath: '/api/github/push'
+      preLoaderRoute: typeof ApiGithubPushRouteImport
+      parentRoute: typeof ApiGithubRoute
     }
     '/docs/cli/': {
       id: '/docs/cli/'
       path: '/cli'
       fullPath: '/docs/cli/'
       preLoaderRoute: typeof DocsCliIndexRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/launchkit/templates/submit': {
-      id: '/launchkit/templates/submit'
-      path: '/launchkit/templates/submit'
-      fullPath: '/launchkit/templates/submit'
-      preLoaderRoute: typeof LaunchkitTemplatesSubmitRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/launchkit/templates/$id': {
-      id: '/launchkit/templates/$id'
-      path: '/launchkit/templates/$id'
-      fullPath: '/launchkit/templates/$id'
-      preLoaderRoute: typeof LaunchkitTemplatesIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/launchkit/marketplace/sell': {
-      id: '/launchkit/marketplace/sell'
-      path: '/sell'
-      fullPath: '/launchkit/marketplace/sell'
-      preLoaderRoute: typeof LaunchkitMarketplaceSellRouteImport
-      parentRoute: typeof LaunchkitMarketplaceRoute
-    }
-    '/launchkit/marketplace/library': {
-      id: '/launchkit/marketplace/library'
-      path: '/library'
-      fullPath: '/launchkit/marketplace/library'
-      preLoaderRoute: typeof LaunchkitMarketplaceLibraryRouteImport
-      parentRoute: typeof LaunchkitMarketplaceRoute
-    }
-    '/launchkit/marketplace/creator': {
-      id: '/launchkit/marketplace/creator'
-      path: '/creator'
-      fullPath: '/launchkit/marketplace/creator'
-      preLoaderRoute: typeof LaunchkitMarketplaceCreatorRouteImport
-      parentRoute: typeof LaunchkitMarketplaceRoute
-    }
-    '/launchkit/marketplace/$listingId': {
-      id: '/launchkit/marketplace/$listingId'
-      path: '/$listingId'
-      fullPath: '/launchkit/marketplace/$listingId'
-      preLoaderRoute: typeof LaunchkitMarketplaceListingIdRouteImport
-      parentRoute: typeof LaunchkitMarketplaceRoute
-    }
-    '/launchkit/apps/$id': {
-      id: '/launchkit/apps/$id'
-      path: '/launchkit/apps/$id'
-      fullPath: '/launchkit/apps/$id'
-      preLoaderRoute: typeof LaunchkitAppsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/explorer/$network/verify': {
-      id: '/explorer/$network/verify'
-      path: '/verify'
-      fullPath: '/explorer/$network/verify'
-      preLoaderRoute: typeof ExplorerNetworkVerifyRouteImport
-      parentRoute: typeof ExplorerNetworkRoute
-    }
-    '/explorer/$network/txns': {
-      id: '/explorer/$network/txns'
-      path: '/txns'
-      fullPath: '/explorer/$network/txns'
-      preLoaderRoute: typeof ExplorerNetworkTxnsRouteImport
-      parentRoute: typeof ExplorerNetworkRoute
-    }
-    '/explorer/$network/tokens': {
-      id: '/explorer/$network/tokens'
-      path: '/tokens'
-      fullPath: '/explorer/$network/tokens'
-      preLoaderRoute: typeof ExplorerNetworkTokensRouteImport
-      parentRoute: typeof ExplorerNetworkRoute
-    }
-    '/explorer/$network/stats': {
-      id: '/explorer/$network/stats'
-      path: '/stats'
-      fullPath: '/explorer/$network/stats'
-      preLoaderRoute: typeof ExplorerNetworkStatsRouteImport
-      parentRoute: typeof ExplorerNetworkRoute
-    }
-    '/explorer/$network/blocks': {
-      id: '/explorer/$network/blocks'
-      path: '/blocks'
-      fullPath: '/explorer/$network/blocks'
-      preLoaderRoute: typeof ExplorerNetworkBlocksRouteImport
-      parentRoute: typeof ExplorerNetworkRoute
-    }
-    '/docs/cli/workspace': {
-      id: '/docs/cli/workspace'
-      path: '/cli/workspace'
-      fullPath: '/docs/cli/workspace'
-      preLoaderRoute: typeof DocsCliWorkspaceRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/cli/troubleshooting': {
-      id: '/docs/cli/troubleshooting'
-      path: '/cli/troubleshooting'
-      fullPath: '/docs/cli/troubleshooting'
-      preLoaderRoute: typeof DocsCliTroubleshootingRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/cli/sessions': {
-      id: '/docs/cli/sessions'
-      path: '/cli/sessions'
-      fullPath: '/docs/cli/sessions'
-      preLoaderRoute: typeof DocsCliSessionsRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/cli/reference': {
-      id: '/docs/cli/reference'
-      path: '/cli/reference'
-      fullPath: '/docs/cli/reference'
-      preLoaderRoute: typeof DocsCliReferenceRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/cli/permissions': {
-      id: '/docs/cli/permissions'
-      path: '/cli/permissions'
-      fullPath: '/docs/cli/permissions'
-      preLoaderRoute: typeof DocsCliPermissionsRouteImport
-      parentRoute: typeof DocsRoute
-    }
-    '/docs/cli/models': {
-      id: '/docs/cli/models'
-      path: '/cli/models'
-      fullPath: '/docs/cli/models'
-      preLoaderRoute: typeof DocsCliModelsRouteImport
       parentRoute: typeof DocsRoute
     }
     '/docs/cli/install': {
@@ -1604,32 +1464,165 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsCliInstallRouteImport
       parentRoute: typeof DocsRoute
     }
-    '/api/github/push': {
-      id: '/api/github/push'
-      path: '/push'
-      fullPath: '/api/github/push'
-      preLoaderRoute: typeof ApiGithubPushRouteImport
-      parentRoute: typeof ApiGithubRoute
+    '/docs/cli/models': {
+      id: '/docs/cli/models'
+      path: '/cli/models'
+      fullPath: '/docs/cli/models'
+      preLoaderRoute: typeof DocsCliModelsRouteImport
+      parentRoute: typeof DocsRoute
     }
-    '/api/github/callback': {
-      id: '/api/github/callback'
-      path: '/callback'
-      fullPath: '/api/github/callback'
-      preLoaderRoute: typeof ApiGithubCallbackRouteImport
-      parentRoute: typeof ApiGithubRoute
+    '/docs/cli/permissions': {
+      id: '/docs/cli/permissions'
+      path: '/cli/permissions'
+      fullPath: '/docs/cli/permissions'
+      preLoaderRoute: typeof DocsCliPermissionsRouteImport
+      parentRoute: typeof DocsRoute
     }
-    '/explorer/$network/tx/$hash': {
-      id: '/explorer/$network/tx/$hash'
-      path: '/tx/$hash'
-      fullPath: '/explorer/$network/tx/$hash'
-      preLoaderRoute: typeof ExplorerNetworkTxHashRouteImport
+    '/docs/cli/reference': {
+      id: '/docs/cli/reference'
+      path: '/cli/reference'
+      fullPath: '/docs/cli/reference'
+      preLoaderRoute: typeof DocsCliReferenceRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/cli/sessions': {
+      id: '/docs/cli/sessions'
+      path: '/cli/sessions'
+      fullPath: '/docs/cli/sessions'
+      preLoaderRoute: typeof DocsCliSessionsRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/cli/troubleshooting': {
+      id: '/docs/cli/troubleshooting'
+      path: '/cli/troubleshooting'
+      fullPath: '/docs/cli/troubleshooting'
+      preLoaderRoute: typeof DocsCliTroubleshootingRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/cli/workspace': {
+      id: '/docs/cli/workspace'
+      path: '/cli/workspace'
+      fullPath: '/docs/cli/workspace'
+      preLoaderRoute: typeof DocsCliWorkspaceRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/explorer/$network/': {
+      id: '/explorer/$network/'
+      path: '/'
+      fullPath: '/explorer/$network/'
+      preLoaderRoute: typeof ExplorerNetworkIndexRouteImport
       parentRoute: typeof ExplorerNetworkRoute
     }
-    '/explorer/$network/token/$hash': {
-      id: '/explorer/$network/token/$hash'
-      path: '/token/$hash'
-      fullPath: '/explorer/$network/token/$hash'
-      preLoaderRoute: typeof ExplorerNetworkTokenHashRouteImport
+    '/explorer/$network/blocks': {
+      id: '/explorer/$network/blocks'
+      path: '/blocks'
+      fullPath: '/explorer/$network/blocks'
+      preLoaderRoute: typeof ExplorerNetworkBlocksRouteImport
+      parentRoute: typeof ExplorerNetworkRoute
+    }
+    '/explorer/$network/stats': {
+      id: '/explorer/$network/stats'
+      path: '/stats'
+      fullPath: '/explorer/$network/stats'
+      preLoaderRoute: typeof ExplorerNetworkStatsRouteImport
+      parentRoute: typeof ExplorerNetworkRoute
+    }
+    '/explorer/$network/tokens': {
+      id: '/explorer/$network/tokens'
+      path: '/tokens'
+      fullPath: '/explorer/$network/tokens'
+      preLoaderRoute: typeof ExplorerNetworkTokensRouteImport
+      parentRoute: typeof ExplorerNetworkRoute
+    }
+    '/explorer/$network/txns': {
+      id: '/explorer/$network/txns'
+      path: '/txns'
+      fullPath: '/explorer/$network/txns'
+      preLoaderRoute: typeof ExplorerNetworkTxnsRouteImport
+      parentRoute: typeof ExplorerNetworkRoute
+    }
+    '/explorer/$network/verify': {
+      id: '/explorer/$network/verify'
+      path: '/verify'
+      fullPath: '/explorer/$network/verify'
+      preLoaderRoute: typeof ExplorerNetworkVerifyRouteImport
+      parentRoute: typeof ExplorerNetworkRoute
+    }
+    '/launchkit/apps/': {
+      id: '/launchkit/apps/'
+      path: '/launchkit/apps'
+      fullPath: '/launchkit/apps/'
+      preLoaderRoute: typeof LaunchkitAppsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/apps/$id': {
+      id: '/launchkit/apps/$id'
+      path: '/launchkit/apps/$id'
+      fullPath: '/launchkit/apps/$id'
+      preLoaderRoute: typeof LaunchkitAppsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/marketplace/': {
+      id: '/launchkit/marketplace/'
+      path: '/'
+      fullPath: '/launchkit/marketplace/'
+      preLoaderRoute: typeof LaunchkitMarketplaceIndexRouteImport
+      parentRoute: typeof LaunchkitMarketplaceRoute
+    }
+    '/launchkit/marketplace/$listingId': {
+      id: '/launchkit/marketplace/$listingId'
+      path: '/$listingId'
+      fullPath: '/launchkit/marketplace/$listingId'
+      preLoaderRoute: typeof LaunchkitMarketplaceListingIdRouteImport
+      parentRoute: typeof LaunchkitMarketplaceRoute
+    }
+    '/launchkit/marketplace/creator': {
+      id: '/launchkit/marketplace/creator'
+      path: '/creator'
+      fullPath: '/launchkit/marketplace/creator'
+      preLoaderRoute: typeof LaunchkitMarketplaceCreatorRouteImport
+      parentRoute: typeof LaunchkitMarketplaceRoute
+    }
+    '/launchkit/marketplace/library': {
+      id: '/launchkit/marketplace/library'
+      path: '/library'
+      fullPath: '/launchkit/marketplace/library'
+      preLoaderRoute: typeof LaunchkitMarketplaceLibraryRouteImport
+      parentRoute: typeof LaunchkitMarketplaceRoute
+    }
+    '/launchkit/marketplace/sell': {
+      id: '/launchkit/marketplace/sell'
+      path: '/sell'
+      fullPath: '/launchkit/marketplace/sell'
+      preLoaderRoute: typeof LaunchkitMarketplaceSellRouteImport
+      parentRoute: typeof LaunchkitMarketplaceRoute
+    }
+    '/launchkit/templates/': {
+      id: '/launchkit/templates/'
+      path: '/launchkit/templates'
+      fullPath: '/launchkit/templates/'
+      preLoaderRoute: typeof LaunchkitTemplatesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/templates/$id': {
+      id: '/launchkit/templates/$id'
+      path: '/launchkit/templates/$id'
+      fullPath: '/launchkit/templates/$id'
+      preLoaderRoute: typeof LaunchkitTemplatesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launchkit/templates/submit': {
+      id: '/launchkit/templates/submit'
+      path: '/launchkit/templates/submit'
+      fullPath: '/launchkit/templates/submit'
+      preLoaderRoute: typeof LaunchkitTemplatesSubmitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/explorer/$network/address/$hash': {
+      id: '/explorer/$network/address/$hash'
+      path: '/address/$hash'
+      fullPath: '/explorer/$network/address/$hash'
+      preLoaderRoute: typeof ExplorerNetworkAddressHashRouteImport
       parentRoute: typeof ExplorerNetworkRoute
     }
     '/explorer/$network/block/$height': {
@@ -1639,11 +1632,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExplorerNetworkBlockHeightRouteImport
       parentRoute: typeof ExplorerNetworkRoute
     }
-    '/explorer/$network/address/$hash': {
-      id: '/explorer/$network/address/$hash'
-      path: '/address/$hash'
-      fullPath: '/explorer/$network/address/$hash'
-      preLoaderRoute: typeof ExplorerNetworkAddressHashRouteImport
+    '/explorer/$network/token/$hash': {
+      id: '/explorer/$network/token/$hash'
+      path: '/token/$hash'
+      fullPath: '/explorer/$network/token/$hash'
+      preLoaderRoute: typeof ExplorerNetworkTokenHashRouteImport
+      parentRoute: typeof ExplorerNetworkRoute
+    }
+    '/explorer/$network/tx/$hash': {
+      id: '/explorer/$network/tx/$hash'
+      path: '/tx/$hash'
+      fullPath: '/explorer/$network/tx/$hash'
+      preLoaderRoute: typeof ExplorerNetworkTxHashRouteImport
       parentRoute: typeof ExplorerNetworkRoute
     }
   }

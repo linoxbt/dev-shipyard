@@ -34,11 +34,15 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error: raw, reset }: { error: unknown; reset: () => void }) {
+  // Anything can be thrown; the router types it as unknown, so normalise once.
+  const error = raw instanceof Error ? raw : new Error(String(raw));
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
+    reportLovableError(raw instanceof Error ? raw : new Error(String(raw)), {
+      boundary: "tanstack_root_error_component",
+    });
+  }, [raw]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -119,14 +123,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   // A page asked for on the wrong hostname goes to the one that serves it:
   // devstation.online/overview to the console, a docs page on the console to
   // docs.devstation.online. Does nothing without a root domain configured.
-  beforeLoad: ({ location, preload }) => {
+  beforeLoad: ({ location, preload }): undefined => {
     // Hovering a link preloads its route; only a real navigation may leave.
-    if (preload) return;
+    if (preload) return undefined;
     const target = crossHostTarget(currentHost(), location.pathname, location.searchStr);
-    if (!target) return;
+    if (!target) return undefined;
     if (typeof window !== "undefined") {
       window.location.replace(target);
-      return;
+      return undefined;
     }
     throw redirect({ href: target, statusCode: 308 });
   },
