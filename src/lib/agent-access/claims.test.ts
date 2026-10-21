@@ -3,6 +3,9 @@ import {
   CLAIM_COOKIE,
   claimCookieHeader,
   holdsClaim,
+  issueNonce,
+  nonceCookieHeader,
+  openNonce,
   openClaims,
   ownerOf,
   readCookie,
@@ -10,7 +13,7 @@ import {
   withClaim,
   withOwner,
 } from "./claims.server";
-import { agentStartMessage, issuedAtProblem } from "./request-auth";
+import { accessMessage, issuedAtProblem } from "./request-auth";
 
 // The gate that replaced "knowing an id is the whole authorisation".
 //
@@ -118,9 +121,19 @@ describe("what the cookie carries", () => {
 });
 
 describe("the message a wallet signs", () => {
-  it("names the wallet and says it authorises no transfer", () => {
-    const message = agentStartMessage({ address: OWNER, issuedAt: 1_700_000_000_000 });
+  it("names the wallet, the domain and the nonce, and says it authorises no transfer", () => {
+    const message = accessMessage({
+      domain: "devstation.online",
+      uri: "https://devstation.online",
+      address: OWNER,
+      chainId: 1990,
+      nonce: "n".repeat(32),
+      issuedAt: 1_700_000_000_000,
+    });
+    expect(message.startsWith("devstation.online wants you to sign in")).toBe(true);
     expect(message).toContain(OWNER.toLowerCase());
+    expect(message).toContain(`Nonce: ${"n".repeat(32)}`);
+    expect(message).toContain("Expiration Time: ");
     expect(message).toContain("costs no gas and authorises no transfer");
   });
 
@@ -130,5 +143,26 @@ describe("the message a wallet signs", () => {
     expect(issuedAtProblem(now - 6 * 60 * 1000, now)).toBe("expired");
     expect(issuedAtProblem(now + 5 * 60 * 1000, now)).toBe("future");
     expect(issuedAtProblem(Number.NaN, now)).toBe("expired");
+  });
+});
+
+describe("the sign-in nonce", () => {
+  it("opens what it issued, and nothing forged or expired", () => {
+    const now = 1_700_000_000_000;
+    const { nonce, sealed } = issueNonce(now);
+    expect(openNonce(sealed, now)).toBe(nonce);
+    expect(
+      openNonce(
+        sealed.replace(/.$/, (c) => (c === "A" ? "B" : "A")),
+        now,
+      ),
+    ).toBeNull();
+    expect(openNonce(sealed, now + 11 * 60 * 1000)).toBeNull();
+    expect(openNonce(undefined, now)).toBeNull();
+  });
+
+  it("is scoped to the access route and clears", () => {
+    expect(nonceCookieHeader("x")).toContain("Path=/api/access; HttpOnly; SameSite=Strict");
+    expect(nonceCookieHeader(null)).toContain("Max-Age=0");
   });
 });

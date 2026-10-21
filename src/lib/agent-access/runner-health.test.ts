@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { isolationFrom } from "./runner-health.server";
+import { afterEach, describe, expect, it } from "bun:test";
+import { forgetRunnerIsolation, isolationFrom, runnerIsolation } from "./runner-health.server";
 
 // The check that would have caught the live gap.
 //
@@ -62,5 +62,35 @@ describe("deciding whether a runner may be given agent work", () => {
   it("refuses an empty or unreadable reply", () => {
     expect(isolationFrom(null).ok).toBe(false);
     expect(isolationFrom({}).ok).toBe(false);
+  });
+});
+
+describe("probing the runner", () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    forgetRunnerIsolation();
+  });
+
+  it("refuses when the runner cannot be reached", async () => {
+    globalThis.fetch = (async () => {
+      throw new Error("ECONNREFUSED");
+    }) as unknown as typeof fetch;
+    expect((await runnerIsolation("https://r.test", "t")).ok).toBe(false);
+  });
+
+  it("refuses when /health answers with an error status", async () => {
+    for (const status of [401, 500]) {
+      forgetRunnerIsolation();
+      globalThis.fetch = (async () => new Response("", { status })) as unknown as typeof fetch;
+      const r = await runnerIsolation("https://r.test", "t");
+      expect(r.ok).toBe(false);
+      expect(r.why).toContain(String(status));
+    }
+  });
+
+  it("accepts a runner that reports a ready sandbox", async () => {
+    globalThis.fetch = (async () => Response.json(CURRENT)) as unknown as typeof fetch;
+    expect((await runnerIsolation("https://r.test", "t")).ok).toBe(true);
   });
 });

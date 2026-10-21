@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { COOKIE_NAME, openSession, readCookie } from "@/lib/github-oauth.server";
+import { linkedGithub } from "@/lib/github-link.server";
 import {
   branchNameFor,
   fetchTarball,
@@ -138,11 +139,11 @@ export const Route = createFileRoute("/api/repo-agent")({
 
         if (!ownsRun(request, id)) return fail(...NOT_YOURS);
         if (
-          !checkRateLimit(
+          !(await checkRateLimit(
             `repo-agent:poll:${clientKeyFromRequest(request)}`,
             PER_IP_POLL_LIMIT,
             WINDOW_MS,
-          )
+          ))
         ) {
           return fail("rate_limited", "Too many requests. Wait a moment.", 429);
         }
@@ -172,11 +173,11 @@ export const Route = createFileRoute("/api/repo-agent")({
 
         if (parsed.data.action === "start") {
           if (
-            !checkRateLimit(
+            !(await checkRateLimit(
               `repo-agent:start:${clientKeyFromRequest(request)}`,
               PER_IP_START_LIMIT,
               WINDOW_MS,
-            )
+            ))
           ) {
             return fail("rate_limited", "Too many runs started. Try again later.", 429);
           }
@@ -191,9 +192,12 @@ export const Route = createFileRoute("/api/repo-agent")({
         }
 
         // The one that could move a stranger's code into a repository of the
-        // caller's choosing.
+        // caller's choosing: the run must be this browser's, and the GitHub
+        // session must be the one linked to the signed-in wallet.
         if (!ownsRun(request, parsed.data.id)) return fail(...NOT_YOURS);
-        return pullRequest(token, parsed.data);
+        const linked = await linkedGithub(request, "open a pull request");
+        if (!linked.ok) return fail(linked.reason, linked.message, linked.status);
+        return pullRequest(linked.token, parsed.data);
       },
     },
   },

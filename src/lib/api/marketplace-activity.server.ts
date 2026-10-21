@@ -65,6 +65,10 @@ export async function recordListingActivity(input: {
         authorization: `Bearer ${cfg.token}`,
         "content-type": "application/json",
         "x-devstation-caller": input.caller.slice(0, 100),
+        // The verified grant wallet, when there is one. The runner counts a
+        // clone only from a signed-in wallet, so rotating client addresses no
+        // longer farms the clone count.
+        ...(input.wallet ? { "x-devstation-owner": input.wallet.toLowerCase() } : {}),
       },
       body: JSON.stringify({ listing: input.listing, action: input.action, wallet: input.wallet }),
       signal: AbortSignal.timeout(8_000),

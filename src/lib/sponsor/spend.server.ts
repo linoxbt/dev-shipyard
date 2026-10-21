@@ -45,8 +45,14 @@ export async function getSponsorSpendLast24hWei(
     `&sort=desc&page=1&offset=${PAGE_SIZE}`;
   const resp = await fetch(url, { signal: AbortSignal.timeout(EXPLORER_TIMEOUT_MS) });
   if (!resp.ok) throw new Error(`Explorer tx history unavailable (${resp.status})`);
-  const json = (await resp.json()) as { result?: TxListEntry[] };
-  const txs = Array.isArray(json.result) ? json.result : [];
+  const json = (await resp.json()) as { status?: string; message?: string; result?: unknown };
+  // An explorer error ("Max rate limit reached", a string in `result`) used to
+  // read as an empty history, i.e. zero spend, i.e. a full budget. Fail closed.
+  // An address with no transactions is the one legitimate empty answer.
+  if (!Array.isArray(json.result)) {
+    throw new Error("Explorer tx history was not a list; cannot verify the 24h budget safely.");
+  }
+  const txs = json.result as TxListEntry[];
   const cutoff = Math.floor(Date.now() / 1000) - 24 * 60 * 60;
 
   let spent = 0n;

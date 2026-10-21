@@ -8,6 +8,7 @@ import { getSponsorSpendLast24hWei } from "@/lib/sponsor/spend.server";
 import { paddedTopupCost, isSponsorEligibleChain } from "@/lib/sponsor/pricing";
 import { topupMessage, issuedAtProblem } from "@/lib/sponsor/request-auth";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
+import { CLAIM_COOKIE, openClaims, ownerOf, readCookie } from "@/lib/agent-access/claims.server";
 import { verifyMessage } from "viem";
 
 // Gas top-up for a deploy, on whichever mainnets are sponsor-eligible (see
@@ -21,12 +22,14 @@ import { verifyMessage } from "viem";
 // it's genuinely the deployer of record everywhere: no ownership caveats,
 // no special-cased "who owns this" logic anywhere in the client.
 //
-// There is deliberately NO per-wallet/per-IP gate: see DEPLOYMENT.md's
-// "Sponsored deploys" section for why. This is a real risk shift from a
-// pure gas-payer: once the native token lands in the requester's wallet,
-// nothing forces it to actually be spent on the deploy, each chain's daily
-// budget (cut off at 90% to leave headroom for concurrent in-flight
-// requests) is the only backstop against it being used as a plain faucet.
+// Abuse controls, in order: a signature proving the requester controls the
+// wallet being funded; per-wallet, per-IP and global rate limits (shared across
+// instances when the rate-limit store is configured); a hard cap on any single
+// top-up and on the gas estimate it is sized from; and each chain's rolling
+// daily budget (cut off at 90%). The caps matter because the top-up is sized
+// from bytecode the caller supplies: a constructor that burns gas up to the
+// block limit used to size a top-up as large as the whole remaining budget,
+// which the caller then kept without deploying.
 //
 // POST { chainId, requesterAddress, abi, bytecode, args }
 //   → { ok: true, toppedUp: boolean, amountWei: string, txHash: string|null }
@@ -60,6 +63,34 @@ const TOPUP_PER_WALLET_LIMIT = 3;
 const TOPUP_PER_IP_LIMIT = 5;
 const TOPUP_GLOBAL_LIMIT = 40;
 const TOPUP_WINDOW_MS = 60 * 60 * 1000;
+
+/** No real template or agent contract needs more than this to deploy. A
+ *  larger estimate is a constructor built to inflate the top-up. */
+export const MAX_SPONSORED_DEPLOY_GAS = 15_000_000n;
+
+/** The most native token one top-up may send, from SPONSOR_MAX_TOPUP_NATIVE.
+ *  The 0.3 default covers a deploy at MAX_SPONSORED_DEPLOY_GAS with the
+ *  padding in paddedTopupCost at QIE mainnet's ~1.1 gwei, so it refuses only
+ *  what the gas cap would not already allow at a sane gas price. */
+export function maxTopupWei(): bigint {
+  const raw = Number(process.env.SPONSOR_MAX_TOPUP_NATIVE ?? "0.3");
+  const value = Number.isFinite(raw) && raw > 0 ? raw : 0.3;
+  return parseEther(String(value));
+}
+
+// One send at a time per chain: two concurrent top-ups from the same sponsor
+// wallet picked the same nonce, and one of them failed after both had passed
+// the budget check.
+const sendQueues = new Map<number, Promise<unknown>>();
+export function serialised<T>(chainId: number, task: () => Promise<T>): Promise<T> {
+  const previous = sendQueues.get(chainId) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(task);
+  sendQueues.set(
+    chainId,
+    next.catch(() => undefined),
+  );
+  return next;
+}
 
 function fail(reason: string, message: string, status: number) {
   return Response.json({ ok: false, reason, message }, { status });
@@ -159,16 +190,26 @@ export const Route = createFileRoute("/api/sponsor-topup")({
           );
         }
 
+        // A browser that holds a grant for a different wallet is not the one
+        // asking. (The signature above is what proves control; this catches a
+        // stale session funding the wrong wallet.)
+        const granted = ownerOf(
+          openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE)),
+        );
+        if (granted && granted !== requesterKey) {
+          return fail("owner_mismatch", "Sign in with the wallet you are deploying from.", 403);
+        }
+
         // --- Abuse limits ----------------------------------------------------
         const ip = clientKeyFromRequest(request);
         if (
-          !checkRateLimit(
+          !(await checkRateLimit(
             `topup:wallet:${requesterKey}`,
             TOPUP_PER_WALLET_LIMIT,
             TOPUP_WINDOW_MS,
-          ) ||
-          !checkRateLimit(`topup:ip:${ip}`, TOPUP_PER_IP_LIMIT, TOPUP_WINDOW_MS) ||
-          !checkRateLimit("topup:global", TOPUP_GLOBAL_LIMIT, TOPUP_WINDOW_MS)
+          )) ||
+          !(await checkRateLimit(`topup:ip:${ip}`, TOPUP_PER_IP_LIMIT, TOPUP_WINDOW_MS)) ||
+          !(await checkRateLimit("topup:global", TOPUP_GLOBAL_LIMIT, TOPUP_WINDOW_MS))
         ) {
           return fail(
             "rate_limited",
@@ -241,11 +282,25 @@ export const Route = createFileRoute("/api/sponsor-topup")({
           const message = err instanceof Error ? err.message : "Gas estimation failed";
           return fail("topup_failed", message, 502);
         }
+        if (gasEstimate > MAX_SPONSORED_DEPLOY_GAS) {
+          return fail(
+            "too_expensive",
+            "This contract needs more gas than a sponsored deploy covers. Deploy with your own gas.",
+            400,
+          );
+        }
         const neededWei = paddedTopupCost(gasEstimate, gasPrice, 2n * ONCHAIN_WRITE_GAS);
         const shortfall = neededWei > currentBalance ? neededWei - currentBalance : 0n;
 
         if (shortfall === 0n) {
           return Response.json({ ok: true, toppedUp: false, amountWei: "0", txHash: null });
+        }
+        if (shortfall > maxTopupWei()) {
+          return fail(
+            "too_expensive",
+            "This deploy needs more gas than a sponsored top-up covers. Deploy with your own gas.",
+            400,
+          );
         }
 
         // Budget check: current rolling-24h spend + this top-up must stay
@@ -253,40 +308,45 @@ export const Route = createFileRoute("/api/sponsor-topup")({
         // because this check is not atomic across concurrent requests (see
         // spend.server.ts): it reduces, not eliminates, the chance of a
         // burst of requests overshooting the configured cap.
-        let spentWei: bigint;
-        try {
-          spentWei = await getSponsorSpendLast24hWei(chainId, clients.address);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "Could not verify remaining budget";
-          return fail("topup_failed", message, 502);
-        }
-        const budgetWei = (parseEther(String(cfg.dailyBudgetNative)) * 9n) / 10n;
-        if (spentWei + shortfall > budgetWei) {
-          return fail(
-            "budget_exhausted",
-            "Today's gas-sponsorship budget is used up. Deploy with your own wallet, or try again later.",
-            429,
-          );
-        }
+        // Budget check and send run one at a time per chain, so a concurrent
+        // request sees this one's spend and the two never share a nonce.
+        return serialised(chainId, async () => {
+          let spentWei: bigint;
+          try {
+            spentWei = await getSponsorSpendLast24hWei(chainId, clients.address);
+          } catch (err) {
+            const message =
+              err instanceof Error ? err.message : "Could not verify remaining budget";
+            return fail("topup_failed", message, 502);
+          }
+          const budgetWei = (parseEther(String(cfg.dailyBudgetNative)) * 9n) / 10n;
+          if (spentWei + shortfall > budgetWei) {
+            return fail(
+              "budget_exhausted",
+              "Today's gas-sponsorship budget is used up. Deploy with your own wallet, or try again later.",
+              429,
+            );
+          }
 
-        try {
-          const hash = await walletClient.sendTransaction({
-            account: walletClient.account!,
-            chain,
-            to: requester,
-            value: shortfall,
-          });
-          await publicClient.waitForTransactionReceipt({ hash });
-          return Response.json({
-            ok: true,
-            toppedUp: true,
-            amountWei: shortfall.toString(),
-            txHash: hash,
-          });
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "Top-up transfer failed";
-          return fail("topup_failed", message, 502);
-        }
+          try {
+            const hash = await walletClient.sendTransaction({
+              account: walletClient.account!,
+              chain,
+              to: requester,
+              value: shortfall,
+            });
+            await publicClient.waitForTransactionReceipt({ hash, timeout: 60_000 });
+            return Response.json({
+              ok: true,
+              toppedUp: true,
+              amountWei: shortfall.toString(),
+              txHash: hash,
+            });
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "Top-up transfer failed";
+            return fail("topup_failed", message, 502);
+          }
+        });
       },
     },
   },

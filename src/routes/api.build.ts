@@ -103,8 +103,8 @@ export const Route = createFileRoute("/api/build")({
 
         const ip = clientKeyFromRequest(request);
         if (
-          !checkRateLimit(`build:ip:${ip}`, PER_IP_LIMIT, WINDOW_MS) ||
-          !checkRateLimit("build:global", GLOBAL_LIMIT, WINDOW_MS)
+          !(await checkRateLimit(`build:ip:${ip}`, PER_IP_LIMIT, WINDOW_MS)) ||
+          !(await checkRateLimit("build:global", GLOBAL_LIMIT, WINDOW_MS))
         ) {
           return fail("rate_limited", "Too many builds. Try again later.", 429);
         }

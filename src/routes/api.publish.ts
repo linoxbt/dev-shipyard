@@ -90,7 +90,7 @@ export const Route = createFileRoute("/api/publish")({
         const slug = url.searchParams.get("slug");
         if (slug !== null) {
           const caller = clientKeyFromRequest(request);
-          if (!checkRateLimit(`publish:check:${caller}`, CHECK_LIMIT, WINDOW_MS)) {
+          if (!(await checkRateLimit(`publish:check:${caller}`, CHECK_LIMIT, WINDOW_MS))) {
             return fail("rate_limited", "Too many checks. Wait a moment.", 429);
           }
           const res = await toRunner(
@@ -141,10 +141,16 @@ export const Route = createFileRoute("/api/publish")({
         const owner = granted;
 
         const ip = clientKeyFromRequest(request);
-        if (!checkRateLimit(`publish:ip:${ip}`, PER_IP_LIMIT, WINDOW_MS)) {
+        if (!(await checkRateLimit(`publish:ip:${ip}`, PER_IP_LIMIT, WINDOW_MS))) {
           return fail("rate_limited", "Too many publishes. Try again later.", 429);
         }
-        if (!checkRateLimit(`publish:wallet:${owner.toLowerCase()}`, PER_WALLET_LIMIT, WINDOW_MS)) {
+        if (
+          !(await checkRateLimit(
+            `publish:wallet:${owner.toLowerCase()}`,
+            PER_WALLET_LIMIT,
+            WINDOW_MS,
+          ))
+        ) {
           return fail("rate_limited", "Too many publishes from this wallet.", 429);
         }
 

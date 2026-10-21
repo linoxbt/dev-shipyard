@@ -18,6 +18,7 @@ import {
   AI_PROVIDERS,
   resolveEndpoint,
 } from "./ai-settings";
+import { fetchWithGrant } from "./agent-access/grant";
 
 export { isAiConfigured };
 export type { AiProvider } from "./ai-settings";
@@ -54,9 +55,53 @@ export const SOLIDITY_SYSTEM_PROMPT =
   "onERC721Received), real OpenZeppelin import paths and real interface names " +
   "exactly as they are. Never invent a QIE20 contract, interface, or import.";
 
-// Cap on the assistant's reply length (a contract + explanation fits well
-// within this). Responses stream, so this is a length bound, not a timeout one.
-const MAX_TOKENS = 4096;
+// Cap on the assistant's reply length. Responses stream, so this is a length
+// bound, not a timeout one. It was 4096, which a contract plus its test JSON
+// overran: the Anthropic path never noticed, the agent's closing @@ directive
+// was lost, and the loop stopped without a word.
+const MAX_TOKENS = Number(import.meta.env?.VITE_AI_MAX_TOKENS) || 16000;
+
+/** Reasoning models (gpt-5.x, o-series) reject a non-default temperature. */
+export function acceptsTemperature(model: string): boolean {
+  const bare = model.split("/").pop() ?? model;
+  return !/^(gpt-5|o\d)/i.test(bare);
+}
+
+const RETRYABLE = new Set([408, 429, 500, 502, 503, 504, 529]);
+const sleep = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(t);
+        reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+
+/**
+ * fetch with up to three attempts on statuses a retry can fix (rate limits,
+ * overload, upstream 5xx), backing off and honouring Retry-After. A 4xx other
+ * than 408/429 means the request or key is wrong and is returned at once.
+ */
+export async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  doFetch: typeof fetch = fetch,
+  baseDelayMs = 800,
+): Promise<Response> {
+  let res: Response | undefined;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    res = await doFetch(url, init);
+    if (res.ok || !RETRYABLE.has(res.status) || attempt === 2) return res;
+    const after = Number(res.headers.get("retry-after"));
+    const wait = Number.isFinite(after) && after > 0 ? Math.min(after * 1000, 10_000) : 0;
+    await sleep(wait || baseDelayMs * 2 ** attempt, init.signal ?? undefined);
+  }
+  return res as Response;
+}
 const ANTHROPIC_VERSION = "2023-06-01";
 
 interface ChatOptions {
@@ -120,7 +165,7 @@ async function streamAnthropic({
         ...messages,
       ]
     : messages;
-  const resp = await fetch(`${endpoint}/v1/messages`, {
+  const resp = await fetchWithRetry(`${endpoint}/v1/messages`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -146,10 +191,13 @@ async function streamAnthropic({
 // --- Server proxy (/api/ai) ------------------------------------------------
 
 async function streamProxy({ system, messages, signal, onDelta }: StreamOptions): Promise<string> {
-  const resp = await fetch("/api/ai", {
+  // The proxy spends the operator's key, so it needs the wallet grant;
+  // fetchWithGrant asks for the one signature if this browser has none. The
+  // model is a request: the server honours it only if it is in its allow-list.
+  const resp = await fetchWithGrant("/api/ai", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ system, messages }),
+    body: JSON.stringify({ system, messages, model: getAiSettings().model }),
     signal,
   });
   if (!resp.ok || !resp.body) throw await providerError(resp, "AI proxy");
@@ -172,13 +220,13 @@ async function streamOpenAI({ system, messages, signal, onDelta }: StreamOptions
     headers["HTTP-Referer"] = "https://devstation.app";
     headers["X-Title"] = "DevStation";
   }
-  const resp = await fetch(endpoint, {
+  const resp = await fetchWithRetry(endpoint, {
     method: "POST",
     headers,
     body: JSON.stringify({
       model: s.model,
       messages: [{ role: "system", content: system }, ...messages],
-      temperature: 0.2,
+      ...(acceptsTemperature(s.model) ? { temperature: 0.2 } : {}),
       stream: true,
     }),
     signal,
@@ -190,7 +238,7 @@ async function streamOpenAI({ system, messages, signal, onDelta }: StreamOptions
 
 // Reads a provider's SSE stream, emitting text deltas. Shared by the direct
 // Anthropic/OpenAI paths and the server proxy (which forwards either format).
-async function consumeStream(
+export async function consumeStream(
   body: ReadableStream<Uint8Array>,
   format: "anthropic" | "openai",
   onDelta: (chunk: string) => void,
@@ -221,7 +269,7 @@ async function consumeStream(
     } else {
       let evt: {
         type?: string;
-        delta?: { type?: string; text?: string };
+        delta?: { type?: string; text?: string; stop_reason?: string | null };
         error?: { message?: string };
       };
       try {
@@ -230,6 +278,15 @@ async function consumeStream(
         continue;
       }
       if (evt.type === "error") throw new Error(evt.error?.message || "Anthropic stream error.");
+      // Anthropic reports why it stopped on message_delta. max_tokens is the
+      // same cut-off the OpenAI branch catches by finish_reason; a refusal is
+      // an answer the user needs to see as one, not an empty or partial reply.
+      if (evt.type === "message_delta") {
+        if (evt.delta?.stop_reason === "max_tokens") truncated = true;
+        if (evt.delta?.stop_reason === "refusal") {
+          throw new Error("The model declined this request. Rephrase it and try again.");
+        }
+      }
       if (
         evt.type === "content_block_delta" &&
         evt.delta?.type === "text_delta" &&

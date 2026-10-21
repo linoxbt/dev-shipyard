@@ -16,6 +16,28 @@ type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]:
 const ALLOWED =
   /^\/(stats|main-page|blocks|transactions|tokens|addresses|search|smart-contracts)(\/|\?|$)/;
 
+/**
+ * Whether `path` stays inside the allowed Blockscout namespaces once a URL
+ * parser has normalised it. A literal ".." check missed "%2e%2e", which the
+ * WHATWG parser treats as a dot segment ("/blocks/%2e%2e/%2e%2e/admin" became
+ * "/api/admin"), so the path is resolved the same way fetch will resolve it
+ * and the prefix is checked on the result.
+ */
+export function explorerPathAllowed(path: string): boolean {
+  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\")) return false;
+  if (/(^|\/)(\.|%2e){1,2}(\/|\?|$)/i.test(path)) return false;
+  let resolved: URL;
+  try {
+    resolved = new URL(`https://explorer.invalid/api/v2${path}`);
+  } catch {
+    return false;
+  }
+  if (resolved.host !== "explorer.invalid" || !resolved.pathname.startsWith("/api/v2/")) {
+    return false;
+  }
+  return ALLOWED.test(resolved.pathname.slice("/api/v2".length) + resolved.search);
+}
+
 const input = z.object({
   chainId: z.number(),
   path: z.string().min(1).max(512),
@@ -25,15 +47,9 @@ export const getExplorerData = createServerFn({ method: "GET" })
   .inputValidator(input)
   .handler(async ({ data }) => {
     const { chainId, path } = data;
-    // ALLOWED only checks the path's prefix, so a value like
-    // "/blocks/../../../admin/secret" still matches it while resolving to a
-    // completely different path once the URL is constructed below (the
-    // fetch/URL parser normalizes ".." segments). Reject any dot-dot segment
-    // outright: this is a same-host path-traversal check, not (only) SSRF:
-    // the host is always the fixed, chainId-derived explorerUrl below, never
-    // caller-controlled, but the "known API namespace" allowlist above is
-    // meant to be a real boundary, not just a prefix match.
-    if (path.includes("..") || !ALLOWED.test(path)) {
+    // Same-host path traversal, not SSRF: the host is always the fixed,
+    // chainId-derived explorerUrl below. See explorerPathAllowed.
+    if (!explorerPathAllowed(path)) {
       return { ok: false as const, status: 400, error: "Unsupported explorer path" };
     }
     const base = chainConfig(chainId).explorerUrl.replace(/\/$/, "");

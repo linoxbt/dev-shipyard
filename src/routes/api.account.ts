@@ -38,7 +38,7 @@ export const Route = createFileRoute("/api/account")({
         const owner = grantedOwner(request);
         if (!owner) return fail(...NO_GRANT);
         const caller = clientKeyFromRequest(request);
-        if (!checkRateLimit(`account:read:${caller}`, READ_LIMIT, WINDOW_MS)) {
+        if (!(await checkRateLimit(`account:read:${caller}`, READ_LIMIT, WINDOW_MS))) {
           return fail("rate_limited", "Too many requests. Wait a moment.", 429);
         }
         const result = await toAccounts("/account", { method: "GET" }, owner, caller);
@@ -52,7 +52,7 @@ export const Route = createFileRoute("/api/account")({
         const parsed = bodySchema.safeParse(await request.json().catch(() => null));
         if (!parsed.success) return fail("invalid_body", "Malformed request.", 400);
         const caller = clientKeyFromRequest(request);
-        if (!checkRateLimit(`account:write:${caller}`, WRITE_LIMIT, WINDOW_MS)) {
+        if (!(await checkRateLimit(`account:write:${caller}`, WRITE_LIMIT, WINDOW_MS))) {
           return fail("rate_limited", "Too many requests. Try again later.", 429);
         }
         const data = parsed.data;

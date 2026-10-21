@@ -1,7 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
-import { CLAIM_COOKIE, openClaims, ownerOf, readCookie } from "@/lib/agent-access/claims.server";
+import {
+  CLAIM_COOKIE,
+  openClaims,
+  ownerOf,
+  readCookie,
+  signValue,
+  verifyValue,
+} from "@/lib/agent-access/claims.server";
 
 // Publishes a generated app to a public URL.
 //
@@ -24,6 +31,8 @@ const PER_IP_LIMIT = 10;
 const GLOBAL_LIMIT = 60;
 const WINDOW_MS = 60 * 60 * 1000;
 
+const SITE_ID = /^[0-9a-f-]{36}$/;
+
 const bodySchema = z.object({
   /** path -> file contents. Paths are relative to the site root. */
   files: z.record(z.string(), z.string()),
@@ -34,8 +43,31 @@ const bodySchema = z.object({
   /** Deploy into the caller's OWN Netlify account instead of ours. */
   ownToken: z.string().min(10).optional(),
   /** Existing site to update, so republishing keeps the same URL. */
-  siteId: z.string().max(120).optional(),
+  siteId: z.string().regex(SITE_ID).optional(),
+  /** On the operator's token, the proof (issued by this route when it created
+   *  the site) that this wallet owns `siteId`. */
+  siteToken: z.string().max(100).optional(),
 });
+
+/** A Netlify site or deploy id. Anything else -- a domain, a path -- is
+ *  refused before it can reach a URL. */
+function isNetlifyId(id: string): boolean {
+  return SITE_ID.test(id);
+}
+
+/** A file path inside the deploy, as encoded URL segments, or null when it
+ *  could step outside it. encodeURI left "../" intact, which is a path into
+ *  the rest of Netlify's API on the operator's token. */
+export function deployFilePath(path: string): string | null {
+  const segments = path.replace(/^\/+/, "").split("/");
+  if (segments.some((s) => s === "" || s === "." || s === ".." || s.includes("\\"))) return null;
+  return segments.map(encodeURIComponent).join("/");
+}
+
+/** Binds a site to the wallet that created it on the operator's account. */
+export function siteTokenFor(owner: string, siteId: string): string {
+  return signValue(`netlify-site:${owner.toLowerCase()}:${siteId}`);
+}
 
 function fail(reason: string, message: string, status: number) {
   return Response.json({ ok: false, reason, message }, { status });
@@ -92,7 +124,7 @@ export const Route = createFileRoute("/api/apps-deploy")({
         const raw = await request.json().catch(() => null);
         const parsed = bodySchema.safeParse(raw);
         if (!parsed.success) return fail("invalid_body", "Malformed deploy request.", 400);
-        const { files, requesterAddress, name, ownToken, siteId } = parsed.data;
+        const { files, requesterAddress, name, ownToken, siteId, siteToken } = parsed.data;
 
         // A deploy on the operator's Netlify token spends the operator's
         // account. Someone bringing their own token is spending their own, so
@@ -104,7 +136,23 @@ export const Route = createFileRoute("/api/apps-deploy")({
           return fail("owner_mismatch", "You can only deploy under your own wallet.", 403);
         }
 
+        // On the operator's token a caller may only update a site this route
+        // created for the same wallet. Before this, any wallet could name any
+        // site the operator's token reaches -- production included -- and
+        // deploy over it.
+        if (siteId && !ownToken) {
+          if (
+            !granted ||
+            !verifyValue(`netlify-site:${granted.toLowerCase()}:${siteId}`, siteToken)
+          ) {
+            return fail("not_your_site", "That site was not created for this wallet.", 403);
+          }
+        }
+
         const paths = Object.keys(files);
+        if (paths.some((p) => deployFilePath(p) === null)) {
+          return fail("invalid_body", "File paths must stay inside the site.", 400);
+        }
         if (paths.length === 0) return fail("invalid_body", "No files to deploy.", 400);
         if (paths.length > FILES_LIMIT) {
           return fail("too_large", `A site may have at most ${FILES_LIMIT} files.`, 400);
@@ -120,10 +168,10 @@ export const Route = createFileRoute("/api/apps-deploy")({
         const ip = clientKeyFromRequest(request);
         const wallet = requesterAddress.toLowerCase();
         if (
-          !checkRateLimit(`appdeploy:ip:${ip}`, PER_IP_LIMIT, WINDOW_MS) ||
+          !(await checkRateLimit(`appdeploy:ip:${ip}`, PER_IP_LIMIT, WINDOW_MS)) ||
           (!ownToken &&
-            (!checkRateLimit(`appdeploy:wallet:${wallet}`, PER_WALLET_LIMIT, WINDOW_MS) ||
-              !checkRateLimit("appdeploy:global", GLOBAL_LIMIT, WINDOW_MS)))
+            (!(await checkRateLimit(`appdeploy:wallet:${wallet}`, PER_WALLET_LIMIT, WINDOW_MS)) ||
+              !(await checkRateLimit("appdeploy:global", GLOBAL_LIMIT, WINDOW_MS))))
         ) {
           return fail("rate_limited", "Too many deploys. Try again later.", 429);
         }
@@ -164,8 +212,11 @@ export const Route = createFileRoute("/api/apps-deploy")({
             }
             site = ((await created.json()) as { id: string }).id;
           }
+          if (!isNetlifyId(site)) {
+            return fail("provider_error", "The hosting provider returned an unexpected site.", 502);
+          }
 
-          const deployResp = await netlify(`/sites/${site}/deploys`, token, {
+          const deployResp = await netlify(`/sites/${encodeURIComponent(site)}/deploys`, token, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ files: digests }),
@@ -184,6 +235,13 @@ export const Route = createFileRoute("/api/apps-deploy")({
             ssl_url?: string;
             deploy_ssl_url?: string;
           };
+          if (!isNetlifyId(deploy.id)) {
+            return fail(
+              "provider_error",
+              "The hosting provider returned an unexpected deploy.",
+              502,
+            );
+          }
 
           // 2. Upload only the files it asked for, matched back by digest.
           const bySha = new Map<string, { path: string; content: string }>();
@@ -194,7 +252,7 @@ export const Route = createFileRoute("/api/apps-deploy")({
             const entry = bySha.get(sha);
             if (!entry) continue;
             const put = await netlify(
-              `/deploys/${deploy.id}/files/${encodeURI(entry.path.replace(/^\/+/, ""))}`,
+              `/deploys/${encodeURIComponent(deploy.id)}/files/${deployFilePath(entry.path)}`,
               token,
               {
                 method: "PUT",
@@ -210,6 +268,8 @@ export const Route = createFileRoute("/api/apps-deploy")({
           return Response.json({
             ok: true,
             siteId: site,
+            // Present this with siteId to update the same site later.
+            siteToken: !ownToken && granted ? siteTokenFor(granted, site) : null,
             deployId: deploy.id,
             url: deploy.ssl_url ?? deploy.deploy_ssl_url ?? null,
           });

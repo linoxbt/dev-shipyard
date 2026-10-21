@@ -131,3 +131,53 @@ export function readCookie(header: string | null | undefined, name: string): str
   }
   return undefined;
 }
+
+// The sign-in nonce.
+//
+// Issued by GET /api/access?nonce into a short-lived httpOnly cookie, so only
+// this browser holds it; POST /api/access requires the signed message to carry
+// the same value and clears the cookie. The usedNonce check in api.access.ts
+// refuses a second use while the nonce is still live.
+
+export const NONCE_COOKIE = "devstation_access_nonce";
+/** As long as the signature itself is valid for, plus a slow wallet. */
+const NONCE_TTL_MS = 10 * 60 * 1000;
+
+export function issueNonce(now = Date.now()): { nonce: string; sealed: string } {
+  // EIP-4361 nonces are alphanumeric, at least 8 characters.
+  const nonce = randomBytes(16).toString("hex");
+  const payload = `${nonce}.${now + NONCE_TTL_MS}`;
+  return { nonce, sealed: `${payload}.${sign(`nonce:${payload}`)}` };
+}
+
+/** The nonce in a sealed cookie value, or null if forged or expired. */
+export function openNonce(raw: string | undefined, now = Date.now()): string | null {
+  if (!raw) return null;
+  const [nonce, exp, mac] = raw.split(".");
+  if (!nonce || !exp || !mac) return null;
+  const a = Buffer.from(mac);
+  const b = Buffer.from(sign(`nonce:${nonce}.${exp}`));
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  if (!/^[0-9a-f]{32}$/.test(nonce) || Number(exp) < now) return null;
+  return nonce;
+}
+
+export function nonceCookieHeader(sealed: string | null): string {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  const maxAge = sealed ? Math.floor(NONCE_TTL_MS / 1000) : 0;
+  return `${NONCE_COOKIE}=${sealed ?? ""}; Path=/api/access; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`;
+}
+
+/** An HMAC over `value` with the claims key, for small server-issued
+ *  capabilities (see api.apps-deploy.ts's site token). */
+export function signValue(value: string): string {
+  return sign(`value:${value}`);
+}
+
+/** Constant-time check of a signValue result. */
+export function verifyValue(value: string, mac: string | undefined): boolean {
+  if (!mac) return false;
+  const a = Buffer.from(mac);
+  const b = Buffer.from(signValue(value));
+  return a.length === b.length && timingSafeEqual(a, b);
+}

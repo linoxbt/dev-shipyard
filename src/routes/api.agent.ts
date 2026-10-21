@@ -109,7 +109,7 @@ export const Route = createFileRoute("/api/agent")({
         if (!cfg.url || !cfg.token)
           return fail("not_configured", "Builds are not configured.", 503);
         const ip = clientKeyFromRequest(request);
-        if (!checkRateLimit(`agent:poll:${ip}`, PER_IP_POLL_LIMIT, WINDOW_MS)) {
+        if (!(await checkRateLimit(`agent:poll:${ip}`, PER_IP_POLL_LIMIT, WINDOW_MS))) {
           return fail("rate_limited", "Too many requests.", 429);
         }
         if (!/^agent-[a-z0-9-]+$/i.test(id)) return fail("bad_id", "Unknown job.", 400);
@@ -134,11 +134,11 @@ export const Route = createFileRoute("/api/agent")({
         if (!id || !/^agent-[a-z0-9-]+$/i.test(id)) return fail("bad_id", "Unknown job.", 400);
         if (!ownsJob(request, id)) return fail(...NOT_YOURS);
         if (
-          !checkRateLimit(
+          !(await checkRateLimit(
             `agent:cancel:${clientKeyFromRequest(request)}`,
             PER_IP_START_LIMIT,
             WINDOW_MS,
-          )
+          ))
         ) {
           return fail("rate_limited", "Too many requests.", 429);
         }
@@ -164,7 +164,7 @@ export const Route = createFileRoute("/api/agent")({
         if (!ownsJob(request, parsed.data.id)) return fail(...NOT_YOURS);
 
         const ip = clientKeyFromRequest(request);
-        if (!checkRateLimit(`agent:answer:${ip}`, PER_IP_START_LIMIT, WINDOW_MS)) {
+        if (!(await checkRateLimit(`agent:answer:${ip}`, PER_IP_START_LIMIT, WINDOW_MS))) {
           return fail("rate_limited", "Too many requests.", 429);
         }
 
@@ -206,7 +206,7 @@ export const Route = createFileRoute("/api/agent")({
         if (!parsed.success) return fail("invalid_body", "Malformed request.", 400);
 
         const ip = clientKeyFromRequest(request);
-        if (!checkRateLimit(`agent:start:${ip}`, PER_IP_START_LIMIT, WINDOW_MS)) {
+        if (!(await checkRateLimit(`agent:start:${ip}`, PER_IP_START_LIMIT, WINDOW_MS))) {
           return fail("rate_limited", "Too many builds from this client. Try again later.", 429);
         }
 
@@ -219,7 +219,11 @@ export const Route = createFileRoute("/api/agent")({
 
         // Per wallet as well as per IP. IPs are cheap; a wallet is not.
         if (
-          !checkRateLimit(`agent:wallet:${owner.toLowerCase()}`, PER_WALLET_START_LIMIT, WINDOW_MS)
+          !(await checkRateLimit(
+            `agent:wallet:${owner.toLowerCase()}`,
+            PER_WALLET_START_LIMIT,
+            WINDOW_MS,
+          ))
         ) {
           return fail("rate_limited", "Too many runs from this wallet. Try again later.", 429);
         }

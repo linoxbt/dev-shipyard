@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { COOKIE_NAME, openSession } from "@/lib/github-oauth.server";
+import { linkedGithub } from "@/lib/github-link.server";
 import {
   branchNameFor,
   changedFiles,
@@ -161,8 +161,12 @@ async function resolveSource(request: Request, source: Source): Promise<Source |
   const target = parseRepo(source.repo);
   if (!target)
     return fail("invalid_repo", "That is not a GitHub repository. Use owner/name or its URL.", 400);
-  const token = openSession(readCookie(request.headers.get("cookie"), COOKIE_NAME));
-  if (!token) return source;
+  // A private repository is read with the person's session only when that
+  // session is the GitHub account linked to the signed-in wallet. Otherwise it
+  // goes to the runner as a public one.
+  const linked = await linkedGithub(request, "import a private repository");
+  if (!linked.ok) return source;
+  const { token } = linked;
   try {
     const repo = await getRepo(token, target.owner, target.name);
     if (!repo.private) return { kind: "github", repo: repo.fullName, ref: source.ref };
@@ -225,7 +229,11 @@ export const Route = createFileRoute("/api/workspace")({
         }
         if (!holdsClaim(claimsOf(request), id)) return fail(...NOT_YOURS);
         if (
-          !checkRateLimit(`workspace:poll:${clientKeyFromRequest(request)}`, POLL_LIMIT, WINDOW_MS)
+          !(await checkRateLimit(
+            `workspace:poll:${clientKeyFromRequest(request)}`,
+            POLL_LIMIT,
+            WINDOW_MS,
+          ))
         ) {
           return fail("rate_limited", "Too many requests. Wait a moment.", 429);
         }
@@ -255,7 +263,7 @@ export const Route = createFileRoute("/api/workspace")({
         if (data.action === "create") {
           const owner = ownerOf(claims);
           if (!owner) return fail(...NO_GRANT);
-          if (!checkRateLimit(`workspace:start:${key}`, START_LIMIT, WINDOW_MS)) {
+          if (!(await checkRateLimit(`workspace:start:${key}`, START_LIMIT, WINDOW_MS))) {
             return fail("rate_limited", "Too many workspaces started. Try again later.", 429);
           }
           const { url, token } = runnerConfig();
@@ -272,7 +280,7 @@ export const Route = createFileRoute("/api/workspace")({
           if (!holdsClaim(claims, data.id)) return fail(...NOT_YOURS);
           const owner = ownerOf(claims);
           if (!owner) return fail(...NO_GRANT);
-          if (!checkRateLimit(`workspace:message:${key}`, MESSAGE_LIMIT, WINDOW_MS)) {
+          if (!(await checkRateLimit(`workspace:message:${key}`, MESSAGE_LIMIT, WINDOW_MS))) {
             return fail("rate_limited", "Too many messages. Try again later.", 429);
           }
           const sent = await runner(
@@ -299,7 +307,7 @@ export const Route = createFileRoute("/api/workspace")({
         if (data.action === "join") {
           const owner = ownerOf(claims);
           if (!owner) return fail(...NO_GRANT);
-          if (!checkRateLimit(`workspace:join:${key}`, START_LIMIT, WINDOW_MS)) {
+          if (!(await checkRateLimit(`workspace:join:${key}`, START_LIMIT, WINDOW_MS))) {
             return fail("rate_limited", "Too many workspaces opened. Try again later.", 429);
           }
           const path = `/agent/workspaces/${encodeURIComponent(data.id)}`;
@@ -368,8 +376,9 @@ export const Route = createFileRoute("/api/workspace")({
 
         // Opening a pull request is the one thing here that needs GitHub, and
         // it is the person's own action, with their own session.
-        const token = openSession(readCookie(request.headers.get("cookie"), COOKIE_NAME));
-        if (!token) return fail("not_signed_in", "Connect GitHub to open a pull request.", 401);
+        const linked = await linkedGithub(request, "open a pull request");
+        if (!linked.ok) return fail(linked.reason, linked.message, linked.status);
+        const { token } = linked;
         const target = parseRepo(data.repo);
         if (!target) return fail("invalid_repo", "That is not a repository.", 400);
 

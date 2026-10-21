@@ -38,9 +38,13 @@ function allowedHosts(): Set<string> {
   return hosts;
 }
 
+/** Opt-in. It defaulted on while QIE's explorer certificate was expired;
+ *  that certificate was renewed on 2026-09-03, and verification relaxed by
+ *  default is a standing exemption nobody remembers to remove. An operator
+ *  who needs it again sets EXPLORER_ALLOW_EXPIRED_CERT=1. */
 export function fallbackEnabled(): boolean {
   const raw = (process.env.EXPLORER_ALLOW_EXPIRED_CERT ?? "").trim().toLowerCase();
-  return raw !== "0" && raw !== "false" && raw !== "off";
+  return raw === "1" || raw === "true" || raw === "on";
 }
 
 /** Certificate problems only. A DNS failure, a refused connection or a 500 must

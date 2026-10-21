@@ -66,7 +66,7 @@ export const recordMarketplaceActivity = createServerFn({ method: "POST" })
       import("@/lib/api/marketplace-activity.server"),
     ]);
     const caller = limits.clientKeyFromRequest(server.getRequest());
-    if (!limits.checkRateLimit(`marketplace-activity:${caller}`, 120, HOUR_MS)) {
+    if (!(await limits.checkRateLimit(`marketplace-activity:${caller}`, 120, HOUR_MS))) {
       return { counted: false };
     }
     const wallet = claims.ownerOf(

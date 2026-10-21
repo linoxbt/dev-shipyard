@@ -452,6 +452,31 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
           Requests route through this app&apos;s <span className="text-primary">server proxy</span>.
           The API key stays server-side and is never sent to the browser.
         </div>
+        {/* The server honours this when its provider serves the model (an
+            OpenRouter key serves all of these), and uses its default otherwise. */}
+        <div>
+          <label className={labelCls}>Model</label>
+          <select
+            className={fieldCls}
+            value={s.provider === "openrouter" ? s.model : ""}
+            onChange={(e) => {
+              if (s.provider !== "openrouter") s.setProvider("openrouter");
+              s.setModel(e.target.value);
+            }}
+          >
+            {s.provider !== "openrouter" && <option value="">Server default</option>}
+            {modelsByVendor(AI_PROVIDERS.openrouter).map((group) => (
+              <optgroup key={group.vendor} label={group.vendor}>
+                {group.models.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.label}
+                    {model.note ? `: ${model.note}` : ""}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
         <div className="flex justify-end">
           <button onClick={onClose} className="font-mono text-[10px] text-primary hover:underline">
             Done

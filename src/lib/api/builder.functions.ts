@@ -577,6 +577,12 @@ async function readWallet(chainId: number, address: string): Promise<BuilderChai
   };
 }
 
+// This server function is public, so the address here is whoever the caller
+// names, and it is sent as x-devstation-owner. That is safe only because the
+// runner's GET /publish is a read of public facts (each site is served at its
+// own address anyway): slug, dates and size. It must stay read-only -- never
+// route a mutation through here -- and the runner should eventually expose
+// this as an unowned public listing so no caller-chosen owner is asserted.
 async function readSites(address: string): Promise<BuilderOverview["sites"]> {
   const url = (process.env.RUNNER_URL ?? "").replace(/\/+$/, "");
   const token = process.env.RUNNER_TOKEN ?? "";

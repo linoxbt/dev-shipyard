@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { COOKIE_NAME, openSession, readCookie } from "@/lib/github-oauth.server";
 import { pushApp, repoNameFrom } from "@/lib/github";
-import { accountOf, githubUser, grantedOwner } from "@/lib/accounts.server";
-import { clientKeyFromRequest } from "@/lib/rateLimit.server";
+import { linkedGithub } from "@/lib/github-link.server";
 
 // Pushes an app to GitHub using the signed-in session.
 //
@@ -29,31 +27,11 @@ export const Route = createFileRoute("/api/github/push")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const token = openSession(readCookie(request.headers.get("cookie"), COOKIE_NAME));
-        if (!token) return fail("not_signed_in", "Connect your GitHub account first.", 401);
-
         // The cookie says which GitHub account; the grant says which wallet.
-        // A push needs them to be the pair that was linked, or the link would
-        // be decoration and any session in the browser could push.
-        const owner = grantedOwner(request);
-        if (!owner) {
-          return fail("no_grant", "Connect a wallet and sign once to push. It costs no gas.", 401);
-        }
-        const user = await githubUser(token);
-        if (!user) return fail("not_signed_in", "Connect your GitHub account first.", 401);
-        const account = await accountOf(owner, clientKeyFromRequest(request));
-        if (!account) {
-          return fail("unreachable", "Your account could not be read right now.", 502);
-        }
-        if (account.github?.id !== user.id) {
-          return fail(
-            "not_linked",
-            account.github
-              ? `This wallet is linked to @${account.github.login}, not @${user.login}.`
-              : `Link @${user.login} to this wallet before pushing.`,
-            403,
-          );
-        }
+        // A push needs them to be the pair that was linked.
+        const linked = await linkedGithub(request, "push");
+        if (!linked.ok) return fail(linked.reason, linked.message, linked.status);
+        const { token } = linked;
 
         const parsed = body.safeParse(await request.json().catch(() => null));
         if (!parsed.success) return fail("invalid_body", "Malformed push request.", 400);

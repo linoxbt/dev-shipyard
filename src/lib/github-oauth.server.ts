@@ -1,4 +1,11 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHmac,
+  hkdfSync,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 
 // GitHub sign-in, server side.
 //
@@ -64,32 +71,49 @@ function sign(value: string): string {
   return createHmac("sha256", signingKey()).update(value).digest("base64url");
 }
 
-/** Signed so a forged cookie cannot hand the server an attacker's token -
- *  every request that pushes code is authorised by this value. */
-export function sealSession(token: string): string {
-  const payload = Buffer.from(JSON.stringify({ token, exp: Date.now() + SESSION_TTL_MS })).toString(
-    "base64url",
+/** AES-256-GCM key for the session cookie, derived from the signing key so
+ *  there is still one secret to manage. */
+function sessionKey(): Buffer {
+  return Buffer.from(
+    hkdfSync("sha256", signingKey(), "devstation", "github-session-cookie:v2", 32),
   );
-  return `${payload}.${sign(payload)}`;
+}
+
+/**
+ * Sealed with AES-256-GCM: encrypted so the token is not readable from the
+ * cookie (it was only signed, so the plaintext OAuth token sat in base64 in
+ * every request and every log that captured a Cookie header), and
+ * authenticated so a forged cookie cannot hand the server an attacker's token.
+ * Cookies in the old signed-only form no longer open; their owners sign in to
+ * GitHub again.
+ */
+export function sealSession(token: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", sessionKey(), iv);
+  const plain = Buffer.from(JSON.stringify({ token, exp: Date.now() + SESSION_TTL_MS }));
+  const sealed = Buffer.concat([cipher.update(plain), cipher.final(), cipher.getAuthTag()]);
+  return `v2.${iv.toString("base64url")}.${sealed.toString("base64url")}`;
 }
 
 export function openSession(raw: string | undefined): string | null {
   if (!raw) return null;
-  const [payload, mac] = raw.split(".");
-  if (!payload || !mac) return null;
-  const expected = sign(payload);
-  // Constant time: a leaky comparison here is a forgeable session.
-  const a = Buffer.from(mac);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  const [version, ivPart, body] = raw.split(".");
+  if (version !== "v2" || !ivPart || !body) return null;
   try {
-    const { token, exp } = JSON.parse(Buffer.from(payload, "base64url").toString()) as {
-      token?: string;
-      exp?: number;
-    };
+    const iv = Buffer.from(ivPart, "base64url");
+    const data = Buffer.from(body, "base64url");
+    if (iv.length !== 12 || data.length <= 16) return null;
+    const decipher = createDecipheriv("aes-256-gcm", sessionKey(), iv);
+    decipher.setAuthTag(data.subarray(data.length - 16));
+    const plain = Buffer.concat([
+      decipher.update(data.subarray(0, data.length - 16)),
+      decipher.final(),
+    ]);
+    const { token, exp } = JSON.parse(plain.toString()) as { token?: string; exp?: number };
     if (!token || !exp || exp < Date.now()) return null;
     return token;
   } catch {
+    // A wrong tag (forged or tampered) throws in final().
     return null;
   }
 }

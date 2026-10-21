@@ -23,35 +23,54 @@ export const AGENT_SIG_TTL_MS = 5 * 60 * 1000;
 const CLOCK_SKEW_MS = 60 * 1000;
 
 /**
- * The exact message a wallet signs to start a run.
+ * The exact message a wallet signs for the access grant, in EIP-4361
+ * (Sign-In with Ethereum) form.
  *
- * The project is in it so a signature for one project cannot be replayed to
- * start work on another, and the timestamp so it expires. It says plainly that
- * it authorises no transfer, because a wallet prompt with no explanation is
- * how people learn to sign things without reading them.
+ * It used to be a bare "address + timestamp" text. Any site could ask for
+ * those exact bytes, and one signature minted a fresh grant as often as it was
+ * replayed within five minutes. Now it names the domain and URI it is for, so
+ * a wallet that understands EIP-4361 warns when another site asks for it, and
+ * carries a nonce the server issued to THIS browser in an httpOnly cookie and
+ * accepts once.
  */
-export function agentStartMessage(params: { address: string; issuedAt: number }): string {
+export function accessMessage(params: {
+  domain: string;
+  uri: string;
+  address: string;
+  chainId: number;
+  nonce: string;
+  issuedAt: number;
+}): string {
   return [
-    "DevStation agent run",
+    `${params.domain} wants you to sign in with your Ethereum account:`,
+    params.address.toLowerCase(),
     "",
-    `address: ${params.address.toLowerCase()}`,
-    `issuedAt: ${new Date(params.issuedAt).toISOString()}`,
+    "Sign in to DevStation so runs, builds and publishes can be billed and attributed to " +
+      "you. It costs no gas and authorises no transfer.",
     "",
-    "Signing this proves you control this wallet, so the run can be billed and",
-    "attributed to you. It costs no gas and authorises no transfer.",
+    `URI: ${params.uri}`,
+    "Version: 1",
+    `Chain ID: ${params.chainId}`,
+    `Nonce: ${params.nonce}`,
+    `Issued At: ${new Date(params.issuedAt).toISOString()}`,
+    `Expiration Time: ${new Date(params.issuedAt + AGENT_SIG_TTL_MS).toISOString()}`,
   ].join("\n");
 }
 
-export type AgentAuthProblem = "expired" | "future" | "bad_signature";
+export type AgentAuthProblem = "expired" | "future" | "bad_signature" | "bad_nonce";
 
 export const AGENT_AUTH_MESSAGE: Record<AgentAuthProblem, string> = {
   expired: "That request expired. Try again.",
   future: "Your device clock looks wrong. Check it and try again.",
   bad_signature: "Could not verify that signature came from your wallet.",
+  bad_nonce: "That sign-in request expired or was already used. Try again.",
 };
 
 /** Timestamp window check, split out so it is unit-testable without crypto. */
-export function issuedAtProblem(issuedAt: number, now = Date.now()): AgentAuthProblem | null {
+export function issuedAtProblem(
+  issuedAt: number,
+  now = Date.now(),
+): Exclude<AgentAuthProblem, "bad_signature" | "bad_nonce"> | null {
   if (!Number.isFinite(issuedAt)) return "expired";
   if (issuedAt > now + CLOCK_SKEW_MS) return "future";
   if (now - issuedAt > AGENT_SIG_TTL_MS) return "expired";

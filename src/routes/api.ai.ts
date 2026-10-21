@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
+import { CLAIM_COOKIE, openClaims, ownerOf, readCookie } from "@/lib/agent-access/claims.server";
+import { AI_PROVIDERS, modelIds } from "@/lib/ai-settings";
 
 // Server-side AI proxy. When the deployment sets a server-only key (NO VITE_
 // prefix, so it never enters the client bundle), the browser calls THIS route
@@ -14,18 +16,81 @@ import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 // Enable on the client with VITE_AI_PROXY=true (public, just a flag). Without a
 // server key, POST returns 501 and the client falls back to its direct path.
 //
-// Rate-limited (see rateLimit.server.ts): this route holds a shared,
-// operator-funded provider key with no per-user auth, so an unlimited proxy
-// would let anyone burn that key's entire budget. Both a per-IP and a global
-// cap apply; neither is a hard distributed guarantee (see that module's
-// header comment), but it closes the "loop a curl command forever" case.
-const PER_IP_LIMIT = 20;
+// This route holds a shared, operator-funded provider key. It used to need no
+// authentication at all, took any system prompt and any messages at up to 64k
+// output tokens, and was limited per IP by a header the client wrote: an open
+// relay for the operator's key. Now it needs the wallet grant (one signature,
+// see api.access.ts), is limited per wallet as well as per IP and globally,
+// and bounds what one request may ask for.
+const PER_WALLET_LIMIT = 30;
+const PER_IP_LIMIT = 40;
 const GLOBAL_LIMIT = 300;
 const WINDOW_MS = 5 * 60 * 1000;
 
+/** Bounds on one request. The App Builder sends whole files back and forth,
+ *  so these are sized for that, not for a chat line. */
+const MAX_MESSAGES = 60;
+const MAX_REQUEST_CHARS = 600_000;
+const MAX_SYSTEM_CHARS = 120_000;
+
+type ChatMessageIn = { role: "user" | "assistant"; content: string };
+
+/**
+ * The messages as the provider will see them, or why they are refused. Only
+ * user/assistant roles with text content: a caller cannot inject a system
+ * turn, tool results or images.
+ */
+export function sanitiseMessages(
+  raw: unknown,
+): { ok: true; messages: ChatMessageIn[] } | { ok: false; reason: string } {
+  if (!Array.isArray(raw) || raw.length === 0) return { ok: false, reason: "No messages." };
+  if (raw.length > MAX_MESSAGES) return { ok: false, reason: "Too many messages." };
+  const out: ChatMessageIn[] = [];
+  let chars = 0;
+  for (const m of raw) {
+    const role = (m as { role?: unknown })?.role;
+    if (role !== "user" && role !== "assistant") return { ok: false, reason: "Bad message role." };
+    const content = (m as { content?: unknown }).content;
+    let text: string;
+    if (typeof content === "string") text = content;
+    else if (Array.isArray(content)) {
+      const parts: string[] = [];
+      for (const p of content) {
+        if ((p as { type?: unknown })?.type !== "text") {
+          return { ok: false, reason: "Only text content is accepted." };
+        }
+        const t = (p as { text?: unknown }).text;
+        if (typeof t !== "string") return { ok: false, reason: "Bad message content." };
+        parts.push(t);
+      }
+      text = parts.join("");
+    } else return { ok: false, reason: "Bad message content." };
+    chars += text.length;
+    if (chars > MAX_REQUEST_CHARS) return { ok: false, reason: "That request is too large." };
+    out.push({ role, content: text });
+  }
+  return { ok: true, messages: out };
+}
+
+/** The model to use: the client's choice when the operator's allow-list for
+ *  this provider includes it, the configured default otherwise. */
+export function pickModel(c: ServerConfig, requested: unknown): string {
+  const fallback = c.provider === "anthropic" ? c.anthropic.model : c.openai.model;
+  if (typeof requested !== "string" || !requested) return fallback;
+  const preset =
+    c.provider === "anthropic"
+      ? AI_PROVIDERS.anthropic
+      : c.openai.endpoint.includes("openrouter")
+        ? AI_PROVIDERS.openrouter
+        : c.openai.endpoint.includes("api.openai.com")
+          ? AI_PROVIDERS.openai
+          : null;
+  return preset && modelIds(preset).includes(requested) ? requested : fallback;
+}
+
 type Provider = "anthropic" | "openai";
 
-interface ServerConfig {
+export interface ServerConfig {
   provider: Provider;
   anthropic: { endpoint: string; key: string; model: string };
   openai: { endpoint: string; key: string; model: string };
@@ -65,7 +130,7 @@ function serverConfig(): ServerConfig {
     anthropic: {
       endpoint: e.ANTHROPIC_ENDPOINT || "https://api.anthropic.com",
       key: e.ANTHROPIC_API_KEY || "",
-      model: e.ANTHROPIC_MODEL || "claude-opus-5",
+      model: e.ANTHROPIC_MODEL || "claude-opus-5-5",
     },
     openai: {
       endpoint: openaiEndpoint,
@@ -99,7 +164,8 @@ function configProblem(c: ServerConfig): string | null {
       return "ANTHROPIC_API_KEY does not look like an Anthropic key (expected sk-ant-...). Check which provider that key belongs to.";
     }
     if (!c.anthropic.endpoint.includes("anthropic.com")) {
-      return `ANTHROPIC_ENDPOINT points at ${c.anthropic.endpoint}, which is not Anthropic. Unset it unless you are deliberately proxying.`;
+      // The value itself is not echoed: this message reaches the caller.
+      return "ANTHROPIC_ENDPOINT does not point at Anthropic. Unset it unless you are deliberately proxying.";
     }
   }
   return null;
@@ -115,18 +181,25 @@ function configProblem(c: ServerConfig): string | null {
 // 15+ complete files: measured: a swap app truncated mid-run at 16000 and
 // surfaced as "needs another pass", so the ceiling is raised well above what
 // one app costs while staying under the provider maximum.
-const MAX_TOKENS = Number(process.env.AI_MAX_TOKENS ?? 64000);
+// Read per request (see config.server.ts on module-scope env), clamped so a
+// typo in the env cannot lift the cap.
+function maxTokens(): number {
+  const n = Number(process.env.AI_MAX_TOKENS ?? 32000);
+  return Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), 64000) : 32000;
+}
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface ChatBody {
   system?: unknown;
   messages?: unknown;
+  model?: unknown;
 }
 
 async function upstreamRequest(
   c: ServerConfig,
   system: string,
-  messages: unknown[],
+  messages: ChatMessageIn[],
+  model: string,
   signal: AbortSignal,
 ) {
   if (c.provider === "anthropic") {
@@ -146,8 +219,8 @@ async function upstreamRequest(
       : messages;
 
     const body = JSON.stringify({
-      model: c.anthropic.model,
-      max_tokens: MAX_TOKENS,
+      model,
+      max_tokens: maxTokens(),
       messages: anthropicMessages,
       stream: true,
     });
@@ -192,14 +265,14 @@ async function upstreamRequest(
     method: "POST",
     headers,
     body: JSON.stringify({
-      model: c.openai.model,
+      model,
       messages: [{ role: "system", content: system }, ...messages],
       temperature: 0.2,
       stream: true,
       // Without this the OpenAI-compatible branch sent NO token cap at all
       // (the Anthropic branch above always has), so a long generation was
       // bounded only by the provider's own default.
-      max_tokens: MAX_TOKENS,
+      max_tokens: maxTokens(),
       // Reasoning models stream `reasoning` deltas that carry no `content`.
       // Measured against this App Builder's own system prompt: the model
       // emitted 208 KB of pure reasoning and had still produced zero content
@@ -227,10 +300,24 @@ export const Route = createFileRoute("/api/ai")({
       },
 
       POST: async ({ request }) => {
+        const owner = ownerOf(openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE)));
+        if (!owner) {
+          return Response.json(
+            {
+              ok: false,
+              reason: "no_grant",
+              message: "Connect a wallet and sign once to use the assistant. It costs no gas.",
+              error: { message: "Connect a wallet and sign once to use the assistant." },
+            },
+            { status: 401 },
+          );
+        }
+
         const ip = clientKeyFromRequest(request);
         if (
-          !checkRateLimit(`ai:ip:${ip}`, PER_IP_LIMIT, WINDOW_MS) ||
-          !checkRateLimit("ai:global", GLOBAL_LIMIT, WINDOW_MS)
+          !(await checkRateLimit(`ai:wallet:${owner}`, PER_WALLET_LIMIT, WINDOW_MS)) ||
+          !(await checkRateLimit(`ai:ip:${ip}`, PER_IP_LIMIT, WINDOW_MS)) ||
+          !(await checkRateLimit("ai:global", GLOBAL_LIMIT, WINDOW_MS))
         ) {
           return Response.json(
             { error: { message: "Rate limit exceeded. Try again shortly." } },
@@ -252,18 +339,29 @@ export const Route = createFileRoute("/api/ai")({
         if (problem) {
           console.error(`[api/ai] misconfigured: ${problem}`);
           return Response.json(
-            { error: { message: `Server AI proxy is misconfigured. ${problem}` } },
+            { error: { message: "Server AI proxy is misconfigured. The operator has been told." } },
             { status: 500 },
           );
         }
 
         const body = (await request.json().catch(() => null)) as ChatBody | null;
         const system = typeof body?.system === "string" ? body.system : "";
-        const messages = Array.isArray(body?.messages) ? body.messages : [];
+        if (system.length > MAX_SYSTEM_CHARS) {
+          return Response.json(
+            { error: { message: "That request is too large." } },
+            { status: 413 },
+          );
+        }
+        const checked = sanitiseMessages(body?.messages);
+        if (!checked.ok) {
+          return Response.json({ error: { message: checked.reason } }, { status: 400 });
+        }
+        const { messages } = checked;
+        const model = pickModel(c, body?.model);
 
         let upstream: Response;
         try {
-          upstream = await upstreamRequest(c, system, messages, request.signal);
+          upstream = await upstreamRequest(c, system, messages, model, request.signal);
         } catch (err) {
           const message = err instanceof Error ? err.message : "Upstream request failed";
           return Response.json({ error: { message } }, { status: 502 });

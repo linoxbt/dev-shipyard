@@ -87,9 +87,20 @@ export async function runnerIsolation(url: string, token: string): Promise<Runne
     signal: AbortSignal.timeout(8000),
   }).catch(() => null);
 
-  // Unreachable is a different failure, reported by the caller's own path. Not
-  // cached, so a runner coming back up is picked up immediately.
-  if (!res?.ok) return { ok: true, why: "" };
+  // Fails closed. This used to answer "isolated" for an unreachable runner, a
+  // 401 or a 500 -- every case where it had learned nothing -- on the theory
+  // that the caller's own request would fail next. A runner that is up but
+  // whose /health is broken would then have been sent agent jobs unchecked.
+  // Not cached, so a runner coming back up is picked up immediately.
+  if (!res) {
+    return { ok: false, why: "The build service could not be reached. Try again shortly." };
+  }
+  if (!res.ok) {
+    return {
+      ok: false,
+      why: `The build service did not report whether it isolates agent runs (HTTP ${res.status}), so none are sent.`,
+    };
+  }
 
   const body = (await res.json().catch(() => null)) as HealthBody | null;
   const result = isolationFrom(body);

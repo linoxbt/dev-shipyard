@@ -6,27 +6,41 @@ import { fetchExplorer, fallbackEnabled, mayRelax } from "./explorer-fetch";
 // danger is that it quietly widens later. Each test pins one edge of it.
 
 const original = process.env.EXPLORER_ALLOW_EXPIRED_CERT;
+const realFetch = globalThis.fetch;
+
+/** fetch that fails the way Node/Bun do, so these never touch the network:
+ *  they used to, and passed offline for the wrong reason (and failed behind a
+ *  proxy that answers unknown hosts with a 502). */
+function failFetchWith(message: string, code: string) {
+  globalThis.fetch = (async () => {
+    throw Object.assign(new TypeError("fetch failed"), { cause: { message, code } });
+  }) as unknown as typeof fetch;
+}
+
 afterEach(() => {
+  globalThis.fetch = realFetch;
   if (original === undefined) delete process.env.EXPLORER_ALLOW_EXPIRED_CERT;
   else process.env.EXPLORER_ALLOW_EXPIRED_CERT = original;
 });
 
 describe("fallbackEnabled", () => {
-  it("defaults on, so the explorer works out of the box", () => {
+  it("defaults off: verification is relaxed only when the operator asks", () => {
     delete process.env.EXPLORER_ALLOW_EXPIRED_CERT;
-    expect(fallbackEnabled()).toBe(true);
+    expect(fallbackEnabled()).toBe(false);
   });
 
-  it("is switchable off by the operator", () => {
-    for (const off of ["0", "false", "off", "OFF", "False"]) {
-      process.env.EXPLORER_ALLOW_EXPIRED_CERT = off;
-      expect(fallbackEnabled()).toBe(false);
+  it("is switchable on by the operator", () => {
+    for (const on of ["1", "true", "on", "ON", "True"]) {
+      process.env.EXPLORER_ALLOW_EXPIRED_CERT = on;
+      expect(fallbackEnabled()).toBe(true);
     }
   });
 
-  it("treats any other value as on rather than silently disabling", () => {
-    process.env.EXPLORER_ALLOW_EXPIRED_CERT = "yes";
-    expect(fallbackEnabled()).toBe(true);
+  it("treats any other value as off", () => {
+    for (const v of ["0", "yes", "false", ""]) {
+      process.env.EXPLORER_ALLOW_EXPIRED_CERT = v;
+      expect(fallbackEnabled()).toBe(false);
+    }
   });
 });
 
@@ -34,8 +48,10 @@ describe("fetchExplorer scoping", () => {
   it("refuses a bad certificate on a host that is not in our chain config", async () => {
     // The whole point: the exemption is for OUR explorers, not for any host
     // that happens to have an expired certificate.
-    await expect(fetchExplorer("https://expired.badssl.com/")).rejects.toThrow();
-  }, 30_000);
+    process.env.EXPLORER_ALLOW_EXPIRED_CERT = "1";
+    failFetchWith("certificate has expired", "CERT_HAS_EXPIRED");
+    await expect(fetchExplorer("https://expired.badssl.com/")).rejects.toThrow("fetch failed");
+  });
 
   // The two below assert what we PERMIT, not what a third party's certificate
   // happens to be doing. They previously called the live QIE explorer and
@@ -67,9 +83,20 @@ describe("fetchExplorer scoping", () => {
   });
 
   it("does not turn a DNS failure into an insecure retry", async () => {
-    // Not a certificate problem, so the fallback must not engage at all.
-    await expect(
-      fetchExplorer("https://no-such-host.mainnet.qie.digital.invalid/api/v2/stats"),
-    ).rejects.toThrow();
-  }, 30_000);
+    // Not a certificate problem, so the fallback must not engage at all, even
+    // on a configured host with the fallback on.
+    process.env.EXPLORER_ALLOW_EXPIRED_CERT = "1";
+    failFetchWith("getaddrinfo ENOTFOUND mainnet.qie.digital", "ENOTFOUND");
+    await expect(fetchExplorer("https://mainnet.qie.digital/api/v2/stats")).rejects.toThrow(
+      "fetch failed",
+    );
+  });
+
+  it("does not relax a configured host's certificate unless the operator opted in", async () => {
+    delete process.env.EXPLORER_ALLOW_EXPIRED_CERT;
+    failFetchWith("certificate has expired", "CERT_HAS_EXPIRED");
+    await expect(fetchExplorer("https://mainnet.qie.digital/api/v2/stats")).rejects.toThrow(
+      "fetch failed",
+    );
+  });
 });

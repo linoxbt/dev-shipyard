@@ -97,18 +97,23 @@ function NetworkPrefHydrator() {
 // (appgen/build.ts is the clearest), so the signer is registered here once
 // rather than threaded through them.
 function GrantSigner() {
-  const { address } = useAccount();
+  const { address, chainId } = useAccount();
   const { signMessageAsync } = useSignMessage();
 
+  // Switching accounts leaves the cookie owned by the previous wallet. Routes
+  // answer owner_mismatch for that and fetchWithGrant re-signs on it, so the
+  // switch costs one prompt at the next paid action rather than a 403 that
+  // sticks for the cookie's whole day.
   useEffect(() => {
     setGrantSigner({
       address: address ?? null,
       sign: address ? (args) => signMessageAsync(args) : null,
+      chainId,
     });
     // Disconnecting has to clear it, or a later call would sign with a wallet
     // the user has already put away.
     return () => setGrantSigner({ address: null, sign: null });
-  }, [address, signMessageAsync]);
+  }, [address, chainId, signMessageAsync]);
 
   return null;
 }

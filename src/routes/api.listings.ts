@@ -15,6 +15,7 @@ import { CLAIM_COOKIE, openClaims, ownerOf, readCookie } from "@/lib/agent-acces
 // access to them, so the zero address is sent and the chain says yes.
 
 const ADDRESS = /^0x[a-fA-F0-9]{40}$/;
+const CONTENT_HASH = /^0x[0-9a-fA-F]{64}$/;
 const ANONYMOUS = "0x0000000000000000000000000000000000000000";
 const WINDOW_MS = 60 * 60 * 1000;
 const DOWNLOADS_PER_IP = 240;
@@ -73,7 +74,7 @@ async function relay(res: Response | null) {
 export const Route = createFileRoute("/api/listings")({
   server: {
     handlers: {
-      // Download a listing's files: ?chainId=1990&id=3
+      // Download a listing's files: ?chainId=1990&id=3[&version=0x<contentHash>]
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const parsed = ids.safeParse({
@@ -82,12 +83,20 @@ export const Route = createFileRoute("/api/listings")({
         });
         if (!parsed.success) return fail("invalid", "Unknown listing.", 400);
         const ip = clientKeyFromRequest(request);
-        if (!checkRateLimit(`listings:get:${ip}`, DOWNLOADS_PER_IP, WINDOW_MS)) {
+        if (!(await checkRateLimit(`listings:get:${ip}`, DOWNLOADS_PER_IP, WINDOW_MS))) {
           return fail("rate_limited", "Too many downloads. Try again later.", 429);
         }
+        // ?version=<contentHash> asks for the files a buyer paid for rather
+        // than the creator's latest upload. Only its shape is checked here; the
+        // runner checks it against the chain and the buyer's access.
+        const version = url.searchParams.get("version");
+        if (version !== null && !CONTENT_HASH.test(version)) {
+          return fail("invalid", "Unknown listing version.", 400);
+        }
         const wallet = grantedWallet(request) ?? ANONYMOUS;
+        const query = version ? `?version=${encodeURIComponent(version)}` : "";
         const res = await toRunner(
-          `/listings/${parsed.data.chainId}/${parsed.data.id}`,
+          `/listings/${parsed.data.chainId}/${parsed.data.id}${query}`,
           { method: "GET" },
           wallet,
           ip,
@@ -110,15 +119,15 @@ export const Route = createFileRoute("/api/listings")({
         if (!parsed.success) return fail("invalid_body", "Malformed upload.", 400);
 
         const ip = clientKeyFromRequest(request);
-        if (!checkRateLimit(`listings:put:ip:${ip}`, UPLOADS_PER_IP, WINDOW_MS)) {
+        if (!(await checkRateLimit(`listings:put:ip:${ip}`, UPLOADS_PER_IP, WINDOW_MS))) {
           return fail("rate_limited", "Too many uploads. Try again later.", 429);
         }
         if (
-          !checkRateLimit(
+          !(await checkRateLimit(
             `listings:put:wallet:${wallet.toLowerCase()}`,
             UPLOADS_PER_WALLET,
             WINDOW_MS,
-          )
+          ))
         ) {
           return fail("rate_limited", "Too many uploads from this wallet.", 429);
         }
