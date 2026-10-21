@@ -16,7 +16,8 @@ import {
   issueNonce,
   nonceCookieHeader,
   openClaims,
-  openNonce,
+  openNonces,
+  nonceList,
   readCookie,
   withOwner,
 } from "@/lib/agent-access/claims.server";
@@ -46,6 +47,12 @@ const bodySchema = z.object({
     .int()
     .positive()
     .max(2 ** 53),
+  /** Which issued nonce this signature carries. Optional for a client from
+   *  before several could be open at once: it then uses the newest. */
+  nonce: z
+    .string()
+    .regex(/^[0-9a-f]{32}$/)
+    .optional(),
 });
 
 function fail(reason: string, message: string, status: number, extraCookie?: string) {
@@ -69,11 +76,13 @@ export const Route = createFileRoute("/api/access")({
         };
         if (!new URL(request.url).searchParams.has("nonce")) return Response.json(body);
         const { nonce, sealed } = issueNonce();
+        const open = openNonces(readCookie(request.headers.get("cookie"), NONCE_COOKIE));
+        const list = nonceList([...open.map((o) => o.sealed), sealed]);
         return new Response(JSON.stringify({ ...body, nonce }), {
           headers: [
             ["content-type", "application/json"],
             ["cache-control", "no-store"],
-            ["set-cookie", nonceCookieHeader(sealed)],
+            ["set-cookie", nonceCookieHeader(list)],
           ],
         });
       },
@@ -92,9 +101,17 @@ export const Route = createFileRoute("/api/access")({
         if (!parsed.success) return fail("invalid_body", "Malformed request.", 400);
 
         const cookies = request.headers.get("cookie");
-        const cleared = nonceCookieHeader(null);
-        const nonce = openNonce(readCookie(cookies, NONCE_COOKIE));
-        if (!nonce) return fail("bad_nonce", AGENT_AUTH_MESSAGE.bad_nonce, 401, cleared);
+        const open = openNonces(readCookie(cookies, NONCE_COOKIE));
+        const wanted = parsed.data.nonce;
+        const entry = wanted ? open.find((o) => o.nonce === wanted) : open[open.length - 1];
+        // An unknown nonce leaves the others alone: another tab may be
+        // signing one of them right now.
+        if (!entry) return fail("bad_nonce", AGENT_AUTH_MESSAGE.bad_nonce, 401);
+        const nonce = entry.nonce;
+        // Whatever happens next, this nonce is spent; the rest stay open.
+        const cleared = nonceCookieHeader(
+          nonceList(open.filter((o) => o !== entry).map((o) => o.sealed)),
+        );
 
         const { address, signature, issuedAt, chainId } = parsed.data;
         const timing = issuedAtProblem(issuedAt);

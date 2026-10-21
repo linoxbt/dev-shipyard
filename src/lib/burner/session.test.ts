@@ -11,8 +11,8 @@ import {
 } from "./session";
 
 // Minimal Web Storage so the preference and session logic is testable outside
-// a browser. Two of them: the session lives in sessionStorage by default and
-// only in localStorage under the explicit "until I clear my browser data".
+// a browser. Two of them: the session lives in localStorage, and sessionStorage
+// is kept to prove nothing from the previous per-tab release lingers there.
 function fakeStorage(map: Map<string, string>): Storage {
   return {
     getItem: (k: string) => map.get(k) ?? null,
@@ -77,30 +77,29 @@ describe("an unlocked session", () => {
 
   beforeEach(clearAll);
 
-  it("lives in sessionStorage under the default, and its window slides on activity", () => {
-    session.set(SESSION, blob(Date.now() + 1_000));
+  it("lives in localStorage so every tab shares it, and its window slides on activity", () => {
+    local.set(SESSION, blob(Date.now() + 1_000));
     touchBurnerSession();
-    expect(expiryIn(session)).toBeGreaterThan(Date.now() + 29 * 60 * 1000);
-    expect(local.has(SESSION)).toBe(false);
+    expect(expiryIn(local)).toBeGreaterThan(Date.now() + 29 * 60 * 1000);
+    expect(session.has(SESSION)).toBe(false);
     expect(hasBurnerSession()).toBe(true);
   });
 
-  it("locks once the window has passed", () => {
-    session.set(SESSION, blob(Date.now() - 1));
-    expect(hasBurnerSession()).toBe(false);
+  it("locks once the window has passed, and the lapsed session is deleted", () => {
+    local.set(SESSION, blob(Date.now() - 1));
     expect(isBurnerSessionIdle()).toBe(true);
+    expect(local.has(SESSION)).toBe(false);
+    expect(hasBurnerSession()).toBe(false);
   });
 
-  it("only the explicit opt-in keeps it on disk, and opting out takes it off", () => {
-    session.set(SESSION, blob(Date.now() + 60_000));
+  it("the explicit opt-in never expires, and opting out puts an end on a live session", () => {
+    local.set(SESSION, blob(Date.now() + 60_000));
     setUnlockMs(UNLOCK_NEVER);
-    expect(session.has(SESSION)).toBe(false);
-    expect(local.has(SESSION)).toBe(true);
     touchBurnerSession();
     expect(expiryIn(local)).toBe(Number.MAX_SAFE_INTEGER);
 
     setUnlockMs(5 * 60 * 1000);
-    expect(local.has(SESSION)).toBe(false);
-    expect(session.has(SESSION)).toBe(true);
+    expect(expiryIn(local)).toBeLessThanOrEqual(Date.now() + 5 * 60 * 1000);
+    expect(hasBurnerSession()).toBe(true);
   });
 });

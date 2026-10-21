@@ -209,8 +209,11 @@ export function useCodeAgent() {
 
   const { address, isConnected } = useAccount();
   const { deployContractAsync } = useDeployContract();
-  const publicClient = usePublicClient();
   const { chainId, chain, walletMismatch, syncWallet } = useActiveChain();
+  // Pinned to the selected network, not the wallet's: the deploy below may switch
+  // the wallet first, and a client that followed the wallet would wait for the
+  // receipt (and estimate gas) on the chain it just left.
+  const publicClient = usePublicClient({ chainId });
   const { recordDeployment } = useProjectRegistry();
   const { submitLabel } = useContractLabels();
   const { available: sponsorAvailable, ensureFunded } = useSponsorTopup(chainId);

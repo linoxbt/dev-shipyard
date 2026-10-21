@@ -87,7 +87,7 @@ function DeployWizard() {
     hydrateTemplates();
   }, [hydrateTemplates]);
   const { deployContractAsync } = useDeployContract();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId });
   const [mismatchOpen, setMismatchOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const onSponsorChain = isSponsorEligibleChain(chain.id);

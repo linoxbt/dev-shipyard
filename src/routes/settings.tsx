@@ -178,8 +178,8 @@ function UnlockWindow() {
         </select>
       </Row>
       <p className="mt-1 font-mono text-[10px] text-meta">
-        By default the DevStation wallet locks itself 30 minutes after your last action, and when
-        this tab closes. Choose a longer window, or &quot;until I clear my browser data&quot;, to
+        By default the DevStation wallet locks itself 30 minutes after your last action, in every
+        tab of this site. Choose a longer window, or &quot;until I clear my browser data&quot;, to
         stay unlocked through restarts, at the cost that anyone at this browser can use an unlocked
         wallet. Every signature and transaction still asks you to approve it first. Only applies to
         the in-app wallet: QIE Wallet and MetaMask stay connected until you disconnect them.

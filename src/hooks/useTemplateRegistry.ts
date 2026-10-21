@@ -144,11 +144,27 @@ export function useTemplateRegistry() {
     [address, chainId, configured, registry, writeContractAsync],
   );
 
-  /** Pay for and record a deploy against template `id`. */
+  /** Pay for and record a deploy against template `id`, and wait until the
+   *  payment has actually landed. Resolves only on a successful receipt, so a
+   *  caller can hand over the source knowing it was paid for. */
   const payForDeploy = useCallback(
     async (id: number, priceWei: bigint) => {
       if (!configured) throw new Error("No template registry on this network.");
-      return writeContractAsync({
+      if (!client) throw new Error("No RPC client for this network.");
+      // The creator can change the price at any time. Pay what the person saw
+      // or nothing: a stale price would revert, and a raised one is not theirs
+      // to discover after signing.
+      const current = (await client.readContract({
+        address: registry,
+        abi: templateRegistryAbi,
+        functionName: "getTemplate",
+        args: [BigInt(id)],
+      })) as { price: bigint; active: boolean };
+      if (!current.active) throw new Error("This template is no longer active.");
+      if (current.price !== priceWei) {
+        throw new Error("The creator changed this template's price. Reload to see the new one.");
+      }
+      const hash = await writeContractAsync({
         chainId,
         address: registry,
         abi: templateRegistryAbi,
@@ -157,8 +173,11 @@ export function useTemplateRegistry() {
         value: priceWei,
         gas: 600_000n,
       });
+      const receipt = await client.waitForTransactionReceipt({ hash, timeout: 180_000 });
+      if (receipt.status !== "success") throw new Error("The payment transaction reverted.");
+      return hash;
     },
-    [chainId, configured, registry, writeContractAsync],
+    [chainId, client, configured, registry, writeContractAsync],
   );
 
   const withdraw = useCallback(async () => {

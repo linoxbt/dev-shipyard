@@ -25,17 +25,24 @@ export type ProjectStatus = StoredProject["status"];
  * then from all of them. Only if that still fails is the user told.
  */
 export function saveProjectsChecked(projects: StoredProject[]): boolean {
-  const landed = () => {
-    const first = projects[0];
-    return !first || storage.loadProjects().some((x) => x.id === first.id);
+  // Did exactly this list land? Comparing ids and statuses, not just "is the
+  // newest id there": a status change to an existing record would otherwise
+  // read as saved when the write failed and the old list is still in place.
+  const landed = (written: StoredProject[]) => {
+    const back = storage.loadProjects();
+    return (
+      back.length === written.length &&
+      written.every((p, i) => back[i]?.id === p.id && back[i]?.status === p.status)
+    );
   };
   storage.saveProjects(projects);
-  if (landed()) return true;
+  if (landed(projects)) return true;
   const lean = projects.map((x, i) => (i === 0 ? x : { ...x, standardJsonInput: undefined }));
   storage.saveProjects(lean);
-  if (landed()) return true;
-  storage.saveProjects(lean.map((x) => ({ ...x, standardJsonInput: undefined })));
-  if (landed()) {
+  if (landed(lean)) return true;
+  const leanest = lean.map((x) => ({ ...x, standardJsonInput: undefined }));
+  storage.saveProjects(leanest);
+  if (landed(leanest)) {
     toast.warning(
       "Browser storage is full, so this deploy was saved without its compiler input. " +
         "You can still verify it by pasting the source.",

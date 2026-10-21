@@ -82,9 +82,23 @@ export function maxTopupWei(): bigint {
 // wallet picked the same nonce, and one of them failed after both had passed
 // the budget check.
 const sendQueues = new Map<number, Promise<unknown>>();
+const queueDepth = new Map<number, number>();
+/** Sends allowed to wait behind the one in flight. Each can take up to a
+ *  minute for its receipt, and a serverless function is cut off well before
+ *  a long queue drains, so a deeper queue is refused up front instead. */
+export const MAX_QUEUED_SENDS = 2;
+
+export class SendQueueFull extends Error {}
+
 export function serialised<T>(chainId: number, task: () => Promise<T>): Promise<T> {
+  const depth = queueDepth.get(chainId) ?? 0;
+  if (depth > MAX_QUEUED_SENDS) return Promise.reject(new SendQueueFull());
+  queueDepth.set(chainId, depth + 1);
   const previous = sendQueues.get(chainId) ?? Promise.resolve();
-  const next = previous.catch(() => undefined).then(task);
+  const next = previous
+    .catch(() => undefined)
+    .then(task)
+    .finally(() => queueDepth.set(chainId, (queueDepth.get(chainId) ?? 1) - 1));
   sendQueues.set(
     chainId,
     next.catch(() => undefined),
@@ -354,6 +368,15 @@ export const Route = createFileRoute("/api/sponsor-topup")({
             const message = err instanceof Error ? err.message : "Top-up transfer failed";
             return fail("topup_failed", message, 502);
           }
+        }).catch((err: unknown) => {
+          if (err instanceof SendQueueFull) {
+            return fail(
+              "busy",
+              "Gas sponsorship is busy right now. Try again in a minute, or deploy with your own gas.",
+              503,
+            );
+          }
+          throw err;
         });
       },
     },

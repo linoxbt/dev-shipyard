@@ -29,6 +29,7 @@ describe("parseArg", () => {
     expect(parseArg("False", "bool")).toBe(false);
     expect(parseArg("0", "bool")).toBe(false);
     expect(() => parseArg("yes", "bool")).toThrow(/true or false/);
+    expect(() => parseArg("", "bool", undefined, "paused")).toThrow(/paused.*required/);
   });
 
   test("addresses must be well formed", () => {
@@ -93,6 +94,42 @@ describe("parseArg", () => {
 
   test("falls back to the raw string for unrecognized types", () => {
     expect(parseArg("hello", "string")).toBe("hello");
+  });
+});
+
+describe("exact numbers inside JSON", () => {
+  test("array and tuple elements above 2^53 are not rounded", () => {
+    expect(parseArg("[1234567890123456789, 2]", "uint256[]")).toEqual([1234567890123456789n, 2n]);
+    expect(parseArg("[9007199254740993]", "uint256[1]")).toEqual([9007199254740993n]);
+    const comps = [
+      { name: "amount", type: "uint256" },
+      { name: "to", type: "address" },
+    ];
+    expect(
+      parseArg(
+        `[115792089237316195423570985008687907853269984665640564039457584007913129639935, "${A1}"]`,
+        "tuple",
+        comps,
+      ),
+    ).toEqual([(1n << 256n) - 1n, A1]);
+    expect(parseArg(`{"amount": 10000000000000000001, "to": "${A1}"}`, "tuple", comps)).toEqual({
+      amount: 10000000000000000001n,
+      to: A1,
+    });
+  });
+
+  test("numbers inside strings and fractional elements keep their meaning", () => {
+    expect(parseArg('["12", 3]', "uint256[]")).toEqual([12n, 3n]);
+    expect(parseArg('["a,1"]', "string[]")).toEqual(["a,1"]);
+    expect(() => parseArg("[1.5]", "uint256[]")).toThrow(/whole number/);
+  });
+
+  test("a mixed-case address with a wrong checksum is refused", () => {
+    const good = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed";
+    expect(parseArg(good, "address")).toBe(good);
+    expect(() => parseArg("0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAeD", "address")).toThrow(
+      /checksum/,
+    );
   });
 });
 

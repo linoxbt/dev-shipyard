@@ -70,3 +70,20 @@ describe("POST /api/sponsor-topup", () => {
     expect(((await res.json()) as { reason: string }).reason).toBe("no_grant");
   });
 });
+
+describe("serialised queue bound", () => {
+  it("refuses a send once too many are already waiting on that chain", async () => {
+    const { serialised, SendQueueFull, MAX_QUEUED_SENDS } =
+      await import("@/routes/api.sponsor-topup");
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const held = Array.from({ length: MAX_QUEUED_SENDS + 1 }, () => serialised(7, () => gate));
+    await expect(serialised(7, async () => "late")).rejects.toBeInstanceOf(SendQueueFull);
+    // Another chain has its own queue.
+    const other = serialised(8, async () => "ok");
+    release();
+    await Promise.all(held);
+    expect(await other).toBe("ok");
+    expect(await serialised(7, async () => "after")).toBe("after");
+  });
+});

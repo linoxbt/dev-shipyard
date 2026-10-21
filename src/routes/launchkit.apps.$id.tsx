@@ -444,9 +444,14 @@ function AppDetail() {
 
               <button
                 onClick={() => {
-                  void fetch("/api/github", { method: "POST" }).then(() =>
-                    setGh({ configured: true, user: null }),
-                  );
+                  // Show "disconnected" only once the server has cleared the
+                  // cookie; otherwise the next push would still use it.
+                  void fetch("/api/github", { method: "POST" })
+                    .then((res) => {
+                      if (!res.ok) throw new Error(String(res.status));
+                      setGh({ configured: true, user: null });
+                    })
+                    .catch(() => toast.error("Could not disconnect GitHub. Try again."));
                 }}
                 className="mt-1 w-full font-mono text-[10px] text-meta hover:text-foreground"
               >

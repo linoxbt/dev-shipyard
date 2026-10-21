@@ -136,8 +136,9 @@ export function readCookie(header: string | null | undefined, name: string): str
 //
 // Issued by GET /api/access?nonce into a short-lived httpOnly cookie, so only
 // this browser holds it; POST /api/access requires the signed message to carry
-// the same value and clears the cookie. The usedNonce check in api.access.ts
-// refuses a second use while the nonce is still live.
+// one of the nonces in that cookie and removes it. The cookie holds a few at a
+// time so concurrent tabs do not invalidate each other. The single-use check in
+// api.access.ts refuses a second use while the nonce is still live.
 
 export const NONCE_COOKIE = "devstation_access_nonce";
 /** As long as the signature itself is valid for, plus a slow wallet. */
@@ -160,6 +161,31 @@ export function openNonce(raw: string | undefined, now = Date.now()): string | n
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   if (!/^[0-9a-f]{32}$/.test(nonce) || Number(exp) < now) return null;
   return nonce;
+}
+
+/** How many unanswered nonces one browser may hold. More than one, because
+ *  two tabs (or a retry) can each ask for a nonce before either signs, and a
+ *  single slot let the second request overwrite the first one's mid-signature. */
+export const MAX_OPEN_NONCES = 5;
+
+/** Every still-valid nonce in the cookie, oldest first, with its sealed form. */
+export function openNonces(
+  raw: string | undefined,
+  now = Date.now(),
+): Array<{ nonce: string; sealed: string }> {
+  if (!raw) return [];
+  const out: Array<{ nonce: string; sealed: string }> = [];
+  for (const sealed of raw.split("~")) {
+    const nonce = openNonce(sealed, now);
+    if (nonce) out.push({ nonce, sealed });
+  }
+  return out;
+}
+
+/** The cookie value for a set of sealed nonces, newest kept, or null when empty. */
+export function nonceList(sealed: string[]): string | null {
+  const kept = sealed.slice(-MAX_OPEN_NONCES);
+  return kept.length ? kept.join("~") : null;
 }
 
 export function nonceCookieHeader(sealed: string | null): string {

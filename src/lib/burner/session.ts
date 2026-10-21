@@ -13,11 +13,13 @@
 //     decrypt while the session is live, and it does not stop anyone with this
 //     browser profile. The unlock window is the real mitigation.
 //
-// So the default is a short, idle-based window (30 minutes), with the session
-// kept in sessionStorage: it ends when the browser closes as well as when the
-// window runs out. "Stay unlocked until I clear my browser data" is still
-// offered, as an explicit opt-in that says what it costs; only that choice
-// writes the session to localStorage, where it survives a restart.
+// So the default is a short, idle-based window (30 minutes), checked on every
+// read: an expired session is deleted, not just ignored. The session is kept
+// in localStorage so every tab of this site shares one unlock (sessionStorage
+// is per tab, which locked the wallet in each new tab). Every signature is
+// still confirmed in a DevStation dialog, so an unlocked wallet cannot sign
+// silently. "Stay unlocked until I clear my browser data" is an explicit
+// opt-in that says what it costs.
 
 const BLOB_KEY = "devstation-burner-session-v2";
 const DB_NAME = "devstation-wallet";
@@ -68,15 +70,14 @@ export function getUnlockMs(): number {
 export function setUnlockMs(ms: number): void {
   try {
     if (!UNLOCK_OPTIONS.some((o) => o.ms === ms)) return;
-    // A live session moves to wherever the new choice keeps it, so switching
-    // away from "until I clear my browser data" really does take it off disk.
-    const live =
-      localStorage.getItem(BLOB_KEY) ??
-      (typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(BLOB_KEY));
     localStorage.setItem(UNLOCK_PREF_KEY, String(ms));
-    localStorage.removeItem(BLOB_KEY);
-    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(BLOB_KEY);
-    if (live) sessionStore()?.setItem(BLOB_KEY, live);
+    // A live session takes the new window from now, so moving away from
+    // "until I clear my browser data" really does put an end on it.
+    const raw = localStorage.getItem(BLOB_KEY);
+    if (raw) {
+      const b = JSON.parse(raw) as SessionBlob;
+      localStorage.setItem(BLOB_KEY, JSON.stringify({ ...b, expiresAt: expiryFromNow() }));
+    }
   } catch {
     /* ignore */
   }
@@ -154,15 +155,11 @@ interface SessionBlob {
 const b64 = (b: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(b)));
 const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
-/** Where the session lives: localStorage only for the explicit "until I clear
- *  my browser data" choice, otherwise sessionStorage, which the browser drops
- *  when it closes. */
+/** Where the session lives: localStorage, shared by every tab of this site.
+ *  The window, not the storage, is what bounds it (see readBlob). */
 function sessionStore(): Storage | null {
   try {
-    if (getUnlockMs() === UNLOCK_NEVER) {
-      return typeof localStorage === "undefined" ? null : localStorage;
-    }
-    return typeof sessionStorage === "undefined" ? null : sessionStorage;
+    return typeof localStorage === "undefined" ? null : localStorage;
   } catch {
     return null;
   }
@@ -173,7 +170,8 @@ function readBlob(): SessionBlob | null {
     const raw = sessionStore()?.getItem(BLOB_KEY);
     if (!raw) return null;
     const b = JSON.parse(raw) as SessionBlob;
-    return typeof b?.ct === "string" && typeof b?.iv === "string" ? b : null;
+    if (typeof b?.ct !== "string" || typeof b?.iv !== "string") return null;
+    return typeof b.expiresAt === "number" ? b : { ...b, expiresAt: 0 };
   } catch {
     return null;
   }
@@ -196,8 +194,8 @@ export async function saveBurnerSession(mnemonic: string): Promise<void> {
     };
     const store = sessionStore();
     if (!store) return;
-    // Only ever in one place: a session saved under the other setting goes.
-    (store === localStorage ? sessionStorage : localStorage)?.removeItem(BLOB_KEY);
+    // A per-tab copy from the previous release must not linger.
+    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(BLOB_KEY);
     store.setItem(BLOB_KEY, JSON.stringify(blob));
   } catch {
     /* a failure here means the user re-enters their password, which is safe */
@@ -218,13 +216,26 @@ export function touchBurnerSession(): void {
 
 export function isBurnerSessionIdle(): boolean {
   const blob = readBlob();
-  return !!blob && blob.expiresAt <= Date.now();
+  if (!blob || blob.expiresAt > Date.now()) return false;
+  // A lapsed session is deleted as soon as it is seen, so it does not sit on
+  // disk until the next visit.
+  dropExpired();
+  return true;
+}
+
+function dropExpired(): void {
+  try {
+    sessionStore()?.removeItem(BLOB_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 /** True when something is stored, without decrypting it. Lets callers skip the
  *  async work when there is plainly nothing to restore. */
 export function hasBurnerSession(): boolean {
   const blob = readBlob();
+  if (blob && blob.expiresAt <= Date.now()) dropExpired();
   return !!blob && blob.expiresAt > Date.now();
 }
 

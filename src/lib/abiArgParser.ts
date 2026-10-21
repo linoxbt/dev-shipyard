@@ -6,6 +6,8 @@
 // "TRUE" became false and an over-long bytes32 string was cut to fit, and each
 // of those deploys a contract with a value nobody typed.
 
+import { isAddress } from "viem";
+
 export interface AbiParamLike {
   name?: string;
   type: string;
@@ -32,6 +34,44 @@ function toElementString(el: unknown): string {
   return typeof el === "string" ? el : JSON.stringify(el);
 }
 
+/**
+ * JSON.parse, except that every bare number comes back as the exact text the
+ * person typed. Plain JSON.parse turns 1234567890123456789 into a float and
+ * rounds it to 1234567890123456800, so a wei amount inside an array or struct
+ * would be signed as a value nobody entered. Numbers are quoted before
+ * parsing (outside string literals only) and validated per element as usual.
+ */
+export function parseJsonExact(text: string): unknown {
+  let out = "";
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      out += c;
+      if (c === "\\") {
+        out += text[++i] ?? "";
+      } else if (c === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (c === '"') {
+      inString = true;
+      out += c;
+      continue;
+    }
+    if (c === "-" || (c >= "0" && c <= "9")) {
+      let j = i;
+      while (j < text.length && /[-+0-9.eExXa-fA-F]/.test(text[j])) j++;
+      out += JSON.stringify(text.slice(i, j));
+      i = j - 1;
+      continue;
+    }
+    out += c;
+  }
+  return JSON.parse(out);
+}
+
 export function parseArg(
   value: string,
   type: string,
@@ -53,7 +93,7 @@ export function parseArg(
     } else {
       let parsed: unknown;
       try {
-        parsed = JSON.parse(v);
+        parsed = parseJsonExact(v);
       } catch {
         parsed = undefined;
       }
@@ -79,7 +119,7 @@ export function parseArg(
     if (!components) throw new AbiArgError(`${what} has no component types in the ABI.`);
     let parsed: unknown;
     try {
-      parsed = JSON.parse(v);
+      parsed = parseJsonExact(v);
     } catch {
       throw new AbiArgError(`${what} must be JSON: an array or an object with the struct fields.`);
     }
@@ -110,6 +150,10 @@ export function parseArg(
     if (!/^0x[0-9a-fA-F]{40}$/.test(v)) {
       throw new AbiArgError(`${what} must be a 0x address of 40 hex characters.`);
     }
+    // Mixed case is an EIP-55 checksum, and a wrong one is a typo.
+    if (!isAddress(v, { strict: true })) {
+      throw new AbiArgError(`${what} has an invalid checksum. Check the address for a typo.`);
+    }
     return v as `0x${string}`;
   }
 
@@ -131,7 +175,8 @@ export function parseArg(
   if (type === "bool") {
     const b = v.toLowerCase();
     if (b === "true" || b === "1") return true;
-    if (b === "false" || b === "0" || b === "") return false;
+    if (b === "false" || b === "0") return false;
+    if (b === "") throw new AbiArgError(`${what} is required: true or false.`);
     throw new AbiArgError(`${what} must be true or false.`);
   }
 

@@ -179,13 +179,9 @@ function RootComponent() {
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
     // The worker's cache is named after the build, so a deploy retires the
-    // previous build's assets instead of piling them up forever. The build is
-    // identified by the hashed filename of the entry script, which changes on
-    // every deploy that changes code; no build-time constant is needed.
-    const entry = [...document.querySelectorAll<HTMLScriptElement>("script[src]")]
-      .map((el) => el.getAttribute("src") ?? "")
-      .find((src) => src.includes("/assets/"));
-    const build = entry ? (entry.split("/").pop() ?? "dev").replace(/\.js$/, "") : "dev";
+    // previous build's assets instead of piling them up forever. The build id
+    // is the one vite.config.ts defines (package version plus commit).
+    const build = __APP_VERSION__;
     const register = () =>
       navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(build)}`).catch(() => {
         /* SW registration is best-effort; the app works fine without it */

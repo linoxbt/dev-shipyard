@@ -82,6 +82,7 @@ export async function ensureGrant(): Promise<boolean> {
         signature,
         issuedAt,
         chainId: current.chainId,
+        nonce: issued.nonce,
       }),
     }).catch(() => null);
     return !!res?.ok;

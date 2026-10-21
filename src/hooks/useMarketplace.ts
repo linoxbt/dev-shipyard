@@ -227,7 +227,7 @@ export function useMarketplace() {
 
   const mined = useCallback(
     async (hash: `0x${string}`) => {
-      const receipt = await client!.waitForTransactionReceipt({ hash });
+      const receipt = await client!.waitForTransactionReceipt({ hash, timeout: 180_000 });
       if (receipt.status !== "success") throw new Error("The transaction failed on-chain.");
       return receipt;
     },
@@ -486,9 +486,22 @@ export function useMarketplace() {
     [pay],
   );
   const feature = useCallback(
-    (listing: MarketSummary, days: number) => {
-      const perDay = featuredPrices.data?.[listing.currency] ?? 0n;
-      if (perDay === 0n) throw new Error("Featuring is not open yet for this currency.");
+    async (listing: MarketSummary, days: number) => {
+      const shown = featuredPrices.data?.[listing.currency] ?? 0n;
+      if (shown === 0n) throw new Error("Featuring is not open yet for this currency.");
+      // The owner can change the featured rate; the cached one may be a minute
+      // old. Pay the rate the person saw, or stop and say it moved.
+      if (!client) throw new Error("The marketplace is not live on this network yet.");
+      const perDay = (await client.readContract({
+        address: contract,
+        abi: devStationMarketplaceAbi,
+        functionName: "featuredPricePerDay",
+        args: [listing.currency === "QIE" ? 0 : 1],
+      })) as bigint;
+      if (perDay !== shown) {
+        void featuredPrices.refetch();
+        throw new Error("The featured rate just changed. Check the new price and try again.");
+      }
       return pay(
         "feature",
         [BigInt(listing.id), BigInt(days)],
@@ -496,7 +509,7 @@ export function useMarketplace() {
         perDay * BigInt(days),
       );
     },
-    [featuredPrices.data, pay],
+    [client, contract, featuredPrices, pay],
   );
 
   return {

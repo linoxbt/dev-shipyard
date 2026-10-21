@@ -107,4 +107,54 @@ describe("/api/access", () => {
     });
     expect(((await again.json()) as { reason: string }).reason).toBe("bad_nonce");
   });
+
+  it("lets two tabs sign in at once: the second nonce does not void the first", async () => {
+    const get = (cookie?: string) =>
+      handlers.GET({
+        request: new Request(`${ORIGIN}/api/access?nonce=1`, {
+          headers: cookie ? { cookie: `devstation_access_nonce=${cookie}` } : {},
+        }),
+      });
+    // Tab A asks, then tab B asks before A has signed.
+    const a = await get();
+    const nonceA = ((await a.json()) as { nonce: string }).nonce;
+    const b = await get(cookieValue(a, "devstation_access_nonce"));
+    const nonceB = ((await b.json()) as { nonce: string }).nonce;
+    let jar = cookieValue(b, "devstation_access_nonce");
+
+    const post = async (nonce: string) => {
+      const issuedAt = Date.now();
+      const signature = await account.signMessage({
+        message: accessMessage({
+          domain: "devstation.online",
+          uri: ORIGIN,
+          address: account.address,
+          chainId: 1990,
+          nonce,
+          issuedAt,
+        }),
+      });
+      const res = await handlers.POST({
+        request: new Request(`${ORIGIN}/api/access`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            host: "devstation.online",
+            cookie: `devstation_access_nonce=${jar}`,
+          },
+          body: JSON.stringify({
+            address: account.address,
+            signature,
+            issuedAt,
+            chainId: 1990,
+            nonce,
+          }),
+        }),
+      });
+      jar = cookieValue(res, "devstation_access_nonce");
+      return res.status;
+    };
+    expect(await post(nonceA)).toBe(200);
+    expect(await post(nonceB)).toBe(200);
+  });
 });
