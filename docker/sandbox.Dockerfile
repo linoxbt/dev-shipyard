@@ -14,7 +14,10 @@
 # rather than letting it surface as `cargo: not found` mid-run.
 #
 # Build:  bun run sandbox:image
-FROM node:22-bookworm-slim
+# Pinned by digest, the same base as services/runner/Dockerfile: the moving
+# `22` tag let a rebuild silently change the toolchain every agent command runs
+# on. Bump the tag and digest together; Dependabot proposes them.
+FROM node:22.22.0-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
 
 # ca-certificates so https works during an install; the rest is what a build
 # script reaches for often enough to be worth the layer.
@@ -23,11 +26,15 @@ RUN apt-get update \
     ca-certificates curl unzip git python3 python3-pip ripgrep \
   && rm -rf /var/lib/apt/lists/*
 
-# Bun, into a location on the default PATH. Installed by hand rather than from
-# the oven image so node and bun are both present in one image.
-ENV BUN_INSTALL=/usr/local
-RUN curl -fsSL https://bun.sh/install | bash \
-  && bun --version
+# Bun, at an exact version, into a location on the default PATH. Copied from the
+# official image rather than piped from `curl https://bun.sh/install | bash`,
+# which installed whatever Bun was newest at build time with nothing checking
+# what was downloaded: a mutable input into the image that runs model-written
+# commands. Keep this in step with BUN_VERSION in .github/workflows/ci.yml.
+ARG BUN_VERSION=1.4.2
+COPY --from=oven/bun:1.4.2 /usr/local/bin/bun /usr/local/bin/bun
+RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
+  && test "$(bun --version)" = "$BUN_VERSION"
 
 # No USER line, on purpose.
 #

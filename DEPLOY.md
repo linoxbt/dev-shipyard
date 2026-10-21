@@ -77,7 +77,7 @@ There's an 8-second abort window before it broadcasts. Then put the mainnet addr
 
 ## How the app behaves before vs after deploy
 
-- **Before** (addresses unset): Projects + Labels fall back to localStorage / mock data; everything still works for demos.
+- **Before** (addresses unset): Projects shows this browser's local deploy history only, and the Labels features are hidden. There is no mock data.
 - **After** (addresses set): reads come from chain, writes send wallet transactions, with a localStorage mirror for instant UI.
 
 No code change needed: it's all driven by the `VITE_*` env values.

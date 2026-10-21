@@ -5,6 +5,8 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import process from "node:process";
+import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 // Deploy target selection.
@@ -23,20 +25,50 @@ const preset =
   env.NITRO_PRESET ||
   (env.NETLIFY ? "netlify" : undefined) ||
   (env.VERCEL ? "vercel" : undefined) ||
-  // Default for manual/local production builds. Change if your primary host differs.
-  "vercel";
+  // Default for manual/local production builds: Netlify, because it is the
+  // live host (netlify.toml carries the security headers, DEPLOY.md documents
+  // it). The default used to be Vercel, so a local `bun run build` produced
+  // output for a host this app is not deployed on.
+  "netlify";
+
+// Identifies this build, so the service worker can drop caches from older ones
+// (public/sw.js is copied verbatim, so it receives this as `?v=` on its
+// registration URL rather than through `define`). Package version plus the
+// commit, or the build time when there is no git checkout.
+function appVersion(): string {
+  const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as {
+    version?: string;
+  };
+  let rev = env.COMMIT_REF?.slice(0, 12) || env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) || "";
+  if (!rev) {
+    try {
+      rev = execSync("git rev-parse --short=12 HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+        .toString()
+        .trim();
+    } catch {
+      rev = String(Date.now());
+    }
+  }
+  return `${pkg.version ?? "0.0.0"}-${rev}`;
+}
 
 export default defineConfig({
+  // Function time limits are host settings on both Netlify and Vercel (the
+  // Lovable config passes only `preset` through to Nitro): see DEPLOYMENT.md.
   nitro: { preset },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
   },
-  // Allow the app to be reached through a Cloudflare quick tunnel (random
-  // *.trycloudflare.com host) for local sharing. Dev-server only; no effect on
-  // production builds. `true` = accept any Host header.
   vite: {
-    server: { allowedHosts: true },
+    define: {
+      __APP_VERSION__: JSON.stringify(appVersion()),
+    },
+    // Accepting any Host header switches off Vite's DNS-rebinding guard on a
+    // dev server whose server functions hold RUNNER_TOKEN and AI keys. So it
+    // is opt-in: set DEV_ALLOW_ANY_HOST=1 to reach the dev server through a
+    // Cloudflare quick tunnel (random *.trycloudflare.com host).
+    ...(env.DEV_ALLOW_ANY_HOST === "1" ? { server: { allowedHosts: true as const } } : {}),
   },
 });

@@ -22,8 +22,8 @@ so far.
 ## Hosting
 
 DevStation is a TanStack Start (Nitro) SSR app. `bun run build` auto-detects
-the host from the environment (Vercel, Netlify) and falls back to the Vercel
-preset otherwise.
+the host from the environment (Vercel, Netlify) and falls back to the Netlify
+preset otherwise, since Netlify is the live host.
 
 ```bash
 bun run build      # production build (host-aware preset)
@@ -42,10 +42,16 @@ auto-detection (it would otherwise misidentify the TanStack/Vite setup):
 ```json
 {
   "buildCommand": "bun run build",
-  "installCommand": "bun install",
-  "framework": null
+  "installCommand": "bun install --frozen-lockfile",
+  "framework": null,
+  "regions": ["sin1"]
 }
 ```
+
+`sin1` (Singapore) sits next to the runner. Raise the function time limit in
+the Vercel project settings (Functions > Max Duration): `/api/ai` streams long
+replies. Security headers come from `src/server.ts`, so they apply on Vercel
+even though `vercel.json` sets none.
 
 ### Netlify
 
@@ -53,7 +59,8 @@ auto-detection (it would otherwise misidentify the TanStack/Vite setup):
 client, since the default `dist/`-only assumption 404s every route on this
 setup:
 
-- `[build]`: `command = "bun run build"`, `publish = "dist"`.
+- `[build]`: `command = "bun install --frozen-lockfile && bun run build"`
+  (production installs exactly what CI tested), `publish = "dist"`.
 - `[build.environment]`: `NODE_OPTIONS=--max-old-space-size=8192` (this
   app's dependency graph: wagmi, WalletConnect, Coinbase/MetaMask SDKs,
   Monaco: exceeds Node's default ~2 GB old-space heap during Nitro's final
@@ -62,7 +69,31 @@ setup:
 - `[functions]`: `directory = ".netlify/functions-internal"`,
   `node_bundler = "none"` (the Nitro bundle ships its own deps; don't let
   Netlify re-bundle them).
-- A long-cache header for hashed `/assets/*` files.
+- A long-cache header for hashed `/assets/*` files, and the security headers
+  (`frame-ancestors 'none'`, `X-Frame-Options`, HSTS with `includeSubDomains`,
+  `Referrer-Policy`, `Permissions-Policy`, `nosniff`).
+
+**Function timeout.** Netlify's function timeout is a site setting (Site
+configuration > Functions), not a `netlify.toml` key. Raise it to your plan's
+maximum: `/api/ai` streams long replies.
+
+### Runner (services/runner)
+
+The runner is a separate long-running service on its own host. Its required
+environment:
+
+| Variable                      | Notes                                                                                                                                                    |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RUNNER_TOKEN`                | Bearer token the app uses to reach the runner. **At least 32 characters** (`openssl rand -hex 32`); a shorter one is refused.                            |
+| `SESSION_SECRET`              | **Required** (or `RUNNER_TOKEN` as the fallback). Signs email verification codes; the runner refuses to start without one.                               |
+| `RUNNER_STATE_DIR`            | Where all runner state lives (jobs, history, accounts, listings, activity). `STATE_DIRECTORY` is read as an alias. Default `/var/lib/devstation-runner`. |
+| `PORT`                        | Default `8792`.                                                                                                                                          |
+| `RESEND_API_KEY`, `MAIL_FROM` | Optional. Email verification is off without them.                                                                                                        |
+
+**Netlify publishing token.** `NETLIFY_AUTH_TOKEN` (on the app, not the
+runner) lets users publish to Netlify under the operator's account. It can act
+on every site its account reaches, so issue it from a dedicated Netlify team
+that holds only user apps, and set `NETLIFY_ACCOUNT_SLUG` to that team.
 
 All client-readable env vars use the **`VITE_`** prefix: Vite inlines them
 into the browser bundle at **build time**, so set them in the host dashboard
@@ -72,17 +103,19 @@ and **rebuild** (changing them at runtime has no effect).
 
 ## Network configuration
 
-Every chain follows the same `VITE_<FAMILY>_<NETWORK>_{RPC,EXPLORER,CHAIN_ID}`
+Every chain follows the same `VITE_<FAMILY>_<NETWORK>_{RPC,EXPLORER}`
 pattern. Defaults match each chain's own docs (confirmed live via direct RPC
 calls when each chain was added), so these are only needed to override an
-endpoint. QIE's vars have no family infix for backward compatibility.
+endpoint. QIE's vars have no family infix for backward compatibility. Chain IDs
+are protocol constants and are not configurable: explorer routes, sponsor
+eligibility and the registries are all keyed by them.
 
-| Chain     | Network | RPC var                | Explorer var                | Chain ID var                | Default chain ID |
-| --------- | ------- | ---------------------- | --------------------------- | --------------------------- | ---------------- |
-| QIE       | Testnet | `VITE_QIE_TESTNET_RPC` | `VITE_QIE_TESTNET_EXPLORER` | `VITE_QIE_TESTNET_CHAIN_ID` | `1983`           |
-| QIE       | Mainnet | `VITE_QIE_MAINNET_RPC` | `VITE_QIE_MAINNET_EXPLORER` | `VITE_QIE_MAINNET_CHAIN_ID` | `1990`           |
-| BOT Chain | Testnet | `VITE_BOT_TESTNET_RPC` | `VITE_BOT_TESTNET_EXPLORER` | `VITE_BOT_TESTNET_CHAIN_ID` | `968`            |
-| BOT Chain | Mainnet | `VITE_BOT_MAINNET_RPC` | `VITE_BOT_MAINNET_EXPLORER` | `VITE_BOT_MAINNET_CHAIN_ID` | `677`            |
+| Chain     | Network | RPC var                | Explorer var                | Chain ID |
+| --------- | ------- | ---------------------- | --------------------------- | -------- |
+| QIE       | Testnet | `VITE_QIE_TESTNET_RPC` | `VITE_QIE_TESTNET_EXPLORER` | `1983`   |
+| QIE       | Mainnet | `VITE_QIE_MAINNET_RPC` | `VITE_QIE_MAINNET_EXPLORER` | `1990`   |
+| BOT Chain | Testnet | `VITE_BOT_TESTNET_RPC` | `VITE_BOT_TESTNET_EXPLORER` | `968`    |
+| BOT Chain | Mainnet | `VITE_BOT_MAINNET_RPC` | `VITE_BOT_MAINNET_EXPLORER` | `677`    |
 
 Extras:
 
@@ -220,13 +253,20 @@ chain rather than reusing one key across chains.
 a gas payer.** Requests are authenticated: the caller must sign a message
 (`src/lib/sponsor/request-auth.ts`) proving they control the address the gas
 is sent to, and that signature is bound to the address + chain and expires
-after 5 minutes, so it cannot be replayed. Signing costs no gas, so a wallet
-with a zero balance can still request. On top of that, requests are
-rate-limited per wallet, per IP and globally.
+after 5 minutes. It carries no single-use nonce, so within those 5 minutes the
+same signature can be resubmitted for the same address and chain; the
+per-wallet rate limit is what bounds that, and it cannot redirect funds to
+anyone else. Signing costs no gas, so a wallet with a zero balance can still
+request. On top of that, requests are rate-limited per wallet, per IP and
+globally (shared across instances when `UPSTASH_REDIS_REST_URL` /
+`UPSTASH_REDIS_REST_TOKEN` are set, per instance otherwise), and each top-up is
+capped at `SPONSOR_MAX_TOPUP_NATIVE` (default 0.3 of the native token). The
+wallet sign-in used by the other endpoints has a single-use nonce; this
+signature does not.
 
 Those controls stop an anonymous script from draining the wallet, but they
 do **not** make sponsorship free of abuse: the native token lands in the
-requester's wallet *before* any deploy happens, so nothing forces it to be
+requester's wallet _before_ any deploy happens, so nothing forces it to be
 spent on one: someone with several funded-enough wallets can still farm up
 to the cap. Note also that the rate limiter is in-process (see
 `src/lib/rateLimit.server.ts`), so on serverless it is friction rather than a
@@ -270,13 +310,22 @@ The "Code with AI" panel can either use each visitor's own key or route through
 this app's `/api/ai` proxy on an operator-provided key. For the proxy, the
 whole setup is **two variables**:
 
-| Variable             | Value          | Notes                                                  |
-| -------------------- | -------------- | ------------------------------------------------------ |
-| `VITE_AI_PROXY`      | `true`         | Public flag: routes the browser through `/api/ai`.    |
-| `OPENROUTER_API_KEY` | `sk-or-v1-...` | Server-only. One key serves every model in the picker. |
+| Variable             | Value          | Notes                                                         |
+| -------------------- | -------------- | ------------------------------------------------------------- |
+| `VITE_AI_PROXY`      | `true`         | Public flag: routes the browser through `/api/ai`.            |
+| `OPENROUTER_API_KEY` | `sk-or-v1-...` | Server-only. The proxy serves the operator's chosen model(s). |
 
 Optional: `OPENAI_MODEL` pins the default model (any OpenRouter id, e.g.
 `anthropic/claude-sonnet-5`). Without it the code defaults to that same model.
+
+The proxy requires the visitor's one-time wallet sign-in (the same access
+grant the agent endpoints use) and is rate-limited per wallet. That sign-in is
+an EIP-4361 (Sign-In with Ethereum) message naming this site's domain, with a
+single-use server nonce, so a signature cannot be replayed or reused by another
+site. `AI_MAX_TOKENS` caps proxy replies (default 32000, clamped to 64000);
+`VITE_AI_MAX_TOKENS` caps bring-your-own-key replies (default 16000). Set
+`UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` so those limits are shared
+across serverless instances rather than kept per instance.
 
 ### Two traps worth knowing
 

@@ -7,7 +7,9 @@
 # serves dist/ with no index and 404s every route ("Page not found").
 
 [build]
-  command = "bun run build"
+  # --frozen-lockfile so production installs exactly what CI tested; a plain
+  # `bun install` could resolve newer versions within the ranges.
+  command = "bun install --frozen-lockfile && bun run build"
   publish = "dist"
 
 [build.environment]
@@ -39,8 +41,10 @@
 
 # Security headers.
 #
-# Netlify already sends HSTS and X-Content-Type-Options; these are the ones it
-# does not. The Content-Security-Policy here carries ONLY frame-ancestors on
+# Netlify sends a default HSTS without includeSubDomains; it is set explicitly
+# here because the app spans docs., console. and published-app subdomains.
+# src/server.ts sets the same headers on every response, so a host without
+# this file (Vercel, a self-hosted node server) is covered too. The Content-Security-Policy here carries ONLY frame-ancestors on
 # purpose: that directive is what closes the clickjacking hole, and it
 # restricts nothing else, so it cannot break a page. A full script-src/
 # connect-src policy is a bigger piece of work for this app -- wallet SDKs
@@ -61,3 +65,7 @@
     # No page here uses a camera, microphone, geolocation or payment handler.
     permissions-policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
     x-content-type-options = "nosniff"
+    strict-transport-security = "max-age=31536000; includeSubDomains"
+
+# Function timeout: Netlify sets it per site (Site configuration > Functions),
+# not in this file. Raise it to the plan maximum: /api/ai streams long replies.

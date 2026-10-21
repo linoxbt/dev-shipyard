@@ -9,15 +9,37 @@ on:
     branches: [main, app-builder]
   pull_request:
 
+# Read-only by default. No job here pushes, comments or publishes.
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the older run's result irrelevant.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned: `latest` made CI resolve a different Bun (and lockfile format) from
+  # the one the repo was developed and locked with. Bump deliberately.
+  BUN_VERSION: 1.4.2
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # Actions are pinned by major tag and kept current by Dependabot
+      # (.github/dependabot.yml).
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-${{ env.BUN_VERSION }}-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -25,19 +47,55 @@ jobs:
       - name: Typecheck
         run: bunx tsc --noEmit
 
+      - name: Typecheck the CLI package's JavaScript
+        run: bunx tsc -p tsconfig.cli.json
+
       - name: Lint
         run: bun run lint
 
+      # Named directories rather than a bare `bun test`, which also picked up
+      # the runner's Docker suite (services/runner/README.md keeps it out of
+      # the fast run; the sandbox job below runs it with an image present).
       - name: Unit tests
-        run: bun test
+        run: bun test ./src ./bench ./scripts
+
+      - name: Contract artifacts match the source
+        run: bun run scripts/check-contracts.ts
+
+      - name: Contract behaviour tests
+        run: bun test ./contracts/test
+
+      - name: Dependency audit
+        # High and critical only: the lower tiers are dominated by advisories
+        # in dev-only transitive packages with no exploitable path here.
+        run: bun audit --audit-level=high
+
+      - name: CLI bundle smoke test
+        run: |
+          bun run scripts/build-cli.ts --bundle
+          bun packages/cli/devstation.js --version
 
       - name: Build
         run: bun run build
         env:
           # Nitro's final bundling step exceeds Node's default ~2GB old-space
           # heap for this app's dependency graph (wagmi, WalletConnect,
-          # Coinbase/MetaMask SDKs, Monaco): see DEPLOYMENT.md.
-          NODE_OPTIONS: --max-old-space-size=4096
+          # Coinbase/MetaMask SDKs, Monaco): see DEPLOYMENT.md. The Netlify
+          # preset (now the default, and what production builds) aborted at
+          # 4096 and completes at 6144; a GitHub runner has the memory.
+          NODE_OPTIONS: --max-old-space-size=6144
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, so a key that was committed and later deleted is
+          # still found.
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Everything that needs a container.
   #
@@ -53,13 +111,22 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-${{ env.BUN_VERSION }}-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Build the sandbox image
-        run: docker build -f docker/sandbox.Dockerfile -t devstation-sandbox:1 .
+        # docker/ as the context, matching `bun run sandbox:image`: the
+        # Dockerfile copies nothing in, and `.` shipped the whole repo
+        # (node_modules included) to the daemon for every build.
+        run: docker build -f docker/sandbox.Dockerfile -t devstation-sandbox:1 docker
 
       - name: Prove the image is there
         # The tests skip silently without it, so the skip is made loud here

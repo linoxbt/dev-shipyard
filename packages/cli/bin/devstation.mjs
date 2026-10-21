@@ -34,7 +34,8 @@ if (binary && existsSync(binary)) {
 const bundle = join(here, "..", "devstation.js");
 if (existsSync(bundle)) {
   const bun = spawnSync("bun", [bundle, ...args], { stdio: "inherit" });
-  if (!(bun.error && bun.error.code === "ENOENT")) process.exit(bun.status ?? 1);
+  const err = /** @type {NodeJS.ErrnoException | undefined} */ (bun.error);
+  if (!(err && err.code === "ENOENT")) process.exit(bun.status ?? 1);
 }
 
 process.stderr.write(

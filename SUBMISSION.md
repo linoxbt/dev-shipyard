@@ -18,23 +18,30 @@
 
 DevStation is the complete developer console for the QIE blockchain. It brings
 everything a builder needs to write, deploy, debug, and understand smart
-contracts into a single web app, with no setup and no backend, all running
-against the live QIE chain.
+contracts into a single web app, with no setup, all running against the live
+QIE chain. Contract work happens in the browser and onchain; a small backend
+handles what a browser cannot: the AI proxy, gas sponsorship, the build-and-run
+service for the Coding Agent and published apps, and paid marketplace files.
 
-The platform unifies seven tools that usually live in separate products:
+The platform brings together tools that usually live in separate products:
 
 - **Code with AI**: an autonomous build agent. Describe a contract in plain
   English and it generates production-grade Solidity, compiles it in the
-  browser, fixes its own compiler errors (up to five attempts), then deploys it
+  browser, fixes its own compiler errors (up to five compile attempts), runs
+  generated tests and a security review, then deploys it
   with your wallet. When a constructor needs values, you get a form to review
   and confirm before signing. It also audits any contract you paste, grading
   findings by severity (Critical through Gas).
 - **Contract Editor**: a full in-browser Solidity IDE with a Monaco editor,
   multi-version solc compilation, automatic OpenZeppelin import resolution,
   static analysis, and an interactive command terminal.
-- **LaunchKit Templates**: audited, ready-to-deploy contracts (ERC-20, NFT,
-  Soulbound NFT, MultiSig, Timelock, Vesting, Staking, Payment Splitter) with
-  live onchain deploy counts and a guided deployment flow.
+- **Marketplace**: ready-to-deploy contract templates (ERC-20, NFT, Soulbound
+  NFT, MultiSig, Timelock, Staking, Payment Splitter, plus paid ones such as
+  Token Vesting), whole apps, agent skills and UI kits, priced in QIE or QUSDC
+  through an onchain marketplace contract, with a guided deployment flow.
+- **Coding Agent**: builds, previews and publishes full apps, each at its own
+  address, from a description.
+- **CLI**: the same agent in your terminal (`docs/CLI.md`).
 - **Inspect (Routebook)**: a transaction decoder that turns any tx hash into a
   human-readable execution map: named contracts, decoded methods and arguments,
   token movements, and approval risk flags, with revert reasons on failure.
@@ -43,8 +50,9 @@ The platform unifies seven tools that usually live in separate products:
   and Mainnet.
 - **Label Registry**: onchain, human-readable names for contracts, shared
   across the ecosystem and powering the named contracts shown in Inspect.
-- **My Projects & Activity**: personal and ecosystem-wide deployment history,
-  recorded onchain in a Project Registry.
+- **My Projects & Builder Dashboard**: your deployment history, recorded
+  onchain in a Project Registry (reached from the dashboard and after every
+  deploy), and a per-builder dashboard at `/activity`.
 
 DevStation is genuinely onchain: every deployment is recorded to onchain
 registries, all reads come from live QIE RPC, and it ships as an installable

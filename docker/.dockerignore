@@ -1,0 +1,3 @@
+# The sandbox image copies nothing from its context; keep the context empty.
+*
+!sandbox.Dockerfile

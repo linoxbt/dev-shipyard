@@ -45,7 +45,7 @@ function CodeWithAI() {
           { title: "Compile", body: "Compiles it in the browser and reads the compiler output." },
           {
             title: "Fix",
-            body: "If compilation fails, it rewrites the source and compiles again, up to five times.",
+            body: "If compilation fails, it rewrites the source and compiles again, up to five compile attempts in a run.",
           },
           {
             title: "Deploy",

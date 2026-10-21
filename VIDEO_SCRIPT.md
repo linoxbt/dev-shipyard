@@ -106,11 +106,12 @@ The script and the screen recording are separate; a video editor marries them.
   pages. Holders, transfers, supply, all of it. Testnet and Mainnet, clearly
   labeled, reading the live chain."
 
-### 2:30–2:40: Activity (`/activity`)
+### 2:30–2:40: Builder Dashboard (`/activity`)
 
-- **ON SCREEN:** Open Activity. Show the ecosystem-wide deployment feed.
-- **VOICEOVER:** "Activity shows every contract deployed through DevStation
-  across the ecosystem, recorded onchain in the Project Registry."
+- **ON SCREEN:** Open the Builder Dashboard. Show your deployments, earnings and
+  published apps.
+- **VOICEOVER:** "The Builder Dashboard shows everything you have deployed,
+  published and earned, read from the Project Registry and the marketplace."
 
 ### 2:40–2:52: Docs, Wallet, Settings (`/docs`, wallet panel, `/settings`)
 
@@ -162,8 +163,8 @@ pronunciation.
    network stats, with full transaction, block, address, and token pages.
    Holders, transfers, supply, all of it. Testnet and Mainnet, clearly labeled,
    reading the live chain.
-10. Activity shows every contract deployed through DevStation across the
-    ecosystem, recorded onchain in the Project Registry.
+10. The Builder Dashboard shows everything you have deployed, published and
+    earned, read from the Project Registry and the marketplace.
 11. It is all documented in a built-in guide. Connect an injected wallet or
     generate an encrypted in-app one, and tune your A-I provider and network in
     Settings.

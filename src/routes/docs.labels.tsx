@@ -18,11 +18,11 @@ function Labels() {
       <Table
         head={["Source", "Meaning"]}
         rows={[
+          ["Auto", "Pre-approved. Only DevStation's own labeler address can add these."],
           [
-            "Auto",
-            "Added when you deploy through DevStation with auto-labelling on. Pre-approved.",
+            "Community",
+            "Submitted from any wallet, including the label DevStation offers to add when you deploy. Shown as unverified until approved.",
           ],
-          ["Community", "Submitted by a user. Waits for approval."],
           ["Verified", "A community label that has been approved."],
         ]}
       />
@@ -52,8 +52,9 @@ function Labels() {
       </P>
 
       <Callout>
-        Auto-labelling of your own deployments can be switched off in{" "}
-        <ConsoleLink to="/settings">Settings</ConsoleLink>.
+        Labelling your own deployments can be switched off in{" "}
+        <ConsoleLink to="/settings">Settings</ConsoleLink>. Anyone can label a contract first, so
+        treat an unverified label as a claim, not a fact.
       </Callout>
     </DocPage>
   );

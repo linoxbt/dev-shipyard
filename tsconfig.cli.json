@@ -1,0 +1,18 @@
+{
+  // Type-checks the npm package's hand-written JavaScript (the launcher shim
+  // and the install scripts). These are .mjs, so the main tsconfig skips them;
+  // they run on every user's machine at install time, which is exactly where
+  // a typo is most expensive to find.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["packages/cli/bin/*.mjs", "packages/cli/scripts/*.mjs"]
+}

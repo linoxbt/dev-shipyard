@@ -58,7 +58,7 @@ function Networks() {
         rows={[
           ["Templates, Contract Editor, Code with AI", "Every network"],
           ["Explorer and Routebook", "Every network"],
-          ["Marketplace listings, purchases and payouts", "QIE Mainnet"],
+          ["Marketplace listings, purchases and payouts", "QIE Mainnet and QIE Testnet (QIE only)"],
           ["QIE ID (.qie names)", "QIE Mainnet, whatever network is selected"],
           ["Leaderboard and analytics", "The selected network"],
           ["Overview ecosystem totals", "Every network, combined"],

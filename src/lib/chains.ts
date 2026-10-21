@@ -13,7 +13,11 @@ const TESTNET_EXPLORER = import.meta.env.VITE_QIE_TESTNET_EXPLORER || "https://t
 // QIE Mainnet: chain id 1990, rpc{1..5}mainnet.qie.digital (docs.qie.digital).
 const MAINNET_RPC = import.meta.env.VITE_QIE_MAINNET_RPC || "https://rpc1mainnet.qie.digital/";
 const MAINNET_EXPLORER = import.meta.env.VITE_QIE_MAINNET_EXPLORER || "https://mainnet.qie.digital";
-const MAINNET_CHAIN_ID = Number(import.meta.env.VITE_QIE_MAINNET_CHAIN_ID || 1990);
+// Chain ids are protocol constants, not configuration: the explorer slugs,
+// sponsor eligibility, terminology and every test hard-code them, so an
+// override here could only ever desynchronise the app from itself. Typed as
+// `number` (as the old env reads were) so wagmi's chain-id type stays wide.
+const MAINNET_CHAIN_ID: number = 1990;
 
 // QIE DEX swap (used for the "get QIE for gas" link). swap.dex.qie.digital.
 export const QIE_DEX_SWAP_URL =
@@ -41,12 +45,12 @@ export const qieMainnet = defineChain({
 // alongside QIE: same shape as the QIE config above.
 const BOT_TESTNET_RPC = import.meta.env.VITE_BOT_TESTNET_RPC || "https://rpc.bohr.life";
 const BOT_TESTNET_EXPLORER = import.meta.env.VITE_BOT_TESTNET_EXPLORER || "https://scan.bohr.life";
-const BOT_TESTNET_CHAIN_ID = Number(import.meta.env.VITE_BOT_TESTNET_CHAIN_ID || 968);
+const BOT_TESTNET_CHAIN_ID: number = 968;
 
 const BOT_MAINNET_RPC = import.meta.env.VITE_BOT_MAINNET_RPC || "https://rpc.botchain.ai";
 const BOT_MAINNET_EXPLORER =
   import.meta.env.VITE_BOT_MAINNET_EXPLORER || "https://scan.botchain.ai";
-const BOT_MAINNET_CHAIN_ID = Number(import.meta.env.VITE_BOT_MAINNET_CHAIN_ID || 677);
+const BOT_MAINNET_CHAIN_ID: number = 677;
 
 // BOT DEX swap (used for the "get BOT for gas" link on mainnet). dex.botchain.ai.
 export const BOT_DEX_SWAP_URL =

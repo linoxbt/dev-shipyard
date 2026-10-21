@@ -1,5 +1,12 @@
 # DevStation (dev-shipyard): Technical Evaluation Report
 
+> **Historical document (superseded, noted 2026-10-21).** This report describes
+> the repository as of 2026-06-07. Several of its findings no longer hold: the
+> repository now has unit tests (118 files), contract behaviour tests and CI
+> (`.github/workflows/ci.yml`), and the mainnet registries are deployed (see
+> DEPLOYMENT.md). It is kept unedited below as a record; do not read it as the
+> current state.
+
 **Repository:** `github.com/linoxbt/dev-shipyard`
 **Reviewed:** `main` @ `d8d3fef`, 2026-06-07
 **Scope:** Full codebase after the on-chain rebuild + AI assistant + editor
@@ -36,7 +43,7 @@ remains is hardening (tests/CI), the Mainnet registry rollout, and polish.
 | Dimension            | Rating | Note                                                            |
 | -------------------- | ------ | --------------------------------------------------------------- |
 | Build / type safety  | ★★★★★  | `tsc --noEmit`, `eslint`, and `vite build` all clean            |
-| Real functionality   | ★★★★☆  | On-chain deploy, live decode, real wallet, AI, all working     |
+| Real functionality   | ★★★★☆  | On-chain deploy, live decode, real wallet, AI, all working      |
 | Architecture         | ★★★★☆  | Single sources of truth (network, chains, storage); clean hooks |
 | Design system        | ★★★★☆  | Cohesive terminal/amber/teal theme, semantic tokens             |
 | Testing              | ☆☆☆☆☆  | No unit/integration tests, no CI                                |

@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Workflow actions are pinned by major tag; this keeps them current and
+  # surfaces security releases as pull requests.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /services/runner
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

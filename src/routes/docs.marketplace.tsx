@@ -89,7 +89,7 @@ function MarketplaceDocs() {
                 head={["Model", "You pay"]}
                 rows={[
                   ["One-time", "Once. Keep it, and deploy it as often as you like."],
-                  ["Per deploy", "Each time you deploy it."],
+                  ["Per deploy", "Each time you deploy it through DevStation."],
                   ["Free", "Nothing. Price 0."],
                 ]}
               />

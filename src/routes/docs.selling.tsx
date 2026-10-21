@@ -71,7 +71,7 @@ function SellingDocs() {
                   ["Currency", "QIE, or QUSDC for a dollar price that stays put."],
                   [
                     "Model",
-                    "One-time: buy it, keep it. Per deploy: paid again every time someone deploys it.",
+                    "One-time: buy it, keep it. Per deploy: paid again every time someone deploys it through DevStation. Buyers receive the source, so this is a fee by convention: the contract cannot stop a buyer redeploying it elsewhere.",
                   ],
                   ["Price", "Any amount, or 0 to give it away."],
                 ]}

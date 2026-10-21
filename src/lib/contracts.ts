@@ -1,6 +1,7 @@
 // On-chain contract addresses, read from public env so they can differ per
 // deployment without code changes. Empty string = "not deployed yet"; hooks
-// that consume these fall back to localStorage / hide UI when an address is absent.
+// that consume these hide the feature (or show local history only) when an
+// address is absent.
 //
 // Registries are deployed separately on each chain, so the addresses are
 // per-network: VITE_*_ADDRESS_TESTNET / _MAINNET. The legacy single
@@ -12,11 +13,10 @@ import { qieTestnet, qieMainnet, botTestnet, botMainnet } from "@/lib/chains";
 
 const env = import.meta.env;
 
-// Canonical DevStation registries. The deployer's matching nonces produced
-// identical addresses on Testnet (1983) and Mainnet (1990), and both are
-// source-verified on the QIE explorer. These are the live defaults so the
-// onchain features (Projects, Activity, ecosystem stats) work with zero env
-// config; a VITE_*_REGISTRY_ADDRESS_* override still wins for custom deployments.
+// Canonical DevStation registries, source-verified on each chain's explorer.
+// These are the live defaults so the onchain features (Projects, Activity,
+// ecosystem stats) work with zero env config; a VITE_*_REGISTRY_ADDRESS_*
+// override still wins for custom deployments. See DEPLOYMENT.md for the table.
 // Per-NETWORK defaults. These were previously a single pair reused for both
 // QIE networks, which meant an unset (or wrongly-set) mainnet var silently
 // fell back to the *testnet* registry address: reads would hit a contract
@@ -27,16 +27,21 @@ const QIE_TESTNET_LABEL_REGISTRY = "0x177294293e6e785a83e036a95de1697e3cc04748";
 const QIE_MAINNET_PROJECT_REGISTRY = "0x673e3d4d7f6043d0384e95ce0c110f09e09ec708";
 const QIE_MAINNET_LABEL_REGISTRY = "0xb6075e4cad1f7e7e779e49dcf7df08949797ed81";
 const QIE_MAINNET_TEMPLATE_REGISTRY = "0xdfe2f883bab871fe128eedc05c954cf069e67302";
+// BOT Chain mainnet (677): a separate deployment, listed in DEPLOYMENT.md and
+// matching contracts/*.sol. Without these defaults, Projects, Labels and stats
+// were off on BOT mainnet unless two env vars were set, while BOT gas-free
+// deploys were advertised and on.
+const BOT_MAINNET_PROJECT_REGISTRY = "0xd7b68abdbae4496cb0bf5ce6c8684bc6f3dd9c9b";
+const BOT_MAINNET_LABEL_REGISTRY = "0x341b13cbab421cd318da7906d894ac1ba5b9fd3f";
 
 function envAddress(value: string | undefined, fallback = ""): `0x${string}` {
   return (value || fallback) as `0x${string}`;
 }
 
 // Per-network registry addresses, keyed by chain id. Env overrides the default.
-// BOT Chain has no default: its registries are a separate deployment (the QIE
-// deployer-nonce coincidence above doesn't carry over to an unrelated chain) -
-// so its addresses stay unset until VITE_*_REGISTRY_ADDRESS_BOT_* is configured,
-// which is exactly the "not deployed yet" fallback path documented above.
+// BOT Chain testnet has no default: its old pair is no longer wired in (see
+// DEPLOYMENT.md), so it stays unset until VITE_*_REGISTRY_ADDRESS_BOT_TESTNET
+// is configured.
 const PROJECT_REGISTRY: Record<number, `0x${string}`> = {
   [qieTestnet.id]: envAddress(
     env.VITE_PROJECT_REGISTRY_ADDRESS_TESTNET || env.VITE_PROJECT_REGISTRY_ADDRESS,
@@ -47,7 +52,10 @@ const PROJECT_REGISTRY: Record<number, `0x${string}`> = {
     QIE_MAINNET_PROJECT_REGISTRY,
   ),
   [botTestnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_BOT_TESTNET),
-  [botMainnet.id]: envAddress(env.VITE_PROJECT_REGISTRY_ADDRESS_BOT_MAINNET),
+  [botMainnet.id]: envAddress(
+    env.VITE_PROJECT_REGISTRY_ADDRESS_BOT_MAINNET,
+    BOT_MAINNET_PROJECT_REGISTRY,
+  ),
 };
 
 const LABEL_REGISTRY: Record<number, `0x${string}`> = {
@@ -57,7 +65,10 @@ const LABEL_REGISTRY: Record<number, `0x${string}`> = {
   ),
   [qieMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_MAINNET, QIE_MAINNET_LABEL_REGISTRY),
   [botTestnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_BOT_TESTNET),
-  [botMainnet.id]: envAddress(env.VITE_LABEL_REGISTRY_ADDRESS_BOT_MAINNET),
+  [botMainnet.id]: envAddress(
+    env.VITE_LABEL_REGISTRY_ADDRESS_BOT_MAINNET,
+    BOT_MAINNET_LABEL_REGISTRY,
+  ),
 };
 
 const TEMPLATE_REGISTRY: Record<number, `0x${string}`> = {

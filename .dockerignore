@@ -1,0 +1,15 @@
+# For any image built with the repository root as context.
+node_modules
+**/node_modules
+.git
+dist
+dist-cli
+.output
+.netlify
+.vercel
+.nitro
+.tanstack
+.env
+.env.*
+!.env.example
+*.local

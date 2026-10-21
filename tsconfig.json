@@ -13,6 +13,9 @@
     // bench/runner/run.ts pushed an object missing a required field.
     "bench/**/*.ts",
     "scripts/**/*.ts",
+    // The contract behaviour tests run in CI; type errors there would
+    // otherwise surface only as a confusing test failure.
+    "contracts/**/*.ts",
     "types/**/*.d.ts"
   ],
   // The files of marketplace listings are what buyers get, not part of the site:
