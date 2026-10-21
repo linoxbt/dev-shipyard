@@ -139,6 +139,10 @@ describe("the secrets guard, through the shell", () => {
       "cp secrets/id_rsa /tmp",
       "head server.key",
       "cat ~/.npmrc",
+      // The shell joins adjacent quoted pieces into one word.
+      "cat .en''v",
+      'cat .e"n"v',
+      "cat .\\env",
     ]) {
       expect(refusedForSecret(command)).not.toBeNull();
     }

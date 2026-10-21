@@ -201,6 +201,11 @@ const FLAGS: Record<Exclude<GitOp, "clone">, readonly string[]> = {
 };
 
 /** Why these arguments are not acceptable for `op`, or null. */
+/** Short options that take a value, which may be attached (`-n5`). Only these:
+ *  for a boolean option the rest of the argument is more options (`-ac` is
+ *  `-a -c`), so it is checked letter by letter instead. */
+const TAKES_VALUE = new Set(["-n", "-m", "-b", "-U", "-S", "-G", "-M", "-u"]);
+
 export function gitArgsProblem(op: GitOp, args: readonly string[]): string | null {
   if (op === "clone") return args.length ? "clone takes url and target_dir, not args." : null;
   const allowed = new Set(FLAGS[op] ?? []);
@@ -211,11 +216,26 @@ export function gitArgsProblem(op: GitOp, args: readonly string[]): string | nul
       afterSeparator = true;
       continue;
     }
+    // %G placeholders make git verify signatures, which runs a program named
+    // by repository config. Caught in any argument, so a format passed as the
+    // value after a bare --format is covered too.
+    if (/%G/.test(arg))
+      return "Signature placeholders (%G…) are not available in git formats here.";
     if (!arg.startsWith("-") || arg === "-") continue;
     // -5 is `log -n 5`, and -U3 is `diff -U 3`.
     if (op === "log" && /^-\d+$/.test(arg)) continue;
     if (op === "diff" && /^-U\d+$/.test(arg)) continue;
     const name = arg.includes("=") ? arg.slice(0, arg.indexOf("=")) : arg;
+    if (!arg.startsWith("--") && arg.length > 2 && !allowed.has(name)) {
+      // Short options written the way people type them: an attached value
+      // (`-n5`, `-uno`, `-Sfoo`, `-M50%`) when the option itself is allowed,
+      // or a bundle of allowed single letters (`-am`). Any letter that is not
+      // allowed on its own refuses the whole argument.
+      const head = arg.slice(0, 2);
+      if (allowed.has(head) && TAKES_VALUE.has(head)) continue;
+      const letters = [...arg.slice(1)];
+      if (letters.every((l) => /[a-zA-Z]/.test(l) && allowed.has(`-${l}`))) continue;
+    }
     if (!allowed.has(name)) {
       return `git ${op} does not accept ${name} here. Allowed: ${[...allowed].join(" ")}.`;
     }

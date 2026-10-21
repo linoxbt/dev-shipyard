@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, it, test } from "bun:test";
 import {
   confirmSign,
   consumePreapproval,
@@ -77,5 +77,25 @@ describe("preapproval", () => {
     preapprove("eth_sendTransaction", params);
     expect(consumePreapproval("eth_sendTransaction", [{ to: "0xabc", value: "0x1" }])).toBe(true);
     expect(consumePreapproval("eth_sendTransaction", params)).toBe(false);
+  });
+});
+
+describe("describeRequest edge cases", () => {
+  it("describes a network switch with where it goes from and to", () => {
+    const req = describeRequest(
+      "wallet_switchEthereumChain",
+      [{ chainId: "0x7c6" }],
+      "QIE Testnet",
+      "preview",
+    );
+    expect(req?.kind).toBe("switchChain");
+    expect(req?.rows).toContainEqual(["From", "QIE Testnet"]);
+    expect(String(req?.rows.find((r) => r[0] === "To")?.[1])).toContain("QIE");
+  });
+
+  it("refuses to describe a transaction whose value is not a number", () => {
+    expect(
+      describeRequest("eth_sendTransaction", [{ to: "0x00", value: "lots" }], "QIE", "app"),
+    ).toBeNull();
   });
 });

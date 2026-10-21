@@ -60,10 +60,34 @@ const FIXED_OVERRIDES = [
   "core.hooksPath=/dev/null",
   "core.pager=cat",
   "core.alternateRefsCommand=",
+  // Blank, so a planted external diff tool never runs. git then fails a
+  // patch-producing diff loudly ("external diff died") rather than running
+  // anything: every caller passes --no-ext-diff, and a new one must too.
+  // A repository whose filter is marked required likewise fails to check
+  // point once its filter is blanked, which is the safe direction.
   "diff.external=",
   "commit.gpgSign=false",
   "tag.gpgSign=false",
   "protocol.ext.allow=never",
+  // Signature checks run a verifier program named by config: `git log` with
+  // log.showSignature, or any %G format, would start it on the host. Show no
+  // signatures, and point every verifier at a program that does nothing.
+  "log.showSignature=false",
+  "gpg.program=false",
+  "gpg.ssh.program=false",
+  "gpg.x509.program=false",
+  "gpg.ssh.defaultKeyCommand=",
+  // Other keys that name a program git may start.
+  "core.sshCommand=false",
+  "core.askPass=",
+  "core.editor=false",
+  "sequence.editor=false",
+  "credential.helper=",
+  "core.gitProxy=",
+  // core.worktree would point the host's `git add -A` (and undo's reset) at
+  // any directory on the machine; --work-tree below pins it to the workspace
+  // and this stops a bare-repo flip from changing what that means.
+  "core.bare=false",
 ];
 
 /** The commands `git lfs install` writes, with and without `--skip`. */
@@ -115,9 +139,25 @@ export function safeGit(root: string): string {
   ].join(" ");
 }
 
+/**
+ * Pins the repository and work tree to the workspace when the workspace is a
+ * repository root. core.worktree in .git/config would otherwise send the
+ * host's `git add -A` (and undo's reset) to any directory on the machine, and
+ * a command-line `-c core.worktree` does not override it: only GIT_DIR plus
+ * GIT_WORK_TREE do. A workspace that is a subdirectory of a larger repository
+ * (the CLI run inside a monorepo package) keeps normal discovery.
+ */
+export function gitLocation(root: string): NodeJS.ProcessEnv {
+  return existsSync(join(root, ".git")) ? { GIT_DIR: join(root, ".git"), GIT_WORK_TREE: root } : {};
+}
+
 /** Run `git <rest>` in `root` with the overrides and environment above. */
 export function runGit(root: string, rest: string, timeoutMs = 30_000): Promise<ShellResult> {
-  return runShell(`${safeGit(root)} ${rest}`, { cwd: root, timeoutMs, env: gitEnv() });
+  return runShell(`${safeGit(root)} ${rest}`, {
+    cwd: root,
+    timeoutMs,
+    env: { ...gitEnv(), ...gitLocation(root) },
+  });
 }
 
 /** Shell-quote a single argument. Arguments come from a model, so they are

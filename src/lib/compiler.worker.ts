@@ -5,7 +5,22 @@
 // soljson bundle (~8s for cold cache, ~2s warm); subsequent compiles of the
 // same version are fast (~100-400ms).
 
-import { OZ_CONTRACTS_5_0_2_SHA256, OZ_UPGRADEABLE_5_0_2_SHA256 } from "./oz-integrity";
+// No imports: this is a classic worker (soljson needs importScripts), and a
+// classic worker cannot `import`. A production build bundles it into one file,
+// but the dev server serves it as written, where an import crashed it. The
+// pinned hashes arrive instead in the first message the page sends (see
+// compiler.ts), and nothing compiles until they have.
+let SOLC_PINNED_SHA256: Record<string, { path: string; sha256: string }> = {};
+let OZ_CONTRACTS_5_0_2_SHA256: Record<string, string> = {};
+let OZ_UPGRADEABLE_5_0_2_SHA256: Record<string, string> = {};
+let pinsReady = false;
+
+type InitMessage = {
+  type: "init";
+  solc: Record<string, { path: string; sha256: string }>;
+  oz: Record<string, string>;
+  ozUpgradeable: Record<string, string>;
+};
 
 type WorkerRequest = {
   id: number;
@@ -49,6 +64,9 @@ let releaseMap: Record<string, string> | null = null;
 let buildHashes: Record<string, string> | null = null;
 
 async function resolveSolcBuild(version: string): Promise<SolcBuild> {
+  // A pinned version needs nothing from the host but the file itself.
+  const pinned = SOLC_PINNED_SHA256[version];
+  if (pinned) return pinned;
   if (!releaseMap || !buildHashes) {
     const resp = await fetch("https://binaries.soliditylang.org/bin/list.json");
     if (!resp.ok) throw new Error(`Could not load solc version list (${resp.status})`);
@@ -70,6 +88,9 @@ async function resolveSolcBuild(version: string): Promise<SolcBuild> {
   }
   const sha256 = buildHashes[file];
   if (!sha256) throw new Error(`solc ${version} has no published checksum; refusing to load it.`);
+  console.warn(
+    `[compiler] solc ${version} is not pinned in solc-pins.ts; checked against the host's own list.`,
+  );
   return { path: file, sha256 };
 }
 
@@ -351,10 +372,27 @@ async function doCompile(req: WorkerRequest) {
   });
 }
 
-self.onmessage = (e: MessageEvent<WorkerRequest>) => {
-  doCompile(e.data).catch((err) => {
+self.onmessage = (e: MessageEvent<WorkerRequest | InitMessage>) => {
+  if ("type" in e.data && e.data.type === "init") {
+    SOLC_PINNED_SHA256 = e.data.solc;
+    OZ_CONTRACTS_5_0_2_SHA256 = e.data.oz;
+    OZ_UPGRADEABLE_5_0_2_SHA256 = e.data.ozUpgradeable;
+    pinsReady = true;
+    return;
+  }
+  const req = e.data as WorkerRequest;
+  if (!pinsReady) {
+    // Fail closed: without the pins there is nothing to check downloads against.
     self.postMessage({
-      id: e.data.id,
+      id: req.id,
+      type: "error",
+      message: "The compiler was not initialised with its checksums. Reload and try again.",
+    } satisfies WorkerResponse);
+    return;
+  }
+  doCompile(req).catch((err) => {
+    self.postMessage({
+      id: req.id,
       type: "error",
       message: err instanceof Error ? err.message : "Compiler worker failed",
     } satisfies WorkerResponse);

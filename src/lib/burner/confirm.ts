@@ -1,3 +1,4 @@
+import { SUPPORTED_CHAINS } from "@/lib/chains";
 // Explicit approval for anything that signs.
 //
 // The in-app wallet used to sign the moment it was asked: eth_sendTransaction,
@@ -12,7 +13,7 @@
 
 import { formatEther, hexToString, isHex, type Hex } from "viem";
 
-export type SignKind = "transaction" | "message" | "typedData" | "addChain";
+export type SignKind = "transaction" | "message" | "typedData" | "addChain" | "switchChain";
 
 export interface SignRequest {
   kind: SignKind;
@@ -87,7 +88,14 @@ export function describeRequest(
   switch (method) {
     case "eth_sendTransaction": {
       const tx = (p[0] ?? {}) as { to?: string; value?: string | bigint; data?: string };
-      const value = tx.value === undefined ? 0n : BigInt(tx.value);
+      let value: bigint;
+      try {
+        value = tx.value === undefined ? 0n : BigInt(tx.value);
+      } catch {
+        // A value that is not a number is not a request anyone can approve:
+        // returning null makes both callers refuse it as a user rejection.
+        return null;
+      }
       const data = typeof tx.data === "string" ? tx.data : "0x";
       return {
         kind: "transaction",
@@ -145,6 +153,20 @@ export function describeRequest(
           ["Name", c.chainName ?? "(none)"],
           ["Chain id", String(c.chainId ?? "(none)")],
           ["RPC", (c.rpcUrls ?? []).join(", ") || "(none)"],
+        ],
+      };
+    }
+    case "wallet_switchEthereumChain": {
+      const c = (p[0] ?? {}) as { chainId?: string };
+      const id = Number(c.chainId);
+      const known = SUPPORTED_CHAINS.find((x) => x.id === id);
+      return {
+        kind: "switchChain",
+        source,
+        title: "Switch network",
+        rows: [
+          ["From", chainName],
+          ["To", known ? known.name : `Chain ${String(c.chainId ?? "(none)")}`],
         ],
       };
     }

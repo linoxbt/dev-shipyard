@@ -136,18 +136,34 @@ export async function checkRateLimit(
 
 const IP_LIKE = /^[0-9a-fA-F:.]{2,45}$/;
 
+/** The one header this deployment's platform sets and a client cannot. Any
+ *  other "client IP" header can be written by the client itself, so only this
+ *  one is read. TRUSTED_IP_HEADER overrides it for other hosts (for example
+ *  `x-real-ip` behind an nginx that sets it, or `cf-connecting-ip`). */
+export function trustedIpHeader(env: NodeJS.ProcessEnv = process.env): string | null {
+  const configured = env.TRUSTED_IP_HEADER?.trim().toLowerCase();
+  if (configured) return configured === "x-forwarded-for" ? null : configured;
+  if (env.VERCEL) return "x-vercel-forwarded-for";
+  // Netlify is the default host (netlify.toml, the default build preset), and
+  // its edge overwrites this header on every request.
+  return "x-nf-client-connection-ip";
+}
+
 /**
  * The client's address, from the header the hosting platform sets rather than
- * one the client can write.
- *
- * Order: Netlify's x-nf-client-connection-ip, Vercel's
- * x-vercel-forwarded-for, x-real-ip, then the RIGHTMOST X-Forwarded-For entry
- * (the one the nearest proxy appended). The leftmost entry is client-supplied
- * and is never used.
+ * one the client can write: the platform's own header (see trustedIpHeader),
+ * else the RIGHTMOST X-Forwarded-For entry, the one the nearest proxy
+ * appended. The leftmost entry is client-supplied and is never used. Behind a
+ * proxy that sets none of these, every client shares one key: set
+ * TRUSTED_IP_HEADER (see DEPLOYMENT.md).
  */
-export function clientKeyFromRequest(request: Request): string {
+export function clientKeyFromRequest(
+  request: Request,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
   const h = request.headers;
-  for (const name of ["x-nf-client-connection-ip", "x-vercel-forwarded-for", "x-real-ip"]) {
+  const name = trustedIpHeader(env);
+  if (name) {
     const v = h.get(name)?.split(",")[0]?.trim();
     if (v && IP_LIKE.test(v)) return v;
   }

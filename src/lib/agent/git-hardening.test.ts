@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync, appendFileSync } from "
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runShell } from "./shell";
-import { agentDiff, changedFiles, checkpoint, driverOverrides } from "./git";
+import { agentDiff, changedFiles, checkpoint, driverOverrides, headIsCheckpoint } from "./git";
 import { gitArgsProblem } from "./git-ops";
 import { initLocalRepo, materialise } from "./repo-session";
 import { Workspace, isControlPath } from "./workspace";
@@ -109,6 +109,68 @@ describe("host git ignores programs named by config", () => {
   });
 });
 
+describe("signature checks and work-tree redirection", () => {
+  it("never starts a gpg program named by config, even for a signed commit", async () => {
+    const root = scratch();
+    await runShell(
+      "git init -q && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m base",
+      { cwd: root },
+    );
+    // A commit carrying a gpgsig header, written directly: git only calls the
+    // verifier for commits that have one.
+    const tree = (await runShell("git rev-parse HEAD^{tree}", { cwd: root })).stdout.trim();
+    const parent = (await runShell("git rev-parse HEAD", { cwd: root })).stdout.trim();
+    const body =
+      `tree ${tree}\nparent ${parent}\nauthor t <t@t> 1700000000 +0000\n` +
+      `committer t <t@t> 1700000000 +0000\ngpgsig -----BEGIN PGP SIGNATURE-----\n \n` +
+      ` x\n -----END PGP SIGNATURE-----\n\nsigned\n`;
+    writeFileSync(join(root, "..", "commit.txt"), body);
+    const sha = (
+      await runShell(`git hash-object -t commit -w ${join(root, "..", "commit.txt")}`, {
+        cwd: root,
+      })
+    ).stdout.trim();
+    await runShell(`git update-ref HEAD ${sha}`, { cwd: root });
+
+    const marker = join(root, "..", `gpg-${Date.now()}-${Math.random()}`);
+    const program = join(root, "..", "verifier.sh");
+    writeFileSync(program, `#!/bin/sh\ntouch ${marker}\n`, { mode: 0o755 });
+    appendFileSync(
+      join(root, ".git", "config"),
+      `[gpg]\n\tprogram = ${program}\n[log]\n\tshowSignature = true\n`,
+    );
+    // Sanity: plain git does start it, so the test would catch a regression.
+    await runShell("git log -1", { cwd: root });
+    expect(existsSync(marker)).toBe(true);
+    rmSync(marker);
+
+    await headIsCheckpoint(root);
+    await changedFiles(root);
+    expect(existsSync(marker)).toBe(false);
+    expect(gitArgsProblem("log", ["--format=%G?"])).not.toBeNull();
+    expect(gitArgsProblem("log", ["--format", "%GS"])).not.toBeNull();
+  });
+
+  it("keeps the work tree on the workspace whatever core.worktree says", async () => {
+    const root = scratch();
+    const elsewhere = scratch();
+    writeFileSync(join(elsewhere, "secret.env"), "HOST_SECRET=hunter2\n");
+    await runShell(
+      "git init -q && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m base",
+      { cwd: root },
+    );
+    appendFileSync(join(root, ".git", "config"), `[core]\n\tworktree = ${elsewhere}\n`);
+    writeFileSync(join(root, "a.txt"), "mine\n");
+    const cp = await checkpoint(root, "one");
+    expect(cp.ok).toBe(true);
+    const files = (
+      await runShell("git -c core.worktree= ls-tree -r --name-only HEAD", { cwd: root })
+    ).stdout;
+    expect(files).toContain("a.txt");
+    expect(files).not.toContain("secret.env");
+  });
+});
+
 describe("gitArgsProblem", () => {
   it("refuses flags that run programs or write files", () => {
     for (const [op, args] of [
@@ -122,6 +184,15 @@ describe("gitArgsProblem", () => {
     ] as const) {
       expect(gitArgsProblem(op, args)).not.toBeNull();
     }
+  });
+
+  it("accepts short flags with attached values and bundles of allowed letters", () => {
+    expect(gitArgsProblem("commit", ["-am", "msg"])).toBeNull();
+    expect(gitArgsProblem("commit", ["-mfix"])).toBeNull();
+    expect(gitArgsProblem("checkout", ["-bfeature"])).toBeNull();
+    // A bundle with any letter that is not allowed alone is still refused.
+    expect(gitArgsProblem("commit", ["-ac"])).not.toBeNull();
+    expect(gitArgsProblem("status", ["-cfoo"])).not.toBeNull();
   });
 
   it("accepts ordinary reads", () => {

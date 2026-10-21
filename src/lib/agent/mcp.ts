@@ -231,7 +231,14 @@ export class McpServer {
       this.notify("notifications/initialized", {});
       return true;
     } catch (error) {
-      this.startError = error instanceof Error ? error.message : String(error);
+      // Servers no longer inherit the shell's secrets. One that exits at
+      // startup most often wanted a token it used to find there, so say where
+      // it goes now.
+      const reason = error instanceof Error ? error.message : String(error);
+      this.startError =
+        `${reason}. MCP servers get only an allow-listed environment: if this one ` +
+        `needs a key from your shell (a token or API key), add it to the "env" ` +
+        `block of its entry in the MCP config.`;
       return false;
     }
   }

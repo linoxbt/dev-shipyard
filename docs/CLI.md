@@ -468,7 +468,14 @@ until you run `devstation mcp trust` in it: an MCP server is a program run as
 you, and a cloned repository should not be able to start one by itself. Trust
 is pinned to the file's exact contents, so any later edit asks again. Servers
 start with a minimal environment (PATH, HOME and the like) plus the `env` their
-config names, not with every key your shell holds.
+config names, not with every key your shell holds. A server that used to pick
+up a token from your shell (`GITHUB_TOKEN`, an API key) needs it named in its
+`env` block now; `devstation mcp` shows such a server as not starting, with
+that hint:
+
+```json
+{ "mcpServers": { "github": { "command": "github-mcp", "env": { "GITHUB_TOKEN": "ghp_…" } } } }
+```
 
 ## Debugging
 

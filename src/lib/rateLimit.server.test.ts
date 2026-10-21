@@ -26,7 +26,25 @@ describe("clientKeyFromRequest", () => {
   });
 
   it("ignores values that are not addresses", () => {
-    expect(clientKeyFromRequest(req({ "x-real-ip": "<script>" }))).toBe("unknown");
+    expect(
+      clientKeyFromRequest(req({ "x-real-ip": "<script>" }), { TRUSTED_IP_HEADER: "x-real-ip" }),
+    ).toBe("unknown");
+  });
+
+  it("reads only the current platform's header, never another platform's", () => {
+    // On Vercel a client can send Netlify's header; it must not win.
+    const spoofed = req({
+      "x-nf-client-connection-ip": "6.6.6.6",
+      "x-vercel-forwarded-for": "203.0.113.7",
+    });
+    expect(clientKeyFromRequest(spoofed, { VERCEL: "1" })).toBe("203.0.113.7");
+    // Self-hosted without a configured header: x-real-ip is client-writable.
+    expect(clientKeyFromRequest(req({ "x-real-ip": "6.6.6.6" }), {})).toBe("unknown");
+    expect(
+      clientKeyFromRequest(req({ "x-real-ip": "198.51.100.2" }), {
+        TRUSTED_IP_HEADER: "X-Real-IP",
+      }),
+    ).toBe("198.51.100.2");
   });
 });
 

@@ -56,6 +56,22 @@ describe("requestProblem", () => {
     expect(requestProblem(r, ROOT)).toBe("not_json");
   });
 
+  it("lets a bodyless POST through (sign-out sends no body and no type)", () => {
+    const r = new Request("https://devstation.online/api/github", {
+      method: "POST",
+      headers: { origin: "https://devstation.online" },
+    });
+    expect(requestProblem(r, ROOT)).toBeNull();
+  });
+
+  it("refuses a declared non-JSON type even without a length", () => {
+    const r = new Request("https://devstation.online/api/agent", {
+      method: "POST",
+      headers: { origin: "https://devstation.online", "content-type": "text/plain" },
+    });
+    expect(requestProblem(r, ROOT)).toBe("not_json");
+  });
+
   it("never blocks a read", () => {
     const r = new Request("https://devstation.online/api/agent", {
       headers: { origin: "https://evil.example" },

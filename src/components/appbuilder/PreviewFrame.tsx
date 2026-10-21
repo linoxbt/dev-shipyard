@@ -39,7 +39,12 @@ const NEEDS_APPROVAL = new Set([
   "personal_sign",
   "eth_signTypedData_v4",
   "wallet_addEthereumChain",
+  // Without this a preview could move the wallet to a mainnet first and have
+  // the next transaction approved under the testnet the app was built for.
+  "wallet_switchEthereumChain",
 ]);
+
+const BURNER_CONFIRMS = new Set(["eth_sendTransaction", "personal_sign", "eth_signTypedData_v4"]);
 
 interface Props {
   files: Record<string, string>;
@@ -128,14 +133,21 @@ export function PreviewFrame({ files, dir = "app", assets, chainName, onError, c
           reply({ error: "Token permit signatures are not allowed from a preview." });
           return;
         }
-        const req = describeRequest(method, params, chainName, "preview");
+        // Describe the request with the chain the wallet is actually on, not
+        // the one the app was generated for: they differ after any switch.
+        const walletChain = connectorClient?.chain?.name ?? chainName;
+        const req = describeRequest(method, params, walletChain, "preview");
         if (!req || !(await confirmSign(req))) {
           reply({ error: "You rejected the request in DevStation." });
           return;
         }
         // The in-app wallet would otherwise ask a second time for the same
         // request; tell it this exact one is already approved.
-        if (connector?.id === "devstation-burner") preapprove(method, params);
+        // Only for the methods the burner itself confirms; a chain add or
+        // switch is not signed there, so a preapproval would never be used.
+        if (connector?.id === "devstation-burner" && BURNER_CONFIRMS.has(method)) {
+          preapprove(method, params);
+        }
       }
       try {
         reply({ result: await provider.request({ method, params }) });

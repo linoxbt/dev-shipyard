@@ -68,12 +68,17 @@ export function requestProblem(request: Request, root?: string): GuardProblem | 
 
   const path = new URL(request.url).pathname;
   if (path.startsWith("/api/")) {
+    // Decided from headers, not request.body: on the Node adapter body is a
+    // stream object even when nothing was sent, which turned a bodyless POST
+    // (sign-out) into a 415. A body arrives with a non-zero Content-Length or
+    // chunked; and any declared non-JSON type is refused whatever the length
+    // says, since an HTTP/2 stream can arrive with neither header.
     const length = request.headers.get("content-length");
-    // Browsers send content-length: 0 for an empty POST; a streamed body has
-    // no length at all, and is a body.
-    const hasBody = length !== null ? length !== "0" : request.body !== null;
+    const hasBody =
+      length !== null ? length.trim() !== "0" : request.headers.has("transfer-encoding");
     const type = (request.headers.get("content-type") ?? "").toLowerCase();
-    if (hasBody && !type.startsWith("application/json")) return "not_json";
+    const json = type.startsWith("application/json");
+    if ((hasBody || type !== "") && !json) return "not_json";
   }
   return null;
 }
@@ -94,7 +99,9 @@ export function refusal(problem: GuardProblem): Response {
 // production is worse than none. The report shows what an enforcing one needs.
 const CSP_REPORT_ONLY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://binaries.soliditylang.org",
+  // No CDN hosts: Monaco is bundled, and solc and OpenZeppelin are fetched as
+  // data, checked against pinned hashes, and only solc runs, from a blob: URL.
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:",
   "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",

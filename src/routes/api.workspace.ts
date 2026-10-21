@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { isControlPath, looksLikeSecret } from "@/lib/agent/workspace";
 import { z } from "zod";
 import { linkedGithub } from "@/lib/github-link.server";
 import {
@@ -47,6 +48,17 @@ const PRIVATE_IMPORT = { maxFiles: 3000, maxBytes: 8 * 1024 * 1024 };
 /** Directories the workspace never reads back, so they are not reported as
  *  deleted when a pull request is compared against the repository. */
 const UNREAD = /^(|.*\/)(\.git|\.agent|\.devstation|node_modules|\.next|dist|build|\.turbo)\//;
+
+/** The deletions a pull request may propose. Paths the workspace never reads
+ *  back are missing from it without anyone deleting them: skipped directories,
+ *  and the tool configuration (.mcp.json, .git) and credential files the
+ *  workspace refuses to hold. Proposing those as deletions would remove them
+ *  from the user's repository. */
+export function deletionsToPropose(deleted: string[]): string[] {
+  return deleted.filter(
+    (path) => !UNREAD.test(path) && !isControlPath(path) && !looksLikeSecret(path),
+  );
+}
 
 function fail(reason: string, message: string, status: number) {
   return Response.json({ ok: false, reason, message }, { status });
@@ -154,6 +166,23 @@ function withCookie(payload: unknown, cookie: string | null, status = 200): Resp
   return new Response(JSON.stringify(payload), { status, headers });
 }
 
+/** GitHub's answer for an anonymous look at a repository: 200 when public,
+ *  404 when private or missing, anything else (rate limits) when unknown. */
+async function publicRepoStatus(owner: string, name: string): Promise<number> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`,
+      {
+        headers: { accept: "application/vnd.github+json", "user-agent": "devstation" },
+        signal: AbortSignal.timeout(8_000),
+      },
+    );
+    return res.status;
+  } catch {
+    return 0;
+  }
+}
+
 /** A private repository the person has connected is read here with their
  *  session. Anything else goes to the runner as it is. */
 async function resolveSource(request: Request, source: Source): Promise<Source | Response> {
@@ -165,7 +194,18 @@ async function resolveSource(request: Request, source: Source): Promise<Source |
   // session is the GitHub account linked to the signed-in wallet. Otherwise it
   // goes to the runner as a public one.
   const linked = await linkedGithub(request, "import a private repository");
-  if (!linked.ok) return source;
+  if (!linked.ok) {
+    // Fine for a public repository. For one that is not public, say why it
+    // cannot be read, rather than letting the runner fail with "not found".
+    if ((await publicRepoStatus(target.owner, target.name)) === 404) {
+      return fail(
+        linked.reason,
+        `${linked.message} ${source.repo} is not public, so it can only be imported with the GitHub account linked to your wallet.`,
+        linked.status,
+      );
+    }
+    return source;
+  }
   const { token } = linked;
   try {
     const repo = await getRepo(token, target.owner, target.name);
@@ -396,7 +436,7 @@ export const Route = createFileRoute("/api/workspace")({
           );
           if ("error" in base) return fail("too_large", base.error, 413);
           const change = changedFiles(base.files, files);
-          const deleted = change.deleted.filter((path) => !UNREAD.test(path));
+          const deleted = deletionsToPropose(change.deleted);
           if (Object.keys(change.files).length === 0 && deleted.length === 0) {
             return fail(
               "empty",

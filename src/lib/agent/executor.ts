@@ -149,6 +149,14 @@ function globMatchesSecret(token: string): boolean {
 }
 
 export function refusedForSecret(command: string): string | null {
+  // Checked twice: as written, and with shell quoting removed, because the
+  // shell joins adjacent quoted pieces into one word, so `cat .en''v` and
+  // `cat .e"n"v` both read .env.
+  const unquoted = command.replace(/\\(.)/g, "$1").replace(/["']/g, "");
+  return secretIn(command) ?? secretIn(unquoted);
+}
+
+function secretIn(command: string): string | null {
   for (const token of command.split(/[\s;&|<>()"']+/)) {
     const path = token.replace(/^\.\//, "").replace(/^(~|\$HOME|\$\{HOME\})\//, "");
     if (!path || path.startsWith("-")) continue;

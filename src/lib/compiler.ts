@@ -1,6 +1,9 @@
 // Thin main-thread wrapper around the solc Web Worker. Call compile() with
 // Solidity sources and get back typed ABI + bytecode + errors/warnings.
 
+import { OZ_CONTRACTS_5_0_2_SHA256, OZ_UPGRADEABLE_5_0_2_SHA256 } from "./oz-integrity";
+import { SOLC_PINNED_SHA256 } from "./solc-pins";
+
 export interface CompileError {
   severity: "error" | "warning";
   message: string;
@@ -161,6 +164,14 @@ function getWorker(version: string) {
   // importScripts(), which is only available in classic workers. A module
   // worker throws "Module scripts don't support importScripts()".
   const w = new Worker(new URL("./compiler.worker.ts", import.meta.url), { type: "classic" });
+  // The worker cannot import (see compiler.worker.ts), so it gets the pinned
+  // checksums here, before any compile request: messages arrive in order.
+  w.postMessage({
+    type: "init",
+    solc: SOLC_PINNED_SHA256,
+    oz: OZ_CONTRACTS_5_0_2_SHA256,
+    ozUpgradeable: OZ_UPGRADEABLE_5_0_2_SHA256,
+  });
   const entry = { version, w, pending: new Map<number, Pending>() };
   // A crash (out of memory in soljson, a failed script load) fires `error`,
   // not a message. Without this every pending compile waited forever.
