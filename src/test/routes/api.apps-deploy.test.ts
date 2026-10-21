@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { Route, deployFilePath, siteTokenFor } from "./api.apps-deploy";
+import { Route, deployFilePath, siteTokenFor } from "@/routes/api.apps-deploy";
 import { claimCookieHeader, withOwner } from "@/lib/agent-access/claims.server";
 
 type Handler = (ctx: { request: Request }) => Promise<Response> | Response;

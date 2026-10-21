@@ -15,7 +15,7 @@ import { AddressChip } from "@/components/shared/AddressChip";
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { type RouteCall, type DecodedArg } from "@/lib/data/transactions";
-import { useLabelName } from "@/hooks/useContractLabels";
+import { useLabel } from "@/hooks/useContractLabels";
 import { SUPPORTED_CHAINS, nativeSymbol } from "@/lib/chains";
 import { decodeTransaction } from "@/lib/api/decode.functions";
 import { storage } from "@/lib/storage";
@@ -201,7 +201,7 @@ function TxView() {
           {tab === "route" ? (
             <div className="grid gap-6 lg:grid-cols-5">
               <div className="lg:col-span-3">
-                <RouteNode call={tx.route} depth={0} />
+                <RouteNode call={tx.route} depth={0} chainId={tx.chainId} />
               </div>
               <div className="space-y-4 lg:col-span-2">
                 {/* Token Movements */}
@@ -274,13 +274,17 @@ function TxView() {
 
 /* ─────── Route tree ─────── */
 
-function RouteNode({ call, depth }: { call: RouteCall; depth: number }) {
+function RouteNode({ call, depth, chainId }: { call: RouteCall; depth: number; chainId: number }) {
   const [open, setOpen] = useState(depth < 2);
   const hasChildren = call.children.length > 0 || call.events.length > 0;
   // Names come from the decoder (onchain ContractLabelRegistry + built-in
   // DevStation registries + token symbols); fall back to the live label
   // registry for contracts the decoder could not name itself.
-  const registryName = useLabelName(call.contractAddress);
+  // Read from the transaction's own chain. A community label nobody approved
+  // is shown as unverified: anyone can label any address first.
+  const label = useLabel(call.contractAddress, chainId);
+  const registryName = label?.name ?? null;
+  const unverified = !call.contractName && !!registryName && !label?.trusted;
   const resolvedName = call.contractName || registryName || undefined;
 
   const borderColor =
@@ -316,6 +320,14 @@ function RouteNode({ call, depth }: { call: RouteCall; depth: number }) {
                   title={call.contractAddress}
                 >
                   {resolvedName}
+                  {unverified && (
+                    <span
+                      className="ml-1 font-normal text-meta"
+                      title="Community label, not verified by DevStation"
+                    >
+                      (unverified)
+                    </span>
+                  )}
                 </span>
               ) : (
                 <span
@@ -392,7 +404,7 @@ function RouteNode({ call, depth }: { call: RouteCall; depth: number }) {
       {open && call.children.length > 0 && (
         <div className="ml-2 border-l border-border pl-2">
           {call.children.map((c) => (
-            <RouteNode key={c.id} call={c} depth={depth + 1} />
+            <RouteNode key={c.id} call={c} depth={depth + 1} chainId={chainId} />
           ))}
         </div>
       )}

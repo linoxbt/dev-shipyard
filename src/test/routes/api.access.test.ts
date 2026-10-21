@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { privateKeyToAccount } from "viem/accounts";
-import { Route } from "./api.access";
+import { Route } from "@/routes/api.access";
 import { accessMessage } from "@/lib/agent-access/request-auth";
 
 // The grant end to end: nonce, signature over a domain-bound message, cookie.

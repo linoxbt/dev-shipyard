@@ -23,7 +23,7 @@ import {
 import { TxHashChip } from "@/components/shared/TxHashChip";
 import { BuilderName } from "@/components/builder/BuilderName";
 import { useProjects } from "@/lib/data/projects";
-import { TEMPLATES } from "@/lib/data/templates";
+import { loadTemplateSummaries, type TemplateSummary } from "@/lib/data/template-summaries";
 import { DEFAULT_GAS_GWEI, SUPPORTED_CHAINS, chainConfig, qieTestnet } from "@/lib/chains";
 import { formatGas } from "@/lib/format-gas";
 import { useActiveChain } from "@/hooks/useActiveChain";
@@ -57,6 +57,7 @@ export const Route = createFileRoute("/overview")({
       },
     ],
   }),
+  loader: () => loadTemplateSummaries(),
   component: Overview,
 });
 
@@ -85,12 +86,14 @@ const KIND_LABEL: Record<string, string> = {
   "ui-kit": "UI kit",
 };
 
-function templateName(id: string): string {
+function templateNameIn(templates: TemplateSummary[], id: string): string {
   if (!id) return "Custom contract";
-  return TEMPLATES.find((t) => t.id === id)?.name ?? id;
+  return templates.find((t) => t.id === id)?.name ?? id;
 }
 
 function Overview() {
+  const templates = Route.useLoaderData();
+  const templateName = (id: string) => templateNameIn(templates, id);
   const { address, isConnected } = useAccount();
   const { chainId } = useActiveChain();
 
@@ -347,7 +350,7 @@ function Overview() {
           >
             <p className="text-xs text-muted-foreground">
               {market.configured
-                ? `${totalSales.toLocaleString()} sales and paid deploys · ${TEMPLATES.length} official templates`
+                ? `${totalSales.toLocaleString()} sales and paid deploys · ${templates.length} official templates`
                 : "Community listings are on QIE Mainnet. Switch network to see them."}
             </p>
             <Link

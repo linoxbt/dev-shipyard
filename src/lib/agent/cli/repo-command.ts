@@ -134,7 +134,9 @@ export async function repoCommand(
     offerPersonTools: ["open_pull_request"],
   });
 
-  const change = changedFiles(acceptedFiles(before, written), readWorkspace(workspace));
+  const change = changedFiles(acceptedFiles(before, written), readWorkspace(workspace), (path) =>
+    existsSync(join(workspace, path)),
+  );
   const changedPaths = [...Object.keys(change.files), ...change.deleted].sort();
 
   terminal.out("");

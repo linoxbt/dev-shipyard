@@ -1,5 +1,11 @@
 import { describe, expect, it, afterEach } from "bun:test";
-import { fetchExplorer, fallbackEnabled, mayRelax } from "./explorer-fetch";
+import {
+  clearExplorerCache,
+  fetchExplorer,
+  fetchExplorerCached,
+  fallbackEnabled,
+  mayRelax,
+} from "./explorer-fetch";
 
 // These are guardrails, not coverage. Relaxing certificate verification is a
 // deliberate, narrow exemption for QIE's expired explorer certificate; the
@@ -98,5 +104,36 @@ describe("fetchExplorer scoping", () => {
     await expect(fetchExplorer("https://mainnet.qie.digital/api/v2/stats")).rejects.toThrow(
       "fetch failed",
     );
+  });
+});
+
+describe("fetchExplorerCached", () => {
+  afterEach(() => clearExplorerCache());
+
+  it("shares one upstream request between concurrent and repeated reads", async () => {
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      await new Promise((r) => setTimeout(r, 5));
+      return Response.json({ result: [1, 2] });
+    }) as unknown as typeof fetch;
+    const url = "https://explorer.test/api?module=account&action=txlist";
+    const [a, b] = await Promise.all([fetchExplorerCached(url), fetchExplorerCached(url)]);
+    const c = await fetchExplorerCached(url);
+    expect(calls).toBe(1);
+    // Each caller gets its own readable body.
+    for (const r of [a, b, c]) expect(await r.json()).toEqual({ result: [1, 2] });
+  });
+
+  it("does not keep a failed response", async () => {
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      return new Response("busy", { status: 503 });
+    }) as unknown as typeof fetch;
+    const url = "https://explorer.test/api?x=1";
+    expect((await fetchExplorerCached(url)).status).toBe(503);
+    expect((await fetchExplorerCached(url)).status).toBe(503);
+    expect(calls).toBe(2);
   });
 });

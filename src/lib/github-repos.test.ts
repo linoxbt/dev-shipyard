@@ -101,6 +101,18 @@ describe("working out what changed", () => {
     expect(result.files).toEqual({ "new.ts": "z" });
     expect(result.deleted).toEqual(["gone.ts"]);
   });
+
+  it("does not delete a file the workspace read skipped but is still on disk", () => {
+    // big.bin is binary and dist/out.js sits in a skipped directory: neither
+    // comes back from readWorkspace, and neither was touched.
+    const onDisk = new Set(["big.bin", "dist/out.js", "kept.ts"]);
+    const result = changedFiles(
+      { "big.bin": "…", "dist/out.js": "x", "gone.ts": "y", "kept.ts": "z" },
+      { "kept.ts": "z" },
+      (path) => onDisk.has(path),
+    );
+    expect(result.deleted).toEqual(["gone.ts"]);
+  });
 });
 
 describe("opening a pull request", () => {

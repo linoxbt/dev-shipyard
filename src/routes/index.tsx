@@ -24,7 +24,7 @@ import { DEFAULT_CHAIN } from "@/lib/chains";
 import { formatGas } from "@/lib/format-gas";
 import { withCommas } from "@/lib/explorer/format";
 import { EXPLORER_CHAIN_FAMILIES } from "@/lib/explorer/network";
-import { TEMPLATES } from "@/lib/data/templates";
+import { loadTemplateSummaries, type TemplateSummary } from "@/lib/data/template-summaries";
 import { cn } from "@/lib/utils";
 import { HeroStage } from "@/components/landing/HeroStage";
 import { ChainsBand } from "@/components/landing/ChainsBand";
@@ -44,6 +44,7 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
+  loader: () => loadTemplateSummaries(),
   component: Landing,
 });
 
@@ -51,6 +52,7 @@ const WORDS = ["Deploy.", "Debug.", "Analyze.", "Inspect."];
 const WORD_MS = 600;
 
 function Landing() {
+  const templates = Route.useLoaderData();
   const [shown, setShown] = useState(0);
   const tagline = shown >= WORDS.length;
   useEffect(() => {
@@ -64,7 +66,7 @@ function Landing() {
       <LandingNav />
       <Hero shown={shown} tagline={tagline} />
       <PipelineBand />
-      <StatsBand />
+      <StatsBand templateCount={templates.length} />
       <ChainsBand />
       <ImageReveal
         eyebrow="Write"
@@ -83,7 +85,7 @@ function Landing() {
         side="left"
         footnote="QIE 1990 · 1983  ·  BOT Chain 677 · 968"
       />
-      <TemplatesShowcase />
+      <TemplatesShowcase templates={templates} />
       <ImageReveal
         eyebrow="Inspect"
         title="Read it back like English."
@@ -256,7 +258,7 @@ function PipelineBand() {
 
 /* ─────────────── Live stats ─────────────── */
 
-function StatsBand() {
+function StatsBand({ templateCount }: { templateCount: number }) {
   // The app's default chain (QIE mainnet): read from DEFAULT_CHAIN rather
   // than hardcoded, so this stat can't drift from what users actually land on.
   const { data: net } = useNetworkStatus(DEFAULT_CHAIN.id);
@@ -267,7 +269,7 @@ function StatsBand() {
     net?.gasPriceGwei ?? 0,
   );
   const items = [
-    { label: "Templates", value: TEMPLATES.length.toString() },
+    { label: "Templates", value: templateCount.toString() },
     {
       label: "Contracts Deployed",
       value: stats.totalDeployments != null ? withCommas(stats.totalDeployments) : "-",
@@ -361,7 +363,7 @@ function Features() {
 
 /* ─────────────── Templates showcase ─────────────── */
 
-function TemplatesShowcase() {
+function TemplatesShowcase({ templates }: { templates: TemplateSummary[] }) {
   return (
     <section id="templates" className="border-b border-border bg-surface">
       <div className="mx-auto w-full max-w-[2000px] py-16 px-4 sm:px-6 lg:px-8">
@@ -371,7 +373,7 @@ function TemplatesShowcase() {
           subtitle="Self-contained, audited contracts. Configure the constructor, deploy to QIE or BOT Chain, and get a verified onchain record."
         />
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {TEMPLATES.map((t) => (
+          {templates.map((t) => (
             <a
               key={t.id}
               href={consoleHref(`/launchkit/marketplace/b-${t.id}`)}

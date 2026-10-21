@@ -11,7 +11,7 @@
 // the text. This process gets files and a goal, and hands back files and a
 // proposal. It could not open a pull request if it wanted to.
 
-import { mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { Orchestrator, type AgentEvent } from "../../../src/lib/agent/orchestrator";
@@ -297,7 +297,9 @@ async function run(job: RepoJob, input: StartRepoJobInput, signal: AbortSignal) 
       },
     }).run(job.goal);
 
-    const change = changedFiles(acceptedFiles(files, written), readWorkspace(root));
+    const change = changedFiles(acceptedFiles(files, written), readWorkspace(root), (path) =>
+      existsSync(join(root, path)),
+    );
     const paths = [...Object.keys(change.files), ...change.deleted].sort();
     const proposed = [...result.handoffs].reverse().find((h) => h.tool === "open_pull_request");
     const fallback = proposalFor(job.goal, result, paths);

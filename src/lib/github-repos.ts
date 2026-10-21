@@ -276,11 +276,18 @@ export async function openPullRequest(
 export function changedFiles(
   before: Record<string, string>,
   after: Record<string, string>,
+  /** Whether a path still exists. A workspace read skips files it cannot
+   *  carry as text (over the size cap, binary, inside dist/ or node_modules),
+   *  so "missing from `after`" alone would propose deleting every one of them.
+   *  When given, only a path that is really gone counts as deleted. */
+  stillExists?: (path: string) => boolean,
 ): { files: Record<string, string>; deleted: string[] } {
   const files: Record<string, string> = {};
   for (const [path, content] of Object.entries(after)) {
     if (before[path] !== content) files[path] = content;
   }
-  const deleted = Object.keys(before).filter((path) => !(path in after));
+  const deleted = Object.keys(before).filter(
+    (path) => !(path in after) && !(stillExists?.(path) ?? false),
+  );
   return { files, deleted };
 }

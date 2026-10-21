@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Route, pickModel, sanitiseMessages, type ServerConfig } from "./api.ai";
+import { Route, pickModel, sanitiseMessages, type ServerConfig } from "@/routes/api.ai";
 
 type Handler = (ctx: { request: Request }) => Promise<Response> | Response;
 const handlers = (Route.options as unknown as { server: { handlers: Record<string, Handler> } })

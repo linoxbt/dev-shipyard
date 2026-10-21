@@ -35,7 +35,7 @@ export function NetworkMismatchModal({
           </h2>
         </div>
         <div className="px-4 py-3 font-mono text-xs leading-relaxed text-muted-foreground">
-          You&apos;re trying to deploy to <span className="text-foreground">{targetNetwork}</span>{" "}
+          You&apos;re about to send this to <span className="text-foreground">{targetNetwork}</span>{" "}
           but your wallet is connected to <span className="text-foreground">{walletNetwork}</span>.
         </div>
         <div className="flex justify-end gap-2 border-t border-border px-4 py-3">

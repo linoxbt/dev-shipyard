@@ -146,3 +146,52 @@ export async function fetchExplorer(url: string, init?: RequestInit): Promise<Re
     return insecureGet(url, headers);
   }
 }
+
+// Short-lived cache for the explorer reads every open tab polls.
+//
+// The landing page, the explorer home and the analytics page each poll the
+// same handful of registry tx lists, so N open tabs used to mean N identical
+// full-history fetches per interval against a public Blockscout. Results are
+// shared for a few seconds and concurrent misses share one request. Only
+// successful responses are kept, and the map is bounded.
+const CACHE_TTL_MS = 15_000;
+const CACHE_MAX = 200;
+const cache = new Map<string, { at: number; status: number; type: string; body: string }>();
+const inflight = new Map<string, Promise<{ status: number; type: string; body: string }>>();
+
+function asResponse(hit: { status: number; type: string; body: string }): Response {
+  return new Response(hit.body, { status: hit.status, headers: { "content-type": hit.type } });
+}
+
+/** fetchExplorer for a GET whose result may be shared for `ttlMs`. */
+export async function fetchExplorerCached(url: string, ttlMs = CACHE_TTL_MS): Promise<Response> {
+  const now = Date.now();
+  const hit = cache.get(url);
+  if (hit && now - hit.at < ttlMs) return asResponse(hit);
+
+  let pending = inflight.get(url);
+  if (!pending) {
+    pending = (async () => {
+      const resp = await fetchExplorer(url);
+      const entry = {
+        status: resp.status,
+        type: resp.headers.get("content-type") ?? "application/json",
+        body: await resp.text(),
+      };
+      if (resp.ok) {
+        cache.delete(url);
+        cache.set(url, { ...entry, at: Date.now() });
+        if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
+      }
+      return entry;
+    })().finally(() => inflight.delete(url));
+    inflight.set(url, pending);
+  }
+  return asResponse(await pending);
+}
+
+/** For tests. */
+export function clearExplorerCache(): void {
+  cache.clear();
+  inflight.clear();
+}
