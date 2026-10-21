@@ -88,6 +88,11 @@ const FIXED_OVERRIDES = [
   // any directory on the machine; --work-tree below pins it to the workspace
   // and this stops a bare-repo flip from changing what that means.
   "core.bare=false",
+  // Never look inside submodules. Each one has its own config, which the
+  // driver blanking below never reads, and status/diff would run git in it.
+  "diff.ignoreSubmodules=all",
+  "submodule.recurse=false",
+  "status.submoduleSummary=false",
 ];
 
 /** The commands `git lfs install` writes, with and without `--skip`. */
@@ -103,19 +108,24 @@ export function gitEnv(): NodeJS.ProcessEnv {
 }
 
 /** `-c` overrides for every program-naming key the config at `root` sets. */
-export function driverOverrides(root: string): string[] {
+export function driverOverrides(root: string): string[] | null {
   let listing = "";
   try {
-    // `git config --list` reads config and runs nothing from it.
+    // `git config --list` reads config and runs nothing from it. Same
+    // repository as the command it guards, via the same GIT_DIR pin.
     listing = execFileSync("git", ["config", "--list", "-z"], {
       cwd: root,
-      env: gitEnv(),
+      env: { ...gitEnv(), ...gitLocation(root) },
       encoding: "utf8",
       timeout: 10_000,
       stdio: ["ignore", "pipe", "ignore"],
     });
   } catch {
-    return [];
+    // Unreadable config (a slow include, a broken file) used to mean "no
+    // drivers to blank", and the command then ran with whatever the config
+    // named. Not knowing is a reason not to run.
+    if (!isRepo(root) && !existsSync(join(root, ".git", "config"))) return [];
+    return null;
   }
   const out = new Set<string>();
   for (const entry of listing.split("\0")) {
@@ -132,11 +142,10 @@ export function driverOverrides(root: string): string[] {
 }
 
 /** The `git` prefix every host invocation uses, overrides included. */
-export function safeGit(root: string): string {
-  return [
-    "git",
-    ...[...FIXED_OVERRIDES, ...driverOverrides(root)].flatMap((o) => ["-c", quote(o)]),
-  ].join(" ");
+export function safeGit(root: string): string | null {
+  const drivers = driverOverrides(root);
+  if (drivers === null) return null;
+  return ["git", ...[...FIXED_OVERRIDES, ...drivers].flatMap((o) => ["-c", quote(o)])].join(" ");
 }
 
 /**
@@ -148,12 +157,25 @@ export function safeGit(root: string): string {
  * (the CLI run inside a monorepo package) keeps normal discovery.
  */
 export function gitLocation(root: string): NodeJS.ProcessEnv {
-  return existsSync(join(root, ".git")) ? { GIT_DIR: join(root, ".git"), GIT_WORK_TREE: root } : {};
+  // Only a real repository: the sandbox guard leaves an empty .git in a
+  // workspace that has none (see guardGitDir), and pinning GIT_DIR to that
+  // would break discovery of an enclosing repository.
+  return isRepo(root) ? { GIT_DIR: join(root, ".git"), GIT_WORK_TREE: root } : {};
 }
 
 /** Run `git <rest>` in `root` with the overrides and environment above. */
 export function runGit(root: string, rest: string, timeoutMs = 30_000): Promise<ShellResult> {
-  return runShell(`${safeGit(root)} ${rest}`, {
+  const prefix = safeGit(root);
+  if (prefix === null) {
+    return Promise.resolve({
+      ok: false,
+      code: null,
+      stdout: "",
+      stderr: "This repository's git config could not be read, so git was not run.",
+      timedOut: false,
+    });
+  }
+  return runShell(`${prefix} ${rest}`, {
     cwd: root,
     timeoutMs,
     env: { ...gitEnv(), ...gitLocation(root) },

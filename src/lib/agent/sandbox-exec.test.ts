@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   gatingEcosystems,
+  guardGitDir,
   workdirFor,
   createCommand,
   execCommand,
@@ -46,6 +47,27 @@ describe("the flags, with no daemon needed", () => {
     expect(command).toContain("--cap-drop ALL");
     expect(command).toContain("--security-opt no-new-privileges");
     expect(command).toContain("--read-only");
+  });
+
+  it("mounts the workspace's .git read-only over the writable workspace", () => {
+    const command = createCommand({ ...base, network: false, protectGit: true });
+    const rw = command.indexOf(":/work:rw");
+    const ro = command.indexOf("/.git:/work/.git:ro");
+    expect(rw).toBeGreaterThan(-1);
+    // Later mounts shadow earlier ones, so the read-only one must come after.
+    expect(ro).toBeGreaterThan(rw);
+  });
+
+  it("gives a workspace with no repository an empty .git to guard", () => {
+    const dir = mkdtempSync(join(tmpdir(), "guardgit-"));
+    try {
+      expect(guardGitDir(dir)).toBe(true);
+      expect(statSync(join(dir, ".git")).isDirectory()).toBe(true);
+      // Empty: not a repository, so host git and isRepo ignore it.
+      expect(existsSync(join(dir, ".git", "HEAD"))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("seals the network unless asked", () => {

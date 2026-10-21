@@ -144,9 +144,11 @@ export function trustedIpHeader(env: NodeJS.ProcessEnv = process.env): string | 
   const configured = env.TRUSTED_IP_HEADER?.trim().toLowerCase();
   if (configured) return configured === "x-forwarded-for" ? null : configured;
   if (env.VERCEL) return "x-vercel-forwarded-for";
-  // Netlify is the default host (netlify.toml, the default build preset), and
-  // its edge overwrites this header on every request.
-  return "x-nf-client-connection-ip";
+  // Netlify's edge overwrites this header on every request, so it is trusted
+  // only when the code is really running there (Netlify exposes SITE_ID and
+  // DEPLOY_ID to functions). Anywhere else a client could set it.
+  if (env.NETLIFY || (env.SITE_ID && env.DEPLOY_ID)) return "x-nf-client-connection-ip";
+  return null;
 }
 
 /**

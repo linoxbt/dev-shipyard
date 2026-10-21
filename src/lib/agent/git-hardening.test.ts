@@ -3,7 +3,14 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync, appendFileSync } from "
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runShell } from "./shell";
-import { agentDiff, changedFiles, checkpoint, driverOverrides, headIsCheckpoint } from "./git";
+import {
+  agentDiff,
+  changedFiles,
+  checkpoint,
+  driverOverrides,
+  headIsCheckpoint,
+  runGit,
+} from "./git";
 import { gitArgsProblem } from "./git-ops";
 import { initLocalRepo, materialise } from "./repo-session";
 import { Workspace, isControlPath } from "./workspace";
@@ -168,6 +175,58 @@ describe("signature checks and work-tree redirection", () => {
     ).stdout;
     expect(files).toContain("a.txt");
     expect(files).not.toContain("secret.env");
+  });
+});
+
+describe("submodules and unreadable config", () => {
+  it("does not run a driver named only in a submodule's own config", async () => {
+    const root = scratch();
+    await runShell(
+      "git init -q && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m base",
+      { cwd: root },
+    );
+    // A nested repository committed as a gitlink, with its own config and
+    // attributes. The superproject's config never mentions the driver.
+    const sub = join(root, "sub");
+    await runShell(
+      "mkdir sub && cd sub && git init -q && echo a > a.txt && " +
+        "git -c user.name=t -c user.email=t@t add a.txt && " +
+        "git -c user.name=t -c user.email=t@t commit -q -m s",
+      { cwd: root },
+    );
+    await runShell(
+      "git -c user.name=t -c user.email=t@t add sub && git -c user.name=t -c user.email=t@t commit -q -m add-sub",
+      {
+        cwd: root,
+      },
+    );
+    const marker = join(root, "..", `sub-${Date.now()}-${Math.random()}`);
+    appendFileSync(join(sub, ".git", "config"), `[filter "y"]\n\tclean = touch ${marker}\n`);
+    writeFileSync(join(sub, ".gitattributes"), "*.txt filter=y\n");
+    // Same size as before, a second later: git must hash the file to know it
+    // changed, which is when a clean filter runs.
+    await new Promise((r) => setTimeout(r, 1100));
+    writeFileSync(join(sub, "a.txt"), "b\n");
+    // Sanity: plain git does run it, so this test would catch a regression.
+    await runShell("git status --porcelain", { cwd: root });
+    expect(existsSync(marker)).toBe(true);
+    rmSync(marker);
+    writeFileSync(join(sub, "a.txt"), "c\n");
+
+    await changedFiles(root);
+    await checkpoint(root, "after");
+    await agentDiff(root);
+    expect(existsSync(marker)).toBe(false);
+  });
+
+  it("refuses to run git when the repository's config cannot be read", async () => {
+    const root = scratch();
+    await runShell("git init -q", { cwd: root });
+    appendFileSync(join(root, ".git", "config"), "[broken\n");
+    expect(driverOverrides(root)).toBeNull();
+    const result = await runGit(root, "status --porcelain");
+    expect(result.ok).toBe(false);
+    expect(result.stderr).toContain("could not be read");
   });
 });
 

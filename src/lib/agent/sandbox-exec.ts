@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, statSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, statSync, unlinkSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { runShell, type ShellResult } from "./shell";
 import {
@@ -263,6 +263,8 @@ export interface CreateArgs {
   pidsLimit: number;
   user: string;
   session: string;
+  /** Mount the workspace's .git read-only over the writable workspace. */
+  protectGit?: boolean;
 }
 
 /**
@@ -286,8 +288,29 @@ export interface CreateArgs {
  *                       unlike the runner's sandbox this cannot be noexec. It
  *                       buys little here anyway: /work must be exec, because
  *                       that is where node_modules/.bin lives.
+ *   .git read-only      the host runs git in this directory, and git runs
+ *                       programs its config names. Nothing in the container
+ *                       may write that config (or plant a .git where there
+ *                       was none) while host git is running alongside it.
  *   sleep <deadline>    the container ends itself if we never get to
  */
+/**
+ * Make sure there is a .git to mount read-only, so the container can neither
+ * edit the real one nor create one of its own for host git to trust later.
+ * A workspace with no repository gets an empty .git directory, which git does
+ * not treat as a repository (it has no HEAD), so discovery and isRepo behave
+ * as before. Returns false only when that could not be arranged.
+ */
+export function guardGitDir(workspace: string): boolean {
+  const dotGit = join(workspace, ".git");
+  try {
+    if (!existsSync(dotGit)) mkdirSync(dotGit);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function createCommand(args: CreateArgs): string {
   return [
     "docker create",
@@ -306,6 +329,9 @@ export function createCommand(args: CreateArgs): string {
     "--read-only",
     "--tmpfs /tmp:rw,exec,nosuid,mode=1777,size=1g",
     `--volume ${quote(`${args.workspace}:/work:rw`)}`,
+    ...(args.protectGit
+      ? [`--volume ${quote(`${join(args.workspace, ".git")}:/work/.git:ro`)}`]
+      : []),
     "--workdir /work",
     `--user ${quote(args.user)}`,
     "--env HOME=/tmp",
@@ -440,10 +466,14 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
   let disposed = false;
 
   const create = async (name: string, network: boolean): Promise<string | null> => {
+    // No container without the read-only .git: running one that can rewrite
+    // the config host git obeys is the thing this whole layer exists to stop.
+    if (!guardGitDir(options.workspace)) return null;
     const created = await runShell(
       createCommand({
         name,
         session,
+        protectGit: true,
         workspace: options.workspace,
         image,
         runtime,

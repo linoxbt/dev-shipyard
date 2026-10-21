@@ -15,12 +15,13 @@ describe("clientKeyFromRequest", () => {
     expect(
       clientKeyFromRequest(
         req({ "x-nf-client-connection-ip": "203.0.113.9", "x-forwarded-for": "1.1.1.1" }),
+        { NETLIFY: "true" },
       ),
     ).toBe("203.0.113.9");
   });
 
   it("never uses the client-written leftmost X-Forwarded-For entry", () => {
-    expect(clientKeyFromRequest(req({ "x-forwarded-for": "6.6.6.6, 198.51.100.4" }))).toBe(
+    expect(clientKeyFromRequest(req({ "x-forwarded-for": "6.6.6.6, 198.51.100.4" }), {})).toBe(
       "198.51.100.4",
     );
   });
@@ -38,6 +39,14 @@ describe("clientKeyFromRequest", () => {
       "x-vercel-forwarded-for": "203.0.113.7",
     });
     expect(clientKeyFromRequest(spoofed, { VERCEL: "1" })).toBe("203.0.113.7");
+    // Netlify's header counts only on Netlify.
+    expect(clientKeyFromRequest(spoofed, { SITE_ID: "s", DEPLOY_ID: "d" })).toBe("6.6.6.6");
+    expect(
+      clientKeyFromRequest(
+        req({ "x-nf-client-connection-ip": "6.6.6.6", "x-forwarded-for": "198.51.100.9" }),
+        {},
+      ),
+    ).toBe("198.51.100.9");
     // Self-hosted without a configured header: x-real-ip is client-writable.
     expect(clientKeyFromRequest(req({ "x-real-ip": "6.6.6.6" }), {})).toBe("unknown");
     expect(
