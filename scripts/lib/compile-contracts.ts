@@ -11,6 +11,10 @@ export const CONTRACTS = [
   "ContractLabelRegistry",
   "TemplateRegistry",
   "DevStationMarketplace",
+  // Version 2 (contracts/V2_CHANGES.md): compiled and tested alongside v1, and
+  // deployed when the operator moves to them. v1 stays as deployed today.
+  "DevStationMarketplaceV2",
+  "ContractLabelRegistryV2",
 ] as const;
 
 export interface CompiledContract {

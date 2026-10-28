@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { Route, deployFilePath, siteTokenFor } from "@/routes/api.apps-deploy";
 import { claimCookieHeader, withOwner } from "@/lib/agent-access/claims.server";
 
@@ -9,6 +9,12 @@ const handlers = (Route.options as unknown as { server: { handlers: Record<strin
 const OWNER = "0x00000000000000000000000000000000000000aa";
 const SITE = "11111111-2222-3333-4444-555555555555";
 const realFetch = globalThis.fetch;
+// Rate limits in memory: these tests mock fetch, and only Netlify's calls
+// should reach it.
+beforeEach(() => {
+  delete process.env.RUNNER_URL;
+  delete process.env.UPSTASH_REDIS_REST_URL;
+});
 afterEach(() => {
   globalThis.fetch = realFetch;
   delete process.env.NETLIFY_AUTH_TOKEN;

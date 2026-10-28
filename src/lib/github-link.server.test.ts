@@ -8,6 +8,10 @@ process.env.SESSION_SECRET ??= "test-secret-for-sessions-0123456789";
 const realFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = realFetch;
+  // stub() points these at a fake runner; left set, every later test file's
+  // rate limiter would call it through whatever fetch that file mocks.
+  delete process.env.RUNNER_URL;
+  delete process.env.RUNNER_TOKEN;
 });
 
 const OWNER = "0x00000000000000000000000000000000000000cc";

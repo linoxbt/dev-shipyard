@@ -90,9 +90,13 @@ describe("isKnownSystemPrompt", () => {
   it("is enforced by the proxy before anything reaches the provider", async () => {
     const { sealClaims, CLAIM_COOKIE } = await import("@/lib/agent-access/claims.server");
     const cookie = `${CLAIM_COOKIE}=${sealClaims({ ids: [], owner: "0x" + "1".repeat(40), exp: Date.now() + 60_000 })}`;
-    const env = { ...process.env };
+    const keys = ["AI_PROVIDER", "OPENROUTER_API_KEY", "RUNNER_URL", "UPSTASH_REDIS_REST_URL"];
+    const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
     process.env.AI_PROVIDER = "openai";
     process.env.OPENROUTER_API_KEY = "k";
+    // Limits in memory, so the only fetch this test can see is the provider's.
+    delete process.env.RUNNER_URL;
+    delete process.env.UPSTASH_REDIS_REST_URL;
     const realFetch = globalThis.fetch;
     let upstreamCalls = 0;
     globalThis.fetch = (async () => {
@@ -115,7 +119,10 @@ describe("isKnownSystemPrompt", () => {
       expect(upstreamCalls).toBe(0);
     } finally {
       globalThis.fetch = realFetch;
-      process.env = env;
+      for (const [k, v] of Object.entries(saved)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
     }
   });
 });

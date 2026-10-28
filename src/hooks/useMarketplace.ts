@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { decodeEventLog, erc20Abi } from "viem";
 import { useAccount, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
 import { devStationMarketplaceAbi } from "@/lib/abis/devStationMarketplace";
+import { devStationMarketplaceV2Abi } from "@/lib/abis/devStationMarketplaceV2";
 import { isContractConfigured, marketplaceAddress, qusdcAddress } from "@/lib/contracts";
 import { useNetworkPref } from "@/lib/active-chain";
 import { fetchWithGrant } from "@/lib/agent-access/grant";
@@ -103,6 +104,18 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
   return ((await res.json().catch(() => null)) ?? {}) as Record<string, unknown>;
 }
 
+/** The contract call for a payment: v2's price-protected variant (the same
+ *  arguments plus the most the person agreed to pay) where one exists. */
+export function paymentCall(
+  version: 1 | 2,
+  functionName: "buy" | "recordDeploy" | "tip" | "feature",
+  args: readonly bigint[],
+  amount: bigint,
+): { v2: boolean; functionName: string; args: readonly bigint[] } {
+  if (version !== 2 || functionName === "tip") return { v2: false, functionName, args };
+  return { v2: true, functionName: `${functionName}At`, args: [...args, amount] };
+}
+
 export function useMarketplace() {
   const { address, chainId: walletChainId } = useAccount();
   const chainId = useNetworkPref((s) => s.preferredChainId);
@@ -112,6 +125,27 @@ export function useMarketplace() {
   const qusdc = qusdcAddress(chainId);
   const client = usePublicClient({ chainId });
   const { writeContractAsync } = useWriteContract();
+
+  // Which contract version is deployed here. v2 (contracts/V2_CHANGES.md)
+  // answers version() and takes the most a buyer agreed to pay; v1 has no
+  // version() and reverts, so anything but 2 is treated as v1.
+  const contractVersion = useQuery({
+    queryKey: ["marketplace", "version", chainId, contract],
+    enabled: configured && !!client,
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: async (): Promise<1 | 2> => {
+      try {
+        const v = (await client!.readContract({
+          address: contract,
+          abi: devStationMarketplaceV2Abi,
+          functionName: "version",
+        })) as bigint;
+        return v === 2n ? 2 : 1;
+      } catch {
+        return 1;
+      }
+    },
+  });
 
   const summaries = useQuery({
     queryKey: ["marketplace", "summaries", chainId],
@@ -294,19 +328,31 @@ export function useMarketplace() {
     ) => {
       await requireReady();
       if (currency === "QUSDC") await ensureAllowance(amount);
+      // On v2 every charge names the most the person agreed to pay, so the
+      // contract itself refuses a price raised between seeing it and signing.
+      // The re-read before paying (assertPriceUnchanged) covers v1.
+      const call = paymentCall(contractVersion.data ?? 1, functionName, args, amount);
       return mined(
         await writeContractAsync({
           chainId,
           address: contract,
-          abi: devStationMarketplaceAbi,
-          functionName,
-          args: args as never,
+          abi: call.v2 ? devStationMarketplaceV2Abi : devStationMarketplaceAbi,
+          functionName: call.functionName,
+          args: call.args as never,
           value: currency === "QIE" ? amount : 0n,
           gas: PAY_GAS,
-        }),
+        } as never),
       );
     },
-    [contract, ensureAllowance, mined, requireReady, writeContractAsync, chainId],
+    [
+      contract,
+      contractVersion.data,
+      ensureAllowance,
+      mined,
+      requireReady,
+      writeContractAsync,
+      chainId,
+    ],
   );
 
   const uploadFiles = useCallback(
