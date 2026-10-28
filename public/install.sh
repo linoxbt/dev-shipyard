@@ -120,7 +120,7 @@ verify_signature() {
     die "this release has no signature ($sums_url.sigstore.json), so it was not installed."
   cosign verify-blob "$tmp/SHA256SUMS" \
     --bundle "$tmp/SHA256SUMS.sigstore.json" \
-    --certificate-identity-regexp "^https://github.com/$REPO/\.github/workflows/release\.yml@refs/tags/" \
+    --certificate-identity "https://github.com/$REPO/.github/workflows/release.yml@refs/tags/$VERSION" \
     --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null 2>&1 ||
     die "the release signature does not verify: SHA256SUMS was not signed by $REPO's release workflow. Nothing was installed."
   say "Signature verified"
@@ -139,11 +139,25 @@ main() {
     cp "${SOURCE%/}/$target" "$tmp/devstation" || die "no $target in $SOURCE"
   else
     need curl
+    # "latest" is resolved to its tag first, so the binary, the sums and
+    # the signature all come from one release, and the signature can be
+    # held to that exact tag.
     if [ "$VERSION" = "latest" ]; then
-      url="https://github.com/$REPO/releases/latest/download/$target"
-    else
-      url="https://github.com/$REPO/releases/download/$VERSION/$target"
+      # /releases/latest redirects to /releases/tag/<tag>; the API is the
+      # fallback when the redirect can't be followed.
+      resolved=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" 2>/dev/null || true)
+      VERSION=${resolved##*/}
+      case "$VERSION" in
+        v[0-9]*) ;;
+        *) VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null |
+          sed -n 's/^ *"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1) ;;
+      esac
+      case "$VERSION" in
+        v[0-9]*) ;;
+        *) die "could not work out the latest release's tag (got '$VERSION')" ;;
+      esac
     fi
+    url="https://github.com/$REPO/releases/download/$VERSION/$target"
     say "Downloading $target"
     # -f so a 404 is a failure rather than an HTML page saved as a binary,
     # which is the classic way an installer produces "cannot execute".

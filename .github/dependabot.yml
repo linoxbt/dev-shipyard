@@ -1,7 +1,7 @@
 version: 2
 updates:
-  # Workflow actions are pinned by major tag; this keeps them current and
-  # surfaces security releases as pull requests.
+  # Workflow actions are pinned by major tag (by commit SHA in release.yml);
+  # this keeps both current and surfaces security releases as pull requests.
   - package-ecosystem: github-actions
     directory: /
     schedule:

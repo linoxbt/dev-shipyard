@@ -251,6 +251,7 @@ describe("release signature on upgrade", () => {
     await verifyReleaseSignature(
       t as never,
       "https://x",
+      "v1.0.0",
       "sums",
       fetchBundle,
       {},
@@ -266,6 +267,7 @@ describe("release signature on upgrade", () => {
       verifyReleaseSignature(
         t as never,
         "https://x",
+        "v1.0.0",
         "sums",
         fetchBundle,
         { DEVSTATION_REQUIRE_SIGNATURE: "1" },
@@ -278,14 +280,43 @@ describe("release signature on upgrade", () => {
     const { verifyReleaseSignature } = await import("./upgrade");
     const { t } = terminal();
     await expect(
-      verifyReleaseSignature(t as never, "https://x", "sums", fetchBundle, {}, cosign(false)),
+      verifyReleaseSignature(
+        t as never,
+        "https://x",
+        "v1.0.0",
+        "sums",
+        fetchBundle,
+        {},
+        cosign(false),
+      ),
     ).rejects.toThrow("does not verify");
   });
 
   it("accepts a release whose signature verifies", async () => {
     const { verifyReleaseSignature } = await import("./upgrade");
     const { lines, t } = terminal();
-    await verifyReleaseSignature(t as never, "https://x", "sums", fetchBundle, {}, cosign(true));
+    await verifyReleaseSignature(
+      t as never,
+      "https://x",
+      "v1.0.0",
+      "sums",
+      fetchBundle,
+      {},
+      cosign(true),
+    );
     expect(lines).toContain("Signature verified.");
+  });
+
+  it("requires the signature of the exact tag being installed", async () => {
+    const { verifyReleaseSignature } = await import("./upgrade");
+    const { t } = terminal();
+    let identity = "";
+    const run = ((_cmd: string, args: string[]) => {
+      const i = args.indexOf("--certificate-identity");
+      if (i >= 0) identity = args[i + 1];
+      return { status: 0 };
+    }) as unknown as Run;
+    await verifyReleaseSignature(t as never, "https://x", "v2.3.4", "sums", fetchBundle, {}, run);
+    expect(identity).toEndWith(".github/workflows/release.yml@refs/tags/v2.3.4");
   });
 });

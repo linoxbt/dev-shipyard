@@ -52,7 +52,20 @@ signed with the release workflow's GitHub identity), and each binary has a
 build-provenance attestation (`gh attestation verify <file> --repo
 linoxbt/dev-shipyard`). The installer and `devstation upgrade` check the
 signature whenever `cosign` is installed; set `DEVSTATION_REQUIRE_SIGNATURE=1`
-to refuse to install or upgrade without that check.
+to refuse to install or upgrade without that check. The signature is held to
+the exact tag being installed, so a signature from another release does not
+vouch for it. To check one by hand:
+
+```sh
+cosign verify-blob SHA256SUMS --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity https://github.com/linoxbt/dev-shipyard/.github/workflows/release.yml@refs/tags/v<version> \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+For maintainers: the signing identity is "release.yml running on a `v*`
+tag", so whoever can push such a tag can sign a release. Protect `v*` tags
+(Settings → Rules → Rulesets, target tags `v*`, restrict creation) and add
+required reviewers to the `release` environment the publish job runs in.
 
 Every release carries five binaries and their checksums:
 

@@ -186,6 +186,7 @@ export async function upgradeCommand(
 export async function verifyReleaseSignature(
   t: Terminal,
   base: string,
+  tag: string,
   sumsText: string,
   fetchImpl: typeof fetch,
   env: NodeJS.ProcessEnv = process.env,
@@ -212,8 +213,10 @@ export async function verifyReleaseSignature(
         join(dir, "SHA256SUMS"),
         "--bundle",
         join(dir, "bundle.json"),
-        "--certificate-identity-regexp",
-        `^https://github.com/${REPO}/\\.github/workflows/release\\.yml@refs/tags/`,
+        // The exact tag being installed, not any tag: a signature from an
+        // older release (or a stray tag) does not vouch for this one.
+        "--certificate-identity",
+        `https://github.com/${REPO}/.github/workflows/release.yml@refs/tags/${tag}`,
         "--certificate-oidc-issuer",
         "https://token.actions.githubusercontent.com",
       ],
@@ -252,7 +255,7 @@ async function replaceBinary(
     const sums = await fetchImpl(`${base}/SHA256SUMS`, { redirect: "follow" });
     if (!sums.ok) throw new Error(`${sums.status} fetching the checksums`);
     const sumsText = await sums.text();
-    await verifyReleaseSignature(t, base, sumsText, fetchImpl);
+    await verifyReleaseSignature(t, base, `v${latest}`, sumsText, fetchImpl);
     const expected = sumsText
       .split("\n")
       .map((line) => line.trim().split(/\s+/))

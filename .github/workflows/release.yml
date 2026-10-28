@@ -12,10 +12,11 @@ on:
   push:
     tags: ["v*"]
 
-permissions:
-  contents: write # create the release
-  id-token: write # Sigstore keyless signing and attestations
-  attestations: write
+# Nothing by default; each job asks for exactly what it needs. The build job,
+# which runs this repo's code and its dependencies' install scripts, never
+# holds the signing identity or write access. Only the small publish job does,
+# and it runs no code from the repo.
+permissions: {}
 
 concurrency:
   group: release-${{ github.ref }}
@@ -24,14 +25,21 @@ concurrency:
 env:
   BUN_VERSION: "1.4.2"
 
+# Actions are pinned by commit SHA here (the tag they were taken from is in
+# the comment): this workflow holds the release signing identity, so a moved
+# tag upstream must not change what runs in it. Dependabot updates the SHAs.
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
 
@@ -64,13 +72,43 @@ jobs:
         working-directory: dist-cli/bin
         run: sha256sum -c ../SHA256SUMS
 
-      - uses: sigstore/cosign-installer@v3
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cli
+          path: |
+            dist-cli/bin/
+            dist-cli/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # A GitHub environment, so the repository can require a reviewer before
+    # anything is signed (Settings -> Environments -> release).
+    environment: release
+    permissions:
+      contents: write # create the release
+      id-token: write # Sigstore keyless signing and attestations
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cli
+          path: dist-cli
+
+      - name: Check the binaries against their checksums
+        working-directory: dist-cli/bin
+        run: sha256sum -c ../SHA256SUMS
+
+      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       - name: Sign SHA256SUMS
         run: cosign sign-blob --yes --bundle dist-cli/SHA256SUMS.sigstore.json dist-cli/SHA256SUMS
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-path: dist-cli/bin/*
 
@@ -80,6 +118,7 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" \
             dist-cli/bin/* dist-cli/SHA256SUMS dist-cli/SHA256SUMS.sigstore.json \
+            --repo "${GITHUB_REPOSITORY}" \
             --verify-tag \
             --title "DevStation CLI ${GITHUB_REF_NAME#v}" \
-            --notes "Binaries are built by this workflow. SHA256SUMS is signed with Sigstore (SHA256SUMS.sigstore.json); install.sh verifies it when cosign is installed. Each binary also has a build-provenance attestation: gh attestation verify <file> --repo ${GITHUB_REPOSITORY}"
+            --notes "Binaries are built by this workflow. SHA256SUMS is signed with Sigstore (SHA256SUMS.sigstore.json) by this tag's run of release.yml; install.sh and \`devstation upgrade\` verify it when cosign is installed. Each binary also has a build-provenance attestation: gh attestation verify <file> --repo ${GITHUB_REPOSITORY}"
