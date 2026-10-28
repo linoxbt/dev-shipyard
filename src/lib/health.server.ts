@@ -82,6 +82,16 @@ export async function readiness(env: NodeJS.ProcessEnv = process.env): Promise<H
     detail: ai ? "configured" : "No server AI key: the assistant needs each user's own key.",
   });
 
+  const labels = has("AUTOLABELER_PRIVATE_KEY");
+  checks.push({
+    name: "auto_labels",
+    ok: labels,
+    required: false,
+    detail: labels
+      ? "configured"
+      : "No AUTOLABELER_PRIVATE_KEY: deploys get community labels, not verified ones.",
+  });
+
   const relaxed = ["1", "true", "on"].includes(
     (env.EXPLORER_ALLOW_EXPIRED_CERT ?? "").trim().toLowerCase(),
   );

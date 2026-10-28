@@ -209,6 +209,19 @@ until (re)deployed.
 
 ---
 
+## Contracts v2
+
+`DevStationMarketplaceV2` and `ContractLabelRegistryV2` fix the issues listed
+in `contracts/V2_CHANGES.md` and are ready to deploy; the app detects them by
+`version()`. Moving a network over needs the deployer key and a multisig, and
+a decision about existing listings and labels: see
+[docs/CONTRACTS_V2_RUNBOOK.md](docs/CONTRACTS_V2_RUNBOOK.md). A fresh network
+gets the v2 contracts by default (`bun run scripts/deploy.ts`).
+
+Trusted auto-labels on deploys need `AUTOLABELER_PRIVATE_KEY` (see
+`.env.example`): the server labels a contract only after the explorer confirms
+the signed-in wallet created it.
+
 ## Deploying registries to a new chain
 
 ```bash

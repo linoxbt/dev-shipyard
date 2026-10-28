@@ -215,7 +215,7 @@ export function useCodeAgent() {
   // receipt (and estimate gas) on the chain it just left.
   const publicClient = usePublicClient({ chainId });
   const { recordDeployment } = useProjectRegistry();
-  const { submitLabel } = useContractLabels();
+  const { labelDeployment } = useContractLabels();
   const { available: sponsorAvailable, ensureFunded } = useSponsorTopup(chainId);
   const sponsorEligible = sponsorAvailable && isSponsorEligibleChain(chainId);
 
@@ -836,7 +836,7 @@ export function useCodeAgent() {
             step: { kind: "label", status: "running", title: "Registering name onchain…" },
           });
           try {
-            await submitLabel({
+            await labelDeployment({
               contractAddress: addr,
               name: labelName,
               category: normalizeLabelCategory(action.category),

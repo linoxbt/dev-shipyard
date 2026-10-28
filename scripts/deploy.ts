@@ -77,7 +77,23 @@ const CONTRACTS = [
   "ContractLabelRegistry",
   "TemplateRegistry",
   "DevStationMarketplace",
+  // Version 2 (contracts/V2_CHANGES.md). Deploy with --only; see
+  // docs/CONTRACTS_V2_RUNBOOK.md for moving a chain over.
+  "DevStationMarketplaceV2",
+  "ContractLabelRegistryV2",
 ] as const;
+
+/** Optional addresses for the v2 roles, so the treasury, the auto-labeler and
+ *  the owner can be a multisig rather than the deploying wallet. */
+function roleAddress(name: "TREASURY_ADDRESS" | "AUTOLABELER_ADDRESS" | "OWNER_ADDRESS") {
+  const v = (process.env[name] ?? "").trim();
+  if (!v) return null;
+  if (!/^0x[0-9a-fA-F]{40}$/.test(v)) {
+    console.error(`ERROR: ${name} is not an address.`);
+    process.exit(1);
+  }
+  return v as `0x${string}`;
+}
 
 /** QIE's own USDC stablecoin, per chain id. The marketplace refuses
  *  QUSDC-priced listings where this is the zero address. */
@@ -100,7 +116,15 @@ function selectedContracts(): string[] {
     if (a === "--only" && process.argv[i + 1]) flagged.push(process.argv[i + 1]);
   });
   const picked = [...only, ...flagged];
-  if (picked.length === 0) return [...CONTRACTS];
+  // A fresh chain gets the current version of each contract, never both.
+  if (picked.length === 0) {
+    return [
+      "ProjectRegistry",
+      "TemplateRegistry",
+      "ContractLabelRegistryV2",
+      "DevStationMarketplaceV2",
+    ];
+  }
   for (const name of picked) {
     if (!(CONTRACTS as readonly string[]).includes(name)) {
       console.error(`ERROR: unknown contract "${name}". Known: ${CONTRACTS.join(", ")}`);
@@ -204,12 +228,19 @@ async function main() {
     // takes the protocol treasury that receives its 5% fee. Both default to the
     // deployer wallet.
     // DevStationMarketplace takes the treasury and this chain's QUSDC.
+    const treasury = roleAddress("TREASURY_ADDRESS") ?? account.address;
+    const labeler = roleAddress("AUTOLABELER_ADDRESS") ?? account.address;
     const args =
-      name === "DevStationMarketplace"
-        ? [account.address, QUSDC_BY_CHAIN[chain.id] ?? ZERO_ADDRESS]
-        : name === "ContractLabelRegistry" || name === "TemplateRegistry"
-          ? [account.address]
-          : [];
+      name === "DevStationMarketplace" || name === "DevStationMarketplaceV2"
+        ? [
+            name.endsWith("V2") ? treasury : account.address,
+            QUSDC_BY_CHAIN[chain.id] ?? ZERO_ADDRESS,
+          ]
+        : name === "ContractLabelRegistryV2"
+          ? [labeler]
+          : name === "ContractLabelRegistry" || name === "TemplateRegistry"
+            ? [account.address]
+            : [];
     // Explicit gas: QIE's eth_estimateGas is unreliable (see ONCHAIN_WRITE_GAS),
     // and the testnet explorer's RPC proxy, used while rpc1testnet is down,
     // rejects estimation for contract creation outright. Unused gas is refunded.
@@ -217,8 +248,25 @@ async function main() {
     const hash = await walletClient.deployContract({ abi: abi as [], bytecode, args, gas });
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     if (!receipt.contractAddress) throw new Error(`${name}: no contract address in receipt`);
+    if (receipt.status !== "success") throw new Error(`${name}: deploy transaction reverted`);
     deployed[name] = receipt.contractAddress;
     console.log(`${receipt.contractAddress}  (block ${receipt.blockNumber})`);
+
+    // v2 ownership moves in two steps: start it here, and the new owner (for
+    // example a multisig) finishes it by calling acceptOwnership().
+    const newOwner = roleAddress("OWNER_ADDRESS");
+    if (newOwner && name.endsWith("V2")) {
+      const tx = await walletClient.writeContract({
+        address: receipt.contractAddress,
+        abi: abi as [],
+        functionName: "transferOwnership" as never,
+        args: [newOwner] as never,
+        gas: 200_000n,
+      });
+      const r = await publicClient.waitForTransactionReceipt({ hash: tx });
+      if (r.status !== "success") throw new Error(`${name}: transferOwnership reverted`);
+      console.log(`  ownership offered to ${newOwner}: it must call acceptOwnership()`);
+    }
   }
 
   // Merged into what is already recorded for this chain: deploying one new
@@ -244,6 +292,9 @@ async function main() {
     ContractLabelRegistry: `VITE_LABEL_REGISTRY_ADDRESS_${chain.envSuffix}`,
     TemplateRegistry: `VITE_TEMPLATE_REGISTRY_ADDRESS_${chain.envSuffix}`,
     DevStationMarketplace: `VITE_MARKETPLACE_ADDRESS_${chain.envSuffix}`,
+    // v2 replaces v1 at the same setting; the app reads version() and adapts.
+    DevStationMarketplaceV2: `VITE_MARKETPLACE_ADDRESS_${chain.envSuffix}`,
+    ContractLabelRegistryV2: `VITE_LABEL_REGISTRY_ADDRESS_${chain.envSuffix}`,
   };
   for (const [name, address] of Object.entries(deployed)) {
     console.log(`${ENV_VAR[name] ?? name}=${address}`);

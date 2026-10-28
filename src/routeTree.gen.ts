@@ -25,6 +25,7 @@ import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
 import { Route as ApiBuildRouteImport } from './routes/api.build'
 import { Route as ApiGithubRouteImport } from './routes/api.github'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
+import { Route as ApiLabelRelayRouteImport } from './routes/api.label-relay'
 import { Route as ApiListingsRouteImport } from './routes/api.listings'
 import { Route as ApiPublishRouteImport } from './routes/api.publish'
 import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
@@ -172,6 +173,11 @@ const ApiGithubRoute = ApiGithubRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLabelRelayRoute = ApiLabelRelayRouteImport.update({
+  id: '/api/label-relay',
+  path: '/api/label-relay',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiListingsRoute = ApiListingsRouteImport.update({
@@ -541,6 +547,7 @@ export interface FileRoutesByFullPath {
   '/api/build': typeof ApiBuildRoute
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/health': typeof ApiHealthRoute
+  '/api/label-relay': typeof ApiLabelRelayRoute
   '/api/listings': typeof ApiListingsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
@@ -625,6 +632,7 @@ export interface FileRoutesByTo {
   '/api/build': typeof ApiBuildRoute
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/health': typeof ApiHealthRoute
+  '/api/label-relay': typeof ApiLabelRelayRoute
   '/api/listings': typeof ApiListingsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
@@ -710,6 +718,7 @@ export interface FileRoutesById {
   '/api/build': typeof ApiBuildRoute
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/health': typeof ApiHealthRoute
+  '/api/label-relay': typeof ApiLabelRelayRoute
   '/api/listings': typeof ApiListingsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
@@ -798,6 +807,7 @@ export interface FileRouteTypes {
     | '/api/build'
     | '/api/github'
     | '/api/health'
+    | '/api/label-relay'
     | '/api/listings'
     | '/api/publish'
     | '/api/repo-agent'
@@ -882,6 +892,7 @@ export interface FileRouteTypes {
     | '/api/build'
     | '/api/github'
     | '/api/health'
+    | '/api/label-relay'
     | '/api/listings'
     | '/api/publish'
     | '/api/repo-agent'
@@ -966,6 +977,7 @@ export interface FileRouteTypes {
     | '/api/build'
     | '/api/github'
     | '/api/health'
+    | '/api/label-relay'
     | '/api/listings'
     | '/api/publish'
     | '/api/repo-agent'
@@ -1053,6 +1065,7 @@ export interface RootRouteChildren {
   ApiBuildRoute: typeof ApiBuildRoute
   ApiGithubRoute: typeof ApiGithubRouteWithChildren
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiLabelRelayRoute: typeof ApiLabelRelayRoute
   ApiListingsRoute: typeof ApiListingsRoute
   ApiPublishRoute: typeof ApiPublishRoute
   ApiRepoAgentRoute: typeof ApiRepoAgentRoute
@@ -1188,6 +1201,13 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/label-relay': {
+      id: '/api/label-relay'
+      path: '/api/label-relay'
+      fullPath: '/api/label-relay'
+      preLoaderRoute: typeof ApiLabelRelayRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/listings': {
@@ -1827,6 +1847,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBuildRoute: ApiBuildRoute,
   ApiGithubRoute: ApiGithubRouteWithChildren,
   ApiHealthRoute: ApiHealthRoute,
+  ApiLabelRelayRoute: ApiLabelRelayRoute,
   ApiListingsRoute: ApiListingsRoute,
   ApiPublishRoute: ApiPublishRoute,
   ApiRepoAgentRoute: ApiRepoAgentRoute,

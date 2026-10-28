@@ -80,7 +80,7 @@ function DeployWizard() {
   const { address, isConnected } = useAccount();
   const { chainId, chain, config, walletMismatch, walletChainId, syncWallet } = useActiveChain();
   const { recordDeployment } = useProjectRegistry();
-  const { submitLabel, onChain: labelsOnChain } = useContractLabels();
+  const { labelDeployment, onChain: labelsOnChain } = useContractLabels();
   const userTemplates = useUserTemplates((s) => s.templates);
   const hydrateTemplates = useUserTemplates((s) => s.hydrate);
   useEffect(() => {
@@ -372,14 +372,16 @@ function DeployWizard() {
       if (labelsOnChain) {
         log(`[${ts()}] [Verify] Registering "${projectName || template.name}" on-chain...`);
         try {
-          await submitLabel({
+          const kind = await labelDeployment({
             contractAddress: deployedAddr,
             name: projectName || template.name,
             category: labelCategoryForTemplate(template.category),
             description: template.description,
           });
           log(
-            `[${ts()}] [Verify] ✓ Name submitted to ContractLabelRegistry (community label, awaiting approval)`,
+            kind === "auto"
+              ? `[${ts()}] [Verify] ✓ Labelled by DevStation (verified deploy)`
+              : `[${ts()}] [Verify] ✓ Name submitted to ContractLabelRegistry (community label, awaiting approval)`,
             "success",
           );
         } catch (err) {

@@ -5,6 +5,7 @@ import { contractLabelRegistryAbi } from "@/lib/abis/contractLabelRegistry";
 import { labelRegistryAddress, isContractConfigured, ONCHAIN_WRITE_GAS } from "@/lib/contracts";
 import { useNetworkPref } from "@/lib/active-chain";
 import { getAllLabels } from "@/lib/api/chain.functions";
+import { fetchWithGrant } from "@/lib/agent-access/grant";
 import { useChainLabel, type ChainLabel } from "@/components/shared/useChainLabel";
 
 export interface OnChainLabel {
@@ -74,7 +75,37 @@ export function useContractLabels() {
     [client, onChain, registry, writeContractAsync, selectedChainId],
   );
 
-  return { onChain, submitLabel };
+  /**
+   * Label a contract this wallet just deployed. Asks DevStation's label relay
+   * first, which publishes a trusted auto-label once it has confirmed on the
+   * explorer that this wallet created the contract (lib/label-relay.server.ts).
+   * Where the relay is not set up, or the explorer has not indexed the
+   * contract yet, it files a community label from the wallet instead.
+   *
+   * Resolves to which kind of label was published.
+   */
+  const labelDeployment = useCallback(
+    async (p: SubmitParams): Promise<"auto" | "community" | "none"> => {
+      if (!onChain) return "none";
+      const res = await fetchWithGrant("/api/label-relay", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chainId: selectedChainId, ...p }),
+      }).catch(() => null);
+      if (res?.ok) return "auto";
+      const body = res
+        ? ((await res.json().catch(() => ({}))) as { reason?: string; message?: string })
+        : {};
+      const fallback =
+        !res || body.reason === "not_configured" || body.reason === "unknown_contract";
+      if (!fallback) throw new Error(body.message ?? "The label could not be published.");
+      await submitLabel(p);
+      return "community";
+    },
+    [onChain, selectedChainId, submitLabel],
+  );
+
+  return { onChain, submitLabel, labelDeployment };
 }
 
 // Full label list for the Label Registry page. Read from the registry's
