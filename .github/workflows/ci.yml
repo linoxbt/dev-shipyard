@@ -132,10 +132,17 @@ jobs:
         # (node_modules included) to the daemon for every build.
         run: docker build -f docker/sandbox.Dockerfile -t devstation-sandbox:1 docker
 
-      - name: Prove the image is there
-        # The tests skip silently without it, so the skip is made loud here
+      - name: Build the runner's job image
+        # services/runner/src/sandbox.test.ts skips without it, which is how
+        # the runner's own isolation tests went unrun in CI.
+        run: docker build -t devstation-runner:3 services/runner
+
+      - name: Prove the images are there
+        # The tests skip silently without them, so the skip is made loud here
         # rather than discovered months later.
-        run: docker image inspect devstation-sandbox:1 >/dev/null
+        run: |
+          docker image inspect devstation-sandbox:1 >/dev/null
+          docker image inspect devstation-runner:3 >/dev/null
 
       - name: Sandbox and runner tests
         # gVisor is not installed on a GitHub runner, so these run under runc.
@@ -145,6 +152,15 @@ jobs:
         # production runner's /health reports instead.
         env:
           DEVSTATION_SANDBOX_RUNTIME: runc
+          RUNNER_RUNTIME: runc
+        # `shell: bash` runs with pipefail, so a failing suite still fails the
+        # step through the tee.
+        shell: bash
         run: |
-          bun test ./src/lib/agent/sandbox-exec.test.ts
-          bun test ./services/runner/src
+          bun test ./src/lib/agent/sandbox-exec.test.ts ./services/runner/src 2>&1 | tee /tmp/sandbox.log
+          # Nothing in this job may skip: a skip here means an image was
+          # missing and the isolation it guards went unchecked.
+          if grep -E "^ +[1-9][0-9]* skip" /tmp/sandbox.log; then
+            echo "::error::sandbox tests skipped; an image is missing"
+            exit 1
+          fi
