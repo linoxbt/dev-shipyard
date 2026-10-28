@@ -37,7 +37,12 @@ for (const path of PAGES) {
   });
 }
 
-for (const path of ["/", "/launchkit/marketplace", "/explorer/mainnet", "/launchkit/coding-agent"]) {
+for (const path of [
+  "/",
+  "/launchkit/marketplace",
+  "/explorer/mainnet",
+  "/launchkit/coding-agent",
+]) {
   test(`${path} has no sideways scroll on a phone`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await load(page, path);
