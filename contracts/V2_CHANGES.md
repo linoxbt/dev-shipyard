@@ -3,12 +3,33 @@
 The four contracts in this directory are deployed and source-verified, and their
 bytecode matches this source (`scripts/check-contracts.ts` checks the committed
 artifacts; the 2026-10-21 audit checked the chain). Changing these files would
-break that match, so the fixes below are **specified here and not applied**.
+break that match, so the fixes below were **not applied to them**; see the status below.
 Each needs a new deployment, an address change in `src/lib/contracts.ts`, and a
 migration plan for existing listings, labels and balances.
 
 Until then, the docs describe the current behaviour (README, docs.selling,
 docs.marketplace, docs.labels).
+
+## Status: written as new contracts
+
+The v1 files are untouched. The fixes are in two new contracts beside them,
+`DevStationMarketplaceV2.sol` and `ContractLabelRegistryV2.sol`, tested in
+`contracts/test/v2.test.ts` and deployed with the steps in
+[`docs/CONTRACTS_V2_RUNBOOK.md`](../docs/CONTRACTS_V2_RUNBOOK.md). The app
+detects a v2 marketplace through `version()` and uses its price-capped calls.
+
+| Item                     | In v2                                                                                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1. Per-deploy pricing    | Partly. Every deploy through DevStation pays, and the recorded hash follows the latest paid version. Download access after the first payment is still not metered. |
+| 2. Content swapped       | `purchasedContentHash(id, wallet)` records the version paid for.                                                                                                   |
+| 3. Moderation            | Hiding stops new sales; buyers keep access.                                                                                                                        |
+| 4. Price protection      | `buyAt`, `recordDeployAt` and `featureAt` take a maximum.                                                                                                          |
+| 5. Inflated deploy count | A creator's own deploys are free and not counted.                                                                                                                  |
+| 6. Roles and treasury    | Two-step owner and treasury moves, with `cancelTreasuryTransfer`. No built-in delay: make the owner a multisig behind a timelock (runbook).                        |
+| 7. Fee-on-transfer       | Refused: the balance must rise by the full amount.                                                                                                                 |
+| 8. Labels                | The owner can remove a label; text lengths are capped.                                                                                                             |
+| 9. Auto-labelling        | Server relay (`src/lib/label-relay.server.ts`): creation proved on-chain, last 24 hours, once per contract, no reserved names, capped spend. Works with v1 and v2. |
+| 10. Template ids         | Not addressed. ProjectRegistry is unchanged and its template ids remain self-reported.                                                                             |
 
 ## DevStationMarketplace
 

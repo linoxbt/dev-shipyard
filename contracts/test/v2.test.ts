@@ -176,6 +176,41 @@ describe("DevStationMarketplaceV2", () => {
     expect((await c.call(token, t.abi, "balanceOf", [CREATOR])).result).toBe(950_000n);
   });
 
+  it("keeps a per-deploy buyer's hash on the version they last paid for", async () => {
+    await c.call(market, mAbi, "recordDeployAt", [1n, ETHER], { from: BUYER, value: ETHER });
+    await c.call(market, mAbi, "updateContent", [1n, NEW_HASH], { from: CREATOR });
+    expect((await c.call(market, mAbi, "purchasedContentHash", [1n, BUYER])).result).toBe(HASH);
+    await c.call(market, mAbi, "recordDeployAt", [1n, ETHER], { from: BUYER, value: ETHER });
+    expect((await c.call(market, mAbi, "purchasedContentHash", [1n, BUYER])).result).toBe(NEW_HASH);
+  });
+
+  it("closes a free listing to new downloads once its creator deactivates it", async () => {
+    await c.call(market, mAbi, "publish", publishArgs(0, 0n), { from: CREATOR }); // 2: free
+    expect((await c.call(market, mAbi, "hasAccess", [2n, BUYER])).result).toBe(true);
+    await c.call(market, mAbi, "update", [2n, 0n, false, "{}"], { from: CREATOR });
+    expect((await c.call(market, mAbi, "hasAccess", [2n, BUYER])).result).toBe(false);
+    expect((await c.call(market, mAbi, "hasAccess", [2n, CREATOR])).result).toBe(true);
+  });
+
+  it("lets the owner withdraw a treasury proposal before it is accepted", async () => {
+    expect((await c.call(market, mAbi, "cancelTreasuryTransfer", [])).revert).toBe(
+      "No pending treasury",
+    );
+    await c.call(market, mAbi, "transferTreasury", [MULTISIG]);
+    expect((await c.call(market, mAbi, "cancelTreasuryTransfer", [], { from: BUYER })).ok).toBe(
+      false,
+    );
+    expect((await c.call(market, mAbi, "cancelTreasuryTransfer", [])).ok).toBe(true);
+    expect((await c.call(market, mAbi, "acceptTreasury", [], { from: MULTISIG })).ok).toBe(false);
+  });
+
+  it("explains a QUSDC address with no contract behind it", async () => {
+    const m = await c.deploy(mAbi, mBin, [TREASURY, "0x000000000000000000000000000000000000dEaD"]);
+    await c.call(m, mAbi, "publish", publishArgs(0, 1_000_000n, 1), { from: CREATOR });
+    const r = await c.call(m, mAbi, "buyAt", [0n, 1_000_000n], { from: BUYER });
+    expect(r.revert).toBe("QUSDC not available here");
+  });
+
   it("refuses a token that delivers less than it was asked for", async () => {
     const { m } = await qusdcMarket("FeeToken");
     const r = await c.call(m, mAbi, "buyAt", [0n, 1_000_000n], { from: BUYER });

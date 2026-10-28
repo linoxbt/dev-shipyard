@@ -168,6 +168,7 @@ contract DevStationMarketplaceV2 {
     event FeaturedPriceSet(uint8 indexed currency, uint256 perDay);
     event Withdrawn(address indexed token, address indexed to, uint256 amount);
     event TreasuryTransferStarted(address indexed previousTreasury, address indexed newTreasury);
+    event TreasuryTransferCancelled(address indexed proposedTreasury);
     event TreasuryTransferred(address indexed previousTreasury, address indexed newTreasury);
     event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
@@ -325,8 +326,13 @@ contract DevStationMarketplaceV2 {
         uint256 due = isCreator ? 0 : l.price;
         require(due <= maxPrice, "Price changed");
 
-        if (!_purchased[id][msg.sender] && !isCreator) _grant(id, msg.sender);
-        if (!isCreator) l.deploys += 1;
+        if (!isCreator) {
+            // Each paid deploy is for the version listed now, so the recorded
+            // hash follows the latest one this wallet paid for.
+            if (!_purchased[id][msg.sender]) _grant(id, msg.sender);
+            else _purchasedHash[id][msg.sender] = l.contentHash;
+            l.deploys += 1;
+        }
         uint256 fee = _credit(l.currency, l.creator, due);
         emit DeployRecorded(id, msg.sender, l.creator, l.currency, due, fee);
 
@@ -392,6 +398,13 @@ contract DevStationMarketplaceV2 {
         emit TreasuryTransferStarted(treasury, newTreasury);
     }
 
+    /// @notice Withdraw a treasury proposal before it is accepted.
+    function cancelTreasuryTransfer() external onlyOwner {
+        require(pendingTreasury != address(0), "No pending treasury");
+        emit TreasuryTransferCancelled(pendingTreasury);
+        pendingTreasury = address(0);
+    }
+
     function acceptTreasury() external {
         require(msg.sender == pendingTreasury, "Not the pending treasury");
         emit TreasuryTransferred(treasury, msg.sender);
@@ -415,13 +428,13 @@ contract DevStationMarketplaceV2 {
 
     /// @notice Whether `wallet` may download the listing's files: its creator,
     ///         whoever has paid (even after the listing is hidden: they paid),
-    ///         and anyone for a free listing that is not hidden.
+    ///         and anyone for a free listing that is active and not hidden.
     function hasAccess(uint256 id, address wallet) external view returns (bool) {
         if (id >= _listings.length) return false;
         Listing storage l = _listings[id];
         if (wallet == l.creator) return true;
         if (_purchased[id][wallet]) return true;
-        return !l.hidden && l.price == 0;
+        return l.active && !l.hidden && l.price == 0;
     }
 
     /// @notice The content hash `wallet` paid for, or zero if they never paid.
@@ -515,6 +528,9 @@ contract DevStationMarketplaceV2 {
         } else {
             require(msg.value == 0, "This listing is priced in QUSDC, not QIE");
             if (amount > 0) {
+                // Checked before balanceOf, whose call to an address with no
+                // code would revert with no reason at all.
+                require(qusdc.code.length > 0, "QUSDC not available here");
                 uint256 before = IERC20Minimal(qusdc).balanceOf(address(this));
                 _token(
                     abi.encodeWithSelector(
