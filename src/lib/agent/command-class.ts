@@ -240,6 +240,23 @@ function segmentReadsOnly(segment: string): boolean {
   // `env` prints the environment; `env X=1 cmd` runs cmd, and is only as
   // read-only as cmd is.
   if (head === "env") {
+    // Clearing the environment, or setting what decides which program runs
+    // and how git reads its config, is not a read: it can strip the git
+    // protection the host executor adds (GIT_CONFIG_*), or point PATH or the
+    // loader at something else.
+    if (
+      words
+        .slice(1)
+        .some(
+          (w) =>
+            /^(-i|--ignore-environment|-|-S.*|--split-string.*|-C.*|--chdir.*)$/.test(w) ||
+            /^(GIT_[A-Z_]*|PATH|LD_[A-Z_]*|DYLD_[A-Z_]*|HOME|XDG_CONFIG_HOME|BASH_ENV|ENV)=/.test(
+              w,
+            ),
+        )
+    ) {
+      return false;
+    }
     let i = 1;
     while (
       i < words.length &&

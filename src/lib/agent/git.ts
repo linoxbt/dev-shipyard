@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { allowedEnv } from "./executor";
 import { runShell, type ShellResult } from "./shell";
@@ -133,10 +133,17 @@ export function driverOverrides(root: string): string[] | null {
     const nl = entry.indexOf("\n");
     const key = nl === -1 ? entry : entry.slice(0, nl);
     const value = nl === -1 ? "" : entry.slice(nl + 1);
+    if (key.toLowerCase() === "diff.external") {
+      out.add("diff.external=");
+      continue;
+    }
     const match = DRIVER_KEY.exec(key);
     if (!match) continue;
     if (match[1].toLowerCase() === "filter" && LFS_COMMAND.test(value.trim())) continue;
-    out.add(`${key}=`);
+    // A blank textconv makes git try to run "" and fail the diff; `cat` shows
+    // the file as it is, which is what no textconv means, and runs nothing
+    // the repository chose. Everything else is blanked.
+    out.add(match[3].toLowerCase() === "textconv" ? `${key}=cat` : `${key}=`);
   }
   return [...out];
 }
@@ -174,6 +181,33 @@ const READ_ONLY_GIT = new Set([
   "ls-files",
 ]);
 
+const NESTED_SKIP = new Set(["node_modules", ".git", "dist", "build", ".next", ".venv", "target"]);
+
+/** Directories under `root` that hold their own `.git`, breadth-first and
+ *  bounded so a huge tree cannot stall a command. */
+export function nestedRepos(root: string, maxDirs = 2000): string[] {
+  const found: string[] = [];
+  const queue: string[] = [root];
+  let seen = 0;
+  while (queue.length > 0 && seen < maxDirs) {
+    const dir = queue.shift()!;
+    seen++;
+    let entries: import("node:fs").Dirent[];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      if (!e.isDirectory() || NESTED_SKIP.has(e.name)) continue;
+      const child = join(dir, e.name);
+      if (existsSync(join(child, ".git"))) found.push(child);
+      queue.push(child);
+    }
+  }
+  return found;
+}
+
 /** Global options that take the next word as their value. */
 const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace"]);
 
@@ -210,10 +244,21 @@ export function shellGitEnv(command: string, cwd: string): NodeJS.ProcessEnv | n
   const subs = gitSubcommands(command);
   if (subs.length === 0) return {};
   if (!subs.every((sub) => READ_ONLY_GIT.has(sub))) return {};
-  if (repoRefusal(cwd)) return null;
-  const drivers = driverOverrides(cwd);
-  if (drivers === null) return null;
-  const overrides = [...FIXED_OVERRIDES, ...drivers];
+  // A shell command can `cd` into any repository under the workspace (or name
+  // one with -C) before running git, and each has its own config. The
+  // overrides go into the environment, so they apply to every git the command
+  // starts: blank the drivers of every repository found, not just this one.
+  const drivers = new Set<string>();
+  for (const repo of [cwd, ...nestedRepos(cwd)]) {
+    if (repoRefusal(repo)) return null;
+    const found = driverOverrides(repo);
+    if (found === null) return null;
+    for (const d of found) drivers.add(d);
+  }
+  // diff.external is blanked only where a repository sets it: blanking it
+  // unconditionally makes git try to run "" and fail every patch-producing
+  // diff, and people do not type --no-ext-diff.
+  const overrides = [...FIXED_OVERRIDES.filter((o) => o !== "diff.external="), ...drivers];
   const env: NodeJS.ProcessEnv = { GIT_CONFIG_COUNT: String(overrides.length) };
   overrides.forEach((o, i) => {
     const eq = o.indexOf("=");

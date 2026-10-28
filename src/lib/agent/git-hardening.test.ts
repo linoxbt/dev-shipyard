@@ -90,7 +90,7 @@ describe("host git ignores programs named by config", () => {
     writeFileSync(join(root, "a.txt"), "hello\n");
 
     expect(driverOverrides(root)).toEqual(
-      expect.arrayContaining(["filter.x.clean=", "filter.x.smudge=", "diff.x.textconv="]),
+      expect.arrayContaining(["filter.x.clean=", "filter.x.smudge=", "diff.x.textconv=cat"]),
     );
     await changedFiles(root);
     const cp = await checkpoint(root, "one");
@@ -253,6 +253,62 @@ describe("git typed into a host shell", () => {
     expect(out.ok).toBe(true);
     expect(out.stdout).toContain("a.txt");
     expect(existsSync(marker)).toBe(false);
+  });
+
+  it("asks before env clears or overrides what the protection relies on", async () => {
+    const { classifyCommand } = await import("./command-class");
+    for (const c of [
+      "env -i git status",
+      "env GIT_CONFIG_COUNT=0 git status",
+      "env -i PATH=/usr/bin:/bin git status",
+      "env PATH=/tmp ls",
+    ]) {
+      expect(classifyCommand(c)).not.toBe("safe");
+    }
+    expect(classifyCommand("env FOO=1 git status")).toBe("safe");
+  });
+
+  it("covers a nested repository reached with cd", async () => {
+    const { hostExecutor } = await import("./executor");
+    const root = scratch();
+    await runShell("git init -q", { cwd: root });
+    const sub = join(root, "sub");
+    await runShell(
+      "mkdir sub && cd sub && git init -q && echo a > a.txt && " +
+        "git -c user.name=t -c user.email=t@t add a.txt && " +
+        "git -c user.name=t -c user.email=t@t commit -q -m s",
+      { cwd: root },
+    );
+    const marker = join(root, "..", `nested-${Date.now()}-${Math.random()}`);
+    const conv = join(root, "..", `conv-${Date.now()}-${Math.random()}.sh`);
+    writeFileSync(conv, `#!/bin/sh\ntouch ${marker}\ncat "$1"\n`, { mode: 0o755 });
+    appendFileSync(join(sub, ".git", "config"), `[diff "x"]\n\ttextconv = ${conv}\n`);
+    writeFileSync(join(sub, ".gitattributes"), "*.txt diff=x\n");
+    writeFileSync(join(sub, "a.txt"), "b\n");
+    // Sanity: plain git runs it.
+    await runShell("git diff", { cwd: sub });
+    expect(existsSync(marker)).toBe(true);
+    rmSync(marker);
+
+    const out = await hostExecutor().run("cd sub && git diff && git show --stat", {
+      cwd: root,
+      timeoutMs: 30_000,
+    });
+    expect(out.ok).toBe(true);
+    expect(existsSync(marker)).toBe(false);
+  });
+
+  it("leaves plain git diff working in a host shell", async () => {
+    const { hostExecutor } = await import("./executor");
+    const root = scratch();
+    await runShell(
+      "git init -q && echo a > a.txt && git -c user.name=t -c user.email=t@t add a.txt && " +
+        "git -c user.name=t -c user.email=t@t commit -q -m a && echo b > a.txt",
+      { cwd: root },
+    );
+    const out = await hostExecutor().run("git diff", { cwd: root, timeoutMs: 30_000 });
+    expect(out.ok).toBe(true);
+    expect(out.stdout).toContain("+b");
   });
 
   it("leaves an approved, writing git command to the person's own config", async () => {
