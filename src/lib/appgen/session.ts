@@ -161,6 +161,8 @@ export interface TurnInput {
     messages: ChatMessage[];
     signal?: AbortSignal;
     onDelta: (chunk: string) => void;
+    /** What `system` was built from, for the server proxy's check. */
+    promptContext?: unknown;
   }) => Promise<string>;
 }
 
@@ -361,9 +363,8 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
   }
 
   const review = mode === "review";
-  const system = review
-    ? reviewSystemPrompt(input.context ?? {})
-    : appBuilderSystemPrompt(input.context ?? {});
+  const promptContext = input.context ?? {};
+  const system = review ? reviewSystemPrompt(promptContext) : appBuilderSystemPrompt(promptContext);
 
   const briefing = stateBriefing(input.files, input.previewErrors, dir);
   const messages: ChatMessage[] = [
@@ -387,6 +388,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     let reviewStatuses = 0;
     reply = await chat({
       system,
+      promptContext,
       messages,
       signal: input.signal,
       onDelta: (chunk) => {
@@ -431,6 +433,7 @@ export async function runTurn(input: TurnInput): Promise<TurnResult> {
     let lastFileReported = "";
     reply = await chat({
       system,
+      promptContext,
       messages,
       signal: input.signal,
       onDelta: (chunk) => {

@@ -108,6 +108,10 @@ interface ChatOptions {
   system: string;
   messages: ChatMessage[];
   signal?: AbortSignal;
+  /** For an App Builder prompt, the context it was built from, so the server
+   *  proxy can rebuild it and confirm it is one of DevStation's own prompts
+   *  (see lib/ai-prompts.ts). Unused on direct, bring-your-own-key calls. */
+  promptContext?: unknown;
 }
 
 interface StreamOptions extends ChatOptions {
@@ -122,6 +126,7 @@ export async function chatStream({
   messages,
   signal,
   onDelta,
+  promptContext,
 }: StreamOptions): Promise<string> {
   const s = getAiSettings();
   if (!isAiConfigured()) {
@@ -131,7 +136,7 @@ export async function chatStream({
         : "AI is not configured. Pick a provider and model, paste your API key, and save in the AI settings.",
     );
   }
-  if (s.proxy) return streamProxy({ system, messages, signal, onDelta });
+  if (s.proxy) return streamProxy({ system, messages, signal, onDelta, promptContext });
   return resolveEndpoint(s).kind === "anthropic"
     ? streamAnthropic({ system, messages, signal, onDelta })
     : streamOpenAI({ system, messages, signal, onDelta });
@@ -190,14 +195,20 @@ async function streamAnthropic({
 
 // --- Server proxy (/api/ai) ------------------------------------------------
 
-async function streamProxy({ system, messages, signal, onDelta }: StreamOptions): Promise<string> {
+async function streamProxy({
+  system,
+  messages,
+  signal,
+  onDelta,
+  promptContext,
+}: StreamOptions): Promise<string> {
   // The proxy spends the operator's key, so it needs the wallet grant;
   // fetchWithGrant asks for the one signature if this browser has none. The
   // model is a request: the server honours it only if it is in its allow-list.
   const resp = await fetchWithGrant("/api/ai", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ system, messages, model: getAiSettings().model }),
+    body: JSON.stringify({ system, messages, model: getAiSettings().model, promptContext }),
     signal,
   });
   if (!resp.ok || !resp.body) throw await providerError(resp, "AI proxy");

@@ -60,7 +60,7 @@ export function projectSummary(files: Record<string, string>): string {
   ].join("\n");
 }
 
-const SYSTEM = `You are the router for DevStation's App Builder. Decide what the user's
+export const ROUTER_SYSTEM_PROMPT = `You are the router for DevStation's App Builder. Decide what the user's
 message actually calls for, then respond with a single JSON object and nothing else.
 
 {
@@ -140,7 +140,7 @@ export async function classifyIntent(input: ClassifyInput): Promise<IntentResult
   ];
   try {
     const raw = await input.chat({
-      system: SYSTEM,
+      system: ROUTER_SYSTEM_PROMPT,
       messages,
       signal: input.signal,
       onDelta: () => {

@@ -1,3 +1,4 @@
+import { isKnownSystemPrompt } from "@/lib/ai-prompts";
 import { createFileRoute } from "@tanstack/react-router";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 import { CLAIM_COOKIE, openClaims, ownerOf, readCookie } from "@/lib/agent-access/claims.server";
@@ -193,6 +194,8 @@ interface ChatBody {
   system?: unknown;
   messages?: unknown;
   model?: unknown;
+  /** What an App Builder prompt was built from; see lib/ai-prompts.ts. */
+  promptContext?: unknown;
 }
 
 async function upstreamRequest(
@@ -350,6 +353,20 @@ export const Route = createFileRoute("/api/ai")({
           return Response.json(
             { error: { message: "That request is too large." } },
             { status: 413 },
+          );
+        }
+        // Only DevStation's own prompts: this key is not a general relay.
+        if (!isKnownSystemPrompt(system, body?.promptContext)) {
+          return Response.json(
+            {
+              ok: false,
+              reason: "unknown_prompt",
+              error: {
+                message:
+                  "This request did not come from a current version of DevStation. Reload the page and try again.",
+              },
+            },
+            { status: 400 },
           );
         }
         const checked = sanitiseMessages(body?.messages);
