@@ -29,6 +29,9 @@ export interface ProjectTurn {
   text: string;
   changed?: string[];
   failed?: boolean;
+  /** The tool steps of an agent turn, titles only, so the conversation can
+   *  still say what was done after the workspace has moved on. */
+  steps?: { tool?: string; title: string; failed?: boolean }[];
 }
 
 /** The contract an app is wired to, if any. */
@@ -86,6 +89,16 @@ const turnSchema = z.object({
   text: z.string(),
   changed: z.array(z.string()).optional(),
   failed: z.boolean().optional(),
+  steps: z
+    .array(
+      z.object({
+        tool: z.string().max(60).optional(),
+        title: z.string().max(200),
+        failed: z.boolean().optional(),
+      }),
+    )
+    .max(80)
+    .optional(),
 });
 
 const messageSchema = z.object({

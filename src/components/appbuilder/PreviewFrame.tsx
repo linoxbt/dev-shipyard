@@ -58,9 +58,20 @@ interface Props {
    *  white frame: invisible to the user and to the agent trying to fix it. */
   onError?: (error: PreviewError) => void;
   className?: string;
+  /** Leave out the header and the error strip: the caller draws its own
+   *  (the Coding Agent's browser bar) and shows errors through onError. */
+  bare?: boolean;
 }
 
-export function PreviewFrame({ files, dir = "app", assets, chainName, onError, className }: Props) {
+export function PreviewFrame({
+  files,
+  dir = "app",
+  assets,
+  chainName,
+  onError,
+  className,
+  bare,
+}: Props) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [runtimeErrors, setRuntimeErrors] = useState<PreviewError[]>([]);
@@ -162,17 +173,19 @@ export function PreviewFrame({ files, dir = "app", assets, chainName, onError, c
 
   return (
     <div className={className}>
-      <div className="flex items-center justify-between gap-2 border-b border-border bg-surface px-3 py-1.5 font-mono text-[11px]">
-        <span className="text-meta">Live preview</span>
-        <span className="flex items-center gap-2">
-          {/* Transactions from here are real. Say which chain, plainly. */}
-          <span className="text-warning">{chainName}</span>
-          <span className="text-meta">
-            {isConnected ? "wallet connected" : "connect a wallet to send transactions"}
+      {!bare && (
+        <div className="flex items-center justify-between gap-2 border-b border-border bg-surface px-3 py-1.5 font-mono text-[11px]">
+          <span className="text-meta">Live preview</span>
+          <span className="flex items-center gap-2">
+            {/* Transactions from here are real. Say which chain, plainly. */}
+            <span className="text-warning">{chainName}</span>
+            <span className="text-meta">
+              {isConnected ? "wallet connected" : "connect a wallet to send transactions"}
+            </span>
           </span>
-        </span>
-      </div>
-      {runtimeErrors.length > 0 && (
+        </div>
+      )}
+      {!bare && runtimeErrors.length > 0 && (
         <div className="max-h-24 shrink-0 overflow-y-auto border-b border-danger/40 bg-danger/10 px-3 py-1.5 font-mono text-[10px] text-danger">
           {runtimeErrors.slice(0, 3).map((e, i) => (
             <div key={i} className="break-words">

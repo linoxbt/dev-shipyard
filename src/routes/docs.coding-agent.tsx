@@ -88,21 +88,37 @@ function CodingAgentDocs() {
         keeps going if you close the tab. Come back and the conversation is where you left it.
       </P>
 
-      <H2>The panel beside the chat</H2>
+      <H2>The conversation</H2>
+      <P>
+        While the agent works you see its checklist for the task and every step as it happens: each
+        file it reads or writes and each command it runs. Open a command to see exactly what it
+        printed. When a turn ends its steps fold into one line, and the files it changed appear as
+        chips: click one to open it in Code.
+      </P>
+
+      <H2>Preview, Code and Activity</H2>
       <Table
-        head={["Tab", "Shows"]}
+        head={["View", "Shows"]}
         rows={[
           [
             "Preview",
-            "Anything with a web page, rebuilt after each turn: a static index.html, or a project whose npm run build writes to dist/.",
+            "Anything with a web page, rebuilt after each turn: a static index.html, or a project whose npm run build writes to dist/. Switch between desktop, tablet and phone widths. If the running app reports an error, Fix with agent sends it to the agent.",
           ],
-          ["Files", "Every file in the workspace. Files changed in the last turn are highlighted."],
+          [
+            "Code",
+            "Every file in the workspace as a tree, with syntax highlighting. Files changed in the last turn carry a dot, and one click shows only those.",
+          ],
           [
             "Activity",
-            "Each command and edit of the latest turn, and what the work has cost so far.",
+            "Each command and edit of the latest turn with its output, and what the work has cost so far.",
           ],
         ]}
       />
+      <P>
+        The project name at the top left switches between your projects, starts a new one and
+        renames this one. Share, GitHub and Publish are at the top right; Download, Remix and Sell
+        are under the ••• menu.
+      </P>
 
       <H2>When you are happy with it</H2>
       <Table

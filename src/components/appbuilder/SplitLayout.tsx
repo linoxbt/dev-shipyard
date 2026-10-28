@@ -68,10 +68,19 @@ const MOBILE_CHAT_SHARE = "55%";
 interface Props {
   chat: ReactNode;
   preview: ReactNode;
+  /** Height and placement; by default the viewport less the app's header. */
+  className?: string;
+  /** Desktop: hide the chat from outside (a toggle in the caller's own bar).
+   *  When given, the floating toggle in the preview's corner is left out. */
+  chatCollapsed?: boolean;
 }
 
-export function SplitLayout({ chat, preview }: Props) {
-  const [collapsed, setCollapsed] = useState(false);
+const DEFAULT_HEIGHT = "h-[calc(100vh-3.5rem)]";
+
+export function SplitLayout({ chat, preview, className = DEFAULT_HEIGHT, chatCollapsed }: Props) {
+  const [ownCollapsed, setCollapsed] = useState(false);
+  const controlled = chatCollapsed !== undefined;
+  const collapsed = controlled ? chatCollapsed : ownCollapsed;
   const [hydrated, setHydrated] = useState(false);
   // The server cannot know the viewport, so it renders the desktop split and
   // the client corrects it. Done before paint, so a phone never shows the
@@ -141,7 +150,7 @@ export function SplitLayout({ chat, preview }: Props) {
       }`;
 
     return (
-      <div className="flex h-[calc(100vh-3.5rem)] flex-col">
+      <div className={`flex flex-col ${className}`}>
         {/* Its own bar, not floating over the panes: a floating control here
             sat directly on top of the composer. */}
         <div className="flex shrink-0 items-center gap-1 border-b border-border bg-surface px-1.5 py-1">
@@ -199,7 +208,7 @@ export function SplitLayout({ chat, preview }: Props) {
   }
 
   return (
-    <div className="relative flex h-[calc(100vh-3.5rem)] flex-col">
+    <div className={`relative flex flex-col ${className}`}>
       <Group
         key={hydrated ? "client" : "server"}
         orientation="horizontal"
@@ -235,17 +244,19 @@ export function SplitLayout({ chat, preview }: Props) {
               screenshot, invisible in the code. */}
           <div className="relative flex h-full min-h-0 flex-col">
             {preview}
-            <button
-              onClick={() => setCollapsed((v) => !v)}
-              title={collapsed ? "Show chat" : "Hide chat"}
-              className="absolute bottom-3 left-3 z-20 rounded border border-border bg-surface p-1.5 text-meta shadow-sm transition hover:text-foreground"
-            >
-              {collapsed ? (
-                <PanelLeftOpen className="h-3.5 w-3.5" />
-              ) : (
-                <PanelLeftClose className="h-3.5 w-3.5" />
-              )}
-            </button>
+            {!controlled && (
+              <button
+                onClick={() => setCollapsed((v) => !v)}
+                title={collapsed ? "Show chat" : "Hide chat"}
+                className="absolute bottom-3 left-3 z-20 rounded border border-border bg-surface p-1.5 text-meta shadow-sm transition hover:text-foreground"
+              >
+                {collapsed ? (
+                  <PanelLeftOpen className="h-3.5 w-3.5" />
+                ) : (
+                  <PanelLeftClose className="h-3.5 w-3.5" />
+                )}
+              </button>
+            )}
           </div>
         </Panel>
       </Group>
