@@ -118,20 +118,56 @@ export async function checkRateLimit(
   limit: number,
   windowMs: number,
 ): Promise<boolean> {
-  const store = sharedStore();
-  if (store) {
-    const shared = await checkSharedLimit(store, key, limit, windowMs);
+  // An unreachable store falls back to the next one, and finally to memory,
+  // rather than failing every request: the limits get weaker for a moment,
+  // the site stays up.
+  const upstash = sharedStore();
+  if (upstash) {
+    const shared = await checkSharedLimit(upstash, key, limit, windowMs);
     if (shared !== null) return shared;
-    // An unreachable store falls back to memory rather than failing every
-    // request: the limits get weaker for a moment, the site stays up.
-  } else if (!warnedMemory) {
+  }
+  const runner = runnerStore();
+  if (runner) {
+    const shared = await checkRunnerLimit(runner, key, limit, windowMs);
+    if (shared !== null) return shared;
+  }
+  if (!upstash && !runner && !warnedMemory) {
     warnedMemory = true;
     console.warn(
-      "[devstation] Rate limits are per-instance (in memory). Set UPSTASH_REDIS_REST_URL and " +
-        "UPSTASH_REDIS_REST_TOKEN for limits that hold across serverless instances.",
+      "[devstation] Rate limits are per-instance (in memory). Configure the runner " +
+        "(RUNNER_URL, RUNNER_TOKEN) or Upstash for limits that hold across serverless instances.",
     );
   }
   return checkMemoryLimit(key, limit, windowMs);
+}
+
+/** The runner, when the app is configured to use it: one long-lived process
+ *  every function instance already reaches, so its counters are shared. */
+function runnerStore(): { url: string; token: string } | null {
+  const url = (process.env.RUNNER_URL ?? "").replace(/\/+$/, "");
+  const token = process.env.RUNNER_TOKEN ?? "";
+  return url && token ? { url, token } : null;
+}
+
+async function checkRunnerLimit(
+  store: { url: string; token: string },
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<boolean | null> {
+  try {
+    const res = await fetch(`${store.url}/limits/hit`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${store.token}`, "content-type": "application/json" },
+      body: JSON.stringify({ key, limit, windowMs }),
+      signal: AbortSignal.timeout(1500),
+    });
+    if (!res.ok) return null;
+    const out = (await res.json()) as { allowed?: unknown };
+    return typeof out.allowed === "boolean" ? out.allowed : null;
+  } catch {
+    return null;
+  }
 }
 
 const IP_LIKE = /^[0-9a-fA-F:.]{2,45}$/;

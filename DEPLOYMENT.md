@@ -36,15 +36,15 @@ doesn't set the auto-detection variable it needs.
 
 ### Settings every host needs to know about
 
-| Variable                                             | What it does                                                                                                                                                | Default                                                                                                                                                                                                                       |
-| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Variable                                             | What it does                                                                                                                                                | Default                                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `TRUSTED_IP_HEADER`                                  | The one header that carries the real client address for per-IP limits. Any other "client IP" header can be written by the client, so only this one is read. | `x-vercel-forwarded-for` on Vercel, Netlify's `x-nf-client-connection-ip` on Netlify, otherwise the rightmost `X-Forwarded-For` entry. **Set it on any other host** (`cf-connecting-ip`, or `x-real-ip` behind an nginx that sets it), or all visitors share one per-IP bucket. |
-| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Shared store for rate limits and single-use sign-in nonces across serverless instances.                                                                     | In-memory per instance.                                                                                                                                                                                                       |
-| `SESSION_SECRET`                                     | Signs the wallet grant cookie and nonces, and keys the encrypted GitHub cookie.                                                                             | Falls back to `RUNNER_TOKEN`, then a per-process key.                                                                                                                                                                         |
-| `GITHUB_SESSION_SECRET`                              | Older name for the GitHub cookie key, still honoured when `SESSION_SECRET` is unset so existing deployments keep their sessions.                            | Unused when `SESSION_SECRET` is set.                                                                                                                                                                                          |
-| `EXPLORER_ALLOW_EXPIRED_CERT`                        | `1` retries a read-only explorer GET without TLS verification when the configured explorer's certificate is invalid.                                        | Off.                                                                                                                                                                                                                          |
-| `AI_REASONING`                                       | `on` restores the provider's default reasoning for models that support it (otherwise it is switched off to keep replies fast and cheap).                    | Off.                                                                                                                                                                                                                          |
-| `DEV_ALLOW_ANY_HOST`                                 | `1` lets the **dev server** accept any Host header (for a Cloudflare quick tunnel). It disables Vite's DNS-rebinding guard, so only use it while sharing.   | Off.                                                                                                                                                                                                                          |
+| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Shared store for rate limits and single-use sign-in nonces across serverless instances.                                                                     | The runner, when `RUNNER_URL`/`RUNNER_TOKEN` are set; otherwise in memory per instance.                                                                                                                                                                                         |
+| `SESSION_SECRET`                                     | Signs the wallet grant cookie and nonces, and keys the encrypted GitHub cookie.                                                                             | Falls back to `RUNNER_TOKEN`, then a per-process key.                                                                                                                                                                                                                           |
+| `GITHUB_SESSION_SECRET`                              | Older name for the GitHub cookie key, still honoured when `SESSION_SECRET` is unset so existing deployments keep their sessions.                            | Unused when `SESSION_SECRET` is set.                                                                                                                                                                                                                                            |
+| `EXPLORER_ALLOW_EXPIRED_CERT`                        | `1` retries a read-only explorer GET without TLS verification when the configured explorer's certificate is invalid.                                        | Off.                                                                                                                                                                                                                                                                            |
+| `AI_REASONING`                                       | `on` restores the provider's default reasoning for models that support it (otherwise it is switched off to keep replies fast and cheap).                    | Off.                                                                                                                                                                                                                                                                            |
+| `DEV_ALLOW_ANY_HOST`                                 | `1` lets the **dev server** accept any Host header (for a Cloudflare quick tunnel). It disables Vite's DNS-rebinding guard, so only use it while sharing.   | Off.                                                                                                                                                                                                                                                                            |
 
 ### Vercel
 
@@ -270,8 +270,8 @@ same signature can be resubmitted for the same address and chain; the
 per-wallet rate limit is what bounds that, and it cannot redirect funds to
 anyone else. Signing costs no gas, so a wallet with a zero balance can still
 request. On top of that, requests are rate-limited per wallet, per IP and
-globally (shared across instances when `UPSTASH_REDIS_REST_URL` /
-`UPSTASH_REDIS_REST_TOKEN` are set, per instance otherwise), and each top-up is
+globally (shared across instances through Upstash when it is configured,
+otherwise through the runner, per instance only when neither is), and each top-up is
 capped at `SPONSOR_MAX_TOPUP_NATIVE` (default 0.3 of the native token). The
 wallet sign-in used by the other endpoints has a single-use nonce; this
 signature does not.
@@ -335,9 +335,10 @@ grant the agent endpoints use) and is rate-limited per wallet. That sign-in is
 an EIP-4361 (Sign-In with Ethereum) message naming this site's domain, with a
 single-use server nonce, so a signature cannot be replayed or reused by another
 site. `AI_MAX_TOKENS` caps proxy replies (default 32000, clamped to 64000);
-`VITE_AI_MAX_TOKENS` caps bring-your-own-key replies (default 16000). Set
-`UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` so those limits are shared
-across serverless instances rather than kept per instance.
+`VITE_AI_MAX_TOKENS` caps bring-your-own-key replies (default 16000). Those limits are shared
+across serverless instances: through Upstash when `UPSTASH_REDIS_REST_URL` /
+`UPSTASH_REDIS_REST_TOKEN` are set, otherwise through the runner
+(`RUNNER_URL`, `RUNNER_TOKEN`), and per instance only when neither is.
 
 ### Two traps worth knowing
 

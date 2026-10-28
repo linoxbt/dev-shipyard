@@ -16,6 +16,7 @@ import {
   viewOf,
 } from "./repo-agent";
 import { LIMITS, type PhaseName } from "./limits";
+import { RateStore, parseHit } from "./rate-store";
 import { packTar, unpackTar } from "./tar";
 import {
   MAX_QUEUED,
@@ -102,6 +103,7 @@ const HOST = process.env.RUNNER_HOST ?? "127.0.0.1";
  *  dashboard is off entirely rather than open. */
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD ?? "";
 const TOKEN = process.env.RUNNER_TOKEN ?? "";
+const rateStore = new RateStore();
 /** RUNNER_TOKEN is full trust: whoever holds it can name any wallet as the
  *  owner of a request (see ARCHITECTURE.md). A short one is guessable, so the
  *  runner will not start with it. Unset leaves every authenticated route
@@ -480,6 +482,19 @@ async function route(
       return json(res, 200, { ok: true, counted });
     }
     return json(res, 405, { ok: false, message: "Method not allowed" });
+  }
+
+  // Shared rate limits for the app's serverless functions (see rate-store.ts).
+  if (path === "/limits/hit") {
+    if (!tokenMatches(req.headers.authorization, TOKEN)) {
+      return json(res, 401, { ok: false, message: "Unauthorized" });
+    }
+    if (req.method !== "POST") return json(res, 405, { ok: false, message: "Method not allowed" });
+    const body = await readJsonBody<unknown>(req, 2_000);
+    if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
+    const hit = parseHit(body.value);
+    if ("error" in hit) return json(res, 400, { ok: false, message: `Invalid ${hit.error}` });
+    return json(res, 200, { ok: true, allowed: rateStore.hit(hit.key, hit.limit, hit.windowMs) });
   }
 
   if (path === "/published-counts") {

@@ -75,7 +75,51 @@ describe("checkMemoryLimit", () => {
 describe("checkRateLimit", () => {
   it("falls back to memory with no shared store configured", async () => {
     delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.RUNNER_URL;
     expect(await checkRateLimit("a", 1, 60_000)).toBe(true);
     expect(await checkRateLimit("a", 1, 60_000)).toBe(false);
+  });
+
+  it("uses the runner's shared counters when the runner is configured", async () => {
+    const { RateStore } = await import("../../services/runner/src/rate-store");
+    const store = new RateStore();
+    const realFetch = globalThis.fetch;
+    const seen: string[] = [];
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      seen.push(String(url));
+      const b = JSON.parse(String(init.body)) as { key: string; limit: number; windowMs: number };
+      return Response.json({ ok: true, allowed: store.hit(b.key, b.limit, b.windowMs) });
+    }) as unknown as typeof fetch;
+    process.env.RUNNER_URL = "https://runner.test/";
+    process.env.RUNNER_TOKEN = "t".repeat(32);
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    try {
+      expect(await checkRateLimit("shared", 1, 60_000)).toBe(true);
+      // Memory never saw it; the runner did, so a second instance is refused.
+      resetMemoryLimits();
+      expect(await checkRateLimit("shared", 1, 60_000)).toBe(false);
+      expect(seen[0]).toBe("https://runner.test/limits/hit");
+    } finally {
+      globalThis.fetch = realFetch;
+      delete process.env.RUNNER_URL;
+      delete process.env.RUNNER_TOKEN;
+    }
+  });
+
+  it("falls back to memory when the runner cannot be reached", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      throw new Error("down");
+    }) as unknown as typeof fetch;
+    process.env.RUNNER_URL = "https://runner.test";
+    process.env.RUNNER_TOKEN = "t".repeat(32);
+    try {
+      expect(await checkRateLimit("down", 1, 60_000)).toBe(true);
+      expect(await checkRateLimit("down", 1, 60_000)).toBe(false);
+    } finally {
+      globalThis.fetch = realFetch;
+      delete process.env.RUNNER_URL;
+      delete process.env.RUNNER_TOKEN;
+    }
   });
 });
