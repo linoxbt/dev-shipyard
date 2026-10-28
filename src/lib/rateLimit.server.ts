@@ -149,12 +149,36 @@ function runnerStore(): { url: string; token: string } | null {
   return url && token ? { url, token } : null;
 }
 
+// After a failure the runner store is skipped for a while, so a runner that is
+// down costs each request one fast memory check instead of a 1.5s timeout.
+const RUNNER_BACKOFF_MS = 30_000;
+let runnerDownUntil = 0;
+let warnedRunner = false;
+
+/** For tests. */
+export function resetRunnerBreaker(): void {
+  runnerDownUntil = 0;
+  warnedRunner = false;
+}
+
 async function checkRunnerLimit(
   store: { url: string; token: string },
   key: string,
   limit: number,
   windowMs: number,
+  now = Date.now(),
 ): Promise<boolean | null> {
+  if (now < runnerDownUntil) return null;
+  const down = (why: string) => {
+    runnerDownUntil = now + RUNNER_BACKOFF_MS;
+    if (!warnedRunner) {
+      warnedRunner = true;
+      console.warn(
+        `[devstation] Runner rate-limit store unavailable (${why}); using memory for now.`,
+      );
+    }
+    return null;
+  };
   try {
     const res = await fetch(`${store.url}/limits/hit`, {
       method: "POST",
@@ -162,11 +186,12 @@ async function checkRunnerLimit(
       body: JSON.stringify({ key, limit, windowMs }),
       signal: AbortSignal.timeout(1500),
     });
-    if (!res.ok) return null;
+    // 401 is a wrong RUNNER_TOKEN, 404 a runner older than /limits/hit.
+    if (!res.ok) return down(`HTTP ${res.status}`);
     const out = (await res.json()) as { allowed?: unknown };
-    return typeof out.allowed === "boolean" ? out.allowed : null;
-  } catch {
-    return null;
+    return typeof out.allowed === "boolean" ? out.allowed : down("bad response");
+  } catch (e) {
+    return down(e instanceof Error ? e.name : "error");
   }
 }
 

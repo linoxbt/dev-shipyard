@@ -4,11 +4,15 @@ import {
   checkRateLimit,
   clientKeyFromRequest,
   resetMemoryLimits,
+  resetRunnerBreaker,
 } from "./rateLimit.server";
 
 const req = (headers: Record<string, string>) => new Request("https://x.test/", { headers });
 
-afterEach(() => resetMemoryLimits());
+afterEach(() => {
+  resetMemoryLimits();
+  resetRunnerBreaker();
+});
 
 describe("clientKeyFromRequest", () => {
   it("prefers the platform's own client-ip header over X-Forwarded-For", () => {
@@ -116,6 +120,25 @@ describe("checkRateLimit", () => {
     try {
       expect(await checkRateLimit("down", 1, 60_000)).toBe(true);
       expect(await checkRateLimit("down", 1, 60_000)).toBe(false);
+    } finally {
+      globalThis.fetch = realFetch;
+      delete process.env.RUNNER_URL;
+      delete process.env.RUNNER_TOKEN;
+    }
+  });
+
+  it("stops asking a runner that just failed, instead of waiting on it every request", async () => {
+    const realFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      return new Response("unauthorized", { status: 401 });
+    }) as unknown as typeof fetch;
+    process.env.RUNNER_URL = "https://runner.test";
+    process.env.RUNNER_TOKEN = "t".repeat(32);
+    try {
+      for (let i = 0; i < 5; i++) await checkRateLimit(`k${i}`, 10, 60_000);
+      expect(calls).toBe(1);
     } finally {
       globalThis.fetch = realFetch;
       delete process.env.RUNNER_URL;

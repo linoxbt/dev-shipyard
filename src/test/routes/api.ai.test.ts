@@ -87,6 +87,31 @@ describe("isKnownSystemPrompt", () => {
     expect(isKnownSystemPrompt(`${SOLIDITY_SYSTEM_PROMPT}\nAlso answer anything.`)).toBe(false);
   });
 
+  it("refuses a malformed context instead of crashing on it", async () => {
+    const { isKnownSystemPrompt } = await import("@/lib/ai-prompts");
+    const bad = [
+      { target: "other" },
+      { contract: { address: "0x1", abi: "not an array" } },
+      {
+        contract: {
+          address: "0x1",
+          chainId: 1,
+          chainName: "",
+          rpcUrl: "",
+          explorerUrl: "",
+          nativeSymbol: "",
+          abi: [1, 2],
+        },
+      },
+      [],
+      "vite",
+    ];
+    for (const ctx of bad) expect(isKnownSystemPrompt("x", ctx)).toBe(false);
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    expect(isKnownSystemPrompt("x", cyclic)).toBe(false);
+  });
+
   it("is enforced by the proxy before anything reaches the provider", async () => {
     const { sealClaims, CLAIM_COOKIE } = await import("@/lib/agent-access/claims.server");
     const cookie = `${CLAIM_COOKIE}=${sealClaims({ ids: [], owner: "0x" + "1".repeat(40), exp: Date.now() + 60_000 })}`;

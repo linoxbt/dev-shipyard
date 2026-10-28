@@ -43,6 +43,14 @@ only whether each is in place and what to do if not. It answers 503 when a
 required check fails (in production: `SESSION_SECRET`, and the runner whenever
 `RUNNER_URL` is set), so point an uptime monitor or a post-deploy gate at it.
 
+The public answer is just `{"ok": true|false}`. Set `HEALTH_TOKEN` (16+
+characters) and send `Authorization: Bearer $HEALTH_TOKEN` to see each check
+and its fix:
+
+```sh
+curl -s -H "Authorization: Bearer $HEALTH_TOKEN" https://your-site/api/health
+```
+
 ### Settings every host needs to know about
 
 | Variable                                             | What it does                                                                                                                                                | Default                                                                                                                                                                                                                                                                         |

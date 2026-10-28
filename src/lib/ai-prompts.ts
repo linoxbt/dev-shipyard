@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { SOLIDITY_SYSTEM_PROMPT } from "./ai";
 import { SOLIDITY_AGENT_PROMPT } from "./ai-agent";
 import { ROUTER_SYSTEM_PROMPT } from "./appgen/intent";
@@ -20,19 +21,42 @@ export function isKnownSystemPrompt(system: string, context?: unknown): boolean 
   if (FIXED.has(system)) return true;
   const ctx = promptContextOf(context);
   if (!ctx) return false;
-  return system === appBuilderSystemPrompt(ctx) || system === reviewSystemPrompt(ctx);
+  // The builders walk the ABI; a malformed entry that slips past the schema
+  // must refuse the request, not crash the route.
+  try {
+    return system === appBuilderSystemPrompt(ctx) || system === reviewSystemPrompt(ctx);
+  } catch {
+    return false;
+  }
 }
 
-/** The context object, if it has the shape the prompt builders take. */
+const contextSchema = z.object({
+  target: z.enum(["esm", "vite"]).optional(),
+  contract: z
+    .object({
+      address: z.string().max(64),
+      chainId: z.number().int(),
+      chainName: z.string().max(200),
+      rpcUrl: z.string().max(2000),
+      explorerUrl: z.string().max(2000),
+      nativeSymbol: z.string().max(32),
+      abi: z.array(z.record(z.string(), z.unknown())).max(2000),
+    })
+    .nullable()
+    .optional(),
+});
+// Unknown keys are stripped, not refused: the builders never read them, so
+// the rebuilt prompt is the same either way.
+
+/** The context object, if it has exactly the shape the prompt builders take. */
 function promptContextOf(value: unknown): PromptContext | null {
   if (value === undefined || value === null) return null;
-  if (typeof value !== "object" || Array.isArray(value)) return null;
   // Bounded: the prompt that comes back can only be as large as this.
-  if (JSON.stringify(value).length > 200_000) return null;
-  const v = value as Record<string, unknown>;
-  if (v.target !== undefined && v.target !== "esm" && v.target !== "vite") return null;
-  if (v.contract !== undefined && v.contract !== null && typeof v.contract !== "object") {
+  try {
+    if (JSON.stringify(value).length > 200_000) return null;
+  } catch {
     return null;
   }
-  return v as PromptContext;
+  const parsed = contextSchema.safeParse(value);
+  return parsed.success ? (parsed.data as PromptContext) : null;
 }
