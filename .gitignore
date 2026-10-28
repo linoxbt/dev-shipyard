@@ -48,3 +48,7 @@ packages/cli/devstation.js
 
 # Benchmark results (timestamped, regenerated)
 bench/results/
+
+# Playwright
+test-results/
+playwright-report/
