@@ -9,6 +9,8 @@ import { isRelayConfigured, relayAutoLabel } from "@/lib/label-relay.server";
 // GET ?chainId: whether auto-labels are available on that network.
 
 const PER_WALLET_LIMIT = 30;
+// Every label costs the labeler key gas, so total spend is capped too.
+const GLOBAL_LIMIT = 300;
 const WINDOW_MS = 60 * 60 * 1000;
 
 const bodySchema = z.object({
@@ -38,22 +40,26 @@ export const Route = createFileRoute("/api/label-relay")({
         if (!(await checkRateLimit(`label-relay:${owner}`, PER_WALLET_LIMIT, WINDOW_MS))) {
           return fail("rate_limited", "Too many labels. Try again later.", 429);
         }
+        if (!(await checkRateLimit("label-relay:global", GLOBAL_LIMIT, WINDOW_MS))) {
+          return fail("rate_limited", "Auto-labels are busy. Try again later.", 429);
+        }
         const parsed = bodySchema.safeParse(await request.json().catch(() => null));
         if (!parsed.success) return fail("invalid_body", "Malformed request.", 400);
         const result = await relayAutoLabel({
           ...parsed.data,
           contractAddress: parsed.data.contractAddress as `0x${string}`,
           owner,
-        }).catch(
-          (e: unknown) =>
-            ({
-              ok: false,
-              reason: "relay_failed",
-              message:
-                e instanceof Error ? e.message.slice(0, 200) : "The label could not be sent.",
-              status: 502,
-            }) as const,
-        );
+        }).catch((e: unknown) => {
+          // Details stay in the server log: RPC errors can name the
+          // provider's URL or the labeler's address and balance.
+          console.error("[label-relay]", e);
+          return {
+            ok: false,
+            reason: "relay_failed",
+            message: "The label could not be published.",
+            status: 502,
+          } as const;
+        });
         if (!result.ok) return fail(result.reason, result.message, result.status);
         return Response.json({ ok: true, txHash: result.txHash });
       },

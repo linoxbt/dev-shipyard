@@ -27,6 +27,15 @@ interface SubmitParams {
   description: string;
 }
 
+// Relay refusals that mean "DevStation can't vouch for this one": the user's
+// own wallet can still file the label as a community label.
+const COMMUNITY_FALLBACK = new Set([
+  "not_configured",
+  "unknown_contract",
+  "reserved_name",
+  "not_recent",
+]);
+
 // On-chain ContractLabelRegistry write access. submitLabel writes a tx; when
 // the registry isn't deployed on the selected chain, submit is a no-op the
 // caller can detect via `onChain`.
@@ -96,8 +105,8 @@ export function useContractLabels() {
       const body = res
         ? ((await res.json().catch(() => ({}))) as { reason?: string; message?: string })
         : {};
-      const fallback =
-        !res || body.reason === "not_configured" || body.reason === "unknown_contract";
+      if (body.reason === "already_labelled") return "auto";
+      const fallback = !res || COMMUNITY_FALLBACK.has(body.reason ?? "");
       if (!fallback) throw new Error(body.message ?? "The label could not be published.");
       await submitLabel(p);
       return "community";
