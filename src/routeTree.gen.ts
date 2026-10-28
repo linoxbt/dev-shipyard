@@ -24,6 +24,7 @@ import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
 import { Route as ApiBuildRouteImport } from './routes/api.build'
 import { Route as ApiGithubRouteImport } from './routes/api.github'
+import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiListingsRouteImport } from './routes/api.listings'
 import { Route as ApiPublishRouteImport } from './routes/api.publish'
 import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
@@ -166,6 +167,11 @@ const ApiBuildRoute = ApiBuildRouteImport.update({
 const ApiGithubRoute = ApiGithubRouteImport.update({
   id: '/api/github',
   path: '/api/github',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiListingsRoute = ApiListingsRouteImport.update({
@@ -534,6 +540,7 @@ export interface FileRoutesByFullPath {
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
   '/api/github': typeof ApiGithubRouteWithChildren
+  '/api/health': typeof ApiHealthRoute
   '/api/listings': typeof ApiListingsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
@@ -617,6 +624,7 @@ export interface FileRoutesByTo {
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
   '/api/github': typeof ApiGithubRouteWithChildren
+  '/api/health': typeof ApiHealthRoute
   '/api/listings': typeof ApiListingsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
@@ -701,6 +709,7 @@ export interface FileRoutesById {
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
   '/api/github': typeof ApiGithubRouteWithChildren
+  '/api/health': typeof ApiHealthRoute
   '/api/listings': typeof ApiListingsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
@@ -788,6 +797,7 @@ export interface FileRouteTypes {
     | '/api/apps-deploy'
     | '/api/build'
     | '/api/github'
+    | '/api/health'
     | '/api/listings'
     | '/api/publish'
     | '/api/repo-agent'
@@ -871,6 +881,7 @@ export interface FileRouteTypes {
     | '/api/apps-deploy'
     | '/api/build'
     | '/api/github'
+    | '/api/health'
     | '/api/listings'
     | '/api/publish'
     | '/api/repo-agent'
@@ -954,6 +965,7 @@ export interface FileRouteTypes {
     | '/api/apps-deploy'
     | '/api/build'
     | '/api/github'
+    | '/api/health'
     | '/api/listings'
     | '/api/publish'
     | '/api/repo-agent'
@@ -1040,6 +1052,7 @@ export interface RootRouteChildren {
   ApiAppsDeployRoute: typeof ApiAppsDeployRoute
   ApiBuildRoute: typeof ApiBuildRoute
   ApiGithubRoute: typeof ApiGithubRouteWithChildren
+  ApiHealthRoute: typeof ApiHealthRoute
   ApiListingsRoute: typeof ApiListingsRoute
   ApiPublishRoute: typeof ApiPublishRoute
   ApiRepoAgentRoute: typeof ApiRepoAgentRoute
@@ -1168,6 +1181,13 @@ declare module '@tanstack/react-router' {
       path: '/api/github'
       fullPath: '/api/github'
       preLoaderRoute: typeof ApiGithubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/listings': {
@@ -1806,6 +1826,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAppsDeployRoute: ApiAppsDeployRoute,
   ApiBuildRoute: ApiBuildRoute,
   ApiGithubRoute: ApiGithubRouteWithChildren,
+  ApiHealthRoute: ApiHealthRoute,
   ApiListingsRoute: ApiListingsRoute,
   ApiPublishRoute: ApiPublishRoute,
   ApiRepoAgentRoute: ApiRepoAgentRoute,

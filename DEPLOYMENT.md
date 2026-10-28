@@ -34,6 +34,15 @@ Override the target explicitly with `NITRO_PRESET` (`vercel`, `netlify`,
 `node-server`, `cloudflare-module`, `bun`) if a host's build environment
 doesn't set the auto-detection variable it needs.
 
+### Readiness check
+
+`GET /api/health` reports whether this deployment has what production needs:
+the session secret, a reachable runner with agent isolation, shared rate
+limits, the AI proxy and the explorer's TLS setting. It never returns a value,
+only whether each is in place and what to do if not. It answers 503 when a
+required check fails (in production: `SESSION_SECRET`, and the runner whenever
+`RUNNER_URL` is set), so point an uptime monitor or a post-deploy gate at it.
+
 ### Settings every host needs to know about
 
 | Variable                                             | What it does                                                                                                                                                | Default                                                                                                                                                                                                                                                                         |
