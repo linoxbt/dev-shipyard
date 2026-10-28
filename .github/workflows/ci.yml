@@ -5,9 +5,11 @@ on:
     # app-builder is where the work happens; main is what deploys. Only main
     # was listed, so twenty-one commits of agent work -- the sandbox, the
     # benchmark, the repo flow -- were written, merged and never once run
-    # through this file.
-    branches: [main, app-builder]
+    # through this file. Agent branches (claude/**) run it too, for the same
+    # reason: work done there should be checked before anyone opens a PR.
+    branches: [main, app-builder, "claude/**"]
   pull_request:
+  workflow_dispatch:
 
 # Read-only by default. No job here pushes, comments or publishes.
 permissions:
