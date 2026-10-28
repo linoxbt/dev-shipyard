@@ -230,3 +230,62 @@ describe("the update notice", () => {
     expect(term.errors()).toBe("");
   });
 });
+
+describe("release signature on upgrade", () => {
+  const terminal = () => {
+    const lines: string[] = [];
+    return { lines, t: { out: (s: string) => lines.push(s), err: (s: string) => lines.push(s) } };
+  };
+  const fetchBundle = (async () => new Response("{}")) as unknown as typeof fetch;
+  type Run = typeof import("node:child_process").spawnSync;
+  const cosign = (verifies: boolean | "missing") =>
+    ((_cmd: string, args: string[]) => {
+      if (verifies === "missing") return { error: new Error("ENOENT"), status: null };
+      if (args[0] === "version") return { status: 0 };
+      return { status: verifies ? 0 : 1 };
+    }) as unknown as Run;
+
+  it("goes ahead with a note when cosign is not installed", async () => {
+    const { verifyReleaseSignature } = await import("./upgrade");
+    const { lines, t } = terminal();
+    await verifyReleaseSignature(
+      t as never,
+      "https://x",
+      "sums",
+      fetchBundle,
+      {},
+      cosign("missing"),
+    );
+    expect(lines.join("\n")).toContain("Signature not checked");
+  });
+
+  it("refuses without cosign when a signature is required", async () => {
+    const { verifyReleaseSignature } = await import("./upgrade");
+    const { t } = terminal();
+    await expect(
+      verifyReleaseSignature(
+        t as never,
+        "https://x",
+        "sums",
+        fetchBundle,
+        { DEVSTATION_REQUIRE_SIGNATURE: "1" },
+        cosign("missing"),
+      ),
+    ).rejects.toThrow("cosign is not installed");
+  });
+
+  it("refuses a release whose signature does not verify", async () => {
+    const { verifyReleaseSignature } = await import("./upgrade");
+    const { t } = terminal();
+    await expect(
+      verifyReleaseSignature(t as never, "https://x", "sums", fetchBundle, {}, cosign(false)),
+    ).rejects.toThrow("does not verify");
+  });
+
+  it("accepts a release whose signature verifies", async () => {
+    const { verifyReleaseSignature } = await import("./upgrade");
+    const { lines, t } = terminal();
+    await verifyReleaseSignature(t as never, "https://x", "sums", fetchBundle, {}, cosign(true));
+    expect(lines).toContain("Signature verified.");
+  });
+});

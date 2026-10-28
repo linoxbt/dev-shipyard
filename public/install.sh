@@ -101,6 +101,31 @@ The download does not match what was published. Nothing was installed."
   say "Checksum verified"
 }
 
+# Check that SHA256SUMS itself was signed by this repository's release
+# workflow (Sigstore keyless signing, see .github/workflows/release.yml). The
+# checksum above only proves the binary matches the sums file; this proves the
+# sums file came from the release workflow and not from whoever got into the
+# release page. Needs cosign; set DEVSTATION_REQUIRE_SIGNATURE=1 to refuse to
+# install without it.
+verify_signature() {
+  sums_url=$1
+  if ! command -v cosign >/dev/null 2>&1; then
+    if [ "${DEVSTATION_REQUIRE_SIGNATURE:-}" = "1" ]; then
+      die "DEVSTATION_REQUIRE_SIGNATURE=1 but cosign is not installed, so the release signature could not be checked."
+    fi
+    say "Signature not checked (install cosign to verify releases: https://docs.sigstore.dev)"
+    return 0
+  fi
+  curl -fsSL "$sums_url.sigstore.json" -o "$tmp/SHA256SUMS.sigstore.json" ||
+    die "this release has no signature ($sums_url.sigstore.json), so it was not installed."
+  cosign verify-blob "$tmp/SHA256SUMS" \
+    --bundle "$tmp/SHA256SUMS.sigstore.json" \
+    --certificate-identity-regexp "^https://github.com/$REPO/\.github/workflows/release\.yml@refs/tags/" \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null 2>&1 ||
+    die "the release signature does not verify: SHA256SUMS was not signed by $REPO's release workflow. Nothing was installed."
+  say "Signature verified"
+}
+
 main() {
   need uname
   warn_override
@@ -127,6 +152,7 @@ main() {
 Check that a release exists at https://github.com/$REPO/releases"
 
     verify_checksum "$tmp/devstation" "$target" "${url%/*}/SHA256SUMS"
+    verify_signature "${url%/*}/SHA256SUMS"
   fi
 
   chmod +x "$tmp/devstation"

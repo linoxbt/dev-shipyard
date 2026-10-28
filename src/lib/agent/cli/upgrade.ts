@@ -1,6 +1,15 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { VERSION } from "./args";
 import type { CommandContext, Terminal } from "./commands";
@@ -167,6 +176,58 @@ export async function upgradeCommand(
  * working version in place rather than half of a new one. Renaming over a
  * running executable is fine on Linux and macOS; Windows will not allow it.
  */
+/**
+ * Check that SHA256SUMS was signed by this repository's release workflow
+ * (Sigstore keyless, see .github/workflows/release.yml). The checksum only
+ * proves the binary matches the sums file; the signature proves the sums file
+ * came from the release workflow. Needs cosign on the PATH; with
+ * DEVSTATION_REQUIRE_SIGNATURE=1 an upgrade without it is refused.
+ */
+export async function verifyReleaseSignature(
+  t: Terminal,
+  base: string,
+  sumsText: string,
+  fetchImpl: typeof fetch,
+  env: NodeJS.ProcessEnv = process.env,
+  run: typeof spawnSync = spawnSync,
+): Promise<void> {
+  const cosign = run("cosign", ["version"], { stdio: "ignore" });
+  if (cosign.error || cosign.status !== 0) {
+    if (env.DEVSTATION_REQUIRE_SIGNATURE === "1") {
+      throw new Error("DEVSTATION_REQUIRE_SIGNATURE=1 but cosign is not installed");
+    }
+    t.out("Signature not checked (install cosign to verify releases).");
+    return;
+  }
+  const bundle = await fetchImpl(`${base}/SHA256SUMS.sigstore.json`, { redirect: "follow" });
+  if (!bundle.ok) throw new Error("this release has no signature, so it was not installed");
+  const dir = mkdtempSync(join(tmpdir(), "devstation-verify-"));
+  try {
+    writeFileSync(join(dir, "SHA256SUMS"), sumsText);
+    writeFileSync(join(dir, "bundle.json"), await bundle.text());
+    const result = run(
+      "cosign",
+      [
+        "verify-blob",
+        join(dir, "SHA256SUMS"),
+        "--bundle",
+        join(dir, "bundle.json"),
+        "--certificate-identity-regexp",
+        `^https://github.com/${REPO}/\\.github/workflows/release\\.yml@refs/tags/`,
+        "--certificate-oidc-issuer",
+        "https://token.actions.githubusercontent.com",
+      ],
+      { stdio: "ignore" },
+    );
+    if (result.status !== 0) {
+      throw new Error("the release signature does not verify, so nothing was installed");
+    }
+    t.out("Signature verified.");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 async function replaceBinary(
   t: Terminal,
   latest: string,
@@ -190,7 +251,9 @@ async function replaceBinary(
   try {
     const sums = await fetchImpl(`${base}/SHA256SUMS`, { redirect: "follow" });
     if (!sums.ok) throw new Error(`${sums.status} fetching the checksums`);
-    const expected = (await sums.text())
+    const sumsText = await sums.text();
+    await verifyReleaseSignature(t, base, sumsText, fetchImpl);
+    const expected = sumsText
       .split("\n")
       .map((line) => line.trim().split(/\s+/))
       .find(([, name]) => name === target)?.[0];

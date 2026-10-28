@@ -1,0 +1,85 @@
+name: Release CLI
+
+# Builds and publishes the CLI from CI instead of a laptop, and signs it.
+#
+# Push a tag named v<version> (matching src/lib/agent/cli/args.ts) to run it:
+# `devstation upgrade` and install.sh download from v<version> releases. The release carries the five binaries, SHA256SUMS, a Sigstore bundle for
+# SHA256SUMS (keyless: signed with this workflow's GitHub OIDC identity, so
+# there is no signing key to leak), and build-provenance attestations for
+# every binary. public/install.sh verifies the Sigstore bundle with cosign.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # create the release
+  id-token: write # Sigstore keyless signing and attestations
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BUN_VERSION: "1.4.2"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: The tag matches the CLI's version
+        run: |
+          version=$(bun -e 'import { VERSION } from "./src/lib/agent/cli/args"; console.log(VERSION)')
+          if [ "v$version" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match the CLI version $version"
+            exit 1
+          fi
+
+      - name: Typecheck and test the CLI
+        run: |
+          bunx tsc --noEmit
+          bunx tsc -p tsconfig.cli.json
+          bun test ./src/lib/agent
+
+      - name: Build every target
+        run: bun run cli:build
+
+      - name: Every target built
+        # build-cli skips a platform that fails, which is right on a laptop
+        # and wrong for a release.
+        run: test "$(ls dist-cli/bin | wc -l)" -eq 5
+
+      - name: Check the binaries against their checksums
+        working-directory: dist-cli/bin
+        run: sha256sum -c ../SHA256SUMS
+
+      - uses: sigstore/cosign-installer@v3
+
+      - name: Sign SHA256SUMS
+        run: cosign sign-blob --yes --bundle dist-cli/SHA256SUMS.sigstore.json dist-cli/SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist-cli/bin/*
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            dist-cli/bin/* dist-cli/SHA256SUMS dist-cli/SHA256SUMS.sigstore.json \
+            --verify-tag \
+            --title "DevStation CLI ${GITHUB_REF_NAME#v}" \
+            --notes "Binaries are built by this workflow. SHA256SUMS is signed with Sigstore (SHA256SUMS.sigstore.json); install.sh verifies it when cosign is installed. Each binary also has a build-provenance attestation: gh attestation verify <file> --repo ${GITHUB_REPOSITORY}"

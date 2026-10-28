@@ -46,6 +46,14 @@ DEVSTATION_INSTALL_DIR=/usr/local/bin curl -fsSL https://devstation.online/insta
 
 ### By hand
 
+Every release is built and published by CI (`.github/workflows/release.yml`).
+`SHA256SUMS` is signed with Sigstore (`SHA256SUMS.sigstore.json`, keyless:
+signed with the release workflow's GitHub identity), and each binary has a
+build-provenance attestation (`gh attestation verify <file> --repo
+linoxbt/dev-shipyard`). The installer and `devstation upgrade` check the
+signature whenever `cosign` is installed; set `DEVSTATION_REQUIRE_SIGNATURE=1`
+to refuse to install or upgrade without that check.
+
 Every release carries five binaries and their checksums:
 
 ```sh
