@@ -163,15 +163,99 @@ export function gitLocation(root: string): NodeJS.ProcessEnv {
   return isRepo(root) ? { GIT_DIR: join(root, ".git"), GIT_WORK_TREE: root } : {};
 }
 
+const READ_ONLY_GIT = new Set([
+  "status",
+  "log",
+  "diff",
+  "show",
+  "branch",
+  "remote",
+  "rev-parse",
+  "ls-files",
+]);
+
+/** Global options that take the next word as their value. */
+const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace"]);
+
+/** The subcommand of every `git` call in a shell command, in order. A call
+ *  whose subcommand cannot be found counts as "" (not read-only). */
+export function gitSubcommands(command: string): string[] {
+  const words = command.split(/[\s;&|()`]+/).filter(Boolean);
+  const subs: string[] = [];
+  for (let i = 0; i < words.length; i++) {
+    if (words[i] !== "git") continue;
+    let j = i + 1;
+    while (j < words.length && words[j].startsWith("-")) {
+      j += GIT_VALUE_OPTIONS.has(words[j]) ? 2 : 1;
+    }
+    subs.push(words[j] ?? "");
+    i = j;
+  }
+  return subs;
+}
+
+/**
+ * The same protection for `git` typed into a host shell (the unsandboxed
+ * executor). The command classifier lets read-only git subcommands run without
+ * asking, so those must not obey a config that names programs either.
+ *
+ * Returns the environment to add (git's GIT_CONFIG_COUNT form of `-c`, which
+ * every git in that shell, and its children, honours), `{}` when there is
+ * nothing to protect (no git, or a git call that writes and was therefore
+ * approved by the person, whose own hooks and signing should then apply), or
+ * null when the repository's config cannot be read and the command should not
+ * run.
+ */
+export function shellGitEnv(command: string, cwd: string): NodeJS.ProcessEnv | null {
+  const subs = gitSubcommands(command);
+  if (subs.length === 0) return {};
+  if (!subs.every((sub) => READ_ONLY_GIT.has(sub))) return {};
+  if (repoRefusal(cwd)) return null;
+  const drivers = driverOverrides(cwd);
+  if (drivers === null) return null;
+  const overrides = [...FIXED_OVERRIDES, ...drivers];
+  const env: NodeJS.ProcessEnv = { GIT_CONFIG_COUNT: String(overrides.length) };
+  overrides.forEach((o, i) => {
+    const eq = o.indexOf("=");
+    env[`GIT_CONFIG_KEY_${i}`] = o.slice(0, eq);
+    env[`GIT_CONFIG_VALUE_${i}`] = o.slice(eq + 1);
+  });
+  return env;
+}
+
 /** Run `git <rest>` in `root` with the overrides and environment above. */
+/**
+ * Why git must not run on this repository, or null. A .git directory that
+ * borrows objects from elsewhere (objects/info/alternates) or names another
+ * repository as its common dir reads that other repository's data, and in a
+ * workspace that is another user's code or a host directory. A linked
+ * worktree is a .git FILE, not this, so it is unaffected.
+ */
+export function repoRefusal(root: string): string | null {
+  const dotGit = join(root, ".git");
+  try {
+    if (!statSync(dotGit).isDirectory()) return null;
+  } catch {
+    return null;
+  }
+  if (existsSync(join(dotGit, "objects", "info", "alternates"))) {
+    return "This repository borrows objects from another one (objects/info/alternates), so git was not run on it.";
+  }
+  if (existsSync(join(dotGit, "commondir"))) {
+    return "This repository's .git points at another repository (commondir), so git was not run on it.";
+  }
+  return null;
+}
+
 export function runGit(root: string, rest: string, timeoutMs = 30_000): Promise<ShellResult> {
-  const prefix = safeGit(root);
+  const refusal = repoRefusal(root);
+  const prefix = refusal ? null : safeGit(root);
   if (prefix === null) {
     return Promise.resolve({
       ok: false,
       code: null,
       stdout: "",
-      stderr: "This repository's git config could not be read, so git was not run.",
+      stderr: refusal ?? "This repository's git config could not be read, so git was not run.",
       timedOut: false,
     });
   }

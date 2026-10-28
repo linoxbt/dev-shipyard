@@ -230,6 +230,53 @@ describe("submodules and unreadable config", () => {
   });
 });
 
+describe("git typed into a host shell", () => {
+  it("read-only git gets the same protection as the agent's own git", async () => {
+    const { hostExecutor } = await import("./executor");
+    const root = scratch();
+    await runShell(
+      "git init -q && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m base",
+      { cwd: root },
+    );
+    const marker = join(root, "..", `shell-${Date.now()}-${Math.random()}`);
+    appendFileSync(join(root, ".git", "config"), `[core]\n\tfsmonitor = touch ${marker}\n`);
+    writeFileSync(join(root, "a.txt"), "x\n");
+    // Sanity: plain git does run it.
+    await runShell("git status --porcelain", { cwd: root });
+    expect(existsSync(marker)).toBe(true);
+    rmSync(marker);
+
+    const out = await hostExecutor().run("git status --porcelain && git log --oneline -1", {
+      cwd: root,
+      timeoutMs: 30_000,
+    });
+    expect(out.ok).toBe(true);
+    expect(out.stdout).toContain("a.txt");
+    expect(existsSync(marker)).toBe(false);
+  });
+
+  it("leaves an approved, writing git command to the person's own config", async () => {
+    const { shellGitEnv } = await import("./git");
+    expect(shellGitEnv("git commit -m x", scratch())).toEqual({});
+    expect(shellGitEnv("npm test", scratch())).toEqual({});
+    expect(shellGitEnv("git status && git push", scratch())).toEqual({});
+    expect(shellGitEnv("git -C sub status", scratch())?.GIT_CONFIG_COUNT).toBeDefined();
+  });
+});
+
+describe("repositories that borrow from elsewhere", () => {
+  it("refuses alternates and commondir in a workspace's own .git", async () => {
+    for (const plant of ["objects/info/alternates", "commondir"]) {
+      const root = scratch();
+      await runShell("git init -q", { cwd: root });
+      writeFileSync(join(root, ".git", plant), "/somewhere/else\n");
+      const result = await runGit(root, "status --porcelain");
+      expect(result.ok).toBe(false);
+      expect(result.stderr).toContain("was not run");
+    }
+  });
+});
+
 describe("gitArgsProblem", () => {
   it("refuses flags that run programs or write files", () => {
     for (const [op, args] of [

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -254,6 +254,37 @@ when("a real container", () => {
       expect(statSync(path).uid).toBe(process.getuid!());
     } finally {
       await exec.dispose();
+    }
+  }, 180_000);
+
+  it("cannot write the workspace's .git, or plant one where there was none", async () => {
+    // Host git runs in this directory and obeys .git/config; a command in the
+    // container must not be able to edit it, even as root.
+    const repo = workspace();
+    execFileSync("git", ["init", "-q"], { cwd: repo });
+    const before = readFileSync(join(repo, ".git", "config"), "utf8");
+    const bare = workspace();
+    const execs = [sandboxExecutor({ workspace: repo }), sandboxExecutor({ workspace: bare })];
+    try {
+      const edit = await execs[0].run(
+        "printf '[core]\\n\\tfsmonitor = x\\n' >> .git/config && echo WROTE || echo REFUSED",
+        { cwd: repo },
+      );
+      expect(edit.stdout).toContain("REFUSED");
+      expect(readFileSync(join(repo, ".git", "config"), "utf8")).toBe(before);
+      // The workspace itself stays writable.
+      expect(
+        (await execs[0].run("echo ok > file.txt && cat file.txt", { cwd: repo })).stdout,
+      ).toContain("ok");
+
+      const plant = await execs[1].run(
+        "mkdir -p .git/x && echo ref > .git/HEAD && echo WROTE || echo REFUSED",
+        { cwd: bare },
+      );
+      expect(plant.stdout).toContain("REFUSED");
+      expect(existsSync(join(bare, ".git", "HEAD"))).toBe(false);
+    } finally {
+      for (const e of execs) await e.dispose();
     }
   }, 180_000);
 

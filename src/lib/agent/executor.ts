@@ -3,6 +3,7 @@ import { closeSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runShell, type ShellResult } from "./shell";
+import { shellGitEnv } from "./git";
 import { looksLikeSecret } from "./workspace";
 
 // Where a command actually runs.
@@ -209,13 +210,25 @@ export function hostExecutor(): Executor {
       const refusal = refusedForSecret(command);
       if (refusal) return Promise.resolve(failedResult(refusal));
       const { network: _network, env, ...rest } = opts;
-      return runShell(command, { ...rest, env: allowedEnv(process.env, env) });
+      // Read-only git runs without asking, so it gets the agent's own git
+      // protection here (see shellGitEnv).
+      const gitGuard = shellGitEnv(command, opts.cwd);
+      if (gitGuard === null) {
+        return Promise.resolve(
+          failedResult("This repository's git config could not be read, so git was not run."),
+        );
+      }
+      return runShell(command, { ...rest, env: { ...allowedEnv(process.env, env), ...gitGuard } });
     },
     async start(command, opts) {
       const refusal = refusedForSecret(command);
       if (refusal) return { ok: false, message: refusal };
       if (process.platform === "win32") {
         return { ok: false, message: "Background commands are not supported on Windows yet." };
+      }
+      const gitGuard = shellGitEnv(command, opts.cwd);
+      if (gitGuard === null) {
+        return { ok: false, message: "This repository's git config could not be read." };
       }
       mkdirSync(logDir, { recursive: true });
       const id = `job-${++count}`;
@@ -226,7 +239,7 @@ export function hostExecutor(): Executor {
         shell: "/bin/sh",
         // Its own process group, so stopping it stops everything it started.
         detached: true,
-        env: allowedEnv(process.env, opts.env),
+        env: { ...allowedEnv(process.env, opts.env), ...gitGuard },
         stdio: ["ignore", fd, fd],
       });
       closeSync(fd);
