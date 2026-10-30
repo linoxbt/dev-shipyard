@@ -11,7 +11,6 @@ import {
   LifeBuoy,
   LogOut,
   Moon,
-  Network,
   Pencil,
   Rocket,
   Settings,
@@ -22,7 +21,6 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-import { NetworkSelector } from "@/components/web3/NetworkSelector";
 import { CODING_AGENT_ONLY, servedInAgentOnly } from "@/lib/features";
 import { useTheme } from "@/lib/theme";
 import { initials, useAuth } from "@/hooks/useAuth";
@@ -168,11 +166,6 @@ export function AccountSheet({
       )}
 
       <p className="mt-5 px-2 text-[12px] text-muted-foreground">Workspace</p>
-      <div className="flex items-center gap-4 px-2 py-2.5">
-        <Network className="h-5 w-5 shrink-0 text-foreground/80" />
-        <span className="flex-1 text-[14px] text-foreground">Network</span>
-        <NetworkSelector className="w-44" />
-      </div>
       {account && (
         <SheetRow
           icon={UserRound}

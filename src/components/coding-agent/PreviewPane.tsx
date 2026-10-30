@@ -74,12 +74,6 @@ export function PreviewPane({
           <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground">
             {liveUrl ? liveUrl.replace(/^https?:\/\//, "") : "preview"}
           </span>
-          <span
-            className="hidden shrink-0 items-center gap-1 font-mono text-[9px] text-warning sm:inline-flex"
-            title="The network apps in the preview talk to."
-          >
-            {chainName}
-          </span>
         </div>
         <div className="hidden md:block">
           <Segmented

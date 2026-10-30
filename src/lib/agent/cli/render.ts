@@ -55,6 +55,8 @@ export function renderEvent(event: AgentEvent, colour = false): string | null {
   if (event.kind === "usage") return null;
   // The approval prompt itself says this, and says it better.
   if (event.kind === "approval.requested") return null;
+  // The model's own words between steps: a terminal has already streamed them.
+  if (event.kind === "narration") return null;
 
   const style = MARKS[event.kind] ?? { mark: "-", colour: "grey" as const };
   const tool = event.tool ? paint(`${event.tool} `, "dim", colour) : "";

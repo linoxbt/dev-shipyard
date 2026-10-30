@@ -9,6 +9,10 @@ import {
   stepTarget,
   stepsFromEvents,
   type AgentEvent,
+  compactTimeline,
+  groupLabel,
+  timelineFromEvents,
+  timelineFromSaved,
 } from "./steps";
 
 const at = "2026-10-28T12:00:00.000Z";
@@ -134,5 +138,67 @@ describe("ago", () => {
     expect(ago(now - 5 * 60_000, now)).toBe("5m ago");
     expect(ago(now - 3 * 3_600_000, now)).toBe("3h ago");
     expect(ago(now - 2 * 86_400_000, now)).toBe("2d ago");
+  });
+});
+
+describe("the timeline", () => {
+  const at = "2026-10-30T00:00:00Z";
+  const ev = (kind: string, message: string, tool?: string, input?: Record<string, unknown>) => ({
+    kind,
+    message,
+    tool,
+    at,
+    ...(input ? { detail: { input } } : {}),
+  });
+
+  it("puts the agent's narration between its batches of work, grouped by kind", () => {
+    const items = timelineFromEvents([
+      ev("narration", "Reading the pages first."),
+      ev("step.started", "Reading a", "read_file", { path: "src/a.ts" }),
+      ev("step.completed", "Read a", "read_file", { path: "src/a.ts" }),
+      ev("step.started", "Reading b", "read_file", { path: "src/b.ts" }),
+      ev("step.completed", "Read b", "read_file", { path: "src/b.ts" }),
+      ev("narration", "Writing the new page."),
+      ev("step.started", "Writing", "write_file", { path: "src/page.tsx" }),
+      ev("step.completed", "Wrote", "write_file", { path: "src/page.tsx" }),
+      ev("step.started", "Running", "run_shell", { command: "npm run build" }),
+    ]);
+    expect(items.map((i) => (i.type === "say" ? i.text : groupLabel(i.kind, i.steps)))).toEqual([
+      "Reading the pages first.",
+      "Read 2 files",
+      "Writing the new page.",
+      "Edited page.tsx",
+      "Ran npm run build",
+    ]);
+  });
+
+  it("keeps narration in saved turns and reads it back the same way", () => {
+    const events = [
+      ev("narration", "Checking the build."),
+      ev("step.started", "Running", "run_shell", { command: "npm test" }),
+      ev("step.completed", "ok", "run_shell", { command: "npm test" }),
+    ];
+    const saved = compactTimeline(events);
+    expect(saved[0]).toEqual({ tool: "narration", title: "Checking the build." });
+    const back = timelineFromSaved(saved);
+    expect(back[0]).toMatchObject({ type: "say", text: "Checking the build." });
+    expect(back[1]).toMatchObject({ type: "group", kind: "shell" });
+  });
+
+  it("names a batch the way a person would", () => {
+    const step = (tool: string, input: Record<string, unknown>) =>
+      ({ id: tool, tool, title: "", status: "done", at, input }) as const;
+    expect(
+      groupLabel("write", [
+        step("edit_file", { path: "a/App.tsx" }),
+        step("write_file", { path: "a/styles.css" }),
+        step("write_file", { path: "a/x.ts" }),
+        step("write_file", { path: "a/y.ts" }),
+      ]),
+    ).toBe("Edited App.tsx, styles.css and 2 more");
+    expect(groupLabel("web", [step("web_search", { query: "foundry deploy" })])).toBe(
+      "Searched the web for “foundry deploy”",
+    );
+    expect(groupLabel("read", [step("read_file", { path: "src/index.ts" })])).toBe("Read index.ts");
   });
 });

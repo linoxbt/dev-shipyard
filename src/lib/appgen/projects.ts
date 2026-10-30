@@ -31,7 +31,7 @@ export interface ProjectTurn {
   failed?: boolean;
   /** The tool steps of an agent turn, titles only, so the conversation can
    *  still say what was done after the workspace has moved on. */
-  steps?: { tool?: string; title: string; failed?: boolean }[];
+  steps?: { tool?: string; title: string; target?: string; failed?: boolean }[];
   /** Sent in Plan mode, or the plan that came back. */
   plan?: boolean;
 }
@@ -96,11 +96,13 @@ const turnSchema = z.object({
     .array(
       z.object({
         tool: z.string().max(60).optional(),
-        title: z.string().max(200),
+        // Up to 1200 for the agent's narration (tool "narration").
+        title: z.string().max(1200),
+        target: z.string().max(300).optional(),
         failed: z.boolean().optional(),
       }),
     )
-    .max(80)
+    .max(100)
     .optional(),
   plan: z.boolean().optional(),
 });

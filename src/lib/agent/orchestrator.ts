@@ -34,6 +34,7 @@ import {
 import { agentDiff, agentStatus, git as gitOp, type GitOp } from "./git";
 import { cloneDirName, cloneUrlProblem, gitArgsProblem } from "./git-ops";
 import { CODING_AGENT_SYSTEM, GIT_ADDENDUM } from "./system-prompt";
+import { ensureWallet, onchainCommandProblem, readWallet, redactWallet, walletEnv } from "./wallet";
 import { renderContext, retrieve } from "./memory/retrieve";
 import { webSearch, fetchPage } from "./web";
 import type { McpHub } from "./mcp";
@@ -66,6 +67,7 @@ export type AgentEventKind =
   | "verification"
   | "checkpoint"
   | "turn.partial"
+  | "narration"
   | "handoff"
   | "usage"
   | "task.completed"
@@ -419,6 +421,13 @@ export class Orchestrator {
       messages.push({ role: "assistant", content: result.text, toolCalls: result.toolCalls });
       this.progress(steps, summary, messages);
 
+      // What the model said before this batch of work ("Reading the pages
+      // first so the new ones match."), as its own event: shown between the
+      // groups of steps, it is the running commentary that makes a long run
+      // readable instead of a wall of tool calls.
+      const said = result.text.trim();
+      if (said) this.emit("narration", said);
+
       // What this turn is about to change, captured before it changes it.
       //
       // The git path can checkpoint afterwards because history accumulates:
@@ -635,7 +644,11 @@ export class Orchestrator {
       tool: call.name,
       detail: { input: eventInput(call) },
     });
-    const outcome = await this.execute(call);
+    const executed = await this.execute(call);
+    // The deployer key never leaves the workspace in a tool's output, whichever
+    // tool printed it (a `cat` of the control folder, a verbose deploy log).
+    const wallet = readWallet(this.opts.workspace.root);
+    const outcome = { ...executed, output: redactWallet(executed.output, wallet) };
     this.emit(outcome.ok ? "step.completed" : "step.failed", summarise(call, outcome), {
       tool: call.name,
       ok: outcome.ok,
@@ -818,6 +831,31 @@ export class Orchestrator {
       case "lint_and_typecheck":
         return this.runProjectCommand("lint");
 
+      case "create_wallet": {
+        const wallet = ensureWallet(workspace.root);
+        return {
+          ok: true,
+          output: wallet.created
+            ? `Made the deployer wallet ${wallet.address}. Tell the person this address and which network to fund it on (with a faucet link for a testnet); check its balance with onchain before deploying.`
+            : `The deployer wallet is ${wallet.address} (made earlier in this workspace).`,
+        };
+      }
+
+      case "onchain": {
+        const command = String(args.command ?? "");
+        const problem = onchainCommandProblem(command);
+        if (problem) return { ok: false, output: problem };
+        const wallet = readWallet(workspace.root);
+        const result = await this.shell(command, {
+          cwd: workspace.root,
+          timeoutMs: Number(args.timeoutSeconds ?? 180) * 1000,
+          // Talking to a chain needs the network; the sealed shell has none.
+          network: true,
+          env: walletEnv(wallet),
+        });
+        return { ok: result.ok, output: formatShell(result) };
+      }
+
       case "install_dependency": {
         const manifests = detectManifests(workspace.root);
         const manifest = manifestForChanges(manifests, [...this.changed]);
@@ -887,6 +925,7 @@ function quoteArg(value: string): string {
  *  a page's text is the model's material, not something to print. */
 const SHOWN_OUTPUT = new Set([
   "run_shell",
+  "onchain",
   "run_tests",
   "run_build",
   "lint_and_typecheck",
@@ -990,6 +1029,10 @@ function describe(call: ProviderToolCall): string {
       return `Reading ${a.url}`;
     case "remember":
       return "Making a note about this project";
+    case "create_wallet":
+      return "Setting up the deployer wallet";
+    case "onchain":
+      return `On chain: ${String(a.command).slice(0, 70)}`;
     default:
       return call.name;
   }
@@ -1010,6 +1053,10 @@ function summarise(call: ProviderToolCall, outcome: { ok: boolean; output: strin
       return `${lines.filter(Boolean).length} result(s)`;
     case "web_search":
       return `${(outcome.output.match(/^\d+\. /gm) ?? []).length} web result(s)`;
+    case "create_wallet": {
+      const address = outcome.output.match(/0x[0-9a-fA-F]{40}/)?.[0];
+      return address ? `Deployer wallet ${address}` : "Deployer wallet ready";
+    }
     default:
       break;
   }

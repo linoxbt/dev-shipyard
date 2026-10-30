@@ -203,6 +203,46 @@ export const TOOLS: Record<string, ToolDefinition> = {
     resourcesFrom: (a) => [(a as { name: string }).name],
     returnsUntrustedContent: true,
   },
+  create_wallet: {
+    name: "create_wallet",
+    usage: "create_wallet {}",
+    description:
+      "Get this workspace's deployer wallet for smart contract work, making it the first time. Returns its address for the person to fund; the private key is never shown, and reaches onchain commands as $DEPLOYER_PRIVATE_KEY.",
+    operation: "wallet.create",
+    schema: z.object({}),
+    jsonSchema: { type: "object", properties: {} },
+    resourcesFrom: () => ["deployer wallet"],
+    returnsUntrustedContent: false,
+  },
+  onchain: {
+    name: "onchain",
+    usage: 'onchain {"command", "timeoutSeconds?"}',
+    description:
+      "Run one forge, cast or hardhat command with network access and the deployer wallet: compile and deploy contracts, send transactions, read balances and contract state. $DEPLOYER_PRIVATE_KEY, $PRIVATE_KEY and $DEPLOYER_ADDRESS are set. One command at a time, no chaining.",
+    operation: "chain.transact",
+    schema: z.object({
+      command: z.string().min(1).max(2_000),
+      timeoutSeconds: z.number().int().min(1).max(600).optional(),
+    }),
+    jsonSchema: {
+      type: "object",
+      properties: {
+        command: {
+          type: "string",
+          description:
+            "For example: forge create src/Token.sol:Token --rpc-url <rpc> --private-key $DEPLOYER_PRIVATE_KEY --broadcast, or cast balance $DEPLOYER_ADDRESS --rpc-url <rpc>, or npx hardhat run scripts/deploy.ts --network <name>.",
+        },
+        timeoutSeconds: {
+          type: "number",
+          description: "How long to wait, 1 to 600. Default 180.",
+        },
+      },
+      required: ["command"],
+    },
+    resourcesFrom: (a) => [String((a as { command: string }).command).slice(0, 120)],
+    returnsUntrustedContent: true,
+    materialArgs: ["command"],
+  },
   run_shell: {
     name: "run_shell",
     usage: 'run_shell {"command", "timeoutSeconds?", "background?"}',

@@ -28,6 +28,43 @@ const GREET = `function greet(name) {
 `;
 
 describe("the agent loop", () => {
+  it("says what it is doing between batches, and never lets the wallet key out", async () => {
+    const workspace = ws();
+    const provider = new MockProvider([
+      {
+        text: "Setting up a deployer wallet first.",
+        toolCalls: [{ id: "1", name: "create_wallet", input: {} }],
+      },
+      {
+        text: "Checking what was saved.",
+        toolCalls: [
+          { id: "2", name: "run_shell", input: { command: "cat .devstation/wallet.json" } },
+        ],
+      },
+      { text: "The wallet is ready." },
+    ]);
+    const events: AgentEvent[] = [];
+    await new Orchestrator({
+      provider,
+      workspace,
+      autonomy: "autonomous",
+      requestApproval: async () => true,
+      onEvent: (e) => events.push(e),
+    }).run("set up a wallet");
+
+    expect(events.filter((e) => e.kind === "narration").map((e) => e.message)).toEqual([
+      "Setting up a deployer wallet first.",
+      "Checking what was saved.",
+    ]);
+    const key = JSON.parse(readFileSync(join(workspace.root, ".devstation", "wallet.json"), "utf8"))
+      .privateKey as string;
+    const bare = key.slice(2);
+    expect(JSON.stringify(events)).not.toContain(bare);
+    expect(JSON.stringify(provider.calls)).not.toContain(bare);
+    const wallet = events.find((e) => e.tool === "create_wallet" && e.kind === "step.completed");
+    expect(wallet?.message).toMatch(/^Deployer wallet 0x[0-9a-fA-F]{40}$/);
+  });
+
   it("reads a file, patches it, and reports what it did", async () => {
     const workspace = ws({ "greet.js": GREET });
     const provider = new MockProvider([

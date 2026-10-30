@@ -134,6 +134,16 @@ const GATED: Array<{ prefix: string; risk: Exclude<RiskLevel, "low">; why: strin
     risk: "medium",
     why: "This request carries a long value in its address, which is how data leaves the machine.",
   },
+  {
+    prefix: "wallet.create",
+    risk: "medium",
+    why: "This makes a wallet key for deploying contracts, kept in the workspace.",
+  },
+  {
+    prefix: "chain.transact",
+    risk: "high",
+    why: "This runs a blockchain tool with network access and the deployer wallet, which can send transactions and spend its funds.",
+  },
   { prefix: "shell.exec", risk: "critical", why: "This runs an arbitrary command on the host." },
   {
     // The middle tier. A command that is not recognisably read-only, but is

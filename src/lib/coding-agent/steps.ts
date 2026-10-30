@@ -30,9 +30,22 @@ export interface Step {
   at: string;
   /** Tone of a note: warnings and handoffs stand out. */
   tone?: "warning" | "info" | "success";
+  /** Position of the event that started it, to place it among the agent's
+   *  narration (timelineFromEvents). */
+  seq?: number;
 }
 
-export type ToolKind = "read" | "write" | "shell" | "search" | "git" | "web" | "plan" | "other";
+export type ToolKind =
+  | "read"
+  | "write"
+  | "shell"
+  | "search"
+  | "git"
+  | "web"
+  | "plan"
+  | "wallet"
+  | "chain"
+  | "other";
 
 const KIND: Record<string, ToolKind> = {
   read_file: "read",
@@ -56,11 +69,16 @@ const KIND: Record<string, ToolKind> = {
   fetch_url: "web",
   update_plan: "plan",
   remember: "plan",
+  create_wallet: "wallet",
+  onchain: "chain",
 };
 
 export function toolKind(tool: string | null | undefined): ToolKind {
   return (tool && KIND[tool]) || "other";
 }
+
+/** The agent saying what it is about to do, between batches of steps. */
+export const NARRATION = "narration";
 
 /** Events that are bookkeeping, not something a person needs to see. */
 const SILENT = new Set([
@@ -69,6 +87,8 @@ const SILENT = new Set([
   "approval.granted",
   "turn.partial",
   "task.completed",
+  // The agent's own words between steps: shown by timelineFromEvents.
+  NARRATION,
 ]);
 
 const NOTE_TONE: Record<string, Step["tone"]> = {
@@ -101,6 +121,7 @@ export function stepsFromEvents(events: readonly AgentEvent[]): Step[] {
         status: "running",
         input: e.detail?.input,
         at: e.at,
+        seq: i,
       };
       steps.push(step);
       const key = e.tool ?? "";
@@ -128,6 +149,7 @@ export function stepsFromEvents(events: readonly AgentEvent[]): Step[] {
           input: e.detail?.input,
           output: typeof e.detail?.output === "string" ? e.detail.output : undefined,
           at: e.at,
+          seq: i,
         });
       }
       return;
@@ -139,9 +161,148 @@ export function stepsFromEvents(events: readonly AgentEvent[]): Step[] {
       status: "note",
       at: e.at,
       tone: NOTE_TONE[e.kind] ?? "info",
+      seq: i,
     });
   });
   return steps;
+}
+
+// --- timeline -----------------------------------------------------------------
+//
+// How a turn reads in the conversation, the way Base44 lays out its agent: the
+// agent's own sentence about what it is doing next, then that batch of work as
+// one collapsible line ("Read 4 files", "Edited App.tsx and 2 more"), then the
+// next sentence. Consecutive steps of one kind make one group.
+
+export type TimelineItem =
+  | { type: "say"; id: string; text: string }
+  | { type: "group"; id: string; kind: ToolKind | "note"; steps: Step[] };
+
+/** Group the steps by kind, between the agent's narration, in event order. */
+export function timelineFromEvents(events: readonly AgentEvent[]): TimelineItem[] {
+  const said: { seq: number; item: TimelineItem }[] = [];
+  events.forEach((e, i) => {
+    const text = e.kind === NARRATION ? e.message.trim() : "";
+    if (text) said.push({ seq: i, item: { type: "say", id: `say-${i}`, text } });
+  });
+  const steps = stepsFromEvents(events);
+  return groupTimeline([
+    ...said,
+    ...steps.map((s, n) => ({ seq: s.seq ?? n, item: { type: "step" as const, step: s } })),
+  ]);
+}
+
+type Entry = TimelineItem | { type: "step"; step: Step };
+
+function groupTimeline(entries: { seq: number; item: Entry }[]): TimelineItem[] {
+  const out: TimelineItem[] = [];
+  for (const { item } of [...entries].sort((a, b) => a.seq - b.seq)) {
+    if (item.type !== "step") {
+      out.push(item);
+      continue;
+    }
+    const kind = item.step.status === "note" ? "note" : toolKind(item.step.tool);
+    const last = out[out.length - 1];
+    // Notes stand alone: a warning folded into "Ran 3 commands" is a warning
+    // nobody reads.
+    if (last?.type === "group" && last.kind === kind && kind !== "note") {
+      last.steps.push(item.step);
+    } else {
+      out.push({ type: "group", id: `g-${item.step.id}`, kind, steps: [item.step] });
+    }
+  }
+  return out;
+}
+
+/** A saved turn's timeline: its narration and titles, as kept in storage. */
+export function timelineFromSaved(saved: readonly SavedStep[]): TimelineItem[] {
+  return groupTimeline(
+    saved.map((s, i) =>
+      s.tool === NARRATION
+        ? { seq: i, item: { type: "say" as const, id: `say-${i}`, text: s.title } }
+        : {
+            seq: i,
+            item: {
+              type: "step" as const,
+              step: {
+                id: String(i),
+                tool: s.tool ?? null,
+                title: s.title,
+                status: s.failed ? ("failed" as const) : ("done" as const),
+                at: "",
+                ...(s.target ? { input: { path: s.target } } : {}),
+              },
+            },
+          },
+    ),
+  );
+}
+
+const base = (path: string) => path.split("/").filter(Boolean).pop() ?? path;
+
+function names(list: string[]): string {
+  const unique = [...new Set(list)];
+  if (unique.length <= 2) return unique.join(" and ");
+  return `${unique.slice(0, 2).join(", ")} and ${unique.length - 2} more`;
+}
+
+/** The one line a group is folded into. */
+export function groupLabel(kind: ToolKind | "note", steps: readonly Step[]): string {
+  const n = steps.length;
+  const paths = steps.map((s) => stepTarget(s)).filter((t): t is string => !!t);
+  switch (kind) {
+    case "note":
+      return steps[0]?.title ?? "";
+    case "read":
+      return n === 1 && paths[0] ? `Read ${base(paths[0])}` : `Read ${n} files`;
+    case "write":
+      return paths.length ? `Edited ${names(paths.map(base))}` : `Edited ${n} files`;
+    case "shell": {
+      if (n === 1) {
+        const tool = steps[0].tool;
+        if (tool === "run_tests" || tool === "run_build") return "Ran the tests";
+        if (tool === "lint_and_typecheck") return "Checked lint and types";
+        if (tool === "install_dependency" && paths[0]) return `Installed ${paths[0]}`;
+        if (paths[0]) return `Ran ${paths[0].length > 60 ? `${paths[0].slice(0, 57)}…` : paths[0]}`;
+        return "Ran a command";
+      }
+      return `Ran ${n} commands`;
+    }
+    case "search":
+      return n === 1 ? "Searched the project" : `Searched the project ${n} times`;
+    case "web": {
+      const queries = steps.filter((s) => s.tool === "web_search");
+      const pages = n - queries.length;
+      if (n === 1 && queries.length === 1 && paths[0]) return `Searched the web for “${paths[0]}”`;
+      if (n === 1 && paths[0]) {
+        try {
+          return `Read ${new URL(paths[0]).hostname}`;
+        } catch {
+          return "Read a web page";
+        }
+      }
+      const parts = [
+        queries.length ? `${queries.length} search${queries.length === 1 ? "" : "es"}` : "",
+        pages ? `${pages} page${pages === 1 ? "" : "s"}` : "",
+      ].filter(Boolean);
+      return `Researched on the web (${parts.join(", ")})`;
+    }
+    case "git":
+      return n === 1 ? steps[0].title : `${n} git steps`;
+    case "wallet":
+      return "Set up a deployer wallet";
+    case "chain":
+      if (n === 1) {
+        return paths[0]
+          ? `On chain: ${paths[0].length > 56 ? `${paths[0].slice(0, 53)}…` : paths[0]}`
+          : "Ran an on-chain command";
+      }
+      return `Ran ${n} on-chain commands`;
+    case "plan":
+      return "Made a note";
+    default:
+      return n === 1 ? steps[0].title : `${n} steps`;
+  }
 }
 
 export interface PlanItem {
@@ -197,18 +358,34 @@ export function stepSummary(steps: readonly Pick<Step, "tool" | "status">[]): st
 export interface SavedStep {
   tool?: string;
   title: string;
+  /** The path, command or query it worked on, for the folded line's label. */
+  target?: string;
   failed?: boolean;
+}
+
+/** What a finished turn keeps: its narration and step titles, in order. */
+export function compactTimeline(events: readonly AgentEvent[], max = 70): SavedStep[] {
+  const out: SavedStep[] = [];
+  for (const item of timelineFromEvents(events)) {
+    if (item.type === "say") out.push({ tool: NARRATION, title: item.text.slice(0, 1200) });
+    else out.push(...compactSteps(item.steps, Number.MAX_SAFE_INTEGER));
+  }
+  return out.slice(-max);
 }
 
 export function compactSteps(steps: readonly Step[], max = 60): SavedStep[] {
   return steps
     .filter((s) => s.status !== "note")
     .slice(-max)
-    .map((s) => ({
-      ...(s.tool ? { tool: s.tool } : {}),
-      title: s.title.slice(0, 160),
-      ...(s.status === "failed" ? { failed: true } : {}),
-    }));
+    .map((s) => {
+      const target = stepTarget(s);
+      return {
+        ...(s.tool ? { tool: s.tool } : {}),
+        title: s.title.slice(0, 160),
+        ...(target ? { target: target.slice(0, 300) } : {}),
+        ...(s.status === "failed" ? { failed: true } : {}),
+      };
+    });
 }
 
 /** The shell command, path or query a step ran on, for its one-line label. */

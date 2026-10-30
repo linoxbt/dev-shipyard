@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import {
+  Blocks,
+  Check,
   ChevronRight,
   Circle,
   Copy,
@@ -17,29 +19,32 @@ import {
   Search,
   SquareTerminal,
   TriangleAlert,
+  Wallet,
   Wrench,
 } from "lucide-react";
 import type { ProjectTurn } from "@/lib/appgen/projects";
 import {
+  groupLabel,
   latestPlan,
-  stepSummary,
   stepTarget,
-  stepsFromEvents,
+  timelineFromEvents,
+  timelineFromSaved,
   toolKind,
   type AgentEvent,
   type PlanItem,
-  type SavedStep,
   type Step,
+  type TimelineItem,
   type ToolKind,
 } from "@/lib/coding-agent/steps";
 import { cn } from "@/lib/utils";
 import { Markdown } from "./Markdown";
 import { Dropdown, MenuItem } from "./primitives";
 
-// The conversation, in the shape Claude Code on the web uses: what you asked,
-// then the agent's work as a list of steps (each one a tool call you can open
-// to see the command and what it printed), its checklist while it works, and
-// its reply. A finished turn folds its steps into one line.
+// The conversation, laid out the way Base44 shows its agent at work: what you
+// asked, then the agent narrating as it goes ("Reading the pages first so the
+// new ones match.") with each batch of work folded into one line you can open
+// ("Read 4 files", "Edited App.tsx and 2 more"), its checklist while it works,
+// and its reply.
 
 const ICON: Record<ToolKind, React.ComponentType<{ className?: string }>> = {
   read: FileText,
@@ -49,6 +54,8 @@ const ICON: Record<ToolKind, React.ComponentType<{ className?: string }>> = {
   git: GitBranch,
   web: Globe,
   plan: ListChecks,
+  wallet: Wallet,
+  chain: Blocks,
   other: Wrench,
 };
 
@@ -135,32 +142,14 @@ export function AssistantMessage({
   /** A plan waiting for approval: build it. */
   onBuildPlan?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const steps = turn.steps ?? [];
-  const summary = stepSummary(
-    steps.map((s) => ({ tool: s.tool ?? null, status: s.failed ? "failed" : "done" })),
-  );
+  const timeline = useMemo(() => timelineFromSaved(turn.steps ?? []), [turn.steps]);
+  // Narration that is also the reply (an answer with no work before it) is
+  // shown once, as the reply.
+  const items = timeline.filter((t) => !(t.type === "say" && t.text.trim() === turn.text.trim()));
   return (
     <div>
-      <div className="max-w-[92%] rounded-[24px] bg-surface-2 px-4 py-3">
-        {steps.length > 0 && (
-          <div className="mb-2">
-            <button
-              onClick={() => setOpen((v) => !v)}
-              className="inline-flex items-center gap-1 text-[11.5px] text-muted-foreground hover:text-foreground"
-            >
-              <ChevronRight className={cn("h-3.5 w-3.5 transition", open && "rotate-90")} />
-              {summary || `${steps.length} steps`}
-            </button>
-            {open && (
-              <div className="mt-1.5 space-y-0.5 border-l border-border pl-3">
-                {steps.map((s, i) => (
-                  <SavedStepRow key={i} step={s} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+      <div className="max-w-[96%] space-y-2.5">
+        {items.length > 0 && <Timeline items={items} />}
         {turn.failed && (
           <p className="mb-1 flex items-center gap-1.5 text-[11.5px] text-warning">
             <TriangleAlert className="h-3.5 w-3.5" /> Did not finish
@@ -168,12 +157,12 @@ export function AssistantMessage({
         )}
         <Markdown text={turn.text} className="text-[14px] leading-[1.65]" />
         {turn.changed && turn.changed.length > 0 && (
-          <div className="mt-2.5">
+          <div>
             <ChangedFiles paths={turn.changed} onOpenFile={onOpenFile} />
           </div>
         )}
         {onBuildPlan && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
             <button
               onClick={onBuildPlan}
               className="rounded-full bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground hover:bg-primary-hover"
@@ -250,13 +239,100 @@ export function ChangedFiles({
   );
 }
 
-function SavedStepRow({ step }: { step: SavedStep }) {
-  const Icon = ICON[toolKind(step.tool)];
+/** The narration and the folded groups of work, in order. */
+export function Timeline({ items, live }: { items: TimelineItem[]; live?: boolean }) {
   return (
-    <p className="flex items-center gap-2 py-0.5 text-[11px] text-muted-foreground">
-      <Icon className={cn("h-3.5 w-3.5 shrink-0", step.failed ? "text-danger" : "text-meta")} />
-      <span className="truncate">{step.title}</span>
-    </p>
+    <div className="space-y-2">
+      {items.map((item, i) =>
+        item.type === "say" ? (
+          <Markdown key={item.id} text={item.text} className="text-[14px] leading-[1.65]" />
+        ) : item.kind === "note" ? (
+          <StepRow key={item.id} step={item.steps[0]} />
+        ) : (
+          <GroupRow
+            key={item.id}
+            kind={item.kind}
+            steps={item.steps}
+            // The batch the agent is in the middle of shows what it is doing.
+            current={live && i === items.length - 1}
+          />
+        ),
+      )}
+    </div>
+  );
+}
+
+/** One batch of work, folded into a line: "Read 4 files ›". */
+function GroupRow({ kind, steps, current }: { kind: ToolKind; steps: Step[]; current?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const running = steps.some((s) => s.status === "running");
+  const failed = steps.filter((s) => s.status === "failed").length;
+  const Icon = ICON[kind];
+  const now = running ? steps.find((s) => s.status === "running") : null;
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="group flex max-w-full items-center gap-1.5 text-left text-[12.5px] text-muted-foreground transition hover:text-foreground"
+      >
+        {running ? (
+          <LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
+        ) : (
+          <Icon className={cn("h-3.5 w-3.5 shrink-0", failed ? "text-danger" : "text-meta")} />
+        )}
+        <span className="truncate">{groupLabel(kind, steps)}</span>
+        {failed > 0 && <span className="shrink-0 text-danger">· {failed} failed</span>}
+        <ChevronRight
+          className={cn("h-3.5 w-3.5 shrink-0 text-meta transition", open && "rotate-90")}
+        />
+      </button>
+      {current && now && !open && (
+        <p className="ml-5 mt-0.5 truncate text-[11.5px] text-meta">{now.title}</p>
+      )}
+      {open && (
+        <div className="-mx-1.5 mt-1 space-y-0.5 border-l border-border pl-2">
+          {steps.map((s) => (
+            <StepRow key={s.id} step={s} />
+          ))}
+        </div>
+      )}
+      {kind === "wallet" && <FundCard steps={steps} />}
+    </div>
+  );
+}
+
+/** The deployer wallet the agent made, for the person to send funds to. */
+function FundCard({ steps }: { steps: Step[] }) {
+  const [copied, setCopied] = useState(false);
+  const address = steps
+    .map((s) => `${s.title} ${s.output ?? ""}`)
+    .join(" ")
+    .match(/0x[0-9a-fA-F]{40}/)?.[0];
+  if (!address) return null;
+  return (
+    <div className="mt-2 rounded-2xl border border-primary/30 bg-primary/5 px-3.5 py-3">
+      <p className="text-[12.5px] font-medium text-foreground">Fund the deployer wallet</p>
+      <p className="mt-0.5 text-[11.5px] leading-5 text-muted-foreground">
+        Send test tokens on the network the agent named to this address. It lives in this
+        workspace's sandbox, and its key is never shown.
+      </p>
+      <button
+        onClick={() => {
+          void navigator.clipboard?.writeText(address);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }}
+        className="mt-2 flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-left font-mono text-[11px] text-foreground transition hover:border-primary/50"
+        title="Copy the address"
+      >
+        <span className="min-w-0 flex-1 break-all">{address}</span>
+        {copied ? (
+          <Check className="h-3.5 w-3.5 shrink-0 text-success" />
+        ) : (
+          <Copy className="h-3.5 w-3.5 shrink-0 text-meta" />
+        )}
+      </button>
+    </div>
   );
 }
 
@@ -365,10 +441,21 @@ export function PlanCard({ plan }: { plan: PlanItem[] }) {
   );
 }
 
-const SHOWN_STEPS = 8;
+/** What the live text stream holds beyond the narration already shown: the
+ *  reply as it is being written. The stream carries every word the model has
+ *  said this turn, narration included. */
+function unsaid(reply: string, items: TimelineItem[]): string {
+  let rest = reply;
+  for (const item of items) {
+    if (item.type !== "say") continue;
+    const at = rest.indexOf(item.text);
+    if (at >= 0) rest = rest.slice(at + item.text.length);
+  }
+  return rest.trim();
+}
 
-/** The turn in progress: checklist, steps as they happen, the reply as it
- *  streams in, and what the agent is doing right now. */
+/** The turn in progress: checklist, the agent narrating with its work folded
+ *  in between, the reply as it streams in, and what it is doing right now. */
 export function LiveTurn({
   events,
   reply,
@@ -378,29 +465,14 @@ export function LiveTurn({
   reply: string;
   status: string;
 }) {
-  const steps = useMemo(() => stepsFromEvents(events), [events]);
+  const items = useMemo(() => timelineFromEvents(events), [events]);
   const plan = useMemo(() => latestPlan(events), [events]);
-  const [all, setAll] = useState(false);
-  const hidden = all ? 0 : Math.max(0, steps.length - SHOWN_STEPS);
+  const writing = unsaid(reply, items);
   return (
-    <div className="max-w-[92%] space-y-2.5 rounded-[24px] bg-surface-2 px-4 py-3">
+    <div className="max-w-[96%] space-y-2.5">
       {plan && <PlanCard plan={plan} />}
-      {steps.length > 0 && (
-        <div className="-mx-1.5 space-y-0.5">
-          {hidden > 0 && (
-            <button
-              onClick={() => setAll(true)}
-              className="px-1.5 text-[11px] text-meta hover:text-foreground"
-            >
-              Show {hidden} earlier step{hidden === 1 ? "" : "s"}
-            </button>
-          )}
-          {steps.slice(hidden).map((s) => (
-            <StepRow key={s.id} step={s} />
-          ))}
-        </div>
-      )}
-      {reply && <Markdown text={reply} className="text-[14px] leading-[1.65]" />}
+      {items.length > 0 && <Timeline items={items} live />}
+      {writing && <Markdown text={writing} className="text-[14px] leading-[1.65]" />}
       <div className="flex items-center gap-2.5 text-[12px] text-muted-foreground">
         <span className="ds-typing flex gap-1">
           <span className="h-1.5 w-1.5 rounded-full bg-foreground" />

@@ -5,8 +5,8 @@
 # with a warm node_modules baked in. This one has to be able to build and test
 # whatever project somebody points the agent at, which is a different job.
 #
-# What is here, and what is not. node, bun, python3 and git cover the large
-# majority of what people open an agent on, and git is here because a project's
+# What is here, and what is not. node, bun, python3, git and Foundry cover the
+# large majority of what people open an agent on, and git is here because a project's
 # own tooling reaches for it even though the agent's checkpoints run on the
 # host. Rust and Go are deliberately absent: each would add roughly a gigabyte
 # for a case better served by pointing DEVSTATION_SANDBOX_IMAGE at an image that
@@ -35,6 +35,15 @@ ARG BUN_VERSION=1.4.2
 COPY --from=oven/bun:1.4.2 /usr/local/bin/bun /usr/local/bin/bun
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx \
   && test "$(bun --version)" = "$BUN_VERSION"
+
+# Foundry (forge, cast, anvil), for smart contract work: compiling, testing,
+# deploying through the agent's onchain tool, and a local chain with anvil.
+# Copied from the official image at an exact release, for the same reason as
+# Bun above: nothing piped from an install script.
+COPY --from=ghcr.io/foundry-rs/foundry:v1.8.6 /usr/local/bin/forge /usr/local/bin/forge
+COPY --from=ghcr.io/foundry-rs/foundry:v1.8.6 /usr/local/bin/cast /usr/local/bin/cast
+COPY --from=ghcr.io/foundry-rs/foundry:v1.8.6 /usr/local/bin/anvil /usr/local/bin/anvil
+RUN forge --version && cast --version
 
 # No USER line, on purpose.
 #

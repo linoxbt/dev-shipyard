@@ -64,7 +64,7 @@ function CodingAgentDocs() {
             title: "Say what you want",
             body: (
               <P>
-                “Build a token-gated page for QIE holders”, “write and test an ERC-20 with a
+                “Build a token-gated page for my NFT holders”, “write and test an ERC-20 with a
                 faucet”, “fix the failing test in src/total.test.js”. Then keep talking: every
                 message continues in the same workspace, and the agent remembers the conversation.
               </P>

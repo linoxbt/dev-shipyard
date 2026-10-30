@@ -51,7 +51,7 @@ import {
 } from "@/lib/appgen/projects";
 import { downloadZip } from "@/lib/appgen/zip";
 import { filesUnder, localPreviewPlan } from "@/lib/appgen/local-preview";
-import { compactSteps, stepsFromEvents, type AgentEvent } from "@/lib/coding-agent/steps";
+import { compactTimeline, type AgentEvent } from "@/lib/coding-agent/steps";
 import { postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
 import { AGENT_PATH } from "@/lib/features";
 import { useActiveChain } from "@/hooks/useActiveChain";
@@ -368,7 +368,7 @@ export function CodingAgentPage() {
             ? next.error || "That did not work."
             : next.reply ||
               (next.changed.length ? `Changed ${next.changed.length} file(s).` : "Done.");
-      const steps = compactSteps(stepsFromEvents(next.events ?? []));
+      const steps = compactTimeline(next.events ?? []);
       state.save({
         ...(body?.files ? { files: body.files } : {}),
         workspaceTurns: next.turns,
@@ -459,11 +459,9 @@ export function CodingAgentPage() {
     if (el && stickToBottom.current) el.scrollTo({ top: el.scrollHeight });
   }, [turns.length, view?.reply, view?.status, view?.events?.length, sending]);
 
+  // Only for wallet prompts raised by an app running in the preview. The agent
+  // is not told a network: it uses the one the person names, or a testnet.
   const chain = chainConfig(chainId);
-  const networkContext = useMemo(() => {
-    const c = chainConfig(chainId);
-    return `The person has ${c.name} (chain id ${chainId}) selected in DevStation. RPC: ${c.rpcUrl}. Explorer: ${c.explorerUrl}. Use this network when the work involves one, unless they say otherwise.`;
-  }, [chainId]);
 
   const sourceFor = (p: AppProject): Source =>
     p.source ?? { kind: Object.keys(p.files).length ? "files" : "blank" };
@@ -584,7 +582,6 @@ export function CodingAgentPage() {
             action: "message",
             id: current.workspaceId,
             prompt,
-            context: networkContext,
             restore: restoreBody(current),
             ...turn,
           })
@@ -592,7 +589,6 @@ export function CodingAgentPage() {
             action: "create",
             source: restoreBody(current),
             prompt,
-            context: networkContext,
             ...turn,
           });
 
@@ -627,7 +623,7 @@ export function CodingAgentPage() {
     },
     // restoreBody is a plain helper recreated each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [input, sending, running, user, starter, networkContext, model, mode],
+    [input, sending, running, user, starter, model, mode],
   );
 
   const stop = async () => {
@@ -662,7 +658,7 @@ export function CodingAgentPage() {
   // names repeat across people, addresses cannot.
   const openPublish = () => {
     if (!project) return;
-    if (!user) return toast.error("Connect a user to publish.");
+    if (!user) return toast.error("Sign in with your email to publish.");
     if (!publishSource) return toast.error("There is no built web page to publish yet.");
     setDialog("publish");
   };

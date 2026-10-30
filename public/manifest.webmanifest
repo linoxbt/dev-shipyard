@@ -1,7 +1,7 @@
 {
-  "name": "DevStation: The AI Developer OS for QIE and Web3",
+  "name": "DevStation: the AI agent for apps and smart contracts",
   "short_name": "DevStation",
-  "description": "The AI Developer OS for QIE and Web3. Describe what you want built and DevStation writes, tests, deploys and verifies the contracts, then generates the app.",
+  "description": "Ask, research or build. DevStation's agent explains, builds apps, and writes, tests and deploys smart contracts, narrating every step.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

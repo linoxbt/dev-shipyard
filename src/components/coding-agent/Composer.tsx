@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, LoaderCircle, Mic, Network, Square } from "lucide-react";
+import { ArrowUp, LoaderCircle, Mic, Square } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 // The message box, in two shapes.
 //
 // "hero" is Base44's: a large card on the first screen with the text on top
-// and a toolbar underneath (what to start from, the network, the microphone,
+// and a toolbar underneath (what to start from, the model, the microphone,
 // a square send button).
 //
 // "dock" is Muse's: a rounded bar floating at the foot of the conversation,
@@ -178,7 +178,6 @@ export function Composer({
   variant = "dock",
   tools,
   plus,
-  network,
   trailing,
   notice,
   autoFocus,
@@ -196,7 +195,6 @@ export function Composer({
   tools?: ReactNode;
   /** Dock: the "+" button on the left (usually a menu). */
   plus?: ReactNode;
-  network?: string;
   /** Hero: beside the send button, before the microphone. */
   trailing?: ReactNode;
   notice?: ReactNode;
@@ -266,14 +264,6 @@ export function Composer({
         {textarea}
         <div className="flex items-center gap-1.5 px-3 pb-2.5 pt-1.5">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{tools}</div>
-          {network && (
-            <span
-              className="hidden h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-[12px] text-muted-foreground sm:inline-flex"
-              title="The network the agent uses when the work involves one. Change it in your workspace (bottom of the menu)."
-            >
-              <Network className="h-3.5 w-3.5" /> {network}
-            </span>
-          )}
           {trailing}
           {mic}
           <button

@@ -381,10 +381,15 @@ export function execCommand(
   command: string,
   timeoutSeconds: number,
   workdir = "/work",
+  /** Variables to copy into the container from the docker client's own
+   *  environment. Named without a value, so a secret such as the deployer
+   *  wallet's key never appears on a command line or in a process listing. */
+  forward: readonly string[] = [],
 ): string {
   return [
     "docker exec",
     `--workdir ${quote(workdir)}`,
+    ...forward.filter((key) => /^[A-Z_][A-Z0-9_]*$/.test(key)).map((key) => `--env ${key}`),
     `--env ${quote(`DEVSTATION_CMD=${command}`)}`,
     quote(name),
     "sh -c",
@@ -585,6 +590,8 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
       // actually stops the process, and this fires well after it.
       const backstopMs = (seconds + 15) * 1000;
       const env = allowedEnv(process.env, opts.env);
+      // What the caller set for this command goes into the container too.
+      const forward = Object.keys(opts.env ?? {});
 
       // A networked command gets its own container, created and destroyed
       // around it. Under gVisor a container created without a network can never
@@ -597,7 +604,7 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
         if (!started) return failedResult(`Could not start a networked sandbox from ${image}.`);
         try {
           return present(
-            await runShell(execCommand(name, command, seconds, workdir), {
+            await runShell(execCommand(name, command, seconds, workdir, forward), {
               cwd: options.workspace,
               timeoutMs: backstopMs,
               signal: opts.signal,
@@ -622,7 +629,7 @@ export function sandboxExecutor(options: SandboxOptions): Executor {
       }
 
       const exec = (name: string) =>
-        runShell(execCommand(name, command, seconds, workdir), {
+        runShell(execCommand(name, command, seconds, workdir, forward), {
           cwd: options.workspace,
           timeoutMs: backstopMs,
           signal: opts.signal,

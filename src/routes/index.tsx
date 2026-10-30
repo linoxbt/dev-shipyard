@@ -41,12 +41,12 @@ export const Route = createFileRoute("/")({
       {
         title: CODING_AGENT_ONLY
           ? "DevStation: build apps and contracts with an agent"
-          : "DevStation: The AI Developer OS for QIE and Web3",
+          : "DevStation: the AI agent for apps and smart contracts",
       },
       {
         name: "description",
         content:
-          "The AI Developer OS for QIE and Web3. Describe what you want built and DevStation writes, tests, deploys and verifies the contracts, then generates the app.",
+          "Ask, research or build. DevStation's agent explains, builds apps, and writes, tests and deploys smart contracts, narrating every step.",
       },
     ],
   }),
@@ -531,7 +531,7 @@ function Footer() {
             <Github className="h-4 w-4" />
           </a>
           <span className="font-mono text-[10px] text-meta">
-            DevStation: The AI Developer OS for QIE and Web3
+            DevStation: the AI agent for apps and smart contracts
           </span>
         </div>
       </div>
