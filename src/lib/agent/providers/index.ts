@@ -45,8 +45,9 @@ export function providerFromEnv(
  *
  * A model with a native Anthropic name runs on the Anthropic key when there is
  * one; one of Fortytwo's needs a Fortytwo key; anything else needs OpenRouter.
- * "Auto" (or no choice) is Qwen, the default model, when there is a Fortytwo
- * key, and the runner's own default from providerFromEnv otherwise. No choice, or "auto", is the runner's
+ * "Auto" (or no choice) is Qwen on Fortytwo, the default model, and only that:
+ * without a Fortytwo key it says so rather than quietly running on OpenRouter
+ * or Anthropic, which bill differently and were not asked for. No choice, or "auto", is the runner's
  * default from providerFromEnv. A model this runner has no key for is an
  * answer, not a silent swap to another model: the person picked it.
  */
@@ -55,9 +56,7 @@ export function providerForModel(
   env: NodeJS.ProcessEnv = process.env,
 ): { provider: ModelProvider } | { problem: string } {
   if (!modelId || modelId === AUTO_MODEL) {
-    if (env.FORTYTWO_API_KEY) return providerForModel(DEFAULT_MODEL, env);
-    const provider = providerFromEnv(env);
-    return provider ? { provider } : { problem: "No model provider is configured on the runner." };
+    return providerForModel(DEFAULT_MODEL, env);
   }
   const model = findModel(modelId);
   if (!model) return { problem: `${modelId} is not one of the models on offer.` };

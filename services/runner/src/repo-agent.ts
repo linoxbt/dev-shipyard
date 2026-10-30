@@ -24,7 +24,7 @@ import {
   readWorkspace,
 } from "../../../src/lib/agent/repo-session";
 import { changedFiles } from "../../../src/lib/github-repos";
-import { providerFromEnv, type ModelProvider } from "../../../src/lib/agent/providers";
+import { providerForModel, type ModelProvider } from "../../../src/lib/agent/providers";
 import { PULL_REQUEST_ADDENDUM, SANDBOX_ADDENDUM } from "../../../src/lib/agent/system-prompt";
 import { hostExecutor, type Executor } from "../../../src/lib/agent/executor";
 import {
@@ -229,15 +229,14 @@ async function run(job: RepoJob, input: StartRepoJobInput, signal: AbortSignal) 
     await initLocalRepo(root, job.ref);
     touch({ status: `${written.written} file(s) ready` });
 
-    const provider = input.provider ?? providerFromEnv();
-    if (!provider) {
-      touch({
-        phase: "error",
-        error: "No model provider is configured on the runner.",
-        status: "Stopped",
-      });
+    // The same default as the workspace agent: Qwen on Fortytwo, or a plain
+    // reason why not, never a quiet switch to another provider.
+    const chosen = input.provider ? { provider: input.provider } : providerForModel(null);
+    if ("problem" in chosen) {
+      touch({ phase: "error", error: chosen.problem, status: "Stopped" });
       return;
     }
+    const provider = chosen.provider;
 
     // The isolation, before anything of the model's runs.
     //

@@ -66,6 +66,12 @@ export function describeFailure(label: string, status: number, detail: string): 
   } catch {
     // Not JSON: use the text as it is.
   }
+  if (label === "Fortytwo" && status === 402) {
+    return "Fortytwo is out of credit. Add credits at https://platform.fortytwo.network (Credits), then send the message again.";
+  }
+  if (label === "Fortytwo" && status === 401) {
+    return "Fortytwo rejected the API key. Check FORTYTWO_API_KEY on the agent server (keys are at https://platform.fortytwo.network).";
+  }
   if (status === 402 && /credit/i.test(message)) {
     return (
       `${label} is out of credit for this request. Add credit at https://openrouter.ai/settings/credits, ` +

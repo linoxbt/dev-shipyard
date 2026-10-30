@@ -28,15 +28,16 @@ describe("providerForModel", () => {
     expect("problem" in none && none.problem).toContain("needs a Fortytwo key");
   });
 
-  it("makes Auto Qwen when there is a Fortytwo key, the runner's default otherwise", () => {
+  it("makes Auto Qwen on Fortytwo, and never falls back to another provider", () => {
     const withKey = providerForModel("auto", { FORTYTWO_API_KEY: "f", ANTHROPIC_API_KEY: "a" });
     expect("provider" in withKey && withKey.provider.name).toBe("fortytwo");
-    const without = providerForModel("auto", { ANTHROPIC_API_KEY: "a" });
-    expect("provider" in without && without.provider.name).toBe("anthropic");
+    const without = providerForModel("auto", { ANTHROPIC_API_KEY: "a", OPENROUTER_API_KEY: "o" });
+    expect("problem" in without && without.problem).toContain("Fortytwo key");
+    expect("problem" in providerForModel(undefined, { OPENROUTER_API_KEY: "o" })).toBe(true);
   });
 
   it("refuses a model that is not on offer, and uses the default for Auto", () => {
     expect("problem" in providerForModel("made-up", { OPENROUTER_API_KEY: "o" })).toBe(true);
-    expect("provider" in providerForModel("auto", { OPENROUTER_API_KEY: "o" })).toBe(true);
+    expect("provider" in providerForModel("auto", { FORTYTWO_API_KEY: "f" })).toBe(true);
   });
 });
