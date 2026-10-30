@@ -1,6 +1,5 @@
 import {
   Activity,
-  CodeXml,
   Ellipsis,
   Eye,
   LoaderCircle,
@@ -15,6 +14,38 @@ import { cn } from "@/lib/utils";
 import { RoundButton, Segmented, ghostButton, primaryButton } from "./primitives";
 
 export type View = "preview" | "code" | "activity";
+
+/** Beside the mode and model on a phone: opens the app's preview full screen. */
+export function PreviewButton({ onClick, building }: { onClick: () => void; building?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Open the preview"
+      className="relative ml-auto inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-[11.5px] text-foreground/90 transition hover:border-primary/40 hover:text-foreground"
+    >
+      <Eye className="h-3.5 w-3.5" />
+      Preview
+      {building && (
+        <span className="absolute -right-0.5 -top-0.5 h-2 w-2 animate-pulse rounded-full bg-primary" />
+      )}
+    </button>
+  );
+}
+
+/** Over a full-screen preview or file on a phone: back to the conversation. */
+export function BackToChatButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-foreground px-5 py-3 text-[13.5px] font-medium text-background shadow-2xl shadow-black/40 transition hover:opacity-90"
+    >
+      <MessageIcon className="h-4 w-4 [&_path]:fill-current" />
+      Edit with chat
+    </button>
+  );
+}
 
 // The bar across a project. Round buttons at either end, as in both apps: the
 // menu on the left, the project's options on the right, Publish beside them.
@@ -118,7 +149,6 @@ export function TopBar({
                 <LoaderCircle className="h-3 w-3 animate-spin text-primary" />
               ) : undefined,
             },
-            { value: "code", label: "Code", icon: CodeXml },
             { value: "activity", label: "Activity", icon: Activity },
           ]}
         />
@@ -147,13 +177,11 @@ export function TabBar({
   pane,
   onPane,
   onMore,
-  building,
   running,
 }: {
   pane: "chat" | View;
   onPane: (p: "chat" | View) => void;
   onMore: () => void;
-  building: boolean;
   running: boolean;
 }) {
   const items: {
@@ -161,9 +189,10 @@ export function TabBar({
     label: string;
     icon: React.ComponentType<{ className?: string }>;
   }[] = [
+    // The preview opens from its button beside the composer (PreviewButton),
+    // full screen, and closes back to the chat; the code opens from a reply's
+    // changed files. Neither needs a tab.
     { id: "chat", label: "Chat", icon: MessageIcon },
-    { id: "preview", label: "Preview", icon: Eye },
-    { id: "code", label: "Code", icon: CodeXml },
     { id: "activity", label: "Activity", icon: Activity },
   ];
   return (
@@ -171,7 +200,7 @@ export function TabBar({
       {items.map((it) => {
         const active = pane === it.id;
         const Icon = it.icon;
-        const busy = (it.id === "preview" && building) || (it.id === "chat" && running && !active);
+        const busy = it.id === "chat" && running && !active;
         return (
           <button
             key={it.id}

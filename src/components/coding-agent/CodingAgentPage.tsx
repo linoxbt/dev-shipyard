@@ -40,7 +40,13 @@ import {
 } from "@/components/coding-agent/primitives";
 import { AccountSheet, NewsSheet, ProjectSheet } from "@/components/coding-agent/sheets";
 import { PreviewPane } from "@/components/coding-agent/PreviewPane";
-import { TabBar, TopBar, type View } from "@/components/coding-agent/TopBar";
+import {
+  BackToChatButton,
+  PreviewButton,
+  TabBar,
+  TopBar,
+  type View,
+} from "@/components/coding-agent/TopBar";
 import { AssistantMessage, LiveTurn, UserMessage } from "@/components/coding-agent/Transcript";
 import {
   nameFromPrompt,
@@ -1050,6 +1056,7 @@ export function CodingAgentPage() {
         <div className="mb-2 flex items-center gap-2 px-1">
           <ModeButton compact value={mode} onClick={() => setSheet("mode")} />
           <ModelButton compact value={model} onClick={() => setSheet("model")} />
+          {mobile && <PreviewButton onClick={() => setPane("preview")} building={!!building} />}
         </div>
         <Composer
           value={input}
@@ -1323,13 +1330,10 @@ export function CodingAgentPage() {
         {header}
         <div className={cn("min-h-0 flex-1", pane !== "chat" && "hidden")}>{chat}</div>
         <div className={cn("min-h-0 flex-1", pane === "chat" && "hidden")}>{workbench}</div>
-        <TabBar
-          pane={pane}
-          onPane={setPane}
-          onMore={() => setSheet("more")}
-          building={!!building}
-          running={running}
-        />
+        {(pane === "preview" || pane === "code") && (
+          <BackToChatButton onClick={() => setPane("chat")} />
+        )}
+        <TabBar pane={pane} onPane={setPane} onMore={() => setSheet("more")} running={running} />
         {dialogs}
       </div>
     );
