@@ -6,9 +6,11 @@ import { useTheme } from "@/lib/theme";
 
 // Who is signed in, for the whole app.
 //
-// Email sign-in through Supabase replaces the wallet: a session here is traded
-// once for DevStation's own session cookie (/api/access/session), and every
-// request that needs one gets it the same way a wallet signature used to.
+// Email sign-in through Supabase, with no passwords: we email a one-time code
+// and the person types it in. The same two steps make an account the first
+// time and sign in every time after. A session here is traded once for
+// DevStation's own session cookie (/api/access/session), and every request
+// that needs one gets it the same way a wallet signature used to.
 
 export interface Account {
   id: string;
@@ -23,15 +25,13 @@ interface AuthState {
   ready: boolean;
   configured: boolean;
   account: Account | null;
-  /** Arrived from a password reset email: show "choose a new password". */
-  recovering: boolean;
   init: () => void;
-  signUp: (email: string, password: string) => Promise<string | null>;
+  /** Email a one-time code. Makes the account if the email is new. */
+  sendCode: (email: string) => Promise<string | null>;
+  /** Sign in with the code from that email. */
+  verifyCode: (email: string, code: string) => Promise<string | null>;
   /** Save the name and/or theme on the account. */
   updateProfile: (patch: { name?: string; theme?: "light" | "dark" }) => Promise<string | null>;
-  signIn: (email: string, password: string) => Promise<string | null>;
-  resetPassword: (email: string) => Promise<string | null>;
-  updatePassword: (password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
@@ -74,7 +74,6 @@ export const useAuth = create<AuthState>((set) => ({
   ready: false,
   configured: supabaseConfigured,
   account: null,
-  recovering: false,
 
   init: () => {
     if (started) return;
@@ -100,7 +99,6 @@ export const useAuth = create<AuthState>((set) => ({
     void sb.auth.getSession().then(({ data }) => apply(data.session));
     sb.auth.onAuthStateChange((event, session) => {
       apply(session);
-      if (event === "PASSWORD_RECOVERY") set({ recovering: true });
       if (event === "SIGNED_OUT") {
         // The grant cookie is DevStation's, not Supabase's: clear it too.
         void fetch("/api/access/session", { method: "DELETE" }).catch(() => undefined);
@@ -108,16 +106,29 @@ export const useAuth = create<AuthState>((set) => ({
     });
   },
 
-  signUp: async (email, password) => {
+  sendCode: async (email) => {
     const sb = supabase();
     if (!sb) return "Email sign-in is not set up on this deployment.";
-    // Just the email and a password: the name and theme are asked for once
-    // they are in (WelcomeSheet).
-    const { error } = await sb.auth.signUp({
+    // New emails get an account; the name and theme are asked for once they
+    // are in (WelcomeSheet).
+    const { error } = await sb.auth.signInWithOtp({
       email,
-      password,
-      options: { emailRedirectTo: `${window.location.origin}/` },
+      options: { shouldCreateUser: true },
     });
+    if (error && (error.status === 429 || /rate|seconds/i.test(error.message))) {
+      return "A code was sent a moment ago. Wait a minute, then ask for another.";
+    }
+    return message(error);
+  },
+
+  verifyCode: async (email, code) => {
+    const sb = supabase();
+    if (!sb) return "Email sign-in is not set up on this deployment.";
+    const { error } = await sb.auth.verifyOtp({ email, token: code, type: "email" });
+    if (!error) return null;
+    if (/expired|invalid/i.test(error.message)) {
+      return "That code is wrong or has expired. Check it, or send a new one.";
+    }
     return message(error);
   },
 
@@ -143,33 +154,6 @@ export const useAuth = create<AuthState>((set) => ({
       );
     }
     return null;
-  },
-
-  signIn: async (email, password) => {
-    const sb = supabase();
-    if (!sb) return "Email sign-in is not set up on this deployment.";
-    const { error } = await sb.auth.signInWithPassword({ email, password });
-    if (error && /confirm/i.test(error.message)) {
-      return "Confirm your email first: open the link we sent you, then sign in.";
-    }
-    return error ? "That email and password do not match an account." : null;
-  },
-
-  resetPassword: async (email) => {
-    const sb = supabase();
-    if (!sb) return "Email sign-in is not set up on this deployment.";
-    const { error } = await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/`,
-    });
-    return message(error);
-  },
-
-  updatePassword: async (password) => {
-    const sb = supabase();
-    if (!sb) return "Email sign-in is not set up on this deployment.";
-    const { error } = await sb.auth.updateUser({ password });
-    if (!error) set({ recovering: false });
-    return message(error);
   },
 
   signOut: async () => {

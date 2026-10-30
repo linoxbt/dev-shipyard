@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils";
 import { Modal } from "./primitives";
 
 // Right after an account is made: what to call you, then light or dark.
-// Sign-up itself asks only for an email and a password; this comes once you
-// are in, and both answers are saved with the account so they follow you.
+// Sign-up itself asks only for an email and the code we send to it; this
+// comes once you are in, and both answers are saved with the account so they
+// follow you.
 
 type Step = "name" | "theme";
 

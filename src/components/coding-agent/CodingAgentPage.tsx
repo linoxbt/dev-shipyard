@@ -203,7 +203,6 @@ export function CodingAgentPage() {
   // Who is signed in (email, through Supabase). Their email doubles as the
   // project owner label kept in this browser.
   const account = useAuth((s) => s.account);
-  const recovering = useAuth((s) => s.recovering);
   const user = account?.email;
   const { chainId } = useActiveChain();
   const projects = useProjects((s) => s.projects);
@@ -269,16 +268,11 @@ export function CodingAgentPage() {
   // A new account has no name yet: ask for it, and for a theme, once.
   const welcomed = useRef(false);
   useEffect(() => {
-    if (account && !account.name && !recovering && !welcomed.current) {
+    if (account && !account.name && !welcomed.current) {
       welcomed.current = true;
       setSheet("welcome");
     }
-  }, [account, recovering]);
-
-  // Back from a password reset email: ask for the new password straight away.
-  useEffect(() => {
-    if (recovering) setSheet("auth");
-  }, [recovering]);
+  }, [account]);
 
   useEffect(() => {
     useProjects.getState().hydrate();
@@ -723,7 +717,7 @@ export function CodingAgentPage() {
       onClick={() => setSheet("auth")}
       className="flex items-center gap-1.5 text-left text-[11.5px] text-muted-foreground hover:text-foreground"
     >
-      <LogIn className="h-3.5 w-3.5 shrink-0 text-primary" /> Sign in or create an account to start
+      <LogIn className="h-3.5 w-3.5 shrink-0 text-primary" /> Sign in with your email to start
       building. It is free.
     </button>
   ) : null;
@@ -778,7 +772,10 @@ export function CodingAgentPage() {
           onClose={() => setSheet(null)}
         />
       )}
-      {sheet === "auth" && <AuthSheet onClose={() => setSheet(null)} />}
+      {sheet === "auth" && (
+        // Signing in may already have opened the welcome sheet: leave it open.
+        <AuthSheet onClose={() => setSheet((s) => (s === "auth" ? null : s))} />
+      )}
       {sheet === "welcome" && <WelcomeSheet onClose={() => setSheet(null)} />}
       {sheet === "name" && <WelcomeSheet only="name" onClose={() => setSheet(null)} />}
       {sheet === "model" && (

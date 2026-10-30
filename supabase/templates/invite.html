@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>DevStation</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f6f5f2;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">You have been invited to build on DevStation.</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f6f5f2;">
+      <tr>
+        <td align="center" style="padding:40px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;">
+            <tr>
+              <td align="center" style="padding-bottom:24px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="padding-right:10px;vertical-align:middle;">
+                      <img src="{{ .SiteURL }}/icon-192.png" width="36" height="36" alt="DevStation" style="display:block;border:0;border-radius:9px;" />
+                    </td>
+                    <td style="vertical-align:middle;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:19px;font-weight:700;letter-spacing:-0.2px;color:#1f2328;">
+                      Dev<span style="color:#e67e22;">Station</span>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#ffffff;border:1px solid #e8e5df;border-radius:20px;padding:36px 32px;">
+                <h1 style="margin:0 0 10px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:700;color:#1f2328;text-align:center;">You are invited</h1>
+                <p style="margin:0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;line-height:24px;color:#5f6670;text-align:center;">Someone has invited you to DevStation, where you build apps by talking to an agent.</p>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px auto 8px;">
+                <tr>
+                  <td align="center" bgcolor="#e67e22" style="border-radius:999px;">
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 32px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:999px;">Accept the invite</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#8b9098;text-align:center;">Button not working? Paste this into your browser:<br /><a href="{{ .ConfirmationURL }}" style="color:#d35400;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 12px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:19px;color:#8b9098;text-align:center;">
+                Sent to {{ .Email }}. Not expecting an invite? You can ignore this email.
+                <br /><br />
+                <a href="{{ .SiteURL }}" style="color:#1f2328;font-weight:600;text-decoration:none;">DevStation Labs</a>
+                &nbsp;·&nbsp; Build apps by talking to an agent
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
