@@ -35,6 +35,7 @@ import {
   SANDBOX_NETWORK_ADDENDUM,
 } from "../../../src/lib/agent/system-prompt";
 import { hostExecutor, type Executor } from "../../../src/lib/agent/executor";
+import { runShell } from "../../../src/lib/agent/shell";
 import {
   readinessProblem,
   sandboxExecutor,
@@ -541,6 +542,20 @@ export function cancelWorkspace(id: string): boolean {
   return true;
 }
 
+/**
+ * This runner is itself a disposable machine that belongs to one project (a
+ * Vercel Sandbox, see src/lib/orchestrator): the machine is the isolation, so
+ * the agent's commands run on it directly, with the internet, and nobody is
+ * asked to approve each one.
+ */
+export function isolatedHost(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.DEVSTATION_ISOLATED_HOST === "1";
+}
+
+export const ISOLATED_HOST_ADDENDUM = `
+
+Your commands run on a machine of your own, made for this project and nothing else: an Ubuntu VM with internet access and sudo. Install what you need (npm, pip, sudo apt-get, or the language's own tools), clone repositories, download SDKs, call APIs and run servers, as you would on your own computer. The workspace is the current directory and is kept between messages.`;
+
 export function workspaceNetworkEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return (env.DEVSTATION_WORKSPACE_NETWORK ?? "on").toLowerCase() !== "off";
 }
@@ -629,7 +644,13 @@ async function runTurn(
     if (session.source.repo) personTools.push("open_pull_request");
     const context = opts.context ? `\n\n${opts.context.slice(0, 2000)}` : "";
     const sandboxNote =
-      executor.kind === "sandbox" ? (network ? SANDBOX_NETWORK_ADDENDUM : SANDBOX_ADDENDUM) : "";
+      executor.kind === "sandbox"
+        ? network
+          ? SANDBOX_NETWORK_ADDENDUM
+          : SANDBOX_ADDENDUM
+        : isolatedHost()
+          ? ISOLATED_HOST_ADDENDUM
+          : "";
     const repoNote = session.source.repo
       ? `\n\nThis workspace is ${session.source.repo}${session.source.ref ? ` at ${session.source.ref}` : ""}.`
       : "";
@@ -657,7 +678,7 @@ async function runTurn(
       offerPersonTools: personTools,
       // Without an approver every gated action is refused, which in a web
       // conversation meant no installs, no builds and no scaffolding at all.
-      ...((opts.approve ?? executor.kind === "sandbox")
+      ...((opts.approve ?? (executor.kind === "sandbox" || isolatedHost()))
         ? { autonomy: "autonomous" as const, requestApproval: async () => true }
         : {}),
       onDelta: (chunk) => touch({ reply: session.reply + chunk }),
@@ -864,6 +885,24 @@ export function startWorkspacePreview(
     return { ok: true, session };
   }
 
+  // On a machine of its own the project is built where it is, with its real
+  // toolchain and network, rather than sent to a container queue that is not
+  // there.
+  if (isolatedHost() && buildImpl === buildViaSelf) {
+    set({ phase: "building", revision, message: "Installing and building" });
+    void buildInPlace(join(session.root, plan.dir), plan.outDir).then((outcome) => {
+      if (sessions.get(id) !== session) return;
+      if (outcome.ok && outcome.dist && Object.keys(outcome.dist).length > 0) {
+        writeAtomic(previewFile(session), JSON.stringify(outcome.dist));
+        writeAtomic(previewAssetsFile(session), JSON.stringify(outcome.distBinary ?? {}));
+        set({ phase: "ready", revision, message: null });
+      } else {
+        set({ phase: "error", revision, message: outcome.message });
+      }
+    });
+    return { ok: true, session };
+  }
+
   let project = under(files, plan.dir);
   const binary = readBinaryFiles(join(session.root, plan.dir));
   const binaryBytes = Object.values(binary).reduce((n, c) => n + Math.floor((c.length * 3) / 4), 0);
@@ -901,6 +940,43 @@ export function startWorkspacePreview(
     }
   });
   return { ok: true, session };
+}
+
+/** Install and build a project where it sits, on an isolated host. */
+export async function buildInPlace(
+  dir: string,
+  outDir: string,
+): Promise<{
+  ok: boolean;
+  dist: Record<string, string> | null;
+  distBinary?: Record<string, string> | null;
+  message: string;
+}> {
+  const step = async (name: string, command: string) => {
+    const result = await runShell(command, { cwd: dir, timeoutMs: 600_000 });
+    if (result.code === 0) return null;
+    const log = `${result.stdout}\n${result.stderr}`.trim().slice(-1500);
+    return `The ${name} step failed.${log ? `\n${log}` : ""}`;
+  };
+  const failed =
+    (await step("install", "npm install --no-audit --no-fund --loglevel=error")) ??
+    (await step("build", "npm run build"));
+  if (failed) return { ok: false, dist: null, message: failed };
+  const out = join(dir, outDir);
+  try {
+    return {
+      ok: true,
+      dist: readWorkspace(out),
+      distBinary: readBinaryFiles(out),
+      message: "",
+    };
+  } catch {
+    return {
+      ok: false,
+      dist: null,
+      message: `The build finished but wrote nothing to ${outDir}/.`,
+    };
+  }
 }
 
 /** Builds through this runner's own /jobs endpoint, so previews share the build

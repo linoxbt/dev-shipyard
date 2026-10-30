@@ -29,6 +29,8 @@ export default tseslint.config(
       // rewritten either.
       "src/lib/data/marketplace/official/*/files",
       "marketplace-content",
+      // Bundled agent server, built before vite build.
+      "src/lib/orchestrator/agent-server.gen.mjs",
     ],
   },
   {

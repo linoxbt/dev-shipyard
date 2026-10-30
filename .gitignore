@@ -52,3 +52,6 @@ bench/results/
 # Playwright
 test-results/
 playwright-report/
+
+# Built by scripts/build-agent-server.ts before vite build.
+src/lib/orchestrator/agent-server.gen.mjs

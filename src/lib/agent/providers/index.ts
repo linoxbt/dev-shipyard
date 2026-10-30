@@ -69,7 +69,8 @@ export function providerForModel(
     return {
       provider: new OpenRouterProvider(env.FORTYTWO_API_KEY, model.fortytwo, {
         name: "fortytwo",
-        baseUrl: FORTYTWO_BASE,
+        // Overridable for tests against a stand-in server.
+        baseUrl: env.FORTYTWO_BASE_URL || FORTYTWO_BASE,
       }),
     };
   }

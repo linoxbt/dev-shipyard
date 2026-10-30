@@ -13,3 +13,4 @@ src/lib/abis
 # of their exact bytes: reformatting them would stop buyers' downloads matching.
 src/lib/data/marketplace/official/*/files
 marketplace-content
+src/lib/orchestrator/agent-server.gen.mjs

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { sandboxHostEnabled, sandboxRunner } from "@/lib/orchestrator/sandbox.server";
 import { isControlPath, looksLikeSecret } from "@/lib/agent/workspace";
 import { AUTO_MODEL, MODEL_IDS } from "@/lib/coding-agent/models";
 import { accountAddress } from "@/lib/auth/account.server";
@@ -79,6 +80,9 @@ async function runner(
   path: string,
   init: RequestInit & { owner?: string } = {},
 ): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
+  // The agent's own sandbox in this Vercel account (src/lib/orchestrator),
+  // unless AGENT_HOST=runner sends it to a separate server.
+  if (sandboxHostEnabled()) return sandboxRunner(path, init, clientKeyFromRequest(request));
   const { url, token } = runnerConfig();
   if (!url || !token) {
     return { ok: false, status: 503, body: { message: "The agent service is not configured." } };
@@ -294,7 +298,7 @@ export const Route = createFileRoute("/api/workspace")({
         const id = url.searchParams.get("id");
         if (!id) {
           const { url: runnerUrl, token } = runnerConfig();
-          return Response.json({ configured: Boolean(runnerUrl && token) });
+          return Response.json({ configured: sandboxHostEnabled() || Boolean(runnerUrl && token) });
         }
         if (!holdsClaim(claimsOf(request), id)) return fail(...NOT_YOURS);
         if (
@@ -336,7 +340,8 @@ export const Route = createFileRoute("/api/workspace")({
             return fail("rate_limited", "Too many workspaces started. Try again later.", 429);
           }
           const { url, token } = runnerConfig();
-          if (url && token) {
+          // A sandbox is its own isolation; a separate runner proves it has some.
+          if (!sandboxHostEnabled() && url && token) {
             const isolation = await runnerIsolation(url, token);
             if (!isolation.ok) return fail("not_isolated", isolation.why, 503);
           }
