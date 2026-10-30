@@ -1,43 +1,34 @@
 # Supabase setup for DevStation
 
-DevStation signs people in with no password: they enter their email, we send a
-one-time code, and they type it in. The first code makes the account, and
+DevStation signs people in with no password: they enter their email, we email
+a one-time code, and they type it in. The first code makes the account, and
 every later one signs them in.
 
-## 1. Email sign-in settings
+## How the code email is sent
 
-In the Supabase dashboard, under **Authentication**:
+The app calls our edge function `send-code` (`functions/send-code/`). It asks
+Supabase for a code (`auth.admin.generateLink`, which sends nothing), then
+sends the DevStation Labs email itself through [Resend](https://resend.com).
+So Supabase's dashboard email templates, SMTP settings and Site URL play no
+part in sign-in. Requests are rate limited in the database
+(`migrations/20261030170000_sign_in_code_rate_limit.sql`): one code a minute
+and six an hour per address, thirty an hour per IP.
 
-- **Sign In / Providers → Email**: Email provider on, **Confirm email** on,
-  **Email OTP Length** `6` (the emails are designed for six digits; the app
-  accepts 6 to 10), **Email OTP Expiration** `3600` seconds (the emails say
-  "expires in an hour").
-- **Sign In / Providers → User Signups**: **Allow new users to sign up** on.
-- **URL Configuration → Site URL**: the deployment's address with no trailing
-  slash, for example `https://devstation-omega.vercel.app`. The emails load
-  the logo from `{Site URL}/icon-192.png` and link back there.
-- **Emails → SMTP Settings**: a custom SMTP sender (Resend, Postmark, Amazon
-  SES…). Supabase's own sender allows only a few emails an hour.
-- **Rate Limits**: raise the email limit once custom SMTP is on.
+The function's secrets (Supabase > Edge Functions > Secrets):
 
-## 2. Email templates
+| Secret           | Needed  | What                                                                                                                                                                    |
+| ---------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY` | yes     | A Resend API key with sending access. Without it sign-in says emails are not set up.                                                                                    |
+| `EMAIL_FROM`     | for all | The sender, on a domain verified in Resend, e.g. `DevStation <no-reply@yourdomain.com>`. Until set it is Resend's test sender, which only delivers to your own address. |
+| `SITE_URL`       | no      | Where the logo and links point. Default `https://devstation-omega.vercel.app`.                                                                                          |
 
-Under **Authentication → Emails → Templates**, open each template below, set
-its subject, and replace its body with the whole file. Make sure **Message
-body** is in source (HTML) mode when pasting.
+To change the emails, edit `src/lib/auth/email-templates.ts`, run
+`bun scripts/email-templates.ts`, and redeploy the function. A unit test fails
+if the generated files fall out of step.
 
-| Template             | Subject                           | Body                          |
-| -------------------- | --------------------------------- | ----------------------------- |
-| Confirm signup       | Your DevStation code              | `templates/confirmation.html` |
-| Magic Link           | Your DevStation sign-in code      | `templates/magic_link.html`   |
-| Invite user          | You are invited to DevStation     | `templates/invite.html`       |
-| Change Email Address | Confirm your new DevStation email | `templates/email_change.html` |
+## Emails Supabase still sends itself
 
-The first two must contain `{{ .Token }}`: that is the code. If they still
-contain Supabase's default `{{ .ConfirmationURL }}` link, people get a link
-the app no longer uses instead of a code. Reset Password and Reauthentication
-are not used (there are no passwords) and can stay as they are.
-
-The templates are generated from `src/lib/auth/email-templates.ts`. To change
-them, edit that file and run `bun scripts/email-templates.ts`; a unit test
-fails if the files here fall out of step.
+An invite or a change of email (from the dashboard) still uses Supabase's own
+templates. Branded versions are in `templates/` (`invite.html`,
+`email_change.html`) for pasting under Authentication > Emails > Templates if
+you use those.

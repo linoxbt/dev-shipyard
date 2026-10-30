@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Session } from "@supabase/supabase-js";
 import { setGrantSession } from "@/lib/agent-access/grant";
-import { supabase, supabaseConfigured } from "@/lib/auth/supabase";
+import { callFunction, supabase, supabaseConfigured } from "@/lib/auth/supabase";
 import { useTheme } from "@/lib/theme";
 
 // Who is signed in, for the whole app.
@@ -107,18 +107,18 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   sendCode: async (email) => {
-    const sb = supabase();
-    if (!sb) return "Email sign-in is not set up on this deployment.";
-    // New emails get an account; the name and theme are asked for once they
-    // are in (WelcomeSheet).
-    const { error } = await sb.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: true },
-    });
-    if (error && (error.status === 429 || /rate|seconds/i.test(error.message))) {
-      return "A code was sent a moment ago. Wait a minute, then ask for another.";
+    if (!supabase()) return "Email sign-in is not set up on this deployment.";
+    // Our edge function makes the code and sends the DevStation email
+    // (supabase/functions/send-code). New emails get an account; the name and
+    // theme are asked for once they are in (WelcomeSheet).
+    try {
+      const res = await callFunction("send-code", { email });
+      if (res.ok) return null;
+      const body = (await res.json().catch(() => null)) as { message?: string } | null;
+      return body?.message || "The code could not be sent. Try again in a minute.";
+    } catch {
+      return "Could not reach the sign-in service. Check your connection and try again.";
     }
-    return message(error);
   },
 
   verifyCode: async (email, code) => {

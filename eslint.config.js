@@ -29,6 +29,8 @@ export default tseslint.config(
       // rewritten either.
       "src/lib/data/marketplace/official/*/files",
       "marketplace-content",
+      // Written by scripts/email-templates.ts from src/lib/auth/email-templates.ts.
+      "supabase/functions/send-code/templates.ts",
     ],
   },
   {
