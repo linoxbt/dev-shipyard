@@ -1,6 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const PAGES = [
+// The app can be built as the Coding Agent alone (the default, see
+// src/lib/features.ts) or with every feature. CI runs this file both ways, so
+// the features that are switched off keep being checked and still work the
+// day they are switched back on.
+const AGENT_ONLY = (process.env.VITE_CODING_AGENT_ONLY ?? "1") !== "0";
+
+const AGENT_PAGES = ["/launchkit/coding-agent", "/docs/coding-agent", "/docs/cli/install"];
+
+const FULL_PAGES = [
   "/",
   "/overview",
   "/explorer/mainnet",
@@ -12,6 +20,8 @@ const PAGES = [
   "/launchkit/coding-agent",
   "/leaderboard",
 ];
+
+const PAGES = AGENT_ONLY ? AGENT_PAGES : FULL_PAGES;
 
 /** Console errors and uncaught exceptions while `path` loads and settles. */
 async function load(page: Page, path: string): Promise<string[]> {
@@ -37,12 +47,9 @@ for (const path of PAGES) {
   });
 }
 
-for (const path of [
-  "/",
-  "/launchkit/marketplace",
-  "/explorer/mainnet",
-  "/launchkit/coding-agent",
-]) {
+for (const path of AGENT_ONLY
+  ? ["/launchkit/coding-agent"]
+  : ["/", "/launchkit/marketplace", "/explorer/mainnet", "/launchkit/coding-agent"]) {
   test(`${path} has no sideways scroll on a phone`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await load(page, path);
@@ -85,7 +92,16 @@ test("cross-site POSTs are refused before any route runs", async ({ request }) =
   expect(res.status()).toBe(403);
 });
 
+test("with only the Coding Agent on, every other page opens the agent", async ({ page }) => {
+  test.skip(!AGENT_ONLY, "the full app serves every page");
+  for (const path of ["/", "/overview", "/launchkit/marketplace", "/settings", "/docs"]) {
+    await page.goto(path, { waitUntil: "domcontentloaded" });
+    expect(new URL(page.url()).pathname, path).toBe("/launchkit/coding-agent");
+  }
+});
+
 test("the editor compiles an OpenZeppelin contract with verified sources", async ({ page }) => {
+  test.skip(AGENT_ONLY, "the editor is switched off; the full-app run checks it");
   test.skip(!!process.env.E2E_OFFLINE, "needs binaries.soliditylang.org and jsDelivr");
   await page.goto("/launchkit/editor", { waitUntil: "networkidle" });
   const result = await page.evaluate(async () => {

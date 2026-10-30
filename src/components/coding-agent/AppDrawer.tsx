@@ -23,6 +23,7 @@ import { ago } from "@/lib/coding-agent/steps";
 import { docsHref } from "@/lib/site-hosts";
 import { truncateAddress } from "@/lib/wallet";
 import { useUi } from "@/lib/ui-state";
+import { CODING_AGENT_ONLY } from "@/lib/features";
 import { cn } from "@/lib/utils";
 import { Drawer } from "./primitives";
 
@@ -148,7 +149,7 @@ export function AppDrawer({
         <p className="mt-5 px-3 pb-1 text-[13px] text-muted-foreground">Explore</p>
         {/* On a phone the app's own menu bar is hidden on this page; this
             opens it. A larger screen always shows the app's sidebar. */}
-        <div className="md:hidden">
+        <div className={cn("md:hidden", CODING_AGENT_ONLY && "hidden")}>
           <DrawerLink icon={LayoutGrid} onClick={go(openAppMenu)}>
             DevStation menu
           </DrawerLink>
@@ -156,13 +157,15 @@ export function AppDrawer({
         <DrawerLink icon={LayoutTemplate} onClick={go(onTemplates)}>
           Templates
         </DrawerLink>
-        <Link
-          to="/launchkit/marketplace"
-          onClick={onClose}
-          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14.5px] text-foreground/85 hover:bg-surface-2/60"
-        >
-          <Store className="h-[18px] w-[18px] text-muted-foreground" /> Marketplace
-        </Link>
+        {!CODING_AGENT_ONLY && (
+          <Link
+            to="/launchkit/marketplace"
+            onClick={onClose}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14.5px] text-foreground/85 hover:bg-surface-2/60"
+          >
+            <Store className="h-[18px] w-[18px] text-muted-foreground" /> Marketplace
+          </Link>
+        )}
         <a
           href={docsHref("/docs/coding-agent")}
           className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14.5px] text-foreground/85 hover:bg-surface-2/60"

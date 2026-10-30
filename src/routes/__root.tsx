@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppShell } from "@/components/layout/AppShell";
+import { CODING_AGENT_ONLY, agentOnlyRedirect } from "@/lib/features";
 import { Web3Provider } from "@/components/web3/Web3Provider";
 import { Toaster } from "@/components/ui/sonner";
 import { SplashScreen } from "@/components/pwa/SplashScreen";
@@ -126,6 +127,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   beforeLoad: ({ location, preload }): undefined => {
     // Hovering a link preloads its route; only a real navigation may leave.
     if (preload) return undefined;
+    // Only the Coding Agent is switched on (lib/features.ts): every other
+    // page goes to it. A temporary redirect, so it lifts when the switch does.
+    const agentOnly = agentOnlyRedirect(location.pathname);
+    if (agentOnly) throw redirect({ to: agentOnly, replace: true, statusCode: 307 });
     const target = crossHostTarget(currentHost(), location.pathname, location.searchStr);
     if (!target) return undefined;
     if (typeof window !== "undefined") {
@@ -198,7 +203,7 @@ function RootComponent() {
         {isLanding || isDocs ? (
           <Outlet />
         ) : (
-          <AppShell>
+          <AppShell bare={CODING_AGENT_ONLY}>
             <Outlet />
           </AppShell>
         )}

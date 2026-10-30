@@ -180,7 +180,7 @@ export function Composer({
           {network && (
             <span
               className="hidden items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-[13.5px] text-muted-foreground sm:inline-flex"
-              title="The network the agent uses when the work involves one. Change it in the sidebar."
+              title="The network the agent uses when the work involves one. Change it in your workspace (bottom of the menu)."
             >
               <Network className="h-4 w-4" /> {network}
             </span>

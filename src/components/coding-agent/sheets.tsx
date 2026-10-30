@@ -10,15 +10,22 @@ import {
   Github,
   GitPullRequest,
   LifeBuoy,
+  LogOut,
+  Moon,
+  Network,
   Pencil,
   Rocket,
   Settings,
   Store,
+  Sun,
   Terminal,
   Trash2,
   Users,
 } from "lucide-react";
-import { useAccount } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
+import { NetworkSelector } from "@/components/web3/NetworkSelector";
+import { CODING_AGENT_ONLY, servedInAgentOnly } from "@/lib/features";
+import { useTheme } from "@/lib/theme";
 import { Identicon } from "@/components/builder/BuilderName";
 import { ConnectModal } from "@/components/web3/ConnectModal";
 import { useQieName } from "@/hooks/useQieIdentity";
@@ -93,7 +100,10 @@ export function AccountSheet({
   onClose: () => void;
 }) {
   const { address } = useAccount();
+  const { disconnect } = useDisconnect();
   const name = useQieName(address);
+  const theme = useTheme((s) => s.theme);
+  const toggleTheme = useTheme((s) => s.toggle);
   const [connecting, setConnecting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [used, setUsed] = useState(0);
@@ -161,15 +171,36 @@ export function AccountSheet({
       )}
 
       <p className="mt-5 px-2 text-[13px] text-muted-foreground">Workspace</p>
-      <Link to="/settings" onClick={onClose} className="block">
-        <SheetRow icon={Settings}>Settings</SheetRow>
-      </Link>
+      <div className="flex items-center gap-4 px-2 py-2.5">
+        <Network className="h-5 w-5 shrink-0 text-foreground/80" />
+        <span className="flex-1 text-[15px] text-foreground">Network</span>
+        <NetworkSelector className="w-44" />
+      </div>
+      <SheetRow
+        icon={theme === "dark" ? Sun : Moon}
+        onClick={toggleTheme}
+        detail={theme === "dark" ? "Dark" : "Light"}
+        chevron={false}
+      >
+        Appearance
+      </SheetRow>
+      {!CODING_AGENT_ONLY && (
+        <Link to="/settings" onClick={onClose} className="block">
+          <SheetRow icon={Settings}>Settings</SheetRow>
+        </Link>
+      )}
       <SheetRow icon={BookOpen} href={docsHref("/docs/coding-agent")}>
         How the Coding Agent works
       </SheetRow>
       <SheetRow icon={Terminal} href={docsHref("/docs/cli/install")}>
         Install the CLI
       </SheetRow>
+
+      {address && (
+        <SheetRow icon={LogOut} onClick={() => disconnect()} chevron={false}>
+          Disconnect wallet
+        </SheetRow>
+      )}
 
       {address && (
         <button
@@ -286,7 +317,7 @@ export function NewsSheet({
         )
       ) : (
         <div className="mt-4 space-y-5">
-          {NEWS.map((n) => (
+          {NEWS.filter((n) => !CODING_AGENT_ONLY || servedInAgentOnly(n.href)).map((n) => (
             <a key={n.title} href={docsHref(n.href)} className="group block">
               <div
                 className={cn(
@@ -391,9 +422,11 @@ export function ProjectSheet({
       <SheetRow icon={Pencil} onClick={act(onRename)}>
         Rename
       </SheetRow>
-      <Link to="/launchkit/marketplace/sell" onClick={onClose} className="block">
-        <SheetRow icon={Store}>Sell on the marketplace</SheetRow>
-      </Link>
+      {!CODING_AGENT_ONLY && (
+        <Link to="/launchkit/marketplace/sell" onClick={onClose} className="block">
+          <SheetRow icon={Store}>Sell on the marketplace</SheetRow>
+        </Link>
+      )}
       <div className="my-2 border-t border-border" />
       <SheetRow icon={LifeBuoy} href={docsHref("/docs/coding-agent")}>
         Help

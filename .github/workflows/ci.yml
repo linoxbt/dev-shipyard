@@ -128,8 +128,15 @@ jobs:
       - name: Install Chromium
         run: bunx playwright install --with-deps chromium
 
-      - name: Browser smoke tests
+      - name: Browser smoke tests, as deployed (the Coding Agent only)
         run: bun run test:e2e
+
+      # Every other feature is switched off in the deployed app but still in
+      # the code; this run keeps it working for the day it is switched back on.
+      - name: Browser smoke tests (every feature on)
+        run: bun run test:e2e
+        env:
+          VITE_CODING_AGENT_ONLY: "0"
 
       - uses: actions/upload-artifact@v4
         if: failure()

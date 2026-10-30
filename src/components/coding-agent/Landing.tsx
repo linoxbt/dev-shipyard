@@ -19,6 +19,7 @@ import { Identicon } from "@/components/builder/BuilderName";
 import { useQieName } from "@/hooks/useQieIdentity";
 import type { AppProject } from "@/lib/appgen/projects";
 import { IDEAS, type IdeaKind } from "@/lib/coding-agent/ideas";
+import { CODING_AGENT_ONLY } from "@/lib/features";
 import { ago } from "@/lib/coding-agent/steps";
 import { cn } from "@/lib/utils";
 import { Dropdown, MenuItem, RoundButton } from "./primitives";
@@ -124,19 +125,23 @@ export function Landing({
           <TabButton active={tab === "templates"} onClick={() => onTab("templates")}>
             Templates
           </TabButton>
-          <Link
-            to="/launchkit/marketplace"
-            className="px-3 py-3.5 text-[15px] text-muted-foreground transition hover:text-foreground sm:px-4"
-          >
-            Marketplace
-          </Link>
-          <Link
-            to="/launchkit/marketplace"
-            aria-label="Open the marketplace"
-            className="ml-auto rounded-full p-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowUpRight className="h-5 w-5" />
-          </Link>
+          {!CODING_AGENT_ONLY && (
+            <>
+              <Link
+                to="/launchkit/marketplace"
+                className="px-3 py-3.5 text-[15px] text-muted-foreground transition hover:text-foreground sm:px-4"
+              >
+                Marketplace
+              </Link>
+              <Link
+                to="/launchkit/marketplace"
+                aria-label="Open the marketplace"
+                className="ml-auto rounded-full p-2 text-muted-foreground hover:text-foreground"
+              >
+                <ArrowUpRight className="h-5 w-5" />
+              </Link>
+            </>
+          )}
         </div>
       </div>
 

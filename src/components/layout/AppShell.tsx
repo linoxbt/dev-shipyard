@@ -8,7 +8,10 @@ import { useUi } from "@/lib/ui-state";
 import { Logo } from "@/components/shared/Logo";
 import { cn } from "@/lib/utils";
 
-export function AppShell({ children }: { children: ReactNode }) {
+/** `bare`: no sidebar or app bars, the page has the whole window. Used when
+ *  only the Coding Agent is served (lib/features.ts), which carries its own
+ *  menu, wallet and network controls. */
+export function AppShell({ children, bare = false }: { children: ReactNode; bare?: boolean }) {
   // Hydrate persisted deployments once on the client.
   const hydrate = useProjects((s) => s.hydrate);
   const openMobileNav = useUi((s) => s.openMobileNav);
@@ -24,6 +27,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     hydrate();
     hydrateUi();
   }, [hydrate, hydrateUi]);
+
+  if (bare) {
+    return (
+      <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+        <WrongNetworkBanner />
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
