@@ -3,10 +3,10 @@
 // One list for the page, the API (which refuses anything not on it) and the
 // runner (which turns a choice into a provider). A model runs through the
 // runner's Anthropic key when it has a native Anthropic name and that key is
-// set, and through OpenRouter otherwise. "Auto" is no choice at all: the
-// runner's own default.
+// set, through Fortytwo when it is one of Fortytwo's, and through OpenRouter
+// otherwise. "Auto" is no choice at all: the runner's own default.
 
-export type ModelFamily = "anthropic" | "openai" | "google";
+export type ModelFamily = "anthropic" | "openai" | "google" | "qwen";
 
 export interface AgentModel {
   id: string;
@@ -17,7 +17,10 @@ export interface AgentModel {
   /** The model's name on Anthropic's own API, when it has one. */
   anthropic?: string;
   /** The model's name on OpenRouter. */
-  openrouter: string;
+  openrouter?: string;
+  /** The model's name on Fortytwo (docs.fortytwo.network), which serves it
+   *  with the runner's FORTYTWO_API_KEY. */
+  fortytwo?: string;
 }
 
 export const AGENT_MODELS: readonly AgentModel[] = [
@@ -36,6 +39,12 @@ export const AGENT_MODELS: readonly AgentModel[] = [
     openrouter: "anthropic/claude-sonnet-5.5",
   },
   { id: "gpt-6.1-sol", label: "GPT-6.1 Sol", family: "openai", openrouter: "openai/gpt-6.1-sol" },
+  {
+    id: "qwen-3.8-27b",
+    label: "Qwen 3.8 27B",
+    family: "qwen",
+    fortytwo: "qwen/qwen3.8-27b",
+  },
   {
     id: "gemini-4-argon",
     label: "Gemini 4 Argon",

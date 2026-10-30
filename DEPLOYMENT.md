@@ -113,13 +113,15 @@ maximum: `/api/ai` streams long replies.
 The runner is a separate long-running service on its own host. Its required
 environment:
 
-| Variable                      | Notes                                                                                                                                                    |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RUNNER_TOKEN`                | Bearer token the app uses to reach the runner. **At least 32 characters** (`openssl rand -hex 32`); a shorter one is refused.                            |
-| `SESSION_SECRET`              | **Required** (or `RUNNER_TOKEN` as the fallback). Signs email verification codes; the runner refuses to start without one.                               |
-| `RUNNER_STATE_DIR`            | Where all runner state lives (jobs, history, accounts, listings, activity). `STATE_DIRECTORY` is read as an alias. Default `/var/lib/devstation-runner`. |
-| `PORT`                        | Default `8792`.                                                                                                                                          |
-| `RESEND_API_KEY`, `MAIL_FROM` | Optional. Email verification is off without them.                                                                                                        |
+| Variable                                  | Notes                                                                                                                                                                              |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RUNNER_TOKEN`                            | Bearer token the app uses to reach the runner. **At least 32 characters** (`openssl rand -hex 32`); a shorter one is refused.                                                      |
+| `SESSION_SECRET`                          | **Required** (or `RUNNER_TOKEN` as the fallback). Signs email verification codes; the runner refuses to start without one.                                                         |
+| `RUNNER_STATE_DIR`                        | Where all runner state lives (jobs, history, accounts, listings, activity). `STATE_DIRECTORY` is read as an alias. Default `/var/lib/devstation-runner`.                           |
+| `PORT`                                    | Default `8792`.                                                                                                                                                                    |
+| `RESEND_API_KEY`, `MAIL_FROM`             | Optional. Email verification is off without them.                                                                                                                                  |
+| `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY` | The models in the Coding Agent's picker: Claude models on the Anthropic key, the rest on OpenRouter.                                                                               |
+| `FORTYTWO_API_KEY`                        | Optional. Qwen 3.8 27B in the picker, served by Fortytwo (keys at platform.fortytwo.network, paid by prepaid credits). Without it, picking Qwen says the runner has no key for it. |
 
 **Netlify publishing token.** `NETLIFY_AUTH_TOKEN` (on the app, not the
 runner) lets users publish to Netlify under the operator's account. It can act

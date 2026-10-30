@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Aperture, Asterisk, Check, ChevronDown, Hexagon, Sparkle } from "lucide-react";
+import { Aperture, Asterisk, Atom, Check, ChevronDown, Hexagon, Sparkle } from "lucide-react";
 import {
   AGENT_MODELS,
   AUTO_MODEL,
@@ -20,6 +20,7 @@ const FAMILY_ICON: Record<ModelFamily, React.ComponentType<{ className?: string 
   anthropic: Asterisk,
   openai: Aperture,
   google: Sparkle,
+  qwen: Atom,
 };
 
 function modelIcon(id: string): React.ComponentType<{ className?: string }> {

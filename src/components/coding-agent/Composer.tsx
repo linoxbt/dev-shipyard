@@ -28,18 +28,23 @@ interface Recognition {
   onerror: ((e: { error?: string }) => void) | null;
   start: () => void;
   stop: () => void;
+  abort: () => void;
 }
 
-/** What a failed dictation means, in words. "aborted" (stopped on purpose)
- *  needs none. */
+/** Failures that end dictation, in words. Anything else ("no-speech" after a
+ *  pause, "aborted") only ends one listening session, and the next starts. */
 const DICTATION_ERRORS: Record<string, string> = {
   "not-allowed":
     "Microphone access is blocked. Allow it for this site in your browser's settings, then try again.",
   "service-not-allowed": "Your browser does not allow dictation here.",
   "audio-capture": "No microphone was found.",
-  "no-speech": "Nothing was heard. Tap the microphone and speak.",
   network: "Dictation needs your browser's speech service, which could not be reached.",
 };
+
+/** Sessions in a row that end within this long without hearing anything mean
+ *  the recogniser is failing, not that the person paused. */
+const QUICK_END_MS = 1000;
+const MAX_QUICK_ENDS = 5;
 
 function recognitionClass(): (new () => Recognition) | null {
   if (typeof window === "undefined") return null;
@@ -50,57 +55,115 @@ function recognitionClass(): (new () => Recognition) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-/** Speech to text through the browser's own recogniser, appended to `value`. */
+/**
+ * Speech to text through the browser's own recogniser, appended to `value`.
+ *
+ * Listens until the person taps the microphone again or sends. Browsers end a
+ * recognition session on their own (phones after every phrase, desktops after
+ * a long pause), so each time one ends while dictation is still on, the next
+ * starts, carrying on after the words already written.
+ */
 function useDictation(value: string, onChange: (v: string) => void) {
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const rec = useRef<Recognition | null>(null);
+  /** Dictation is on: a session that ends is followed by another. */
+  const wanted = useRef(false);
+  /** The text before this session's words. */
   const base = useRef("");
+  /** The box's text, as of the last render or the last words written. */
+  const current = useRef(value);
+  current.current = value;
   const latest = useRef(onChange);
   latest.current = onChange;
 
   useEffect(() => setSupported(!!recognitionClass()), []);
-  useEffect(() => () => rec.current?.stop(), []);
+  useEffect(
+    () => () => {
+      wanted.current = false;
+      rec.current?.abort();
+    },
+    [],
+  );
 
-  const toggle = () => {
-    if (listening) {
-      rec.current?.stop();
-      return;
-    }
+  const finish = (how: "stop" | "abort") => {
+    wanted.current = false;
+    setListening(false);
+    const r = rec.current;
+    rec.current = null;
+    if (how === "abort") r?.abort();
+    else r?.stop();
+  };
+
+  const begin = () => {
     const Ctor = recognitionClass();
     if (!Ctor) return;
     const r = new Ctor();
-    // Phones stop after one phrase anyway, and Chrome on Android repeats
-    // itself in continuous mode; a desktop keeps listening until stopped.
+    // Chrome on Android repeats itself in continuous mode, so phones take one
+    // phrase per session and the next session follows (onend below).
     r.continuous = !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
     r.interimResults = true;
     r.lang = navigator.language || "en-US";
-    base.current = value ? `${value.trimEnd()} ` : "";
-    r.onresult = (e) => {
-      let finalText = "";
-      let interim = "";
-      for (let i = 0; i < e.results.length; i++) {
-        const res = e.results[i];
-        if (res.isFinal) finalText += res[0].transcript;
-        else interim += res[0].transcript;
-      }
-      latest.current(`${base.current}${finalText}${interim}`);
-    };
-    r.onend = () => setListening(false);
-    r.onerror = (e) => {
-      setListening(false);
-      const why = DICTATION_ERRORS[e.error ?? ""];
-      if (why) toast.error(why);
-    };
-    rec.current = r;
-    try {
+    let started = 0;
+    let heard = false;
+    let quickEnds = 0;
+
+    const session = () => {
+      const before = current.current.trimEnd();
+      base.current = before ? `${before} ` : "";
+      started = Date.now();
+      heard = false;
       r.start();
+    };
+    r.onresult = (e) => {
+      if (!wanted.current || rec.current !== r) return;
+      heard = true;
+      let text = "";
+      for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+      const next = `${base.current}${text}`;
+      current.current = next;
+      latest.current(next);
+    };
+    r.onerror = (e) => {
+      const why = DICTATION_ERRORS[e.error ?? ""];
+      if (!why || rec.current !== r) return;
+      finish("abort");
+      toast.error(why);
+    };
+    r.onend = () => {
+      if (!wanted.current || rec.current !== r) return;
+      quickEnds = !heard && Date.now() - started < QUICK_END_MS ? quickEnds + 1 : 0;
+      if (quickEnds >= MAX_QUICK_ENDS) {
+        finish("abort");
+        toast.error("Dictation keeps stopping. Tap the microphone to try again.");
+        return;
+      }
+      try {
+        session();
+      } catch {
+        finish("abort");
+      }
+    };
+
+    rec.current = r;
+    wanted.current = true;
+    try {
+      session();
       setListening(true);
     } catch {
+      wanted.current = false;
+      rec.current = null;
       toast.error("Dictation could not start. Try again.");
     }
   };
-  return { supported, listening, toggle };
+
+  const toggle = () => (wanted.current ? finish("stop") : begin());
+  /** Sending: stop now, and drop words still on their way so they do not
+   *  land in the emptied box. */
+  const cancel = () => {
+    if (wanted.current) finish("abort");
+  };
+  return { supported, listening, toggle, cancel };
 }
 
 export function Composer({
@@ -153,7 +216,7 @@ export function Composer({
 
   const disabled = !value.trim() || !!sending || !canSend;
   const send = () => {
-    if (dictation.listening) dictation.toggle();
+    dictation.cancel();
     onSend();
   };
   const textarea = (

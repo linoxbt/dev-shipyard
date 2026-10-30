@@ -77,12 +77,15 @@ export function describeFailure(label: string, status: number, detail: string): 
   return `${label} request failed (${status}). ${message.slice(0, 300)}`;
 }
 
+/** Fortytwo's OpenAI-compatible API (docs.fortytwo.network). */
+export const FORTYTWO_BASE = "https://api.fortytwo.network/v1";
+
 export interface OpenAiCompatibleOptions {
   /** "openrouter" (the default) or "openai" for any other compatible server:
    *  OpenAI itself, Ollama, LM Studio, Groq, Together. Only OpenRouter gets its
    *  attribution headers and its reasoning switch, which other servers either
    *  ignore or reject. */
-  name?: "openrouter" | "openai";
+  name?: "openrouter" | "openai" | "fortytwo";
   /** Up to, not including, `/chat/completions`. */
   baseUrl?: string;
 }
@@ -151,7 +154,7 @@ function parseArguments(raw: string): Record<string, unknown> {
 }
 
 export class OpenRouterProvider implements ModelProvider {
-  readonly name: "openrouter" | "openai";
+  readonly name: "openrouter" | "openai" | "fortytwo";
   readonly model: string;
   private readonly endpoint: string;
 
@@ -176,6 +179,7 @@ export class OpenRouterProvider implements ModelProvider {
 
   async generate(input: GenerateInput): Promise<ProviderResult> {
     const openRouter = this.name === "openrouter";
+    const fortytwo = this.name === "fortytwo";
     const send = (maxTokens: number) =>
       fetch(this.endpoint, {
         method: "POST",
@@ -192,7 +196,8 @@ export class OpenRouterProvider implements ModelProvider {
           messages: toOpenAiMessages(input.system, input.messages),
           stream: true,
           max_tokens: maxTokens,
-          temperature: 0.2,
+          // Fortytwo may refuse a sampling setting its model does not list.
+          ...(fortytwo ? {} : { temperature: 0.2 }),
           ...(input.tools?.length
             ? {
                 tools: input.tools.map((t) => ({
@@ -210,11 +215,23 @@ export class OpenRouterProvider implements ModelProvider {
           ...(openRouter && process.env.AI_REASONING !== "on"
             ? { reasoning: { enabled: false } }
             : {}),
+          // Fortytwo's Qwen reasons before every answer by default (medium);
+          // keep it brief, and ask for the token count the cost meter needs.
+          ...(fortytwo
+            ? {
+                reasoning_effort: process.env.AI_REASONING === "on" ? "medium" : "low",
+                stream_options: { include_usage: true },
+              }
+            : {}),
         }),
         signal: input.signal,
       });
 
-    const label = openRouter ? "OpenRouter" : `The endpoint ${this.endpoint}`;
+    const label = openRouter
+      ? "OpenRouter"
+      : fortytwo
+        ? "Fortytwo"
+        : `The endpoint ${this.endpoint}`;
     const requested = input.maxTokens ?? DEFAULT_MAX_TOKENS;
     let res = await send(requested);
 

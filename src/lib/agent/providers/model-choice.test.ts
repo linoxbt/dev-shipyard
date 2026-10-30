@@ -15,6 +15,19 @@ describe("providerForModel", () => {
     expect("problem" in r && r.problem).toContain("Gemini 4 Argon is not available");
   });
 
+  it("runs Qwen on Fortytwo, and only with a Fortytwo key", () => {
+    const qwen = providerForModel("qwen-3.8-27b", {
+      FORTYTWO_API_KEY: "f",
+      OPENROUTER_API_KEY: "o",
+    });
+    expect("provider" in qwen && qwen.provider.name).toBe("fortytwo");
+    const none = providerForModel("qwen-3.8-27b", {
+      ANTHROPIC_API_KEY: "a",
+      OPENROUTER_API_KEY: "o",
+    });
+    expect("problem" in none && none.problem).toContain("needs a Fortytwo key");
+  });
+
   it("refuses a model that is not on offer, and uses the default for Auto", () => {
     expect("problem" in providerForModel("made-up", { OPENROUTER_API_KEY: "o" })).toBe(true);
     expect("provider" in providerForModel("auto", { OPENROUTER_API_KEY: "o" })).toBe(true);

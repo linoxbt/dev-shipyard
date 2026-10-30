@@ -52,40 +52,6 @@ const ICON: Record<ToolKind, React.ComponentType<{ className?: string }>> = {
   other: Wrench,
 };
 
-/** The agent at the head of the conversation, the way Muse introduces itself:
- *  a round face and a name pill. */
-export function AgentIntro({ name, busy }: { name: string; busy?: boolean }) {
-  return (
-    <div className="flex flex-col items-center pb-2 pt-4">
-      <span
-        className={cn(
-          "relative flex h-20 w-20 items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_30%,color-mix(in_oklch,var(--primary)_55%,white),var(--primary)_60%,color-mix(in_oklch,var(--primary)_70%,black))] shadow-xl shadow-primary/20",
-          busy && "animate-pulse",
-        )}
-      >
-        <span className="-mt-2 flex gap-3">
-          <span className="h-2.5 w-2 rounded-full bg-background/85" />
-          <span className="h-2.5 w-2 rounded-full bg-background/85" />
-        </span>
-        <svg
-          viewBox="0 0 20 10"
-          className="absolute bottom-[22px] h-2.5 w-5 text-background/70"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.4}
-          strokeLinecap="round"
-          aria-hidden
-        >
-          <path d="M3 3 Q10 9 17 3" />
-        </svg>
-      </span>
-      <span className="-mt-3 rounded-full border border-border bg-surface-2 px-3.5 py-1 text-[12.5px] font-medium text-foreground shadow">
-        {name}
-      </span>
-    </div>
-  );
-}
-
 /** "…" under a message: what you can do with it. */
 function MessageMenu({
   align,

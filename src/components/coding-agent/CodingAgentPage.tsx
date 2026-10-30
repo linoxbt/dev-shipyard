@@ -41,12 +41,7 @@ import {
 import { AccountSheet, NewsSheet, ProjectSheet } from "@/components/coding-agent/sheets";
 import { PreviewPane } from "@/components/coding-agent/PreviewPane";
 import { TabBar, TopBar, type View } from "@/components/coding-agent/TopBar";
-import {
-  AgentIntro,
-  AssistantMessage,
-  LiveTurn,
-  UserMessage,
-} from "@/components/coding-agent/Transcript";
+import { AssistantMessage, LiveTurn, UserMessage } from "@/components/coding-agent/Transcript";
 import {
   nameFromPrompt,
   onProjectsWriteError,
@@ -956,9 +951,7 @@ export function CodingAgentPage() {
         }}
         className="min-h-0 flex-1 overflow-y-auto"
       >
-        <div className="mx-auto max-w-2xl space-y-4 px-3 pb-6 sm:px-5">
-          <AgentIntro name="DevStation Agent" busy={running || sending} />
-
+        <div className="mx-auto max-w-2xl space-y-4 px-3 pb-6 pt-4 sm:px-5">
           {empty && (
             <div className="space-y-4">
               <div className="max-w-[88%] rounded-[24px] bg-surface-2 px-4 py-3 text-[14px] leading-[1.65] text-foreground">
