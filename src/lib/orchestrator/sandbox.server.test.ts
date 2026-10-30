@@ -1,16 +1,5 @@
-import { afterEach, describe, expect, it } from "bun:test";
-import { sandboxHostEnabled, sandboxRunner, splitId, tokenFor } from "./sandbox.server";
-
-const saved = {
-  SESSION_SECRET: process.env.SESSION_SECRET,
-  RUNNER_TOKEN: process.env.RUNNER_TOKEN,
-};
-afterEach(() => {
-  for (const [k, v] of Object.entries(saved)) {
-    if (v === undefined) delete process.env[k];
-    else process.env[k] = v;
-  }
-});
+import { describe, expect, it } from "bun:test";
+import { sandboxHostEnabled, sandboxRunner, splitId } from "./sandbox.server";
 
 describe("the sandbox orchestrator", () => {
   it("is the default agent host, and AGENT_HOST=runner turns it off", () => {
@@ -28,21 +17,7 @@ describe("the sandbox orchestrator", () => {
     }
   });
 
-  it("gives every sandbox its own token, long enough for the server to accept", () => {
-    const a = tokenFor("ds-aaaaaaaaaaaaaaaa", "k");
-    expect(a).toHaveLength(64);
-    expect(tokenFor("ds-bbbbbbbbbbbbbbbb", "k")).not.toBe(a);
-    expect(tokenFor("ds-aaaaaaaaaaaaaaaa", "other")).not.toBe(a);
-  });
-
-  it("says what is missing rather than failing obscurely", async () => {
-    delete process.env.SESSION_SECRET;
-    delete process.env.RUNNER_TOKEN;
-    const unset = await sandboxRunner("/agent/workspaces", { method: "POST" }, "t");
-    expect(unset.status).toBe(503);
-    expect(String(unset.body.message)).toContain("SESSION_SECRET");
-
-    process.env.SESSION_SECRET = "s".repeat(40);
+  it("answers a malformed id as gone, without touching Vercel", async () => {
     const gone = await sandboxRunner("/agent/workspaces/not-a-sandbox-id", {}, "t");
     expect(gone.status).toBe(404);
   });

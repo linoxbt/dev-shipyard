@@ -18,7 +18,7 @@
 // Each start writes the bundle from this deployment, so a project picks up a
 // new version of the agent the next time its server starts.
 
-import { createHmac, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { Sandbox } from "@vercel/sandbox";
 
 /** The bundled agent server, loaded only when a sandbox needs it (and never
@@ -56,13 +56,19 @@ function timeoutMs(env: NodeJS.ProcessEnv = process.env): number {
   return Math.max(5, Math.min(300, Number.isFinite(minutes) ? minutes : 45)) * 60_000;
 }
 
-function secret(env: NodeJS.ProcessEnv = process.env): string {
-  return env.SESSION_SECRET || env.RUNNER_TOKEN || "";
-}
+/** Where a sandbox keeps the token its server answers to. It is made at
+ *  random when the sandbox is, and read back through the Vercel API (which
+ *  only this project can call), so no secret has to be configured. */
+const TOKEN_FILE = `${DIR}/token`;
+const tokens = new Map<string, string>();
 
-/** The token one sandbox's server answers to. Derived, so nothing is stored. */
-export function tokenFor(name: string, key = secret()): string {
-  return createHmac("sha256", key).update(`devstation-sandbox:${name}`).digest("hex");
+async function tokenOf(sandbox: Sandbox, name: string): Promise<string> {
+  const known = tokens.get(name);
+  if (known) return known;
+  const token = (await sandbox.fs.readFile(TOKEN_FILE, "utf8")).trim();
+  if (!/^[0-9a-f]{64}$/.test(token)) throw new Error("The sandbox has no agent token.");
+  tokens.set(name, token);
+  return token;
 }
 
 /** "ds-ab12…~ws-cd34…" -> the sandbox and the server's own workspace id. */
@@ -208,12 +214,6 @@ export async function sandboxRunner(
   init: RequestInit & { owner?: string },
   caller: string,
 ): Promise<RunnerReply> {
-  if (!secret()) {
-    return fail(
-      503,
-      "The agent is not set up on this deployment: set SESSION_SECRET (a long random string) in the Vercel project.",
-    );
-  }
   try {
     if (path === "/agent/workspaces" && init.method === "POST") {
       const name = `ds-${randomBytes(8).toString("hex")}`;
@@ -225,7 +225,11 @@ export async function sandboxRunner(
         resources: { vcpus: 2 },
         tags: { app: "devstation" },
       });
-      const token = tokenFor(name);
+      const token = randomBytes(32).toString("hex");
+      await sandbox.runCommand("mkdir", ["-p", DIR]);
+      await sandbox.writeFiles([{ path: TOKEN_FILE, content: Buffer.from(token) }]);
+      await sandbox.runCommand("chmod", ["600", TOKEN_FILE]);
+      tokens.set(name, token);
       const base = await ready(sandbox, token, true);
       return outward(await forward(base, token, path, init, caller), name);
     }
@@ -241,7 +245,7 @@ export async function sandboxRunner(
       if (notFound(error)) return fail(404, "That workspace is gone.");
       throw error;
     }
-    const token = tokenFor(ids.name);
+    const token = await tokenOf(sandbox, ids.name);
     const base = await ready(sandbox, token);
     // A message is work about to happen: keep the machine up for it.
     if (match[2] === "/messages" && init.method === "POST") {

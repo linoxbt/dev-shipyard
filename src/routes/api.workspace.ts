@@ -76,37 +76,26 @@ function runnerConfig() {
 }
 
 /**
- * Where a request goes. Two hosts can serve the agent:
+ * Where a request goes: the project's own Vercel Sandbox, in this Vercel
+ * account (src/lib/orchestrator). AGENT_HOST=runner sends everything to a
+ * separate runner (RUNNER_URL, RUNNER_TOKEN) instead.
  *
- * - a Vercel Sandbox per project, in this Vercel account (src/lib/orchestrator),
- *   the default for new projects;
- * - a separate runner (RUNNER_URL, RUNNER_TOKEN), as a fallback.
- *
- * A project's id says which one it lives on ("ds-…~…" is a sandbox), so older
- * projects keep working on the runner. A new project goes to a sandbox, and to
- * the runner when a sandbox cannot be made (no Vercel Sandbox access, say).
- * AGENT_HOST=runner sends new projects to the runner instead.
+ * A project started on the old runner has no sandbox: it is answered as gone,
+ * and the browser, which keeps the project's files, recreates it in a
+ * sandbox with the next message (the `restore` path below).
  */
 async function runner(
   request: Request,
   path: string,
   init: RequestInit & { owner?: string } = {},
 ): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
-  const caller = clientKeyFromRequest(request);
-  const { url: runnerUrl, token: runnerToken } = runnerConfig();
-  const hasRunner = Boolean(runnerUrl && runnerToken);
+  if (!sandboxHostEnabled()) return httpRunner(request, path, init);
   const creating = path === "/agent/workspaces" && init.method === "POST";
-  if (creating) {
-    if (sandboxHostEnabled()) {
-      const made = await sandboxRunner(path, init, caller);
-      if (made.ok || made.status < 500 || !hasRunner) return made;
-      console.error(`[workspace] sandbox unavailable, using the runner: ${made.body.message}`);
-    }
-  } else {
-    const id = decodeURIComponent(path.split("/")[3] ?? "");
-    if (splitId(id)) return sandboxRunner(path, init, caller);
+  const id = decodeURIComponent(path.split("/")[3] ?? "");
+  if (creating || splitId(id)) {
+    return sandboxRunner(path, init, clientKeyFromRequest(request));
   }
-  return httpRunner(request, path, init);
+  return { ok: false, status: 404, body: { ok: false, message: "That workspace is gone." } };
 }
 
 async function httpRunner(
@@ -329,7 +318,9 @@ export const Route = createFileRoute("/api/workspace")({
         const id = url.searchParams.get("id");
         if (!id) {
           const { url: runnerUrl, token } = runnerConfig();
-          return Response.json({ configured: sandboxHostEnabled() || Boolean(runnerUrl && token) });
+          return Response.json({
+            configured: sandboxHostEnabled() || Boolean(runnerUrl && token),
+          });
         }
         if (!holdsClaim(claimsOf(request), id)) return fail(...NOT_YOURS);
         if (

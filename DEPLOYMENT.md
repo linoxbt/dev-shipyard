@@ -116,14 +116,14 @@ is an Ubuntu VM with the internet where the agent runs commands, installs
 packages and builds; it runs the same agent server as services/runner,
 bundled by `bun scripts/build-agent-server.ts` (part of `bun run build`).
 Sandboxes are persistent: when one times out it is snapshotted, and the next
-message resumes it.
+message resumes it. Each sandbox's server answers only a random token kept
+inside that sandbox, so no secret needs configuring here.
 
-| Variable                             | Notes                                                                                             |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `FORTYTWO_API_KEY`                   | The model (Qwen 3.8 27B on Fortytwo). Set on this Vercel project; it is passed into each sandbox. |
-| `SESSION_SECRET` (or `RUNNER_TOKEN`) | Derives each sandbox's own access token. Required.                                                |
-| `SANDBOX_TIMEOUT_MINUTES`            | Optional, default 45 (the Hobby limit; up to 300 on Pro).                                         |
-| `AGENT_HOST=runner`                  | Optional: use a separate runner (`RUNNER_URL`, `RUNNER_TOKEN`) instead.                           |
+| Variable                  | Notes                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------- |
+| `FORTYTWO_API_KEY`        | The model (Qwen 3.8 27B on Fortytwo). Set on this Vercel project; it is passed into each sandbox. |
+| `SANDBOX_TIMEOUT_MINUTES` | Optional, default 45 (the Hobby limit; up to 300 on Pro).                                         |
+| `AGENT_HOST=runner`       | Optional: use a separate runner (`RUNNER_URL`, `RUNNER_TOKEN`) instead.                           |
 
 Vercel Sandbox needs the project's OIDC token, which new projects have; usage
 is billed by Vercel to the account.
