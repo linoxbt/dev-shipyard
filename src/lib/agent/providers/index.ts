@@ -3,7 +3,7 @@ import { EngineProvider } from "./engine";
 import { FORTYTWO_BASE, OpenRouterProvider } from "./openrouter";
 import type { ModelProvider } from "./types";
 import type { Resolved } from "./settings";
-import { AUTO_MODEL, findModel } from "../../coding-agent/models";
+import { AUTO_MODEL, DEFAULT_MODEL, findModel } from "../../coding-agent/models";
 
 export * from "./types";
 export { AnthropicProvider } from "./anthropic";
@@ -44,7 +44,9 @@ export function providerFromEnv(
  * The provider for a model picked in the Coding Agent (lib/coding-agent/models.ts).
  *
  * A model with a native Anthropic name runs on the Anthropic key when there is
- * one; one of Fortytwo's needs a Fortytwo key; anything else needs OpenRouter. No choice, or "auto", is the runner's
+ * one; one of Fortytwo's needs a Fortytwo key; anything else needs OpenRouter.
+ * "Auto" (or no choice) is Qwen, the default model, when there is a Fortytwo
+ * key, and the runner's own default from providerFromEnv otherwise. No choice, or "auto", is the runner's
  * default from providerFromEnv. A model this runner has no key for is an
  * answer, not a silent swap to another model: the person picked it.
  */
@@ -53,6 +55,7 @@ export function providerForModel(
   env: NodeJS.ProcessEnv = process.env,
 ): { provider: ModelProvider } | { problem: string } {
   if (!modelId || modelId === AUTO_MODEL) {
+    if (env.FORTYTWO_API_KEY) return providerForModel(DEFAULT_MODEL, env);
     const provider = providerFromEnv(env);
     return provider ? { provider } : { problem: "No model provider is configured on the runner." };
   }

@@ -4,7 +4,8 @@
 // runner (which turns a choice into a provider). A model runs through the
 // runner's Anthropic key when it has a native Anthropic name and that key is
 // set, through Fortytwo when it is one of Fortytwo's, and through OpenRouter
-// otherwise. "Auto" is no choice at all: the runner's own default.
+// otherwise. "Auto" leaves the choice to the runner: Qwen when it has a
+// Fortytwo key, its own default otherwise.
 
 export type ModelFamily = "anthropic" | "openai" | "google" | "qwen";
 
@@ -25,6 +26,12 @@ export interface AgentModel {
 
 export const AGENT_MODELS: readonly AgentModel[] = [
   {
+    id: "qwen-3.8-27b",
+    label: "Qwen 3.8 27B",
+    family: "qwen",
+    fortytwo: "qwen/qwen3.8-27b",
+  },
+  {
     id: "opus-5.5",
     label: "Opus 5.5",
     family: "anthropic",
@@ -39,12 +46,6 @@ export const AGENT_MODELS: readonly AgentModel[] = [
     openrouter: "anthropic/claude-sonnet-5.5",
   },
   { id: "gpt-6.1-sol", label: "GPT-6.1 Sol", family: "openai", openrouter: "openai/gpt-6.1-sol" },
-  {
-    id: "qwen-3.8-27b",
-    label: "Qwen 3.8 27B",
-    family: "qwen",
-    fortytwo: "qwen/qwen3.8-27b",
-  },
   {
     id: "gemini-4-argon",
     label: "Gemini 4 Argon",
@@ -98,6 +99,8 @@ export const AGENT_MODELS: readonly AgentModel[] = [
 ];
 
 export const AUTO_MODEL = "auto";
+/** What the picker starts on, until someone picks another. */
+export const DEFAULT_MODEL = "qwen-3.8-27b";
 export type ModelChoice = typeof AUTO_MODEL | (typeof AGENT_MODELS)[number]["id"];
 
 export const MODEL_IDS: readonly string[] = AGENT_MODELS.map((m) => m.id);

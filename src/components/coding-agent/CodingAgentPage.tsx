@@ -57,7 +57,7 @@ import { AGENT_PATH } from "@/lib/features";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useAuth } from "@/hooks/useAuth";
 import { getPreference, setPreference } from "@/lib/consent";
-import { AUTO_MODEL, MODEL_IDS, type AgentMode } from "@/lib/coding-agent/models";
+import { AUTO_MODEL, DEFAULT_MODEL, MODEL_IDS, type AgentMode } from "@/lib/coding-agent/models";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { chainConfig } from "@/lib/chains";
 import { docsHref } from "@/lib/site-hosts";
@@ -224,7 +224,7 @@ export function CodingAgentPage() {
   >(null);
   // The model and mode for the next message. Remembered only with consent
   // to preference storage (lib/consent.ts).
-  const [model, setModelState] = useState<string>(AUTO_MODEL);
+  const [model, setModelState] = useState<string>(DEFAULT_MODEL);
   const [mode, setModeState] = useState<AgentMode>("build");
   useEffect(() => {
     const m = getPreference(MODEL_PREF);
