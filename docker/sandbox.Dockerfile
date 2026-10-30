@@ -17,7 +17,7 @@
 # Pinned by digest, the same base as services/runner/Dockerfile: the moving
 # `22` tag let a rebuild silently change the toolchain every agent command runs
 # on. Bump the tag and digest together; Dependabot proposes them.
-FROM node:22.22.0-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
+FROM node:26.12.0-bookworm-slim@sha256:742a0fe7320e09e0321222b68165e6ac731d30470e7ea7f98f9bfc3a6e1034fe
 
 # ca-certificates so https works during an install; the rest is what a build
 # script reaches for often enough to be worth the layer.
