@@ -309,8 +309,8 @@ export const Route = createFileRoute("/api/ai")({
             {
               ok: false,
               reason: "no_grant",
-              message: "Connect a wallet and sign once to use the assistant. It costs no gas.",
-              error: { message: "Connect a wallet and sign once to use the assistant." },
+              message: "Sign in with your email to use the assistant.",
+              error: { message: "Sign in with your email to use the assistant." },
             },
             { status: 401 },
           );

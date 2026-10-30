@@ -212,11 +212,7 @@ export const Route = createFileRoute("/api/sponsor-topup")({
           openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE)),
         );
         if (!granted) {
-          return fail(
-            "no_grant",
-            "Connect a wallet and sign once to use gas-free deploys. It costs no gas.",
-            401,
-          );
+          return fail("no_grant", "Sign in with your email to use gas-free deploys.", 401);
         }
         if (granted !== requesterKey) {
           return fail("owner_mismatch", "Sign in with the wallet you are deploying from.", 403);

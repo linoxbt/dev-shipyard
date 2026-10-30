@@ -79,11 +79,7 @@ function ownsJob(request: Request, id: string): boolean {
 }
 
 const NOT_YOURS = ["not_yours", "That run was not started from this browser.", 403] as const;
-const NO_GRANT = [
-  "no_grant",
-  "Connect a wallet and sign once to use the agent. It costs no gas.",
-  401,
-] as const;
+const NO_GRANT = ["no_grant", "Sign in with your email to use the agent.", 401] as const;
 
 // Read per request: some hosts bind env per request, where a module-level read
 // is undefined.

@@ -78,11 +78,7 @@ function grantedOwner(request: Request): string | null {
   return ownerOf(openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE)));
 }
 
-const NO_GRANT = [
-  "no_grant",
-  "Connect a wallet and sign once to use this. It costs no gas.",
-  401,
-] as const;
+const NO_GRANT = ["no_grant", "Sign in with your email to use this.", 401] as const;
 
 // Server-only. Read inside the handler, never at module scope: some hosts bind
 // env per request, where a module-level read is undefined.

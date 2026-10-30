@@ -67,11 +67,7 @@ function fail(reason: string, message: string, status: number) {
 }
 
 const NOT_YOURS = ["not_yours", "That workspace was not started from this browser.", 403] as const;
-const NO_GRANT = [
-  "no_grant",
-  "Connect a wallet and sign once to use the agent. It costs no gas.",
-  401,
-] as const;
+const NO_GRANT = ["no_grant", "Sign in with your email to use the agent.", 401] as const;
 
 function runnerConfig() {
   const e = process.env;

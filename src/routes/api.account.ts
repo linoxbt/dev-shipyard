@@ -18,11 +18,7 @@ function fail(reason: string, message: string, status: number) {
   return Response.json({ ok: false, reason, message }, { status });
 }
 
-const NO_GRANT = [
-  "no_grant",
-  "Connect a wallet and sign once to manage your account. It costs no gas.",
-  401,
-] as const;
+const NO_GRANT = ["no_grant", "Sign in with your email to manage your account.", 401] as const;
 
 const bodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("unlink_github") }),

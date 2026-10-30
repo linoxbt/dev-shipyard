@@ -485,7 +485,7 @@ export function CodingAgentPage() {
     setPrepareNote(null);
     if (!project || dist || running || sending || localPlan.kind !== "build") return;
     if (!user) {
-      setPrepareNote("Connect a user to build this app's preview. It costs no gas.");
+      setPrepareNote("Sign in with your email to build this app's preview.");
       return;
     }
     if (project.workspaceId && !view) return; // still reading the workspace

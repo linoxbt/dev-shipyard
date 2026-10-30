@@ -29,7 +29,7 @@ export async function linkedGithub(request: Request, action = "do that"): Promis
     return {
       ok: false,
       reason: "no_grant",
-      message: `Connect a wallet and sign once to ${action}. It costs no gas.`,
+      message: `Sign in with your email to ${action}.`,
       status: 401,
     };
   }

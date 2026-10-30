@@ -35,8 +35,7 @@ export const Route = createFileRoute("/api/label-relay")({
 
       POST: async ({ request }) => {
         const owner = ownerOf(openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE)));
-        if (!owner)
-          return fail("no_grant", "Connect a wallet and sign once. It costs no gas.", 401);
+        if (!owner) return fail("no_grant", "Sign in with your email first.", 401);
         if (!(await checkRateLimit(`label-relay:${owner}`, PER_WALLET_LIMIT, WINDOW_MS))) {
           return fail("rate_limited", "Too many labels. Try again later.", 429);
         }
