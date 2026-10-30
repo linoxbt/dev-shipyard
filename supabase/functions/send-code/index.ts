@@ -3,31 +3,36 @@
 // POST { email } -> 200 { sent: true }
 //
 // Supabase makes the code (auth.admin.generateLink, which sends nothing) and
-// this function sends it through Resend, so the email's design lives in the
-// repository and no dashboard template, SMTP or Site URL setting is involved.
+// this function sends it from DevStation's Gmail account, so the email's
+// design lives in the repository and no dashboard template, SMTP or Site URL
+// setting is involved.
 // The browser then signs in with supabase.auth.verifyOtp({ type: "email" }).
 // A new address gets an account and the welcome email; a known one gets the
 // sign-in email.
 //
 // Secrets (Supabase > Edge Functions > Secrets):
-//   RESEND_API_KEY  required; without it the function answers 503
-//   EMAIL_FROM      optional, default "DevStation <onboarding@resend.dev>"
-//                   (Resend only delivers that sender to the Resend account's
-//                   own address; set one on a verified domain for everyone)
-//   SITE_URL        optional, default https://devstation-omega.vercel.app
+//   GMAIL_APP_PASSWORD  required; a Google App Password for GMAIL_USER
+//                       (Google Account > Security > App passwords). Without
+//                       it the function answers 503.
+//   GMAIL_USER          optional, default devstationlabs@gmail.com
+//   SITE_URL            optional, default https://devstation-omega.vercel.app
+//
+// Gmail sends a few hundred emails a day from one account; move to a sending
+// service on your own domain when sign-ups outgrow that.
 //
 // Floods are refused by public.claim_code_request: one code a minute and six
 // an hour per address, thirty an hour per IP.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import nodemailer from "npm:nodemailer@6.9.16";
 import { SIGN_IN, SIGN_UP } from "./templates.ts";
 
 const SITE_URL = (Deno.env.get("SITE_URL") ?? "https://devstation-omega.vercel.app").replace(
   /\/+$/,
   "",
 );
-const FROM = Deno.env.get("EMAIL_FROM") ?? "DevStation <onboarding@resend.dev>";
+const GMAIL_USER = Deno.env.get("GMAIL_USER") ?? "devstationlabs@gmail.com";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -70,8 +75,9 @@ Deno.serve(async (req) => {
     return reply(400, { message: "Enter a valid email address." });
   }
 
-  const resendKey = Deno.env.get("RESEND_API_KEY");
-  if (!resendKey) {
+  // Google shows App Passwords in groups of four: "abcd efgh ijkl mnop".
+  const gmailPassword = (Deno.env.get("GMAIL_APP_PASSWORD") ?? "").replace(/\s+/g, "");
+  if (!gmailPassword) {
     return reply(503, {
       code: "not_configured",
       message: "Sign-in emails are not set up on this deployment yet.",
@@ -130,19 +136,23 @@ Deno.serve(async (req) => {
       .replaceAll("{{ .Email }}", html ? escapeHtml(email) : email)
       .replaceAll("{{ .SiteURL }}", SITE_URL);
 
-  const sent = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: FROM,
-      to: [email],
+  // Port 465 (TLS from the start): edge functions may not use 25 or 587.
+  const mailer = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: { user: GMAIL_USER, pass: gmailPassword },
+  });
+  try {
+    await mailer.sendMail({
+      from: { name: "DevStation Labs", address: GMAIL_USER },
+      to: email,
       subject: template.subject,
       html: fill(template.html, true),
       text: fill(template.text, false),
-    }),
-  });
-  if (!sent.ok) {
-    console.error("resend", sent.status, await sent.text());
+    });
+  } catch (e) {
+    console.error("gmail", e instanceof Error ? e.message : String(e));
     return reply(502, { message: "The email could not be sent. Try again in a minute." });
   }
   return reply(200, { sent: true });
