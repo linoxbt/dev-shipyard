@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { EMAIL_TEMPLATES, functionTemplates } from "./email-templates";
+import { EMAIL_TEMPLATES } from "./email-templates";
 
 const byFile = Object.fromEntries(EMAIL_TEMPLATES.map((t) => [t.file, t]));
 
@@ -30,14 +30,6 @@ describe("Supabase email templates", () => {
     const dir = join(import.meta.dir, "..", "..", "..", "supabase", "templates");
     for (const t of EMAIL_TEMPLATES) {
       expect(readFileSync(join(dir, t.file), "utf8")).toBe(t.html);
-    }
-    const fn = join(dir, "..", "functions", "send-code", "templates.ts");
-    expect(readFileSync(fn, "utf8")).toBe(functionTemplates());
-  });
-
-  test("the code emails have a plain-text version with the code in it", () => {
-    for (const file of ["confirmation.html", "magic_link.html"]) {
-      expect(byFile[file].text).toContain("{{ .Token }}");
     }
   });
 });

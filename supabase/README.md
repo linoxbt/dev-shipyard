@@ -1,37 +1,34 @@
 # Supabase setup for DevStation
 
-DevStation signs people in with no password: they enter their email, we email
-a one-time code, and they type it in. The first code makes the account, and
-every later one signs them in.
+DevStation signs people in with no password, using Supabase only: they enter
+their email, Supabase emails them a one-time code, and they type it in. The
+first code makes the account, and every later one signs them in.
 
-## How the code email is sent
+## Email templates
 
-The app calls our edge function `send-code` (`functions/send-code/`). It asks
-Supabase for a code (`auth.admin.generateLink`, which sends nothing), then
-sends the DevStation Labs email itself from devstationlabs@gmail.com, through
-Gmail's mail server. So Supabase's dashboard email templates, SMTP settings and
-Site URL play no part in sign-in. Requests are rate limited in the database
-(`migrations/20261030170000_sign_in_code_rate_limit.sql`): one code a minute
-and six an hour per address, thirty an hour per IP.
+Supabase keeps its email templates in the project's dashboard. Under
+**Authentication → Emails → Templates**, open each template below, set its
+subject, switch the body to source (HTML) and replace it with the whole file:
 
-The function's secrets (Supabase > Edge Functions > Secrets):
+| Template             | Subject                           | Body                          |
+| -------------------- | --------------------------------- | ----------------------------- |
+| Confirm signup       | Your DevStation code              | `templates/confirmation.html` |
+| Magic Link           | Your DevStation sign-in code      | `templates/magic_link.html`   |
+| Invite user          | You are invited to DevStation     | `templates/invite.html`       |
+| Change Email Address | Confirm your new DevStation email | `templates/email_change.html` |
 
-| Secret               | Needed | What                                                                                                                                                                   |
-| -------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GMAIL_APP_PASSWORD` | yes    | A Google App Password for the sending account (Google Account > Security > 2-Step Verification on, then App passwords). Without it sign-in says emails are not set up. |
-| `GMAIL_USER`         | no     | The sending Gmail address. Default `devstationlabs@gmail.com`.                                                                                                         |
-| `SITE_URL`           | no     | Where the logo and links point. Default `https://devstation-omega.vercel.app`.                                                                                         |
+The first two carry the code (`{{ .Token }}`): Confirm signup goes to a new
+address, Magic Link to a known one. Supabase's default versions of those two
+send a link instead, which the app does not use.
 
-Gmail sends a few hundred emails a day from one account. When sign-ups outgrow
-that, move the function to a sending service on your own domain.
+To change the emails, edit `src/lib/auth/email-templates.ts` and run
+`bun scripts/email-templates.ts`; a unit test fails if the files here fall out
+of step.
 
-To change the emails, edit `src/lib/auth/email-templates.ts`, run
-`bun scripts/email-templates.ts`, and redeploy the function. A unit test fails
-if the generated files fall out of step.
+## Limits of Supabase's built-in email
 
-## Emails Supabase still sends itself
-
-An invite or a change of email (from the dashboard) still uses Supabase's own
-templates. Branded versions are in `templates/` (`invite.html`,
-`email_change.html`) for pasting under Authentication > Emails > Templates if
-you use those.
+Until the project has custom SMTP, Supabase's built-in sender only delivers to
+members of the project's Supabase organization (others get
+`email_address_not_authorized`) and sends a few emails an hour for the whole
+project (`over_email_send_rate_limit`). The app explains either one in plain
+words. Custom SMTP (Authentication → Emails → SMTP Settings) lifts both.

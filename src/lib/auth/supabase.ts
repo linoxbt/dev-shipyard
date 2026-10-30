@@ -30,12 +30,3 @@ export function supabase(): SupabaseClient | null {
 }
 
 export const supabaseConfigured = Boolean(URL && KEY);
-
-/** Call one of the project's edge functions (supabase/functions/). */
-export function callFunction(name: string, body: unknown): Promise<Response> {
-  return fetch(`${URL}/functions/v1/${name}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: KEY },
-    body: JSON.stringify(body),
-  });
-}
