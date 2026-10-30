@@ -848,8 +848,8 @@ export function CodingAgentPage() {
                 <>
                   <Dropdown
                     label="Start from"
-                    triggerClassName="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-foreground/85 transition hover:border-primary/40 hover:text-foreground"
-                    trigger={() => <Plus className="h-5 w-5" />}
+                    triggerClassName="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-foreground/85 transition hover:border-primary/40 hover:text-foreground"
+                    trigger={() => <Plus className="h-4 w-4" />}
                   >
                     {(close) => (
                       <>

@@ -185,13 +185,14 @@ export function Composer({
       title={dictation.listening ? "Stop dictation" : "Dictate"}
       aria-pressed={dictation.listening}
       className={cn(
-        "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition",
+        "flex shrink-0 items-center justify-center rounded-full transition",
+        hero ? "h-8 w-8" : "h-10 w-10",
         dictation.listening
           ? "bg-danger/15 text-danger"
           : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
       )}
     >
-      <Mic className="h-5 w-5" />
+      <Mic className={hero ? "h-4 w-4" : "h-5 w-5"} />
     </button>
   ) : null;
 
@@ -200,14 +201,14 @@ export function Composer({
       <div className="rounded-3xl border border-border bg-surface shadow-2xl shadow-black/25 transition focus-within:border-primary/50">
         {notice && <div className="border-b border-border px-5 py-2">{notice}</div>}
         {textarea}
-        <div className="flex items-center gap-2 px-3 pb-3 pt-2">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{tools}</div>
+        <div className="flex items-center gap-1.5 px-3 pb-2.5 pt-1.5">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{tools}</div>
           {network && (
             <span
-              className="hidden items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-[12.5px] text-muted-foreground sm:inline-flex"
+              className="hidden h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-[12px] text-muted-foreground sm:inline-flex"
               title="The network the agent uses when the work involves one. Change it in your workspace (bottom of the menu)."
             >
-              <Network className="h-4 w-4" /> {network}
+              <Network className="h-3.5 w-3.5" /> {network}
             </span>
           )}
           {trailing}
@@ -216,12 +217,12 @@ export function Composer({
             onClick={send}
             disabled={disabled}
             title="Send (Enter)"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition hover:bg-primary-hover disabled:bg-primary/20 disabled:text-primary-foreground/50"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition hover:bg-primary-hover disabled:bg-primary/20 disabled:text-primary-foreground/50"
           >
             {sending ? (
-              <LoaderCircle className="h-5 w-5 animate-spin" />
+              <LoaderCircle className="h-4 w-4 animate-spin" />
             ) : (
-              <ArrowUp className="h-5 w-5" />
+              <ArrowUp className="h-4 w-4" />
             )}
           </button>
         </div>
@@ -285,14 +286,14 @@ export function ToolChip({
       {...(as === "button" ? { type: "button" as const, onClick } : {})}
       title={title}
       className={cn(
-        "inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-[12.5px] transition",
-        !children && "w-10 justify-center px-0",
+        "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 text-[12px] transition",
+        !children && "w-8 justify-center px-0",
         active
           ? "border-primary/50 bg-primary/10 text-primary"
           : "border-border text-foreground/85 hover:border-primary/40 hover:text-foreground",
       )}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-3.5 w-3.5" />
       {children}
     </Tag>
   );

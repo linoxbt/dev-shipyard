@@ -138,10 +138,10 @@ export function ModelButton({
       title="Select model"
       className={cn(
         "inline-flex shrink-0 items-center gap-2 border border-border text-foreground/90 transition hover:border-primary/40 hover:text-foreground",
-        compact ? "h-8 rounded-full px-3 text-[11.5px]" : "h-10 rounded-xl px-3 text-[13px]",
+        compact ? "h-8 rounded-full px-3 text-[11.5px]" : "h-8 rounded-lg px-2.5 text-[12px]",
       )}
     >
-      <Icon className={compact ? "h-3.5 w-3.5" : "h-[18px] w-[18px]"} />
+      <Icon className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
       {modelLabel(value)}
     </button>
   );
@@ -164,12 +164,12 @@ export function ModeButton({
       title="Build or plan first"
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 border border-border text-foreground/90 transition hover:border-primary/40 hover:text-foreground",
-        compact ? "h-8 rounded-full px-3 text-[11.5px]" : "h-10 rounded-xl px-3.5 text-[13.5px]",
+        compact ? "h-8 rounded-full px-3 text-[11.5px]" : "h-8 rounded-lg px-2.5 text-[12px]",
         value === "plan" && "border-primary/50 text-primary",
       )}
     >
       {value === "plan" ? "Plan" : "Build"}
-      <ChevronDown className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+      <ChevronDown className="h-3.5 w-3.5" />
     </button>
   );
 }
