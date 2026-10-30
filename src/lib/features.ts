@@ -6,8 +6,8 @@ import { isPassthrough } from "@/lib/site-hosts";
 // The app is currently shipped as the Coding Agent alone. Every other feature
 // (the explorer, analytics, the dashboard, the marketplace, the contract
 // editor, deploys, the routebook, settings and the rest of the docs) is still
-// in the code base, untouched, but switched off: its pages redirect to the
-// Coding Agent and nothing links to them.
+// in the code base, untouched, but switched off: its pages are not found and
+// nothing links to them. Nothing redirects; the agent has one address, "/".
 //
 // The agent is served at "/", with no landing page in front of it, the way
 // builder apps like Base44 and Muse open straight into the product.
@@ -29,9 +29,8 @@ export function servedInAgentOnly(pathname: string): boolean {
   return pathname === "/" || isPassthrough(pathname) || DOCS_KEPT.some((re) => re.test(pathname));
 }
 
-/** Where to send `pathname`, or null to serve it. Everything else, the
- *  agent's old address included, goes to the agent at "/". */
-export function agentOnlyRedirect(pathname: string, enabled = CODING_AGENT_ONLY): string | null {
-  if (!enabled || servedInAgentOnly(pathname)) return null;
-  return "/";
+/** Whether `pathname` is a page this deployment does not serve. Such a page
+ *  is simply not found: nothing redirects, so the agent has one address, "/". */
+export function switchedOff(pathname: string, enabled = CODING_AGENT_ONLY): boolean {
+  return enabled && !servedInAgentOnly(pathname);
 }

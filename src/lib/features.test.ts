@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { agentOnlyRedirect } from "./features";
+import { switchedOff } from "./features";
 
-describe("agentOnlyRedirect", () => {
-  it("opens the app at the agent, with no landing page in front", () => {
-    expect(agentOnlyRedirect("/", true)).toBeNull();
+describe("switchedOff", () => {
+  it("serves the agent at / and nowhere else", () => {
+    expect(switchedOff("/", true)).toBe(false);
+    expect(switchedOff("/launchkit/coding-agent", true)).toBe(true);
   });
 
-  it("sends every other page, and the agent's old address, to the agent at /", () => {
+  it("switches off every other page: not found, not forwarded", () => {
     for (const p of [
-      "/launchkit/coding-agent",
       "/overview",
       "/explorer/mainnet",
       "/launchkit/marketplace",
@@ -16,7 +16,7 @@ describe("agentOnlyRedirect", () => {
       "/docs",
       "/docs/labels",
     ]) {
-      expect(agentOnlyRedirect(p, true)).toBe("/");
+      expect(switchedOff(p, true)).toBe(true);
     }
   });
 
@@ -30,11 +30,12 @@ describe("agentOnlyRedirect", () => {
       "/install.sh",
       "/favicon.svg",
     ]) {
-      expect(agentOnlyRedirect(p, true)).toBeNull();
+      expect(switchedOff(p, true)).toBe(false);
     }
   });
 
-  it("does nothing when the switch is off", () => {
-    expect(agentOnlyRedirect("/overview", false)).toBeNull();
+  it("switches nothing off when every feature is on", () => {
+    expect(switchedOff("/overview", false)).toBe(false);
+    expect(switchedOff("/launchkit/coding-agent", false)).toBe(false);
   });
 });

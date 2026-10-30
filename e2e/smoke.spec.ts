@@ -70,7 +70,7 @@ test("security headers are on every page", async ({ request }) => {
 });
 
 test("a same-origin POST reaches its route; a cross-site one does not", async ({ page }) => {
-  await page.goto("/docs");
+  await page.goto("/docs/coding-agent");
   const statuses = await page.evaluate(async () => {
     const own = await fetch("/api/ai", {
       method: "POST",
@@ -94,17 +94,21 @@ test("cross-site POSTs are refused before any route runs", async ({ request }) =
 
 test("with only the Coding Agent on, the app opens straight into it", async ({ page }) => {
   test.skip(!AGENT_ONLY, "the full app has a landing page");
-  await page.goto("/", { waitUntil: "networkidle" });
+  const home = await page.goto("/", { waitUntil: "networkidle" });
+  expect(home?.status()).toBe(200);
   await expect(page.getByText("What will you build next?")).toBeVisible();
-  for (const path of ["/overview", "/launchkit/marketplace", "/settings", "/docs"]) {
-    await page.goto(path, { waitUntil: "domcontentloaded" });
-    expect(new URL(page.url()).pathname, path).toBe("/");
+  // Every other page, the agent's old address included, does not exist.
+  // Nothing forwards anywhere: the address stays what was asked for.
+  for (const path of [
+    "/launchkit/coding-agent",
+    "/overview",
+    "/launchkit/marketplace",
+    "/settings",
+  ]) {
+    const res = await page.goto(path, { waitUntil: "domcontentloaded" });
+    expect(res?.status(), path).toBe(404);
+    expect(new URL(page.url()).pathname, path).toBe(path);
   }
-  // An invite link to the agent's old address keeps its meaning.
-  await page.goto("/launchkit/coding-agent?join=abc&name=x", { waitUntil: "domcontentloaded" });
-  const url = new URL(page.url());
-  expect(url.pathname).toBe("/");
-  expect(url.searchParams.get("join")).toBe("abc");
 });
 
 test("the editor compiles an OpenZeppelin contract with verified sources", async ({ page }) => {
