@@ -94,20 +94,20 @@ export function MenuItem({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition disabled:pointer-events-none disabled:opacity-40",
+        "flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[12px] transition disabled:pointer-events-none disabled:opacity-40",
         danger ? "text-danger hover:bg-danger/10" : "text-foreground hover:bg-surface-2",
       )}
     >
       {Icon && <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
       <span className="min-w-0 flex-1 truncate">{children}</span>
-      {hint && <span className="shrink-0 font-mono text-[10px] text-meta">{hint}</span>}
+      {hint && <span className="shrink-0 font-mono text-[9px] text-meta">{hint}</span>}
     </button>
   );
 }
 
 export function MenuLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="px-2.5 pb-1 pt-2 font-mono text-[10px] uppercase tracking-wider text-meta">
+    <p className="px-2.5 pb-1 pt-2 font-mono text-[9px] uppercase tracking-wider text-meta">
       {children}
     </p>
   );
@@ -162,7 +162,7 @@ export function Modal({
         {title && (
           <div className="flex items-center gap-2.5 px-5 pb-1 pt-3 sm:pt-5">
             {Icon && <Icon className="h-4 w-4 text-primary" />}
-            <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-foreground">
+            <p className="min-w-0 flex-1 truncate text-[14px] font-semibold text-foreground">
               {title}
             </p>
             <button
@@ -205,13 +205,13 @@ export function SheetRow({
       <Icon className={cn("h-5 w-5 shrink-0", danger ? "text-danger" : "text-foreground/80")} />
       <span
         className={cn(
-          "min-w-0 flex-1 truncate text-[15px]",
+          "min-w-0 flex-1 truncate text-[14px]",
           danger ? "text-danger" : "text-foreground",
         )}
       >
         {children}
       </span>
-      {detail && <span className="shrink-0 text-[12.5px] text-meta">{detail}</span>}
+      {detail && <span className="shrink-0 text-[11.5px] text-meta">{detail}</span>}
       {chevron && <ChevronRight className="h-4 w-4 shrink-0 text-meta" />}
     </>
   );
@@ -317,7 +317,7 @@ export function Segmented<T extends string>({
           >
             {Icon && <Icon className="h-3.5 w-3.5" />}
             {!o.hideLabel && (
-              <span className={cn("text-[12px]", Icon && "hidden sm:inline")}>{o.label}</span>
+              <span className={cn("text-[11px]", Icon && "hidden sm:inline")}>{o.label}</span>
             )}
             {o.badge}
           </button>
@@ -330,7 +330,7 @@ export function Segmented<T extends string>({
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-meta">
+      <span className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-meta">
         {label}
       </span>
       {children}
@@ -339,10 +339,10 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 export const inputClass =
-  "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none";
+  "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[12px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none";
 
 export const primaryButton =
-  "inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[13px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-40";
+  "inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-40";
 
 export const ghostButton =
-  "inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition hover:bg-surface-2 hover:text-foreground disabled:opacity-40";
+  "inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[12px] text-muted-foreground transition hover:bg-surface-2 hover:text-foreground disabled:opacity-40";

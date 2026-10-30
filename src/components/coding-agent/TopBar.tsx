@@ -65,10 +65,10 @@ export function TopBar({
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-3">
         <RoundButton onClick={onMenu} label="Menu" icon={Menu} />
         <div className="min-w-0 flex-1 text-center">
-          <p className="truncate text-[15px] font-semibold text-foreground">{project.name}</p>
+          <p className="truncate text-[14px] font-semibold text-foreground">{project.name}</p>
           <p
             className={cn(
-              "truncate text-[11.5px]",
+              "truncate text-[10.5px]",
               running ? "text-primary" : "text-muted-foreground",
             )}
           >
@@ -99,8 +99,8 @@ export function TopBar({
         {chatOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
       </button>
       <div className="min-w-0 max-w-[18rem]">
-        <p className="truncate text-[14.5px] font-semibold text-foreground">{project.name}</p>
-        <p className={cn("truncate text-[11.5px]", running ? "text-primary" : "text-meta")}>
+        <p className="truncate text-[13.5px] font-semibold text-foreground">{project.name}</p>
+        <p className={cn("truncate text-[10.5px]", running ? "text-primary" : "text-meta")}>
           {subtitle}
         </p>
       </div>
@@ -186,7 +186,7 @@ export function TabBar({
             <Icon
               className={cn("h-6 w-6", active && it.id === "chat" && "[&_path]:fill-current")}
             />
-            <span className="text-[10px]">{it.label}</span>
+            <span className="text-[9px]">{it.label}</span>
             {busy && <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />}
           </button>
         );
@@ -197,7 +197,7 @@ export function TabBar({
         className="flex h-11 w-14 flex-col items-center justify-center gap-0.5 rounded-2xl text-meta hover:text-muted-foreground"
       >
         <Menu className="h-6 w-6" />
-        <span className="text-[10px]">More</span>
+        <span className="text-[9px]">More</span>
       </button>
     </nav>
   );

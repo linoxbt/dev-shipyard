@@ -74,7 +74,7 @@ export function ProjectThumb({ project, className }: { project: AppProject; clas
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-surface text-muted-foreground shadow-sm">
             <Icon className="h-5 w-5" />
           </span>
-          <span className="font-mono text-[11px] text-meta">
+          <span className="font-mono text-[10px] text-meta">
             {project.source?.repo ?? `${files} file${files === 1 ? "" : "s"}`}
           </span>
         </div>

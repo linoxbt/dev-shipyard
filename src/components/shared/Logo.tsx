@@ -1,32 +1,20 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import logoMark from "@/assets/logo-mark.png";
 
-// DevStation brand mark: a terminal prompt chevron + caret inside a rounded
-// square, in the amber primary with a teal underscore. Pure SVG so it
-// scales crisply and inherits theme colors.
+// DevStation brand mark: the hexagonal ribbon "D" on a black rounded tile.
+// A raster of the supplied artwork (src/assets/logo-mark.png, 192px, rounded
+// corners already transparent), shown at most 64px wide, so it stays sharp.
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 32 32"
-      className={cn("h-7 w-7", className)}
-      role="img"
-      aria-label="DevStation"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect x="1.5" y="1.5" width="29" height="29" rx="6" fill="#e67e22" fillOpacity="0.12" />
-      <rect x="1.5" y="1.5" width="29" height="29" rx="6" stroke="#e67e22" strokeWidth="1.5" />
-      {/* prompt chevron > */}
-      <path
-        d="M9 11.5L13.5 16L9 20.5"
-        stroke="#e67e22"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* blinking caret underscore in teal */}
-      <path d="M16.5 21.5H23" stroke="#1294a9" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
+    <img
+      src={logoMark}
+      alt="DevStation"
+      width={28}
+      height={28}
+      draggable={false}
+      className={cn("h-7 w-7 shrink-0 select-none", className)}
+    />
   );
 }
 

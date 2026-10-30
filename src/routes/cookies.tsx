@@ -72,21 +72,21 @@ function CookiePolicy() {
   return (
     <div className="min-h-dvh bg-background">
       <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-8">
-        <a href="/" className="flex items-center gap-2 text-[15px] font-semibold text-foreground">
+        <a href="/" className="flex items-center gap-2 text-[14px] font-semibold text-foreground">
           <LogoMark className="h-7 w-7" /> DevStation
         </a>
         <a
           href="/"
-          className="inline-flex items-center gap-1.5 text-[13.5px] text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" /> Back to the app
         </a>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-10 sm:px-8">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Cookie policy</h1>
-        <p className="mt-2 text-[13px] text-meta">Last updated 30 October 2026</p>
+        <h1 className="text-[29px] font-semibold tracking-tight text-foreground">Cookie policy</h1>
+        <p className="mt-2 text-[12px] text-meta">Last updated 30 October 2026</p>
 
-        <div className="mt-8 space-y-4 text-[15px] leading-7 text-muted-foreground">
+        <div className="mt-8 space-y-4 text-[14px] leading-7 text-muted-foreground">
           <p>
             DevStation keeps a small amount of information in your browser: cookies, which are sent
             to our server, and local storage, which stays in your browser. This page lists all of
@@ -112,15 +112,15 @@ function CookiePolicy() {
           rows={PREFERENCES}
         />
 
-        <h2 className="mt-12 text-xl font-semibold text-foreground">Changing your choice</h2>
-        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
+        <h2 className="mt-12 text-[19px] font-semibold text-foreground">Changing your choice</h2>
+        <p className="mt-3 text-[14px] leading-7 text-muted-foreground">
           You can change it at any time, here or from Cookie preferences in your account menu.
           Clearing this site's data in your browser removes everything above, including the projects
           stored in it.
         </p>
         <button
           onClick={() => manage(true)}
-          className="mt-4 rounded-full bg-primary px-5 py-2.5 text-[14px] font-medium text-primary-foreground hover:bg-primary-hover"
+          className="mt-4 rounded-full bg-primary px-5 py-2.5 text-[13px] font-medium text-primary-foreground hover:bg-primary-hover"
         >
           Cookie preferences
         </button>
@@ -140,18 +140,18 @@ function Section({
 }) {
   return (
     <section className="mt-12">
-      <h2 className="text-xl font-semibold text-foreground">{title}</h2>
-      <p className="mt-2 text-[15px] leading-7 text-muted-foreground">{text}</p>
+      <h2 className="text-[19px] font-semibold text-foreground">{title}</h2>
+      <p className="mt-2 text-[14px] leading-7 text-muted-foreground">{text}</p>
       <div className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border">
         {rows.map(([name, kind, purpose, lasts]) => (
           <div key={name} className="grid gap-1 bg-surface px-4 py-3 sm:grid-cols-[1fr_2fr]">
             <div>
-              <p className="break-words font-mono text-[12.5px] text-foreground">{name}</p>
-              <p className="text-[12px] text-meta">{kind}</p>
+              <p className="break-words font-mono text-[11.5px] text-foreground">{name}</p>
+              <p className="text-[11px] text-meta">{kind}</p>
             </div>
             <div>
-              <p className="text-[14px] leading-6 text-foreground/90">{purpose}</p>
-              <p className="text-[12.5px] text-meta">Lasts: {lasts}</p>
+              <p className="text-[13px] leading-6 text-foreground/90">{purpose}</p>
+              <p className="text-[11.5px] text-meta">Lasts: {lasts}</p>
             </div>
           </div>
         ))}

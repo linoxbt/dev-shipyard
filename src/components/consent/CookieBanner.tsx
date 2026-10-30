@@ -25,7 +25,7 @@ export function CookieBanner() {
       className="fixed inset-x-0 bottom-0 z-[70] sm:bottom-4 sm:left-4 sm:right-auto sm:max-w-md"
     >
       <div className="ds-sheet rounded-t-[28px] border border-black/10 bg-white px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-6 text-[#3f3f46] shadow-2xl shadow-black/40 sm:rounded-[24px] sm:pb-6">
-        <p className="text-[15.5px] leading-7">
+        <p className="text-[14.5px] leading-7">
           We use cookies to enhance your experience. By clicking "Accept," you consent to the use of
           all cookies. Learn more in our{" "}
           <a href="/cookies" className="font-medium text-[#b45309] underline underline-offset-2">
@@ -48,7 +48,7 @@ export function CookieBanner() {
               checked={prefs}
               onChange={setPrefs}
             />
-            <p className="text-[12.5px] leading-5 text-[#71717a]">
+            <p className="text-[11.5px] leading-5 text-[#71717a]">
               DevStation uses no analytics, advertising or tracking cookies.
             </p>
           </div>
@@ -59,13 +59,13 @@ export function CookieBanner() {
             <>
               <button
                 onClick={() => manage(false)}
-                className="rounded-lg border border-[#d4d4d8] py-2.5 text-[15px] font-semibold text-[#18181b] hover:bg-[#f4f4f5]"
+                className="rounded-lg border border-[#d4d4d8] py-2.5 text-[14px] font-semibold text-[#18181b] hover:bg-[#f4f4f5]"
               >
                 Cancel
               </button>
               <button
                 onClick={() => decide(prefs)}
-                className="rounded-lg bg-[#18181b] py-2.5 text-[15px] font-semibold text-white hover:bg-black"
+                className="rounded-lg bg-[#18181b] py-2.5 text-[14px] font-semibold text-white hover:bg-black"
               >
                 Save choices
               </button>
@@ -74,13 +74,13 @@ export function CookieBanner() {
             <>
               <button
                 onClick={() => decide(true)}
-                className="rounded-lg bg-[#18181b] py-2.5 text-[15px] font-semibold text-white hover:bg-black"
+                className="rounded-lg bg-[#18181b] py-2.5 text-[14px] font-semibold text-white hover:bg-black"
               >
                 Accept all
               </button>
               <button
                 onClick={() => decide(false)}
-                className="rounded-lg bg-[#18181b] py-2.5 text-[15px] font-semibold text-white hover:bg-black"
+                className="rounded-lg bg-[#18181b] py-2.5 text-[14px] font-semibold text-white hover:bg-black"
               >
                 Reject all
               </button>
@@ -90,7 +90,7 @@ export function CookieBanner() {
         {!managing && (
           <button
             onClick={() => manage(true)}
-            className="mx-auto mt-3 block text-[15px] font-semibold text-[#52525b] hover:text-[#18181b]"
+            className="mx-auto mt-3 block text-[14px] font-semibold text-[#52525b] hover:text-[#18181b]"
           >
             Manage preferences
           </button>
@@ -116,8 +116,8 @@ function Toggle({
   return (
     <label className={cn("flex items-start gap-3", disabled ? "cursor-default" : "cursor-pointer")}>
       <span className="min-w-0 flex-1">
-        <span className="block text-[14.5px] font-semibold text-[#18181b]">{title}</span>
-        <span className="block text-[13px] leading-5 text-[#52525b]">{text}</span>
+        <span className="block text-[13.5px] font-semibold text-[#18181b]">{title}</span>
+        <span className="block text-[12px] leading-5 text-[#52525b]">{text}</span>
       </span>
       <button
         type="button"

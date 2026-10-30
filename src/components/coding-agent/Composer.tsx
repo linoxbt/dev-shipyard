@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowUp, LoaderCircle, Mic, Network, Square } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 // The message box, in two shapes.
@@ -24,10 +25,21 @@ interface Recognition {
   lang: string;
   onresult: ((e: SpeechResultEvent) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((e: { error?: string }) => void) | null;
   start: () => void;
   stop: () => void;
 }
+
+/** What a failed dictation means, in words. "aborted" (stopped on purpose)
+ *  needs none. */
+const DICTATION_ERRORS: Record<string, string> = {
+  "not-allowed":
+    "Microphone access is blocked. Allow it for this site in your browser's settings, then try again.",
+  "service-not-allowed": "Your browser does not allow dictation here.",
+  "audio-capture": "No microphone was found.",
+  "no-speech": "Nothing was heard. Tap the microphone and speak.",
+  network: "Dictation needs your browser's speech service, which could not be reached.",
+};
 
 function recognitionClass(): (new () => Recognition) | null {
   if (typeof window === "undefined") return null;
@@ -58,7 +70,9 @@ function useDictation(value: string, onChange: (v: string) => void) {
     const Ctor = recognitionClass();
     if (!Ctor) return;
     const r = new Ctor();
-    r.continuous = true;
+    // Phones stop after one phrase anyway, and Chrome on Android repeats
+    // itself in continuous mode; a desktop keeps listening until stopped.
+    r.continuous = !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
     r.interimResults = true;
     r.lang = navigator.language || "en-US";
     base.current = value ? `${value.trimEnd()} ` : "";
@@ -73,10 +87,18 @@ function useDictation(value: string, onChange: (v: string) => void) {
       latest.current(`${base.current}${finalText}${interim}`);
     };
     r.onend = () => setListening(false);
-    r.onerror = () => setListening(false);
+    r.onerror = (e) => {
+      setListening(false);
+      const why = DICTATION_ERRORS[e.error ?? ""];
+      if (why) toast.error(why);
+    };
     rec.current = r;
-    r.start();
-    setListening(true);
+    try {
+      r.start();
+      setListening(true);
+    } catch {
+      toast.error("Dictation could not start. Try again.");
+    }
   };
   return { supported, listening, toggle };
 }
@@ -151,8 +173,8 @@ export function Composer({
       className={cn(
         "block w-full resize-none bg-transparent text-foreground placeholder:text-meta focus:outline-none",
         hero
-          ? "min-h-[6rem] px-5 pt-5 text-[16px] leading-7"
-          : "max-h-[200px] py-2.5 text-[15px] leading-6",
+          ? "min-h-[6rem] px-5 pt-5 text-[15px] leading-7"
+          : "max-h-[200px] py-2.5 text-[14px] leading-6",
       )}
     />
   );
@@ -182,7 +204,7 @@ export function Composer({
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{tools}</div>
           {network && (
             <span
-              className="hidden items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-[13.5px] text-muted-foreground sm:inline-flex"
+              className="hidden items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-[12.5px] text-muted-foreground sm:inline-flex"
               title="The network the agent uses when the work involves one. Change it in your workspace (bottom of the menu)."
             >
               <Network className="h-4 w-4" /> {network}
@@ -263,7 +285,7 @@ export function ToolChip({
       {...(as === "button" ? { type: "button" as const, onClick } : {})}
       title={title}
       className={cn(
-        "inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-[13.5px] transition",
+        "inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-[12.5px] transition",
         !children && "w-10 justify-center px-0",
         active
           ? "border-primary/50 bg-primary/10 text-primary"

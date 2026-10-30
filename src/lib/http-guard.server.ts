@@ -114,8 +114,12 @@ export const SECURITY_HEADERS: Record<string, string> = {
   "x-frame-options": "DENY",
   "x-content-type-options": "nosniff",
   "referrer-policy": "strict-origin-when-cross-origin",
+  // The microphone is allowed for DevStation's own pages, and only those:
+  // dictation in the Coding Agent's message box needs it. "()" blocked it
+  // for the whole site, so the button could never start. App previews run
+  // in a sandboxed frame on an opaque origin and still get none of these.
   "permissions-policy":
-    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+    "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()",
   "strict-transport-security": "max-age=63072000; includeSubDomains",
 };
 

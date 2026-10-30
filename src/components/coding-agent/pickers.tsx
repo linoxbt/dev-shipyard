@@ -49,8 +49,8 @@ export function ModeSheet({
               className="flex w-full items-center gap-4 rounded-xl px-2 py-3.5 text-left hover:bg-surface-2"
             >
               <span className="min-w-0 flex-1">
-                <span className="block text-[17px] text-foreground">{m.label}</span>
-                <span className="block text-[14.5px] text-muted-foreground">{m.blurb}</span>
+                <span className="block text-[16px] text-foreground">{m.label}</span>
+                <span className="block text-[13.5px] text-muted-foreground">{m.blurb}</span>
               </span>
               {value === m.id && <Check className="h-5 w-5 shrink-0 text-foreground" />}
             </button>
@@ -90,7 +90,7 @@ export function ModelSheet({
       )}
     >
       <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 flex-1 text-[16px] text-foreground">{label}</span>
+      <span className="min-w-0 flex-1 text-[15px] text-foreground">{label}</span>
       {value === id && <Check className="h-5 w-5 shrink-0 text-foreground" />}
     </button>
   );
@@ -103,7 +103,7 @@ export function ModelSheet({
         <button
           onClick={() => setMore((v) => !v)}
           aria-expanded={more}
-          className="flex w-full items-center justify-between rounded-xl bg-surface-2 px-3 py-2.5 text-[16px] text-foreground"
+          className="flex w-full items-center justify-between rounded-xl bg-surface-2 px-3 py-2.5 text-[15px] text-foreground"
         >
           More models
           <ChevronDown className={cn("h-4 w-4 transition", more && "rotate-180")} />
@@ -112,7 +112,7 @@ export function ModelSheet({
           AGENT_MODELS.filter((m) => m.more).map((m) =>
             row(m.id, m.label, FAMILY_ICON[m.family], true),
           )}
-        <p className="mt-3 px-2 text-[12px] leading-5 text-meta">
+        <p className="mt-3 px-2 text-[11px] leading-5 text-meta">
           Auto uses the agent's default. A model the server has no key for says so when you send.
         </p>
       </div>
@@ -138,7 +138,7 @@ export function ModelButton({
       title="Select model"
       className={cn(
         "inline-flex shrink-0 items-center gap-2 border border-border text-foreground/90 transition hover:border-primary/40 hover:text-foreground",
-        compact ? "h-8 rounded-full px-3 text-[12.5px]" : "h-10 rounded-xl px-3 text-[14px]",
+        compact ? "h-8 rounded-full px-3 text-[11.5px]" : "h-10 rounded-xl px-3 text-[13px]",
       )}
     >
       <Icon className={compact ? "h-3.5 w-3.5" : "h-[18px] w-[18px]"} />
@@ -164,7 +164,7 @@ export function ModeButton({
       title="Build or plan first"
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 border border-border text-foreground/90 transition hover:border-primary/40 hover:text-foreground",
-        compact ? "h-8 rounded-full px-3 text-[12.5px]" : "h-10 rounded-xl px-3.5 text-[14.5px]",
+        compact ? "h-8 rounded-full px-3 text-[11.5px]" : "h-10 rounded-xl px-3.5 text-[13.5px]",
         value === "plan" && "border-primary/50 text-primary",
       )}
     >

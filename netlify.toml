@@ -62,8 +62,10 @@
     content-security-policy = "frame-ancestors 'none'"
     x-frame-options = "DENY"
     referrer-policy = "strict-origin-when-cross-origin"
-    # No page here uses a camera, microphone, geolocation or payment handler.
-    permissions-policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+    # No page here uses a camera, geolocation or payment handler. The
+    # microphone is for DevStation's own pages only: dictation in the Coding
+    # Agent (keep in step with src/lib/http-guard.server.ts).
+    permissions-policy = "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()"
     x-content-type-options = "nosniff"
     strict-transport-security = "max-age=31536000; includeSubDomains"
 

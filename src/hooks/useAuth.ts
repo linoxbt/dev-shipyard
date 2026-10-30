@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { Session } from "@supabase/supabase-js";
 import { setGrantSession } from "@/lib/agent-access/grant";
 import { supabase, supabaseConfigured } from "@/lib/auth/supabase";
+import { useTheme } from "@/lib/theme";
 
 // Who is signed in, for the whole app.
 //
@@ -12,8 +13,10 @@ import { supabase, supabaseConfigured } from "@/lib/auth/supabase";
 export interface Account {
   id: string;
   email: string;
-  /** What they asked to be called when they signed up. */
+  /** What they asked to be called, chosen right after signing up. */
   name: string | null;
+  /** The theme they picked, kept with the account so it follows them. */
+  theme: "light" | "dark" | null;
 }
 
 interface AuthState {
@@ -23,7 +26,9 @@ interface AuthState {
   /** Arrived from a password reset email: show "choose a new password". */
   recovering: boolean;
   init: () => void;
-  signUp: (name: string, email: string, password: string) => Promise<string | null>;
+  signUp: (email: string, password: string) => Promise<string | null>;
+  /** Save the name and/or theme on the account. */
+  updateProfile: (patch: { name?: string; theme?: "light" | "dark" }) => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<string | null>;
   resetPassword: (email: string) => Promise<string | null>;
   updatePassword: (password: string) => Promise<string | null>;
@@ -34,10 +39,12 @@ function accountOf(session: Session | null): Account | null {
   const user = session?.user;
   if (!user?.email) return null;
   const raw = user.user_metadata?.full_name ?? user.user_metadata?.name;
+  const theme = user.user_metadata?.theme;
   return {
     id: user.id,
     email: user.email,
     name: typeof raw === "string" && raw.trim() ? raw.trim() : null,
+    theme: theme === "light" || theme === "dark" ? theme : null,
   };
 }
 
@@ -80,6 +87,10 @@ export const useAuth = create<AuthState>((set) => ({
     const apply = (session: Session | null) => {
       const account = accountOf(session);
       set({ account, ready: true });
+      // The account's theme wins over this browser's: it is what they chose.
+      if (account?.theme && useTheme.getState().theme !== account.theme) {
+        useTheme.getState().setTheme(account.theme);
+      }
       setGrantSession(
         account
           ? async () => (await sb.auth.getSession()).data.session?.access_token ?? null
@@ -97,18 +108,41 @@ export const useAuth = create<AuthState>((set) => ({
     });
   },
 
-  signUp: async (name, email, password) => {
+  signUp: async (email, password) => {
     const sb = supabase();
     if (!sb) return "Email sign-in is not set up on this deployment.";
+    // Just the email and a password: the name and theme are asked for once
+    // they are in (WelcomeSheet).
     const { error } = await sb.auth.signUp({
       email,
       password,
-      options: {
-        data: { full_name: name.trim() },
-        emailRedirectTo: `${window.location.origin}/`,
-      },
+      options: { emailRedirectTo: `${window.location.origin}/` },
     });
     return message(error);
+  },
+
+  updateProfile: async (patch) => {
+    const sb = supabase();
+    if (!sb) return "Email sign-in is not set up on this deployment.";
+    const data: Record<string, string> = {};
+    if (patch.name !== undefined) data.full_name = patch.name.trim().slice(0, 80);
+    if (patch.theme) data.theme = patch.theme;
+    const { data: updated, error } = await sb.auth.updateUser({ data });
+    if (error) return message(error);
+    if (updated.user) {
+      set((state) =>
+        state.account
+          ? {
+              account: {
+                ...state.account,
+                ...(data.full_name !== undefined ? { name: data.full_name || null } : {}),
+                ...(patch.theme ? { theme: patch.theme } : {}),
+              },
+            }
+          : state,
+      );
+    }
+    return null;
   },
 
   signIn: async (email, password) => {

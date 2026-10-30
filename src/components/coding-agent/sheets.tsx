@@ -19,6 +19,7 @@ import {
   Sun,
   Terminal,
   Trash2,
+  UserRound,
   Users,
 } from "lucide-react";
 import { NetworkSelector } from "@/components/web3/NetworkSelector";
@@ -70,8 +71,8 @@ function Meter({
   return (
     <div className="py-3">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[14.5px] text-foreground">{label}</span>
-        <span className="font-mono text-[12.5px] text-muted-foreground">{text}</span>
+        <span className="text-[13.5px] text-foreground">{label}</span>
+        <span className="font-mono text-[11.5px] text-muted-foreground">{text}</span>
       </div>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border">
         <div
@@ -87,15 +88,18 @@ export function AccountSheet({
   projects,
   usage,
   onSignIn,
+  onEditName,
   onClose,
 }: {
   projects: AppProject[];
   /** The open project's agent work, when one is open. */
   usage?: { steps: number; costUsd: number } | null;
   onSignIn: () => void;
+  onEditName: () => void;
   onClose: () => void;
 }) {
   const account = useAuth((s) => s.account);
+  const updateProfile = useAuth((s) => s.updateProfile);
   const signOut = useAuth((s) => s.signOut);
   const manageCookies = useConsent((s) => s.manage);
   const theme = useTheme((s) => s.theme);
@@ -106,16 +110,16 @@ export function AccountSheet({
   return (
     <Modal onClose={onClose}>
       <div className="flex items-center gap-3 border-b border-border pb-4">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-[16px] font-semibold text-foreground/85">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-[15px] font-semibold text-foreground/85">
           {account ? initials(account) : "DS"}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[16.5px] font-semibold text-foreground">
+          <p className="truncate text-[15.5px] font-semibold text-foreground">
             {account
               ? `${account.name ?? account.email.split("@")[0]}'s Workspace`
               : "Your workspace"}
           </p>
-          <p className="truncate text-[13.5px] text-muted-foreground">
+          <p className="truncate text-[12.5px] text-muted-foreground">
             {plural(projects.length, "project")} · {account ? account.email : "not signed in"}
           </p>
         </div>
@@ -139,15 +143,15 @@ export function AccountSheet({
           <>
             <div className="border-t border-border" />
             <div className="flex items-center justify-between py-3">
-              <span className="text-[14.5px] text-foreground">This project</span>
-              <span className="font-mono text-[12.5px] text-muted-foreground">
+              <span className="text-[13.5px] text-foreground">This project</span>
+              <span className="font-mono text-[11.5px] text-muted-foreground">
                 {usage.steps} steps · ~${usage.costUsd.toFixed(2)}
               </span>
             </div>
           </>
         )}
       </div>
-      <p className="mt-2 px-1 text-[12px] leading-5 text-meta">
+      <p className="mt-2 px-1 text-[11px] leading-5 text-meta">
         Projects live in this browser. Push to GitHub or download one to keep a copy elsewhere.
       </p>
 
@@ -157,21 +161,37 @@ export function AccountSheet({
             onClose();
             onSignIn();
           }}
-          className="mt-4 w-full rounded-xl border border-primary py-2.5 text-[15px] font-medium text-primary transition hover:bg-primary/10"
+          className="mt-4 w-full rounded-xl border border-primary py-2.5 text-[14px] font-medium text-primary transition hover:bg-primary/10"
         >
           Sign in or create an account
         </button>
       )}
 
-      <p className="mt-5 px-2 text-[13px] text-muted-foreground">Workspace</p>
+      <p className="mt-5 px-2 text-[12px] text-muted-foreground">Workspace</p>
       <div className="flex items-center gap-4 px-2 py-2.5">
         <Network className="h-5 w-5 shrink-0 text-foreground/80" />
-        <span className="flex-1 text-[15px] text-foreground">Network</span>
+        <span className="flex-1 text-[14px] text-foreground">Network</span>
         <NetworkSelector className="w-44" />
       </div>
+      {account && (
+        <SheetRow
+          icon={UserRound}
+          detail={account.name ?? undefined}
+          onClick={() => {
+            onClose();
+            onEditName();
+          }}
+        >
+          Your name
+        </SheetRow>
+      )}
       <SheetRow
         icon={theme === "dark" ? Sun : Moon}
-        onClick={toggleTheme}
+        onClick={() => {
+          toggleTheme();
+          // Signed in: the choice follows the account to other devices.
+          if (account) void updateProfile({ theme: theme === "dark" ? "light" : "dark" });
+        }}
         detail={theme === "dark" ? "Dark" : "Light"}
         chevron={false}
       >
@@ -280,7 +300,7 @@ export function NewsSheet({
       </div>
       {tab === "updates" ? (
         recent.length === 0 ? (
-          <p className="py-10 text-center text-[14px] text-muted-foreground">
+          <p className="py-10 text-center text-[13px] text-muted-foreground">
             Nothing yet. When the agent finishes work on a project, it shows up here.
           </p>
         ) : (
@@ -297,12 +317,12 @@ export function NewsSheet({
                     className="w-full py-3 text-left"
                   >
                     <span className="flex items-baseline justify-between gap-3">
-                      <span className="truncate text-[15px] font-medium text-foreground">
+                      <span className="truncate text-[14px] font-medium text-foreground">
                         {p.name}
                       </span>
-                      <span className="shrink-0 text-[12px] text-meta">{ago(p.updatedAt)}</span>
+                      <span className="shrink-0 text-[11px] text-meta">{ago(p.updatedAt)}</span>
                     </span>
-                    <span className="mt-0.5 line-clamp-2 block text-[13.5px] leading-5 text-muted-foreground">
+                    <span className="mt-0.5 line-clamp-2 block text-[12.5px] leading-5 text-muted-foreground">
                       {last
                         ? `${last.failed ? "Did not finish: " : ""}${plain(last.text)}`
                         : `${plural(Object.keys(p.files).length, "file")}, no conversation yet`}
@@ -329,12 +349,12 @@ export function NewsSheet({
                   <div className="mt-1.5 h-2 w-24 rounded bg-foreground/15" />
                 </div>
               </div>
-              <p className="mt-3 flex items-center gap-2 text-[16px] font-semibold text-foreground">
+              <p className="mt-3 flex items-center gap-2 text-[15px] font-semibold text-foreground">
                 {n.title}
                 <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
               </p>
-              <p className="mt-1 text-[14px] leading-6 text-muted-foreground">{n.body}</p>
-              <p className="mt-1 text-[12.5px] text-meta">{ago(Date.parse(n.date))}</p>
+              <p className="mt-1 text-[13px] leading-6 text-muted-foreground">{n.body}</p>
+              <p className="mt-1 text-[11.5px] text-meta">{ago(Date.parse(n.date))}</p>
             </a>
           ))}
         </div>
@@ -384,8 +404,8 @@ export function ProjectSheet({
   };
   return (
     <Modal onClose={onClose}>
-      <p className="truncate px-2 text-[17px] font-semibold text-foreground">{project.name}</p>
-      <p className="px-2 pb-2 text-[12.5px] text-meta">
+      <p className="truncate px-2 text-[16px] font-semibold text-foreground">{project.name}</p>
+      <p className="px-2 pb-2 text-[11.5px] text-meta">
         {plural(fileCount, "file")} · updated {ago(project.updatedAt)}
       </p>
       <SheetRow
@@ -431,20 +451,20 @@ export function ProjectSheet({
       </SheetRow>
       {confirming ? (
         <div className="mt-2 rounded-2xl border border-danger/40 bg-danger/5 p-3">
-          <p className="text-[13.5px] leading-5 text-foreground">
+          <p className="text-[12.5px] leading-5 text-foreground">
             Delete {project.name} from this browser? Its conversation and files go too. A copy on
             GitHub or a live app is not touched.
           </p>
           <div className="mt-3 flex justify-end gap-2">
             <button
               onClick={() => setConfirming(false)}
-              className="rounded-full px-3.5 py-1.5 text-[13px] text-muted-foreground hover:bg-surface-2"
+              className="rounded-full px-3.5 py-1.5 text-[12px] text-muted-foreground hover:bg-surface-2"
             >
               Keep it
             </button>
             <button
               onClick={act(onDelete)}
-              className="rounded-full bg-danger px-3.5 py-1.5 text-[13px] font-medium text-white"
+              className="rounded-full bg-danger px-3.5 py-1.5 text-[12px] font-medium text-white"
             >
               Delete
             </button>

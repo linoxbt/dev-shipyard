@@ -79,7 +79,7 @@ export function AgentIntro({ name, busy }: { name: string; busy?: boolean }) {
           <path d="M3 3 Q10 9 17 3" />
         </svg>
       </span>
-      <span className="-mt-3 rounded-full border border-border bg-surface-2 px-3.5 py-1 text-[13.5px] font-medium text-foreground shadow">
+      <span className="-mt-3 rounded-full border border-border bg-surface-2 px-3.5 py-1 text-[12.5px] font-medium text-foreground shadow">
         {name}
       </span>
     </div>
@@ -123,9 +123,9 @@ export function UserMessage({
 }) {
   return (
     <div>
-      {plan && <p className="mb-1 pr-2 text-right text-[11.5px] text-primary">Plan first</p>}
+      {plan && <p className="mb-1 pr-2 text-right text-[10.5px] text-primary">Plan first</p>}
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-[24px] bg-primary px-4 py-2.5 text-[15px] leading-6 text-primary-foreground">
+        <div className="max-w-[85%] rounded-[24px] bg-primary px-4 py-2.5 text-[14px] leading-6 text-primary-foreground">
           <p className="whitespace-pre-wrap break-words">{text}</p>
         </div>
       </div>
@@ -181,7 +181,7 @@ export function AssistantMessage({
           <div className="mb-2">
             <button
               onClick={() => setOpen((v) => !v)}
-              className="inline-flex items-center gap-1 text-[12.5px] text-muted-foreground hover:text-foreground"
+              className="inline-flex items-center gap-1 text-[11.5px] text-muted-foreground hover:text-foreground"
             >
               <ChevronRight className={cn("h-3.5 w-3.5 transition", open && "rotate-90")} />
               {summary || `${steps.length} steps`}
@@ -196,11 +196,11 @@ export function AssistantMessage({
           </div>
         )}
         {turn.failed && (
-          <p className="mb-1 flex items-center gap-1.5 text-[12.5px] text-warning">
+          <p className="mb-1 flex items-center gap-1.5 text-[11.5px] text-warning">
             <TriangleAlert className="h-3.5 w-3.5" /> Did not finish
           </p>
         )}
-        <Markdown text={turn.text} className="text-[15px] leading-[1.65]" />
+        <Markdown text={turn.text} className="text-[14px] leading-[1.65]" />
         {turn.changed && turn.changed.length > 0 && (
           <div className="mt-2.5">
             <ChangedFiles paths={turn.changed} onOpenFile={onOpenFile} />
@@ -210,11 +210,11 @@ export function AssistantMessage({
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
             <button
               onClick={onBuildPlan}
-              className="rounded-full bg-primary px-4 py-2 text-[14px] font-medium text-primary-foreground hover:bg-primary-hover"
+              className="rounded-full bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground hover:bg-primary-hover"
             >
               Build this plan
             </button>
-            <span className="text-[12.5px] text-muted-foreground">
+            <span className="text-[11.5px] text-muted-foreground">
               Or reply with what to change first.
             </span>
           </div>
@@ -266,7 +266,7 @@ export function ChangedFiles({
           key={p}
           onClick={() => onOpenFile(p)}
           title={p}
-          className="inline-flex max-w-[14rem] items-center gap-1 rounded-md border border-border bg-surface px-2 py-0.5 font-mono text-[11px] text-muted-foreground transition hover:border-primary/50 hover:text-foreground"
+          className="inline-flex max-w-[14rem] items-center gap-1 rounded-md border border-border bg-surface px-2 py-0.5 font-mono text-[10px] text-muted-foreground transition hover:border-primary/50 hover:text-foreground"
         >
           <FileCode2 className="h-3 w-3 shrink-0 text-success" />
           <span className="truncate">{p.split("/").pop()}</span>
@@ -275,7 +275,7 @@ export function ChangedFiles({
       {paths.length > shown.length && (
         <button
           onClick={() => setAll(true)}
-          className="rounded-md px-1.5 py-0.5 font-mono text-[11px] text-meta hover:text-foreground"
+          className="rounded-md px-1.5 py-0.5 font-mono text-[10px] text-meta hover:text-foreground"
         >
           +{paths.length - shown.length} more
         </button>
@@ -287,7 +287,7 @@ export function ChangedFiles({
 function SavedStepRow({ step }: { step: SavedStep }) {
   const Icon = ICON[toolKind(step.tool)];
   return (
-    <p className="flex items-center gap-2 py-0.5 text-[12px] text-muted-foreground">
+    <p className="flex items-center gap-2 py-0.5 text-[11px] text-muted-foreground">
       <Icon className={cn("h-3.5 w-3.5 shrink-0", step.failed ? "text-danger" : "text-meta")} />
       <span className="truncate">{step.title}</span>
     </p>
@@ -301,7 +301,7 @@ export function StepRow({ step, defaultOpen }: { step: Step; defaultOpen?: boole
     return (
       <p
         className={cn(
-          "flex items-start gap-2 py-1 text-[12px]",
+          "flex items-start gap-2 py-1 text-[11px]",
           step.tone === "warning" ? "text-warning" : "text-meta",
         )}
       >
@@ -319,7 +319,7 @@ export function StepRow({ step, defaultOpen }: { step: Step; defaultOpen?: boole
       <button
         onClick={() => expandable && setOpen((v) => !v)}
         className={cn(
-          "flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[12.5px] transition",
+          "flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[11.5px] transition",
           expandable ? "hover:bg-surface-2" : "cursor-default",
         )}
       >
@@ -346,17 +346,17 @@ export function StepRow({ step, defaultOpen }: { step: Step; defaultOpen?: boole
       {open && expandable && (
         <div className="mb-1 ml-6 mt-0.5 overflow-hidden rounded-md border border-border bg-background">
           {kind === "shell" && target && (
-            <p className="border-b border-border px-2.5 py-1 font-mono text-[11px] text-code">
+            <p className="border-b border-border px-2.5 py-1 font-mono text-[10px] text-code">
               <span className="text-meta">$ </span>
               {target}
             </p>
           )}
           {step.output ? (
-            <pre className="max-h-64 overflow-auto px-2.5 py-1.5 font-mono text-[11px] leading-[1.55] text-muted-foreground">
+            <pre className="max-h-64 overflow-auto px-2.5 py-1.5 font-mono text-[10px] leading-[1.55] text-muted-foreground">
               {step.output}
             </pre>
           ) : (
-            <p className="px-2.5 py-1.5 font-mono text-[11px] text-meta">
+            <p className="px-2.5 py-1.5 font-mono text-[10px] text-meta">
               {step.status === "running" ? "Running…" : "No output."}
             </p>
           )}
@@ -370,12 +370,12 @@ export function PlanCard({ plan }: { plan: PlanItem[] }) {
   const done = plan.filter((p) => p.status === "completed").length;
   return (
     <div className="rounded-2xl border border-border bg-surface px-3.5 py-2.5">
-      <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-meta">
+      <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-meta">
         <ListChecks className="h-3 w-3" /> Plan · {done}/{plan.length}
       </p>
       <ul className="space-y-1">
         {plan.map((p, i) => (
-          <li key={i} className="flex items-start gap-2 text-[12.5px] leading-5">
+          <li key={i} className="flex items-start gap-2 text-[11.5px] leading-5">
             {p.status === "completed" ? (
               <CircleCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
             ) : p.status === "in_progress" ? (
@@ -424,7 +424,7 @@ export function LiveTurn({
           {hidden > 0 && (
             <button
               onClick={() => setAll(true)}
-              className="px-1.5 text-[12px] text-meta hover:text-foreground"
+              className="px-1.5 text-[11px] text-meta hover:text-foreground"
             >
               Show {hidden} earlier step{hidden === 1 ? "" : "s"}
             </button>
@@ -434,8 +434,8 @@ export function LiveTurn({
           ))}
         </div>
       )}
-      {reply && <Markdown text={reply} className="text-[15px] leading-[1.65]" />}
-      <div className="flex items-center gap-2.5 text-[13px] text-muted-foreground">
+      {reply && <Markdown text={reply} className="text-[14px] leading-[1.65]" />}
+      <div className="flex items-center gap-2.5 text-[12px] text-muted-foreground">
         <span className="ds-typing flex gap-1">
           <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
           <span className="h-1.5 w-1.5 rounded-full bg-foreground" />

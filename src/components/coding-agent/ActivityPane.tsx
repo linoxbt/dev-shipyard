@@ -24,11 +24,11 @@ export function ActivityPane({
       <div className="mx-auto max-w-3xl space-y-3 p-4">
         <div className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-primary" />
-          <p className="text-sm font-semibold text-foreground">
+          <p className="text-[13px] font-semibold text-foreground">
             {running ? "Working now" : "Latest turn"}
           </p>
           {turns > 0 && (
-            <p className="ml-auto font-mono text-[10.5px] text-meta">
+            <p className="ml-auto font-mono text-[9.5px] text-meta">
               {turns} turn{turns === 1 ? "" : "s"} · {totalSteps} steps · about $
               {costUsd.toFixed(2)}
             </p>
@@ -36,7 +36,7 @@ export function ActivityPane({
         </div>
         {plan && <PlanCard plan={plan} />}
         {steps.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border p-6 text-center text-[13px] text-muted-foreground">
+          <p className="rounded-lg border border-dashed border-border p-6 text-center text-[12px] text-muted-foreground">
             Every command the agent runs and every file it touches is listed here, with its output.
           </p>
         ) : (

@@ -71,11 +71,11 @@ export function PreviewPane({
           ) : (
             <Globe className="h-3 w-3 shrink-0 text-meta" />
           )}
-          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
+          <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground">
             {liveUrl ? liveUrl.replace(/^https?:\/\//, "") : "preview"}
           </span>
           <span
-            className="hidden shrink-0 items-center gap-1 font-mono text-[10px] text-warning sm:inline-flex"
+            className="hidden shrink-0 items-center gap-1 font-mono text-[9px] text-warning sm:inline-flex"
             title="The network apps in the preview talk to."
           >
             {chainName}
@@ -108,14 +108,14 @@ export function PreviewPane({
       </div>
 
       {status && (
-        <div className="flex items-center gap-2 border-b border-border px-3 py-1 font-mono text-[10.5px] text-meta">
+        <div className="flex items-center gap-2 border-b border-border px-3 py-1 font-mono text-[9.5px] text-meta">
           {status}
         </div>
       )}
 
       {errors.length > 0 && (
         <div className="flex items-start gap-2 border-b border-danger/30 bg-danger/10 px-3 py-2">
-          <div className="min-w-0 flex-1 font-mono text-[11px] text-danger">
+          <div className="min-w-0 flex-1 font-mono text-[10px] text-danger">
             {errors.slice(0, 2).map((e, i) => (
               <p key={i} className="truncate" title={e.message}>
                 {e.message}
@@ -133,7 +133,7 @@ export function PreviewPane({
                   .join("\n")}`,
               )
             }
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-danger px-2.5 py-1 text-[12px] font-medium text-white transition hover:opacity-90"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-danger px-2.5 py-1 text-[11px] font-medium text-white transition hover:opacity-90"
           >
             <WandSparkles className="h-3.5 w-3.5" /> Fix with agent
           </button>

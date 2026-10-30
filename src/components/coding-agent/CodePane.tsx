@@ -64,14 +64,14 @@ export function CodePane({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Find a file"
-              className="min-w-0 flex-1 bg-transparent text-[12px] text-foreground placeholder:text-meta focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent text-[11px] text-foreground placeholder:text-meta focus:outline-none"
             />
           </div>
           {changed.length > 0 && (
             <button
               onClick={() => setOnlyChanged((v) => !v)}
               className={cn(
-                "flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-[10.5px] transition",
+                "flex w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-[9.5px] transition",
                 onlyChanged ? "bg-success/10 text-success" : "text-meta hover:text-foreground",
               )}
             >
@@ -82,9 +82,9 @@ export function CodePane({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-1">
           {total === 0 ? (
-            <p className="p-2 text-[12px] text-meta">No files yet.</p>
+            <p className="p-2 text-[11px] text-meta">No files yet.</p>
           ) : paths.length === 0 ? (
-            <p className="p-2 text-[12px] text-meta">Nothing matches.</p>
+            <p className="p-2 text-[11px] text-meta">Nothing matches.</p>
           ) : (
             <Tree
               nodes={tree}
@@ -112,7 +112,7 @@ export function CodePane({
           <div className="flex h-full items-center justify-center p-6 text-center">
             <div>
               <FileCode2 className="mx-auto h-6 w-6 text-meta" />
-              <p className="mt-2 text-[13px] text-muted-foreground">
+              <p className="mt-2 text-[12px] text-muted-foreground">
                 {total ? "Pick a file to read it." : "The agent's files show up here."}
               </p>
             </div>
@@ -154,7 +154,7 @@ function Tree({
               <button
                 onClick={() => toggle(n.path)}
                 style={pad}
-                className="flex w-full items-center gap-1 rounded py-[3px] pr-1.5 text-left text-[12.5px] text-muted-foreground hover:bg-surface-2"
+                className="flex w-full items-center gap-1 rounded py-[3px] pr-1.5 text-left text-[11.5px] text-muted-foreground hover:bg-surface-2"
               >
                 <ChevronRight
                   className={cn("h-3 w-3 shrink-0 text-meta transition", open && "rotate-90")}
@@ -185,7 +185,7 @@ function Tree({
               title={n.path}
               style={{ paddingLeft: `${depth * 12 + 22}px` }}
               className={cn(
-                "flex w-full items-center gap-1.5 rounded py-[3px] pr-1.5 text-left text-[12.5px]",
+                "flex w-full items-center gap-1.5 rounded py-[3px] pr-1.5 text-left text-[11.5px]",
                 active
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
@@ -209,7 +209,7 @@ function FileHeader({ path, text, changed }: { path: string; text: string; chang
   const parts = path.split("/");
   return (
     <div className="flex items-center gap-2 border-b border-border bg-surface px-3 py-1.5">
-      <p className="flex min-w-0 flex-1 items-center gap-1 truncate font-mono text-[11.5px]">
+      <p className="flex min-w-0 flex-1 items-center gap-1 truncate font-mono text-[10.5px]">
         {parts.map((p, i) => (
           <span key={i} className="flex items-center gap-1">
             {i > 0 && <ChevronRight className="h-3 w-3 text-meta" />}
@@ -217,12 +217,12 @@ function FileHeader({ path, text, changed }: { path: string; text: string; chang
           </span>
         ))}
         {changed && (
-          <span className="ml-2 rounded-full bg-success/10 px-1.5 py-px text-[10px] text-success">
+          <span className="ml-2 rounded-full bg-success/10 px-1.5 py-px text-[9px] text-success">
             changed
           </span>
         )}
       </p>
-      <span className="hidden font-mono text-[10px] text-meta sm:inline">
+      <span className="hidden font-mono text-[9px] text-meta sm:inline">
         {text.split("\n").length} lines
       </span>
       <button
@@ -231,7 +231,7 @@ function FileHeader({ path, text, changed }: { path: string; text: string; chang
           setCopied(true);
           setTimeout(() => setCopied(false), 1200);
         }}
-        className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-mono text-[10.5px] text-meta hover:bg-surface-2 hover:text-foreground"
+        className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-mono text-[9.5px] text-meta hover:bg-surface-2 hover:text-foreground"
       >
         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
         {copied ? "Copied" : "Copy"}
@@ -261,7 +261,7 @@ function CodeViewer({ path, value }: { path: string; value: string }) {
   if (!ready || failed) {
     const lines = value.split("\n");
     return (
-      <div className="h-full overflow-auto bg-background py-2 font-mono text-[12px] leading-5">
+      <div className="h-full overflow-auto bg-background py-2 font-mono text-[11px] leading-5">
         {lines.map((l, i) => (
           <div key={i} className="flex">
             <span className="w-12 shrink-0 select-none pr-3 text-right text-meta">{i + 1}</span>

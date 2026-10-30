@@ -12,7 +12,7 @@ import { Modal } from "./primitives";
 export type AuthView = "signin" | "signup" | "forgot" | "newpassword";
 
 const field =
-  "w-full rounded-xl border border-border bg-background px-3.5 py-3 text-[15px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none";
+  "w-full rounded-xl border border-border bg-background px-3.5 py-3 text-[14px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none";
 
 export function AuthSheet({
   initial = "signin",
@@ -23,7 +23,6 @@ export function AuthSheet({
 }) {
   const auth = useAuth();
   const [view, setView] = useState<AuthView>(auth.recovering ? "newpassword" : initial);
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
@@ -37,7 +36,7 @@ export function AuthSheet({
     setError(null);
     let problem: string | null = null;
     if (view === "signup") {
-      problem = await auth.signUp(name, email.trim(), password);
+      problem = await auth.signUp(email.trim(), password);
       if (!problem) setSent("confirm");
     } else if (view === "signin") {
       problem = await auth.signIn(email.trim(), password);
@@ -73,8 +72,8 @@ export function AuthSheet({
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
             <MailCheck className="h-7 w-7" />
           </span>
-          <p className="mt-4 text-[18px] font-semibold text-foreground">Check your email</p>
-          <p className="mx-auto mt-2 max-w-xs text-[14px] leading-6 text-muted-foreground">
+          <p className="mt-4 text-[17px] font-semibold text-foreground">Check your email</p>
+          <p className="mx-auto mt-2 max-w-xs text-[13px] leading-6 text-muted-foreground">
             {sent === "confirm"
               ? `We sent a link to ${email}. Open it to confirm your address, and you are in.`
               : `If ${email} has an account, a link to choose a new password is on its way.`}
@@ -84,7 +83,7 @@ export function AuthSheet({
               setSent(null);
               setView("signin");
             }}
-            className="mt-6 text-[14px] text-primary hover:underline"
+            className="mt-6 text-[13px] text-primary hover:underline"
           >
             Back to sign in
           </button>
@@ -101,38 +100,27 @@ export function AuthSheet({
       {view === "forgot" && (
         <button
           onClick={() => setView("signin")}
-          className="mb-2 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+          className="mb-2 inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
       )}
       <div className="flex flex-col items-center pb-2 pt-1 text-center">
         <LogoMark className="h-11 w-11" />
-        <p className="mt-3 text-[20px] font-semibold tracking-tight text-foreground">
+        <p className="mt-3 text-[19px] font-semibold tracking-tight text-foreground">
           {titles[view]}
         </p>
-        <p className="mt-1 max-w-xs text-[13.5px] leading-5 text-muted-foreground">
+        <p className="mt-1 max-w-xs text-[12.5px] leading-5 text-muted-foreground">
           {blurbs[view]}
         </p>
       </div>
 
       {!auth.configured ? (
-        <p className="mt-4 rounded-xl bg-warning/10 px-4 py-3 text-[13.5px] text-warning">
+        <p className="mt-4 rounded-xl bg-warning/10 px-4 py-3 text-[12.5px] text-warning">
           Email sign-in is not set up on this deployment yet.
         </p>
       ) : (
         <form onSubmit={submit} className="mt-4 space-y-3">
-          {view === "signup" && (
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
-              autoComplete="name"
-              required
-              maxLength={80}
-              className={field}
-            />
-          )}
           {needsEmail && (
             <input
               type="email"
@@ -173,16 +161,16 @@ export function AuthSheet({
                 setError(null);
                 setView("forgot");
               }}
-              className="text-[13px] text-muted-foreground hover:text-foreground"
+              className="text-[12px] text-muted-foreground hover:text-foreground"
             >
               Forgot your password?
             </button>
           )}
-          {error && <p className="text-[13px] leading-5 text-danger">{error}</p>}
+          {error && <p className="text-[12px] leading-5 text-danger">{error}</p>}
           <button
             type="submit"
             disabled={busy}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-[15px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-[14px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-60"
           >
             {busy && <LoaderCircle className="h-4 w-4 animate-spin" />}
             {view === "signup"
@@ -197,7 +185,7 @@ export function AuthSheet({
       )}
 
       {(view === "signin" || view === "signup") && (
-        <p className="mt-5 text-center text-[13.5px] text-muted-foreground">
+        <p className="mt-5 text-center text-[12.5px] text-muted-foreground">
           {view === "signin" ? "New to DevStation? " : "Already have an account? "}
           <button
             onClick={() => {
