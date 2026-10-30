@@ -12,6 +12,7 @@ import {
 import { BuilderName, Identicon } from "@/components/builder/BuilderName";
 import { fetchWithGrant } from "@/lib/agent-access/grant";
 import { postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
+import { AGENT_PATH } from "@/lib/features";
 import { useProjects, type AppProject } from "@/lib/appgen/projects";
 import { Field, Modal, inputClass, primaryButton } from "./primitives";
 
@@ -84,7 +85,7 @@ export function BuildersDialog({
   };
 
   const link = id
-    ? `${window.location.origin}/launchkit/coding-agent?join=${encodeURIComponent(id)}&name=${encodeURIComponent(project.name)}`
+    ? `${window.location.origin}${AGENT_PATH}?join=${encodeURIComponent(id)}&name=${encodeURIComponent(project.name)}`
     : "";
   const isOwner = members?.role === "owner";
   const valid = /^0x[a-fA-F0-9]{40}$/.test(wallet.trim());

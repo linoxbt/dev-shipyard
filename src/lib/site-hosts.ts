@@ -14,6 +14,8 @@
 // every page at its plain path, so nothing points at a domain that is not
 // serving the code being worked on.
 
+import { CODING_AGENT_ONLY } from "@/lib/feature-flag";
+
 export type HostKind = "site" | "docs" | "console";
 
 /** Set only on the production site, as a build-time env var. */
@@ -44,19 +46,29 @@ export function hostKind(host: string, root = ROOT_DOMAIN): HostKind | null {
 }
 
 /** Router input: the address a visitor typed, to the route that serves it. */
-export function toInternalPath(kind: HostKind | null, pathname: string): string {
+export function toInternalPath(
+  kind: HostKind | null,
+  pathname: string,
+  agentOnly = CODING_AGENT_ONLY,
+): string {
   if (kind === "docs") {
     if (isPassthrough(pathname) || isDocsPath(pathname)) return pathname;
     return pathname === "/" ? "/docs" : `/docs${pathname}`;
   }
-  if (kind === "console" && pathname === "/") return "/overview";
+  // The console opens at the overview, unless the agent is all the app
+  // serves: then "/" is the agent on every hostname.
+  if (kind === "console" && pathname === "/" && !agentOnly) return "/overview";
   return pathname;
 }
 
 /** Router output: a route, to the address shown for it on this hostname. */
-export function toPublicPath(kind: HostKind | null, pathname: string): string {
+export function toPublicPath(
+  kind: HostKind | null,
+  pathname: string,
+  agentOnly = CODING_AGENT_ONLY,
+): string {
   if (kind === "docs" && isDocsPath(pathname)) return pathname.slice("/docs".length) || "/";
-  if (kind === "console" && pathname === "/overview") return "/";
+  if (kind === "console" && pathname === "/overview" && !agentOnly) return "/";
   return pathname;
 }
 

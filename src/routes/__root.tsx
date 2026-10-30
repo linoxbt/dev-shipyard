@@ -130,7 +130,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     // Only the Coding Agent is switched on (lib/features.ts): every other
     // page goes to it. A temporary redirect, so it lifts when the switch does.
     const agentOnly = agentOnlyRedirect(location.pathname);
-    if (agentOnly) throw redirect({ to: agentOnly, replace: true, statusCode: 307 });
+    // The query string goes along: invite links (?join=) and the return from
+    // GitHub sign-in (?github=) carry their meaning in it.
+    if (agentOnly) {
+      throw redirect({ href: `${agentOnly}${location.searchStr}`, replace: true, statusCode: 307 });
+    }
     const target = crossHostTarget(currentHost(), location.pathname, location.searchStr);
     if (!target) return undefined;
     if (typeof window !== "undefined") {
@@ -170,7 +174,8 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const hydrateTheme = useTheme((s) => s.hydrate);
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const isLanding = pathname === "/";
+  // With only the Coding Agent on, "/" is the agent, not the landing page.
+  const isLanding = pathname === "/" && !CODING_AGENT_ONLY;
   // The docs are their own site, with their own header and navigation, rather
   // than a page inside the console's sidebar.
   const isDocs = pathname === "/docs" || pathname.startsWith("/docs/");
@@ -208,7 +213,8 @@ function RootComponent() {
           </AppShell>
         )}
         <Toaster />
-        <SplashScreen />
+        {/* A builder opens straight into the product, no splash in front. */}
+        {!CODING_AGENT_ONLY && <SplashScreen />}
       </Web3Provider>
     </QueryClientProvider>
   );

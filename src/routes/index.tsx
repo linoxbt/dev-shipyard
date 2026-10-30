@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { consoleHref, docsHref } from "@/lib/site-hosts";
+import { CodingAgentPage } from "@/components/coding-agent/CodingAgentPage";
+import { CODING_AGENT_ONLY } from "@/lib/feature-flag";
 import { useEffect, useState } from "react";
 import {
   Rocket,
@@ -36,7 +38,11 @@ import { REVEAL_IMAGES } from "@/lib/landing-images";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "DevStation: The AI Developer OS for QIE and Web3" },
+      {
+        title: CODING_AGENT_ONLY
+          ? "DevStation: build apps and contracts with an agent"
+          : "DevStation: The AI Developer OS for QIE and Web3",
+      },
       {
         name: "description",
         content:
@@ -44,8 +50,10 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  loader: () => loadTemplateSummaries(),
-  component: Landing,
+  // With only the Coding Agent on (lib/features.ts), "/" is the agent itself:
+  // no landing page in front, the way Base44 and Muse open into the product.
+  loader: () => (CODING_AGENT_ONLY ? [] : loadTemplateSummaries()),
+  component: CODING_AGENT_ONLY ? CodingAgentPage : Landing,
 });
 
 const WORDS = ["Deploy.", "Debug.", "Analyze.", "Inspect."];

@@ -45,10 +45,18 @@ describe("docs.devstation.online", () => {
 });
 
 describe("console.devstation.online", () => {
-  it("opens on the overview", () => {
-    expect(toInternalPath("console", "/")).toBe("/overview");
-    expect(toPublicPath("console", "/overview")).toBe("/");
-    expect(toInternalPath("console", "/launchkit/marketplace")).toBe("/launchkit/marketplace");
+  it("opens on the overview when every feature is on", () => {
+    expect(toInternalPath("console", "/", false)).toBe("/overview");
+    expect(toPublicPath("console", "/overview", false)).toBe("/");
+    expect(toInternalPath("console", "/launchkit/marketplace", false)).toBe(
+      "/launchkit/marketplace",
+    );
+  });
+
+  it("opens on the agent when it is all the app serves, without a redirect loop", () => {
+    // "/" must stay "/": mapped to /overview it would redirect back to "/".
+    expect(toInternalPath("console", "/", true)).toBe("/");
+    expect(toPublicPath("console", "/overview", true)).toBe("/overview");
   });
 });
 

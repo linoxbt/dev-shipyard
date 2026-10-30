@@ -6,7 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 // day they are switched back on.
 const AGENT_ONLY = (process.env.VITE_CODING_AGENT_ONLY ?? "1") !== "0";
 
-const AGENT_PAGES = ["/launchkit/coding-agent", "/docs/coding-agent", "/docs/cli/install"];
+const AGENT_PAGES = ["/", "/docs/coding-agent", "/docs/cli/install"];
 
 const FULL_PAGES = [
   "/",
@@ -48,7 +48,7 @@ for (const path of PAGES) {
 }
 
 for (const path of AGENT_ONLY
-  ? ["/launchkit/coding-agent"]
+  ? ["/"]
   : ["/", "/launchkit/marketplace", "/explorer/mainnet", "/launchkit/coding-agent"]) {
   test(`${path} has no sideways scroll on a phone`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -92,12 +92,19 @@ test("cross-site POSTs are refused before any route runs", async ({ request }) =
   expect(res.status()).toBe(403);
 });
 
-test("with only the Coding Agent on, every other page opens the agent", async ({ page }) => {
-  test.skip(!AGENT_ONLY, "the full app serves every page");
-  for (const path of ["/", "/overview", "/launchkit/marketplace", "/settings", "/docs"]) {
+test("with only the Coding Agent on, the app opens straight into it", async ({ page }) => {
+  test.skip(!AGENT_ONLY, "the full app has a landing page");
+  await page.goto("/", { waitUntil: "networkidle" });
+  await expect(page.getByText("What will you build next?")).toBeVisible();
+  for (const path of ["/overview", "/launchkit/marketplace", "/settings", "/docs"]) {
     await page.goto(path, { waitUntil: "domcontentloaded" });
-    expect(new URL(page.url()).pathname, path).toBe("/launchkit/coding-agent");
+    expect(new URL(page.url()).pathname, path).toBe("/");
   }
+  // An invite link to the agent's old address keeps its meaning.
+  await page.goto("/launchkit/coding-agent?join=abc&name=x", { waitUntil: "domcontentloaded" });
+  const url = new URL(page.url());
+  expect(url.pathname).toBe("/");
+  expect(url.searchParams.get("join")).toBe("abc");
 });
 
 test("the editor compiles an OpenZeppelin contract with verified sources", async ({ page }) => {

@@ -1,3 +1,4 @@
+import { CODING_AGENT_ONLY } from "@/lib/feature-flag";
 import { isPassthrough } from "@/lib/site-hosts";
 
 // Which of DevStation's features this deployment serves.
@@ -8,29 +9,29 @@ import { isPassthrough } from "@/lib/site-hosts";
 // in the code base, untouched, but switched off: its pages redirect to the
 // Coding Agent and nothing links to them.
 //
+// The agent is served at "/", with no landing page in front of it, the way
+// builder apps like Base44 and Muse open straight into the product.
+//
 // To bring everything back, set VITE_CODING_AGENT_ONLY=0 at build time.
 
-export const CODING_AGENT_ONLY = String(import.meta.env.VITE_CODING_AGENT_ONLY ?? "1") !== "0";
+export { CODING_AGENT_ONLY };
 
-/** Where the app opens, and where a switched-off page sends you. */
-export const AGENT_HOME = "/launchkit/coding-agent";
+/** Where the Coding Agent lives. Like Base44 or Muse, the app opens straight
+ *  into it: "/" when it is all there is, its own page otherwise. */
+export const AGENT_PATH = CODING_AGENT_ONLY ? "/" : "/launchkit/coding-agent";
 
-/** Pages that stay on when only the Coding Agent is served: the agent itself,
- *  and its own and the CLI's documentation, which the agent links to. */
-const AGENT_PAGES = [
-  /^\/launchkit\/coding-agent\/?$/,
-  /^\/docs\/coding-agent\/?$/,
-  /^\/docs\/cli(\/.*)?$/,
-];
+/** The agent's docs and the CLI's, which the agent links to. */
+const DOCS_KEPT = [/^\/docs\/coding-agent\/?$/, /^\/docs\/cli(\/.*)?$/];
 
-/** Whether `pathname` is served in Coding-Agent-only mode. API routes, server
- *  functions and files always are: the agent runs on them. */
+/** Whether `pathname` is served in Coding-Agent-only mode: the agent at "/",
+ *  its docs, and the API, server functions and files the agent runs on. */
 export function servedInAgentOnly(pathname: string): boolean {
-  return isPassthrough(pathname) || AGENT_PAGES.some((re) => re.test(pathname));
+  return pathname === "/" || isPassthrough(pathname) || DOCS_KEPT.some((re) => re.test(pathname));
 }
 
-/** Where to send `pathname`, or null to serve it. */
+/** Where to send `pathname`, or null to serve it. Everything else, the
+ *  agent's old address included, goes to the agent at "/". */
 export function agentOnlyRedirect(pathname: string, enabled = CODING_AGENT_ONLY): string | null {
   if (!enabled || servedInAgentOnly(pathname)) return null;
-  return AGENT_HOME;
+  return "/";
 }
