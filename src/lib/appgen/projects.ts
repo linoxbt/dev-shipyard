@@ -32,6 +32,8 @@ export interface ProjectTurn {
   /** The tool steps of an agent turn, titles only, so the conversation can
    *  still say what was done after the workspace has moved on. */
   steps?: { tool?: string; title: string; failed?: boolean }[];
+  /** Sent in Plan mode, or the plan that came back. */
+  plan?: boolean;
 }
 
 /** The contract an app is wired to, if any. */
@@ -77,6 +79,7 @@ export interface AppProject {
   shared?: boolean;
   /** "builder" when this browser joined somebody else's workspace. */
   role?: "owner" | "builder";
+  builders?: Record<string, string>;
 }
 
 // Everything below is read back from localStorage, which is user-editable and
@@ -99,6 +102,7 @@ const turnSchema = z.object({
     )
     .max(80)
     .optional(),
+  plan: z.boolean().optional(),
 });
 
 const messageSchema = z.object({
@@ -146,6 +150,9 @@ const projectSchema = z.object({
     .optional(),
   shared: z.boolean().optional(),
   role: z.enum(["owner", "builder"]).optional(),
+  /** Emails of builders added from this browser, by account id, so the
+   *  Share sheet can name them (the runner only knows the ids). */
+  builders: z.record(z.string().max(42), z.string().max(320)).optional(),
 });
 
 interface ProjectsState {

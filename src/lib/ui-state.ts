@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { setPreference } from "@/lib/consent";
 
 // Sidebar state. `mobileNavOpen` drives the mobile drawer; `sidebarCollapsed`
 // hides the desktop rail (persisted so the choice survives refresh). One toggle
@@ -37,7 +38,7 @@ export const useUi = create<UiState>((set) => ({
     set((s) => {
       const next = !s.sidebarCollapsed;
       try {
-        localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+        setPreference(COLLAPSE_KEY, next ? "1" : "0");
       } catch {
         /* not persisted; the toggle still applies for this page */
       }

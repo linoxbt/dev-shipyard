@@ -842,12 +842,23 @@ async function route(
       if (!withinRateLimit(`workspace-message:${caller}`)) {
         return json(res, 429, { ok: false, message: "Too many messages from this client." });
       }
-      const body = await readJsonBody<{ prompt?: unknown; context?: unknown }>(req, 100_000);
+      const body = await readJsonBody<{
+        prompt?: unknown;
+        context?: unknown;
+        model?: unknown;
+        plan?: unknown;
+      }>(req, 100_000);
       if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
       const sent = sendWorkspaceMessage(
         id,
         typeof body.value.prompt === "string" ? body.value.prompt : "",
-        { context: typeof body.value.context === "string" ? body.value.context : undefined },
+        {
+          context: typeof body.value.context === "string" ? body.value.context : undefined,
+          // Checked against the model list when the turn starts; an unknown
+          // one ends the turn with a reason rather than running something else.
+          model: typeof body.value.model === "string" ? body.value.model.slice(0, 60) : undefined,
+          plan: body.value.plan === true,
+        },
       );
       if (!sent.ok) return json(res, sent.status, { ok: false, message: sent.message });
       return json(res, 200, { ok: true, workspace: workspaceView(sent.session) });

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as ExplorerRouteImport } from './routes/explorer'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
@@ -64,6 +65,7 @@ import { Route as LaunchkitProjectsRouteImport } from './routes/launchkit.projec
 import { Route as RoutebookIndexRouteImport } from './routes/routebook.index'
 import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
 import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
+import { Route as ApiAccessSessionRouteImport } from './routes/api.access.session'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
 import { Route as ApiGithubPushRouteImport } from './routes/api.github.push'
 import { Route as DocsCliIndexRouteImport } from './routes/docs.cli.index'
@@ -108,6 +110,11 @@ const ActivityRoute = ActivityRouteImport.update({
 const AnalyticsRoute = AnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocsRoute = DocsRouteImport.update({
@@ -370,6 +377,11 @@ const RoutebookLabelsRoute = RoutebookLabelsRouteImport.update({
   path: '/routebook/labels',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAccessSessionRoute = ApiAccessSessionRouteImport.update({
+  id: '/session',
+  path: '/session',
+  getParentRoute: () => ApiAccessRoute,
+} as any)
 const ApiGithubCallbackRoute = ApiGithubCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -534,12 +546,13 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/analytics': typeof AnalyticsRoute
+  '/cookies': typeof CookiesRoute
   '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRouteWithChildren
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
-  '/api/access': typeof ApiAccessRoute
+  '/api/access': typeof ApiAccessRouteWithChildren
   '/api/account': typeof ApiAccountRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
@@ -586,6 +599,7 @@ export interface FileRoutesByFullPath {
   '/docs/': typeof DocsIndexRoute
   '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
+  '/api/access/session': typeof ApiAccessSessionRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
   '/docs/cli/install': typeof DocsCliInstallRoute
@@ -621,10 +635,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/analytics': typeof AnalyticsRoute
+  '/cookies': typeof CookiesRoute
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
-  '/api/access': typeof ApiAccessRoute
+  '/api/access': typeof ApiAccessRouteWithChildren
   '/api/account': typeof ApiAccountRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
@@ -669,6 +684,7 @@ export interface FileRoutesByTo {
   '/docs': typeof DocsIndexRoute
   '/explorer': typeof ExplorerIndexRoute
   '/routebook': typeof RoutebookIndexRoute
+  '/api/access/session': typeof ApiAccessSessionRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
   '/docs/cli/install': typeof DocsCliInstallRoute
@@ -705,12 +721,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/analytics': typeof AnalyticsRoute
+  '/cookies': typeof CookiesRoute
   '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRouteWithChildren
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
-  '/api/access': typeof ApiAccessRoute
+  '/api/access': typeof ApiAccessRouteWithChildren
   '/api/account': typeof ApiAccountRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
@@ -757,6 +774,7 @@ export interface FileRoutesById {
   '/docs/': typeof DocsIndexRoute
   '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
+  '/api/access/session': typeof ApiAccessSessionRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
   '/docs/cli/install': typeof DocsCliInstallRoute
@@ -794,6 +812,7 @@ export interface FileRouteTypes {
     | '/'
     | '/activity'
     | '/analytics'
+    | '/cookies'
     | '/docs'
     | '/explorer'
     | '/leaderboard'
@@ -846,6 +865,7 @@ export interface FileRouteTypes {
     | '/docs/'
     | '/explorer/'
     | '/routebook/'
+    | '/api/access/session'
     | '/api/github/callback'
     | '/api/github/push'
     | '/docs/cli/install'
@@ -881,6 +901,7 @@ export interface FileRouteTypes {
     | '/'
     | '/activity'
     | '/analytics'
+    | '/cookies'
     | '/leaderboard'
     | '/overview'
     | '/settings'
@@ -929,6 +950,7 @@ export interface FileRouteTypes {
     | '/docs'
     | '/explorer'
     | '/routebook'
+    | '/api/access/session'
     | '/api/github/callback'
     | '/api/github/push'
     | '/docs/cli/install'
@@ -964,6 +986,7 @@ export interface FileRouteTypes {
     | '/'
     | '/activity'
     | '/analytics'
+    | '/cookies'
     | '/docs'
     | '/explorer'
     | '/leaderboard'
@@ -1016,6 +1039,7 @@ export interface FileRouteTypes {
     | '/docs/'
     | '/explorer/'
     | '/routebook/'
+    | '/api/access/session'
     | '/api/github/callback'
     | '/api/github/push'
     | '/docs/cli/install'
@@ -1052,12 +1076,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActivityRoute: typeof ActivityRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  CookiesRoute: typeof CookiesRoute
   DocsRoute: typeof DocsRouteWithChildren
   ExplorerRoute: typeof ExplorerRouteWithChildren
   LeaderboardRoute: typeof LeaderboardRoute
   OverviewRoute: typeof OverviewRoute
   SettingsRoute: typeof SettingsRoute
-  ApiAccessRoute: typeof ApiAccessRoute
+  ApiAccessRoute: typeof ApiAccessRouteWithChildren
   ApiAccountRoute: typeof ApiAccountRoute
   ApiAgentRoute: typeof ApiAgentRoute
   ApiAiRoute: typeof ApiAiRoute
@@ -1110,6 +1135,13 @@ declare module '@tanstack/react-router' {
       path: '/analytics'
       fullPath: '/analytics'
       preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/docs': {
@@ -1476,6 +1508,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoutebookLabelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/access/session': {
+      id: '/api/access/session'
+      path: '/session'
+      fullPath: '/api/access/session'
+      preLoaderRoute: typeof ApiAccessSessionRouteImport
+      parentRoute: typeof ApiAccessRoute
+    }
     '/api/github/callback': {
       id: '/api/github/callback'
       path: '/callback'
@@ -1797,6 +1836,18 @@ const ExplorerRouteWithChildren = ExplorerRoute._addFileChildren(
   ExplorerRouteChildren,
 )
 
+interface ApiAccessRouteChildren {
+  ApiAccessSessionRoute: typeof ApiAccessSessionRoute
+}
+
+const ApiAccessRouteChildren: ApiAccessRouteChildren = {
+  ApiAccessSessionRoute: ApiAccessSessionRoute,
+}
+
+const ApiAccessRouteWithChildren = ApiAccessRoute._addFileChildren(
+  ApiAccessRouteChildren,
+)
+
 interface ApiGithubRouteChildren {
   ApiGithubCallbackRoute: typeof ApiGithubCallbackRoute
   ApiGithubPushRoute: typeof ApiGithubPushRoute
@@ -1834,12 +1885,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
   AnalyticsRoute: AnalyticsRoute,
+  CookiesRoute: CookiesRoute,
   DocsRoute: DocsRouteWithChildren,
   ExplorerRoute: ExplorerRouteWithChildren,
   LeaderboardRoute: LeaderboardRoute,
   OverviewRoute: OverviewRoute,
   SettingsRoute: SettingsRoute,
-  ApiAccessRoute: ApiAccessRoute,
+  ApiAccessRoute: ApiAccessRouteWithChildren,
   ApiAccountRoute: ApiAccountRoute,
   ApiAgentRoute: ApiAgentRoute,
   ApiAiRoute: ApiAiRoute,

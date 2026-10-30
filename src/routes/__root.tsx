@@ -14,6 +14,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppShell } from "@/components/layout/AppShell";
+import { CookieBanner } from "@/components/consent/CookieBanner";
 import { CODING_AGENT_ONLY, switchedOff } from "@/lib/features";
 import { Web3Provider } from "@/components/web3/Web3Provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -175,7 +176,7 @@ function RootComponent() {
   const isLanding = pathname === "/" && !CODING_AGENT_ONLY;
   // The docs are their own site, with their own header and navigation, rather
   // than a page inside the console's sidebar.
-  const isDocs = pathname === "/docs" || pathname.startsWith("/docs/");
+  const isDocs = pathname === "/docs" || pathname.startsWith("/docs/") || pathname === "/cookies";
 
   // Re-apply the persisted theme on mount (covers client navigation / hydration).
   useEffect(() => {
@@ -210,6 +211,7 @@ function RootComponent() {
           </AppShell>
         )}
         <Toaster />
+        <CookieBanner />
         {/* A builder opens straight into the product, no splash in front. */}
         {!CODING_AGENT_ONLY && <SplashScreen />}
       </Web3Provider>

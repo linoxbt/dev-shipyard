@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAccount } from "wagmi";
 import { toast } from "sonner";
 import {
   Box,
@@ -17,7 +16,7 @@ import {
   Rocket,
   Terminal,
   TriangleAlert,
-  Wallet,
+  LogIn,
   X,
 } from "lucide-react";
 import { SplitLayout } from "@/components/appbuilder/SplitLayout";
@@ -27,6 +26,8 @@ import { CodePane } from "@/components/coding-agent/CodePane";
 import { Composer, ToolChip } from "@/components/coding-agent/Composer";
 import { BuildersDialog, GithubDialog } from "@/components/coding-agent/dialogs";
 import { AppDrawer } from "@/components/coding-agent/AppDrawer";
+import { AuthSheet } from "@/components/coding-agent/AuthSheet";
+import { ModeButton, ModeSheet, ModelButton, ModelSheet } from "@/components/coding-agent/pickers";
 import { Landing, type HomeTab } from "@/components/coding-agent/Landing";
 import {
   Dropdown,
@@ -58,6 +59,9 @@ import { compactSteps, stepsFromEvents, type AgentEvent } from "@/lib/coding-age
 import { postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
 import { AGENT_PATH } from "@/lib/features";
 import { useActiveChain } from "@/hooks/useActiveChain";
+import { useAuth } from "@/hooks/useAuth";
+import { getPreference, setPreference } from "@/lib/consent";
+import { AUTO_MODEL, MODEL_IDS, type AgentMode } from "@/lib/coding-agent/models";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { chainConfig } from "@/lib/chains";
 import { docsHref } from "@/lib/site-hosts";
@@ -113,16 +117,19 @@ type Starter =
   | { kind: "github"; repo: string }
   | { kind: "files"; files: Record<string, string>; label: string };
 
-/** What came back from linking GitHub to this wallet. */
+/** What came back from linking GitHub to this account. */
 const GITHUB_RESULT: Record<string, string> = {
   connected: "GitHub connected. Push or open your pull request now.",
-  connect_wallet: "Connect a wallet first: a GitHub account is linked to one wallet.",
+  connect_wallet: "Connect a user first: a GitHub account is linked to one user.",
   wallet_linked:
-    "This wallet is already linked to a different GitHub account. Unlink it on your dashboard first.",
-  github_linked: "That GitHub account is already linked to another wallet.",
+    "This user is already linked to a different GitHub account. Unlink it on your dashboard first.",
+  github_linked: "That GitHub account is already linked to another user.",
   no_account: "GitHub did not say who you are. Try connecting again.",
   unreachable: "DevStation could not record the link. Try again shortly.",
 };
+
+const MODEL_PREF = "devstation-agent-model";
+const MODE_PREF = "devstation-agent-mode";
 
 /** When the updates sheet was last opened, for the dot on the bell. */
 const NEWS_SEEN_KEY = "devstation-agent-news-seen";
@@ -192,7 +199,11 @@ async function readUploads(
 }
 
 export function CodingAgentPage() {
-  const { address: wallet } = useAccount();
+  // Who is signed in (email, through Supabase). Their email doubles as the
+  // project owner label kept in this browser.
+  const account = useAuth((s) => s.account);
+  const recovering = useAuth((s) => s.recovering);
+  const user = account?.email;
   const { chainId } = useActiveChain();
   const projects = useProjects((s) => s.projects);
   const activeId = useProjects((s) => s.activeId);
@@ -213,7 +224,26 @@ export function CodingAgentPage() {
   const [dialog, setDialog] = useState<null | "push" | "pr" | "builders" | "publish">(null);
   const [prepareNote, setPrepareNote] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(true);
-  const [sheet, setSheet] = useState<null | "drawer" | "account" | "news" | "more">(null);
+  const [sheet, setSheet] = useState<
+    null | "drawer" | "account" | "news" | "more" | "auth" | "model" | "mode"
+  >(null);
+  // The model and mode for the next message. Remembered only with consent
+  // to preference storage (lib/consent.ts).
+  const [model, setModelState] = useState<string>(AUTO_MODEL);
+  const [mode, setModeState] = useState<AgentMode>("build");
+  useEffect(() => {
+    const m = getPreference(MODEL_PREF);
+    if (m && (m === AUTO_MODEL || MODEL_IDS.includes(m))) setModelState(m);
+    if (getPreference(MODE_PREF) === "plan") setModeState("plan");
+  }, []);
+  const setModel = (m: string) => {
+    setModelState(m);
+    setPreference(MODEL_PREF, m);
+  };
+  const setMode = (m: AgentMode) => {
+    setModeState(m);
+    setPreference(MODE_PREF, m);
+  };
   const [homeTab, setHomeTab] = useState<HomeTab>("recent");
   const [renaming, setRenaming] = useState<string | null>(null);
   /** On a phone: the one pane on screen. */
@@ -231,12 +261,14 @@ export function CodingAgentPage() {
   const previewSeen = useRef<string>("");
 
   useEffect(() => {
-    try {
-      setNewsSeen(Number(localStorage.getItem(NEWS_SEEN_KEY)) || 0);
-    } catch {
-      /* no storage: every update looks new, which is harmless */
-    }
+    setNewsSeen(Number(getPreference(NEWS_SEEN_KEY)) || 0);
+    useAuth.getState().init();
   }, []);
+
+  // Back from a password reset email: ask for the new password straight away.
+  useEffect(() => {
+    if (recovering) setSheet("auth");
+  }, [recovering]);
 
   useEffect(() => {
     useProjects.getState().hydrate();
@@ -257,9 +289,9 @@ export function CodingAgentPage() {
   }, []);
 
   // Opened from a builder invite: ?join=<workspace>&name=<app>. Waits for a
-  // wallet, because joining is checked against the wallet the owner added.
+  // sign-in, because joining is checked against the account the owner added.
   useEffect(() => {
-    if (!wallet) return;
+    if (!user) return;
     const params = new URLSearchParams(window.location.search);
     const join = params.get("join");
     if (!join) return;
@@ -279,7 +311,7 @@ export function CodingAgentPage() {
         return;
       }
       const ws = result.data.workspace as WorkspaceView;
-      const id = store.create(name || "Shared app", wallet);
+      const id = store.create(name || "Shared app", user);
       store.update(id, {
         files: (result.data.files as Record<string, string>) ?? {},
         workspaceId: ws.id,
@@ -290,7 +322,7 @@ export function CodingAgentPage() {
       });
       toast.success("You are building on this app. Its files, preview and agent are shared.");
     })();
-  }, [wallet]);
+  }, [user]);
 
   const files = useMemo(() => project?.files ?? {}, [project?.files]);
   const turns: ProjectTurn[] = project?.turns ?? [];
@@ -327,6 +359,7 @@ export function CodingAgentPage() {
       // A turn another builder started arrives here without its question.
       const last = current.turns.at(-1);
       const askedHere = last?.role === "user" && last.text === next.prompt;
+      const asked = askedHere ? last : null;
       const question: ProjectTurn[] =
         !askedHere && next.prompt ? [{ role: "user", text: next.prompt }] : [];
       const text =
@@ -349,6 +382,8 @@ export function CodingAgentPage() {
             changed: next.changed,
             failed,
             ...(steps.length ? { steps } : {}),
+            // Answering a Plan message: the reply is a plan to approve.
+            ...(asked?.plan ? { plan: true } : {}),
           },
         ],
       });
@@ -450,8 +485,8 @@ export function CodingAgentPage() {
   useEffect(() => {
     setPrepareNote(null);
     if (!project || dist || running || sending || localPlan.kind !== "build") return;
-    if (!wallet) {
-      setPrepareNote("Connect a wallet to build this app's preview. It costs no gas.");
+    if (!user) {
+      setPrepareNote("Connect a user to build this app's preview. It costs no gas.");
       return;
     }
     if (project.workspaceId && !view) return; // still reading the workspace
@@ -487,7 +522,7 @@ export function CodingAgentPage() {
     })();
     // restoreBody is a plain helper recreated each render; project covers it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project, dist, running, sending, localPlan.kind, wallet, view]);
+  }, [project, dist, running, sending, localPlan.kind, user, view]);
 
   /** The active project's workspace, started from its files if it has none yet. */
   const ensureWorkspace = async (): Promise<string | null> => {
@@ -506,26 +541,28 @@ export function CodingAgentPage() {
 
   const remix = () => {
     if (!project) return;
-    const id = useProjects.getState().remix(project.id, wallet ?? null);
+    const id = useProjects.getState().remix(project.id, user ?? null);
     const made = id ? useProjects.getState().projects.find((p) => p.id === id) : null;
     if (made) toast.success(`Remixed into "${made.name}". The original is untouched.`);
   };
 
   const send = useCallback(
-    async (override?: string) => {
+    async (override?: string, modeOverride?: AgentMode) => {
       const prompt = (override ?? input).trim();
       if (!prompt || sending || running) return;
-      if (!wallet) {
-        toast.error("Connect a wallet to start. You sign once, and it costs no gas.");
+      if (!user) {
+        setSheet("auth");
         return;
       }
+      const turnMode = modeOverride ?? mode;
+      const turn = { model, mode: turnMode };
       setSending(true);
       setHandoffs([]);
       stickToBottom.current = true;
       const store = useProjects.getState();
 
       if (!store.activeId) {
-        store.create(nameFromPrompt(prompt) || "Untitled project", wallet);
+        store.create(nameFromPrompt(prompt) || "Untitled project", user);
         if (starter.kind === "github") {
           store.save({ source: { kind: "github", repo: starter.repo } });
         } else if (starter.kind === "files") {
@@ -535,7 +572,12 @@ export function CodingAgentPage() {
         }
       }
       const current = useProjects.getState().active()!;
-      store.save({ turns: [...current.turns, { role: "user", text: prompt }] });
+      store.save({
+        turns: [
+          ...current.turns,
+          { role: "user", text: prompt, ...(turnMode === "plan" ? { plan: true } : {}) },
+        ],
+      });
       setInput("");
 
       const result = current.workspaceId
@@ -545,12 +587,14 @@ export function CodingAgentPage() {
             prompt,
             context: networkContext,
             restore: restoreBody(current),
+            ...turn,
           })
         : await postWorkspace({
             action: "create",
             source: restoreBody(current),
             prompt,
             context: networkContext,
+            ...turn,
           });
 
       if (!result.ok) {
@@ -584,7 +628,7 @@ export function CodingAgentPage() {
     },
     // restoreBody is a plain helper recreated each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [input, sending, running, wallet, starter, networkContext],
+    [input, sending, running, user, starter, networkContext, model, mode],
   );
 
   const stop = async () => {
@@ -619,7 +663,7 @@ export function CodingAgentPage() {
   // names repeat across people, addresses cannot.
   const openPublish = () => {
     if (!project) return;
-    if (!wallet) return toast.error("Connect a wallet to publish.");
+    if (!user) return toast.error("Connect a user to publish.");
     if (!publishSource) return toast.error("There is no built web page to publish yet.");
     setDialog("publish");
   };
@@ -664,13 +708,13 @@ export function CodingAgentPage() {
     void send(message);
   };
 
-  const noWallet = !wallet ? (
+  const signInNotice = !user ? (
     <button
-      onClick={() => setSheet("account")}
+      onClick={() => setSheet("auth")}
       className="flex items-center gap-1.5 text-left text-[12.5px] text-muted-foreground hover:text-foreground"
     >
-      <Wallet className="h-3.5 w-3.5 shrink-0 text-primary" /> Connect a wallet to start. You sign
-      once, and it costs no gas.
+      <LogIn className="h-3.5 w-3.5 shrink-0 text-primary" /> Sign in or create an account to start
+      building. It is free.
     </button>
   ) : null;
 
@@ -684,7 +728,7 @@ export function CodingAgentPage() {
     toast.success(`Deleted ${name ?? "the project"}.`);
   };
   const remixProject = (id: string) => {
-    const made = useProjects.getState().remix(id, wallet ?? null);
+    const made = useProjects.getState().remix(id, user ?? null);
     const copy = made ? useProjects.getState().projects.find((p) => p.id === made) : null;
     if (copy) toast.success(`Remixed into "${copy.name}". The original is untouched.`);
   };
@@ -693,11 +737,7 @@ export function CodingAgentPage() {
   const openNews = () => {
     setSheet("news");
     setNewsSeen(Date.now());
-    try {
-      localStorage.setItem(NEWS_SEEN_KEY, String(Date.now()));
-    } catch {
-      /* private mode: the dot just comes back */
-    }
+    setPreference(NEWS_SEEN_KEY, String(Date.now()));
   };
 
   // Everything that floats over the page: the drawer and the sheets.
@@ -723,9 +763,16 @@ export function CodingAgentPage() {
         <AccountSheet
           projects={projects}
           usage={project && view ? { steps: view.steps, costUsd: view.costUsd } : null}
-          network={chain.name}
+          onSignIn={() => setSheet("auth")}
           onClose={() => setSheet(null)}
         />
+      )}
+      {sheet === "auth" && <AuthSheet onClose={() => setSheet(null)} />}
+      {sheet === "model" && (
+        <ModelSheet value={model} onChange={setModel} onClose={() => setSheet(null)} />
+      )}
+      {sheet === "mode" && (
+        <ModeSheet value={mode} onChange={setMode} onClose={() => setSheet(null)} />
       )}
       {sheet === "news" && (
         <NewsSheet projects={projects} onOpen={openProject} onClose={() => setSheet(null)} />
@@ -773,6 +820,7 @@ export function CodingAgentPage() {
           onMenu={() => setSheet("drawer")}
           onNews={openNews}
           onAccount={() => setSheet("account")}
+          onSignIn={() => setSheet("auth")}
           newsDot={newsDot}
           composer={
             <Composer
@@ -783,9 +831,9 @@ export function CodingAgentPage() {
               onSend={() => void send()}
               sending={sending}
               canSend={!(starter.kind === "github" && !repoInput.trim())}
-              placeholder="Describe what you want to build…"
-              network={chain.name}
-              notice={noWallet}
+              placeholder="Describe the app you want to build…"
+              trailing={<ModeButton value={mode} onClick={() => setSheet("mode")} />}
+              notice={signInNotice}
               tools={
                 <>
                   <Dropdown
@@ -826,23 +874,18 @@ export function CodingAgentPage() {
                       </>
                     )}
                   </Dropdown>
-                  <ToolChip
-                    icon={startIcon}
-                    active={starter.kind !== "blank"}
-                    onClick={() => starter.kind !== "blank" && setStarter({ kind: "blank" })}
-                    title={
-                      starter.kind === "blank"
-                        ? "Starting from a blank workspace"
-                        : "Start blank instead"
-                    }
-                  >
-                    {starter.kind === "github"
-                      ? "Repository"
-                      : starter.kind === "files"
-                        ? starter.label
-                        : "Blank"}
-                    {starter.kind !== "blank" && <X className="h-3.5 w-3.5 opacity-70" />}
-                  </ToolChip>
+                  <ModelButton value={model} onClick={() => setSheet("model")} />
+                  {starter.kind !== "blank" && (
+                    <ToolChip
+                      icon={startIcon}
+                      active
+                      onClick={() => setStarter({ kind: "blank" })}
+                      title="Start blank instead"
+                    >
+                      {starter.kind === "github" ? "Repository" : starter.label}
+                      <X className="h-3.5 w-3.5 opacity-70" />
+                    </ToolChip>
+                  )}
                 </>
               }
             />
@@ -919,7 +962,7 @@ export function CodingAgentPage() {
                     <button
                       key={a.label}
                       onClick={() => void send(a.prompt)}
-                      disabled={!wallet}
+                      disabled={!user}
                       className="inline-flex items-center gap-2 rounded-full border border-border px-3.5 py-2 text-[13.5px] text-foreground/85 transition hover:border-primary/40 hover:text-foreground disabled:opacity-50"
                     >
                       <a.icon className="h-4 w-4 text-primary" /> {a.label}
@@ -935,12 +978,22 @@ export function CodingAgentPage() {
               <UserMessage
                 key={i}
                 text={t.text}
+                plan={t.plan}
                 onAskAgain={
                   t === lastUser && !running && !sending ? () => void send(t.text) : undefined
                 }
               />
             ) : (
-              <AssistantMessage key={i} turn={t} onOpenFile={showFile} />
+              <AssistantMessage
+                key={i}
+                turn={t}
+                onOpenFile={showFile}
+                onBuildPlan={
+                  t.plan && !t.failed && i === turns.length - 1 && !running && !sending
+                    ? () => void send("The plan looks good. Build it.", "build")
+                    : undefined
+                }
+              />
             ),
           )}
 
@@ -995,6 +1048,10 @@ export function CodingAgentPage() {
       </div>
 
       <div className="mx-auto w-full max-w-2xl px-3 pb-3 sm:px-5">
+        <div className="mb-2 flex items-center gap-2 px-1">
+          <ModeButton compact value={mode} onClick={() => setSheet("mode")} />
+          <ModelButton compact value={model} onClick={() => setSheet("model")} />
+        </div>
         <Composer
           value={input}
           onChange={setInput}
@@ -1003,7 +1060,7 @@ export function CodingAgentPage() {
           running={running}
           sending={sending}
           placeholder={running ? "Next message…" : "Message"}
-          notice={noWallet}
+          notice={signInNotice}
           plus={
             <Dropdown
               label="Quick asks"
@@ -1018,7 +1075,7 @@ export function CodingAgentPage() {
                     <MenuItem
                       key={a.label}
                       icon={a.icon}
-                      disabled={running || sending || !wallet}
+                      disabled={running || sending || !user}
                       onClick={() => {
                         close();
                         void send(a.prompt);
@@ -1091,7 +1148,7 @@ export function CodingAgentPage() {
 
   const previewEmpty = (
     <div className="max-w-sm text-center">
-      {building || (localPlan.kind === "build" && !prepareNote && wallet) || running ? (
+      {building || (localPlan.kind === "build" && !prepareNote && user) || running ? (
         <LoaderCircle className="mx-auto h-6 w-6 animate-spin text-meta" />
       ) : (
         <Eye className="mx-auto h-6 w-6 text-meta" />
@@ -1161,7 +1218,7 @@ export function CodingAgentPage() {
       canPublish={!!publishSource && hasFiles}
       hasRepo={!!source.repo}
       canPullRequest={!!(view ?? project.workspaceId)}
-      onShare={() => (wallet ? setDialog("builders") : setSheet("account"))}
+      onShare={() => (user ? setDialog("builders") : setSheet("auth"))}
       onPush={() => void openDialog("push")}
       onPullRequest={() => void openDialog("pr")}
       onPublish={openPublish}
@@ -1253,7 +1310,7 @@ export function CodingAgentPage() {
       onToggleChat={() => setChatOpen((v) => !v)}
       onMenu={() => setSheet("drawer")}
       onMore={() => setSheet("more")}
-      onShare={() => (wallet ? setDialog("builders") : setSheet("account"))}
+      onShare={() => (user ? setDialog("builders") : setSheet("auth"))}
       onPublish={openPublish}
     />
   );

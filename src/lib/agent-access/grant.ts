@@ -18,6 +18,26 @@ let signer: Signer | null = null;
 let address: string | null = null;
 let chainId = 1;
 let inFlight: Promise<boolean> | null = null;
+/** Email sign-in: the current Supabase access token, read fresh each time. */
+let sessionToken: (() => Promise<string | null>) | null = null;
+
+/** Called by the sign-in store (hooks/useAuth.ts) when a session starts or
+ *  ends. With a session, the grant comes from it and no wallet is asked. */
+export function setGrantSession(next: (() => Promise<string | null>) | null) {
+  sessionToken = next;
+}
+
+/** Trade the signed-in session for the grant cookie. */
+async function grantFromSession(token: () => Promise<string | null>): Promise<boolean> {
+  const accessToken = await token().catch(() => null);
+  if (!accessToken) return false;
+  const res = await fetch("/api/access/session", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ accessToken }),
+  }).catch(() => null);
+  return !!res?.ok;
+}
 
 /** Called by the wallet provider when the connection changes. */
 export function setGrantSigner(next: {
@@ -33,7 +53,7 @@ export function setGrantSigner(next: {
 /** True when a wallet is connected, so a caller can say why something is
  *  unavailable before the user clicks it. */
 export function canRequestGrant(): boolean {
-  return !!address && !!signer;
+  return !!sessionToken || (!!address && !!signer);
 }
 
 /**
@@ -44,8 +64,16 @@ export function canRequestGrant(): boolean {
  * the second one reads as the app malfunctioning.
  */
 export async function ensureGrant(): Promise<boolean> {
-  if (!address || !signer) return false;
   if (inFlight) return inFlight;
+  if (sessionToken) {
+    inFlight = grantFromSession(sessionToken);
+    try {
+      return await inFlight;
+    } finally {
+      inFlight = null;
+    }
+  }
+  if (!address || !signer) return false;
 
   const current = { address, sign: signer, chainId };
   inFlight = (async () => {

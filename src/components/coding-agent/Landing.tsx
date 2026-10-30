@@ -14,9 +14,8 @@ import {
   Server,
   Users,
 } from "lucide-react";
-import { useAccount } from "wagmi";
-import { Identicon } from "@/components/builder/BuilderName";
-import { useQieName } from "@/hooks/useQieIdentity";
+import { LogoMark } from "@/components/shared/Logo";
+import { firstName, initials, useAuth } from "@/hooks/useAuth";
 import type { AppProject } from "@/lib/appgen/projects";
 import { IDEAS, type IdeaKind } from "@/lib/coding-agent/ideas";
 import { CODING_AGENT_ONLY } from "@/lib/features";
@@ -63,6 +62,7 @@ export function Landing({
   onMenu,
   onNews,
   onAccount,
+  onSignIn,
   newsDot,
   footer,
 }: {
@@ -78,37 +78,55 @@ export function Landing({
   onMenu: () => void;
   onNews: () => void;
   onAccount: () => void;
+  onSignIn: () => void;
   newsDot?: boolean;
   footer?: ReactNode;
 }) {
-  const { address } = useAccount();
-  const name = useQieName(address);
+  const account = useAuth((s) => s.account);
   const recent = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
 
   return (
     <div data-agent-home className="h-full overflow-y-auto">
-      <header className="sticky top-0 z-10 flex items-center gap-2 bg-background/85 px-3 py-2.5 backdrop-blur sm:px-5">
-        <RoundButton onClick={onMenu} label="Menu" icon={Menu} className="bg-transparent" />
-        <div className="flex-1" />
-        <RoundButton
-          onClick={onNews}
-          label="Updates"
-          icon={Bell}
-          dot={newsDot}
-          className="bg-transparent"
-        />
-        <button
-          onClick={onAccount}
-          aria-label="Your workspace"
-          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-surface-2 text-[12px] font-semibold text-muted-foreground"
-        >
-          {address ? <Identicon address={address} size={36} className="rounded-xl ring-0" /> : "DS"}
-        </button>
+      <header className="sticky top-0 z-10 grid grid-cols-[1fr_auto_1fr] items-center gap-2 bg-background/85 px-3 py-2.5 backdrop-blur sm:px-5">
+        <div>
+          <RoundButton onClick={onMenu} label="Menu" icon={Menu} className="bg-transparent" />
+        </div>
+        <a href="/" className="flex items-center gap-2" aria-label="DevStation">
+          <LogoMark className="h-7 w-7 sm:h-8 sm:w-8" />
+          <span className="text-[19px] font-semibold tracking-tight text-foreground sm:text-[22px]">
+            Dev<span className="text-primary">Station</span>
+          </span>
+        </a>
+        <div className="flex items-center justify-end gap-2">
+          <RoundButton
+            onClick={onNews}
+            label="Updates"
+            icon={Bell}
+            dot={newsDot}
+            className="bg-transparent"
+          />
+          {account ? (
+            <button
+              onClick={onAccount}
+              aria-label="Your account"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-2 text-[14px] font-semibold text-foreground/85"
+            >
+              {initials(account)}
+            </button>
+          ) : (
+            <button
+              onClick={onSignIn}
+              className="h-9 whitespace-nowrap rounded-full bg-foreground px-3.5 text-[13.5px] font-medium text-background hover:opacity-85"
+            >
+              Sign in
+            </button>
+          )}
+        </div>
       </header>
 
       <section className="mx-auto w-full max-w-3xl px-4 pb-10 pt-[6vh] sm:px-6">
         <h1 className="text-center text-[34px] font-semibold leading-[1.1] tracking-tight text-foreground sm:text-5xl">
-          Hi {name?.label ?? "there"}
+          Hi {firstName(account) ?? "there"}
           <span className="text-primary">.</span>
           <br />
           What will you build next?

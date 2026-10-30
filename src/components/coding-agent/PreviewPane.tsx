@@ -9,7 +9,6 @@ import {
   Tablet,
   WandSparkles,
 } from "lucide-react";
-import { useAccount } from "wagmi";
 import { PreviewFrame } from "@/components/appbuilder/PreviewFrame";
 import type { PreviewError } from "@/lib/appgen/preview";
 import { cn } from "@/lib/utils";
@@ -49,7 +48,6 @@ export function PreviewPane({
   const [device, setDevice] = useState<Device>("desktop");
   const [reload, setReload] = useState(0);
   const [errors, setErrors] = useState<PreviewError[]>([]);
-  const { isConnected } = useAccount();
   // New files, new app: old errors no longer apply.
   useEffect(() => setErrors([]), [files]);
 
@@ -77,17 +75,10 @@ export function PreviewPane({
             {liveUrl ? liveUrl.replace(/^https?:\/\//, "") : "preview"}
           </span>
           <span
-            className="hidden shrink-0 items-center gap-1 font-mono text-[10px] sm:inline-flex"
-            title={
-              isConnected
-                ? "Transactions from the preview are real and go to this network."
-                : "Connect a wallet to send transactions from the preview."
-            }
+            className="hidden shrink-0 items-center gap-1 font-mono text-[10px] text-warning sm:inline-flex"
+            title="The network apps in the preview talk to."
           >
-            <span
-              className={cn("h-1.5 w-1.5 rounded-full", isConnected ? "bg-success" : "bg-meta")}
-            />
-            <span className="text-warning">{chainName}</span>
+            {chainName}
           </span>
         </div>
         <div className="hidden md:block">

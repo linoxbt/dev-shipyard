@@ -26,7 +26,12 @@ const DOCS_KEPT = [/^\/docs\/coding-agent\/?$/, /^\/docs\/cli(\/.*)?$/];
 /** Whether `pathname` is served in Coding-Agent-only mode: the agent at "/",
  *  its docs, and the API, server functions and files the agent runs on. */
 export function servedInAgentOnly(pathname: string): boolean {
-  return pathname === "/" || isPassthrough(pathname) || DOCS_KEPT.some((re) => re.test(pathname));
+  return (
+    pathname === "/" ||
+    pathname === "/cookies" ||
+    isPassthrough(pathname) ||
+    DOCS_KEPT.some((re) => re.test(pathname))
+  );
 }
 
 /** Whether `pathname` is a page this deployment does not serve. Such a page

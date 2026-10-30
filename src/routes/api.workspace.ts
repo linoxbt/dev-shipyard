@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { isControlPath, looksLikeSecret } from "@/lib/agent/workspace";
+import { AUTO_MODEL, MODEL_IDS } from "@/lib/coding-agent/models";
+import { accountAddress } from "@/lib/auth/account.server";
 import { z } from "zod";
 import { linkedGithub } from "@/lib/github-link.server";
 import {
@@ -119,12 +121,23 @@ const sourceSchema = z.discriminatedUnion("kind", [
 ]);
 type Source = z.infer<typeof sourceSchema>;
 
+/** How the agent should take a message: which model (only those on offer)
+ *  and whether to plan first. */
+const turnOptions = {
+  model: z
+    .string()
+    .refine((m) => m === AUTO_MODEL || MODEL_IDS.includes(m), "Unknown model.")
+    .optional(),
+  mode: z.enum(["build", "plan"]).optional(),
+};
+
 const bodySchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("create"),
     source: sourceSchema,
     prompt: z.string().max(20_000).optional(),
     context: z.string().max(2000).optional(),
+    ...turnOptions,
   }),
   z.object({
     action: z.literal("message"),
@@ -134,17 +147,26 @@ const bodySchema = z.discriminatedUnion("action", [
     /** Sent with every message: if the runner has swept the workspace, it is
      *  recreated from this and the conversation carries on. */
     restore: sourceSchema.optional(),
+    ...turnOptions,
   }),
   z.object({ action: z.literal("cancel"), id: z.string().min(1).max(80) }),
   /** Open somebody else's workspace, as a builder they added. */
   z.object({ action: z.literal("join"), id: z.string().min(1).max(80) }),
   /** Add or remove a builder. Only the owner can; the runner checks. */
-  z.object({
-    action: z.literal("members"),
-    id: z.string().min(1).max(80),
-    wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-    remove: z.boolean().optional(),
-  }),
+  z
+    .object({
+      action: z.literal("members"),
+      id: z.string().min(1).max(80),
+      /** A builder's account, by the email they sign in with... */
+      email: z.string().trim().toLowerCase().email().max(320).optional(),
+      /** ...or by the id the runner knows them by (removing one listed). */
+      wallet: z
+        .string()
+        .regex(/^0x[a-fA-F0-9]{40}$/)
+        .optional(),
+      remove: z.boolean().optional(),
+    })
+    .refine((v) => !!v.email !== !!v.wallet, "Give an email or an id."),
   z.object({ action: z.literal("preview"), id: z.string().min(1).max(80) }),
   z.object({
     action: z.literal("pull_request"),
@@ -155,6 +177,16 @@ const bodySchema = z.discriminatedUnion("action", [
     body: z.string().max(60_000).default(""),
   }),
 ]);
+
+type Turn = { model?: string; mode?: "build" | "plan" };
+
+/** What the runner takes: a model it resolves itself, and plan as a flag. */
+function turnBody(turn: Turn): { model?: string; plan?: boolean } {
+  return {
+    ...(turn.model && turn.model !== AUTO_MODEL ? { model: turn.model } : {}),
+    ...(turn.mode === "plan" ? { plan: true } : {}),
+  };
+}
 
 function claimsOf(request: Request) {
   return openClaims(readCookie(request.headers.get("cookie"), CLAIM_COOKIE));
@@ -230,6 +262,7 @@ async function create(
   source: Source,
   prompt: string | undefined,
   context: string | undefined,
+  turn: Turn = {},
 ): Promise<{ ok: true; workspace: { id: string } & Record<string, unknown> } | Response> {
   const resolved = await resolveSource(request, source);
   if (resolved instanceof Response) return resolved;
@@ -247,7 +280,7 @@ async function create(
       {
         method: "POST",
         owner,
-        body: JSON.stringify({ prompt, context }),
+        body: JSON.stringify({ prompt, context, ...turnBody(turn) }),
       },
     );
     if (!sent.ok)
@@ -311,7 +344,7 @@ export const Route = createFileRoute("/api/workspace")({
             const isolation = await runnerIsolation(url, token);
             if (!isolation.ok) return fail("not_isolated", isolation.why, 503);
           }
-          const made = await create(request, owner, data.source, data.prompt, data.context);
+          const made = await create(request, owner, data.source, data.prompt, data.context, data);
           if (made instanceof Response) return made;
           return withCookie(made, claimCookieHeader(withClaim(claims, made.workspace.id, owner)));
         }
@@ -329,12 +362,23 @@ export const Route = createFileRoute("/api/workspace")({
             {
               method: "POST",
               owner,
-              body: JSON.stringify({ prompt: data.prompt, context: data.context }),
+              body: JSON.stringify({
+                prompt: data.prompt,
+                context: data.context,
+                ...turnBody(data),
+              }),
             },
           );
           if (sent.ok) return Response.json(sent.body);
           if (sent.status === 404 && data.restore) {
-            const made = await create(request, owner, data.restore, data.prompt, data.context);
+            const made = await create(
+              request,
+              owner,
+              data.restore,
+              data.prompt,
+              data.context,
+              data,
+            );
             if (made instanceof Response) return made;
             return withCookie(
               { ...made, replaced: true },
@@ -399,7 +443,12 @@ export const Route = createFileRoute("/api/workspace")({
             {
               method: "POST",
               owner,
-              body: JSON.stringify({ wallet: data.wallet, remove: data.remove === true }),
+              // A builder added by email is known to the runner by the account
+              // id that email signs in as (lib/auth/account.server.ts).
+              body: JSON.stringify({
+                wallet: data.email ? accountAddress(data.email) : data.wallet,
+                remove: data.remove === true,
+              }),
             },
           );
           return Response.json(result.body, { status: result.status });

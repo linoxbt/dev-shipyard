@@ -28,8 +28,12 @@ import { Orchestrator, type AgentEvent, type Handoff } from "../../../src/lib/ag
 import type { ProviderMessage } from "../../../src/lib/agent/providers/types";
 import { isControlPath, looksBinary, Workspace } from "../../../src/lib/agent/workspace";
 import { initLocalRepo, materialise, readWorkspace } from "../../../src/lib/agent/repo-session";
-import { providerFromEnv, type ModelProvider } from "../../../src/lib/agent/providers";
-import { SANDBOX_ADDENDUM, SANDBOX_NETWORK_ADDENDUM } from "../../../src/lib/agent/system-prompt";
+import { providerForModel, type ModelProvider } from "../../../src/lib/agent/providers";
+import {
+  PLAN_MODE_ADDENDUM,
+  SANDBOX_ADDENDUM,
+  SANDBOX_NETWORK_ADDENDUM,
+} from "../../../src/lib/agent/system-prompt";
 import { hostExecutor, type Executor } from "../../../src/lib/agent/executor";
 import {
   readinessProblem,
@@ -470,6 +474,10 @@ export function whenWorkspaceIdle(id: string): Promise<void> {
 export interface SendOptions {
   context?: string;
   provider?: ModelProvider;
+  /** A model picked in the Coding Agent (lib/coding-agent/models.ts). */
+  model?: string;
+  /** Plan mode: investigate and propose; change nothing. */
+  plan?: boolean;
   sandbox?: boolean;
   network?: boolean;
   /** Approve every gated action. Defaults to true when commands run in the
@@ -583,11 +591,12 @@ async function runTurn(
   };
 
   try {
-    const provider = opts.provider ?? providerFromEnv();
-    if (!provider) {
-      finish({ phase: "error", error: "No model provider is configured on the runner." });
+    const chosen = opts.provider ? { provider: opts.provider } : providerForModel(opts.model);
+    if ("problem" in chosen) {
+      finish({ phase: "error", error: chosen.problem });
       return;
     }
+    const provider = chosen.provider;
 
     const wantSandbox = opts.sandbox ?? sandboxEnabled();
     const network = opts.network ?? workspaceNetworkEnabled();
@@ -634,7 +643,15 @@ async function runTurn(
       projectId: session.id,
       memory,
       embeddings,
-      systemAddendum: sandboxNote + WORKSPACE_ADDENDUM + repoNote + context,
+      systemAddendum:
+        sandboxNote +
+        WORKSPACE_ADDENDUM +
+        repoNote +
+        context +
+        (opts.plan ? PLAN_MODE_ADDENDUM : ""),
+      // Plan mode: tools that would change anything are refused, whatever
+      // the model asks for.
+      ...(opts.plan ? { readOnly: true } : {}),
       offerPersonTools: personTools,
       // Without an approver every gated action is refused, which in a web
       // conversation meant no installs, no builds and no scaffolding at all.
@@ -664,7 +681,8 @@ async function runTurn(
     // to start while a turn runs, and this line used to come first, which
     // meant no preview was ever built automatically.
     running.delete(session.id);
-    if (!signal.aborted && opts.preview !== false) startWorkspacePreview(session.id);
+    // A plan changes nothing, so there is nothing new to build.
+    if (!signal.aborted && opts.preview !== false && !opts.plan) startWorkspacePreview(session.id);
   } catch (error) {
     finish({
       phase: signal.aborted ? "cancelled" : "error",

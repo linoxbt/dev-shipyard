@@ -112,9 +112,18 @@ function copy(text: string) {
   void navigator.clipboard?.writeText(text);
 }
 
-export function UserMessage({ text, onAskAgain }: { text: string; onAskAgain?: () => void }) {
+export function UserMessage({
+  text,
+  plan,
+  onAskAgain,
+}: {
+  text: string;
+  plan?: boolean;
+  onAskAgain?: () => void;
+}) {
   return (
     <div>
+      {plan && <p className="mb-1 pr-2 text-right text-[11.5px] text-primary">Plan first</p>}
       <div className="flex justify-end">
         <div className="max-w-[85%] rounded-[24px] bg-primary px-4 py-2.5 text-[15px] leading-6 text-primary-foreground">
           <p className="whitespace-pre-wrap break-words">{text}</p>
@@ -153,9 +162,12 @@ export function UserMessage({ text, onAskAgain }: { text: string; onAskAgain?: (
 export function AssistantMessage({
   turn,
   onOpenFile,
+  onBuildPlan,
 }: {
   turn: ProjectTurn;
   onOpenFile: (path: string) => void;
+  /** A plan waiting for approval: build it. */
+  onBuildPlan?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const steps = turn.steps ?? [];
@@ -192,6 +204,19 @@ export function AssistantMessage({
         {turn.changed && turn.changed.length > 0 && (
           <div className="mt-2.5">
             <ChangedFiles paths={turn.changed} onOpenFile={onOpenFile} />
+          </div>
+        )}
+        {onBuildPlan && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            <button
+              onClick={onBuildPlan}
+              className="rounded-full bg-primary px-4 py-2 text-[14px] font-medium text-primary-foreground hover:bg-primary-hover"
+            >
+              Build this plan
+            </button>
+            <span className="text-[12.5px] text-muted-foreground">
+              Or reply with what to change first.
+            </span>
           </div>
         )}
       </div>

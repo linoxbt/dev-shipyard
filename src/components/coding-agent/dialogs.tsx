@@ -9,7 +9,9 @@ import {
   LoaderCircle,
   UserPlus,
 } from "lucide-react";
-import { BuilderName, Identicon } from "@/components/builder/BuilderName";
+import { useAuth } from "@/hooks/useAuth";
+import { accountAddressOf } from "@/lib/auth/account";
+import { cn } from "@/lib/utils";
 import { fetchWithGrant } from "@/lib/agent-access/grant";
 import { postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
 import { AGENT_PATH } from "@/lib/features";
@@ -20,8 +22,8 @@ import { Field, Modal, inputClass, primaryButton } from "./primitives";
 // pull request. The requests are unchanged from the old panels; only where
 // they sit is new.
 
-/** Who builds on this app: the owner adds wallets and shares the invite link;
- *  a builder sees who is in. */
+/** Who builds on this app: the owner adds people by the email they sign in
+ *  with and shares the invite link; a builder sees who is in. */
 export function BuildersDialog({
   project,
   ensureWorkspace,
@@ -38,9 +40,17 @@ export function BuildersDialog({
     collaborators: string[];
   } | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [wallet, setWallet] = useState("");
+  const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const account = useAuth((s) => s.account);
+  const [me, setMe] = useState<string | null>(null);
+  useEffect(() => {
+    if (account) void accountAddressOf(account.email).then(setMe);
+  }, [account]);
+  const known = project.builders ?? {};
+  /** A listed id as a person: you, an email added here, or a short id. */
+  const who = (id: string) => (id === me ? "You" : (known[id] ?? `Builder ${id.slice(2, 8)}`));
 
   useEffect(() => {
     let alive = true;
@@ -66,10 +76,10 @@ export function BuildersDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const change = async (target: string, remove: boolean) => {
+  const change = async (target: { email: string } | { wallet: string }, remove: boolean) => {
     if (!id) return;
     setBusy(true);
-    const result = await postWorkspace({ action: "members", id, wallet: target, remove });
+    const result = await postWorkspace({ action: "members", id, ...target, remove });
     setBusy(false);
     if (!result.ok) {
       toast.error(String(result.data.message ?? "That did not work."));
@@ -77,10 +87,15 @@ export function BuildersDialog({
     }
     const collaborators = (result.data.collaborators as string[]) ?? [];
     setMembers((m) => (m ? { ...m, collaborators } : m));
-    useProjects.getState().update(project.id, { shared: collaborators.length > 0 });
+    const patch: Partial<AppProject> = { shared: collaborators.length > 0 };
+    if ("email" in target && !remove) {
+      // Remember who that id is, so the list can say so.
+      patch.builders = { ...known, [await accountAddressOf(target.email)]: target.email };
+    }
+    useProjects.getState().update(project.id, patch);
     if (!remove) {
-      setWallet("");
-      toast.success("Added. Send them the invite link.");
+      setEmail("");
+      toast.success("Added. Send them the invite link: they sign in with that email to join.");
     }
   };
 
@@ -88,7 +103,7 @@ export function BuildersDialog({
     ? `${window.location.origin}${AGENT_PATH}?join=${encodeURIComponent(id)}&name=${encodeURIComponent(project.name)}`
     : "";
   const isOwner = members?.role === "owner";
-  const valid = /^0x[a-fA-F0-9]{40}$/.test(wallet.trim());
+  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   const everyone = members ? [members.owner, ...members.collaborators] : [];
   return (
@@ -98,12 +113,15 @@ export function BuildersDialog({
         <div className="relative mx-5 mt-2 flex h-36 items-end justify-center overflow-hidden rounded-3xl bg-[radial-gradient(70%_90%_at_50%_100%,color-mix(in_oklch,var(--primary)_35%,transparent),transparent)] pb-5 sm:mt-5">
           <div className="flex items-end -space-x-3">
             {(everyone.length ? everyone.slice(0, 4) : ["0x1", "0x2", "0x3"]).map((a, i) => (
-              <Identicon
+              <span
                 key={a}
-                address={a}
-                size={i === 1 ? 72 : 56}
-                className="ring-4 ring-surface"
-              />
+                className={cn(
+                  "flex items-center justify-center rounded-full bg-surface-2 font-semibold text-foreground/80 ring-4 ring-surface",
+                  i === 1 ? "h-[72px] w-[72px] text-[20px]" : "h-14 w-14 text-[16px]",
+                )}
+              >
+                {everyone.length ? who(a).slice(0, 1).toUpperCase() : ""}
+              </span>
             ))}
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-2 text-muted-foreground ring-4 ring-surface">
               <UserPlus className="h-6 w-6" />
@@ -114,8 +132,9 @@ export function BuildersDialog({
     >
       <p className="text-[18px] font-semibold text-foreground">Invite builders</p>
       <p className="mt-1 text-[14px] leading-6 text-muted-foreground">
-        Builders open the link with the wallet you add. They talk to the same agent and see the same
-        files and preview of {project.name}. The agent takes one message at a time.
+        Add someone by the email they sign in with, then send them the link. They talk to the same
+        agent and see the same files and preview of {project.name}. The agent takes one message at a
+        time.
       </p>
       {failed ? (
         <p className="mt-4 text-[13.5px] text-warning">{failed}</p>
@@ -143,13 +162,14 @@ export function BuildersDialog({
           {isOwner ? (
             <div className="flex items-center gap-2 pt-2">
               <input
-                value={wallet}
-                onChange={(e) => setWallet(e.target.value)}
-                placeholder="0x… wallet to add"
-                className={`${inputClass} rounded-full px-4 py-2 font-mono`}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Their email"
+                className={`${inputClass} rounded-full px-4 py-2`}
               />
               <button
-                onClick={() => void change(wallet.trim(), false)}
+                onClick={() => void change({ email: email.trim().toLowerCase() }, false)}
                 disabled={busy || !valid}
                 className={`${primaryButton} rounded-full px-4 py-2`}
               >
@@ -160,19 +180,19 @@ export function BuildersDialog({
             <p className="pt-1 text-[12.5px] text-meta">Only the owner adds builders.</p>
           )}
           <ul className="divide-y divide-border">
-            <li className="flex items-center gap-3 py-2.5 font-mono text-[12.5px]">
-              <Identicon address={members.owner} size={28} />
-              <BuilderName address={members.owner} link={false} />
-              <span className="ml-auto text-[11.5px] text-meta">Owner</span>
+            <li className="flex items-center gap-3 py-2.5 text-[14px]">
+              <Avatar label={who(members.owner)} />
+              <span className="min-w-0 flex-1 truncate text-foreground">{who(members.owner)}</span>
+              <span className="text-[12px] text-meta">Owner</span>
             </li>
             {members.collaborators.map((c) => (
-              <li key={c} className="flex items-center gap-3 py-2.5 font-mono text-[12.5px]">
-                <Identicon address={c} size={28} />
-                <BuilderName address={c} link={false} />
-                <span className="ml-auto text-[11.5px] text-meta">Builder</span>
+              <li key={c} className="flex items-center gap-3 py-2.5 text-[14px]">
+                <Avatar label={who(c)} />
+                <span className="min-w-0 flex-1 truncate text-foreground">{who(c)}</span>
+                <span className="text-[12px] text-meta">Builder</span>
                 {isOwner && (
                   <button
-                    onClick={() => void change(c, true)}
+                    onClick={() => void change({ wallet: c }, true)}
                     disabled={busy}
                     className="text-[11.5px] text-meta hover:text-danger disabled:opacity-40"
                   >
@@ -185,6 +205,14 @@ export function BuildersDialog({
         </div>
       )}
     </Modal>
+  );
+}
+
+function Avatar({ label }: { label: string }) {
+  return (
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-[12.5px] font-semibold text-foreground/80">
+      {label.slice(0, 1).toUpperCase()}
+    </span>
   );
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import type { LayoutStorage } from "react-resizable-panels";
 import { Columns2, Maximize2, MessageSquare, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from "react-resizable-panels";
+import { getPreference, setPreference } from "@/lib/consent";
 
 // Chat on the left, preview on the right: a draggable divider and a chat panel
 // that collapses out of the way.
@@ -50,6 +51,11 @@ const MOBILE_GROUP_ID = "devstation-app-builder-mobile";
 // The hook falls back to localStorage when `storage` is undefined, which throws
 // during SSR. Hand it an inert store on the server instead of nothing.
 const NO_STORAGE: LayoutStorage = { getItem: () => null, setItem: () => {} };
+/** The split is a preference: kept only with consent (lib/consent.ts). */
+const PREFERENCE_STORAGE: LayoutStorage = {
+  getItem: (key) => getPreference(key),
+  setItem: (key, value) => setPreference(key, value),
+};
 
 // useLayoutEffect warns when it runs on the server, where it does nothing
 // useful anyway; useEffect is the right no-op there.
@@ -126,14 +132,14 @@ export function SplitLayout({ chat, preview, className = DEFAULT_HEIGHT, chatCol
   const mobileLayout = useDefaultLayout({
     id: MOBILE_GROUP_ID,
     panelIds: [CHAT, PREVIEW],
-    storage: typeof localStorage === "undefined" ? NO_STORAGE : localStorage,
+    storage: typeof localStorage === "undefined" ? NO_STORAGE : PREFERENCE_STORAGE,
   });
 
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: GROUP_ID,
     // Listed so a collapsed-then-expanded chat comes back at its saved width.
     panelIds: [CHAT, PREVIEW],
-    storage: typeof localStorage === "undefined" ? NO_STORAGE : localStorage,
+    storage: typeof localStorage === "undefined" ? NO_STORAGE : PREFERENCE_STORAGE,
   });
 
   if (mobile) {

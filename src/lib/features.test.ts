@@ -23,6 +23,7 @@ describe("switchedOff", () => {
   it("keeps the agent's docs, the CLI docs, the API and files", () => {
     for (const p of [
       "/docs/coding-agent",
+      "/cookies",
       "/docs/cli",
       "/docs/cli/install",
       "/api/workspace",

@@ -94,6 +94,7 @@ export function Composer({
   tools,
   plus,
   network,
+  trailing,
   notice,
   autoFocus,
 }: {
@@ -111,6 +112,8 @@ export function Composer({
   /** Dock: the "+" button on the left (usually a menu). */
   plus?: ReactNode;
   network?: string;
+  /** Hero: beside the send button, before the microphone. */
+  trailing?: ReactNode;
   notice?: ReactNode;
   autoFocus?: boolean;
 }) {
@@ -185,6 +188,7 @@ export function Composer({
               <Network className="h-4 w-4" /> {network}
             </span>
           )}
+          {trailing}
           {mic}
           <button
             onClick={send}

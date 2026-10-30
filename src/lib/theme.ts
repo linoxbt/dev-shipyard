@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { setPreference } from "@/lib/consent";
 
 // Light/dark theme, persisted to localStorage and applied as a class on <html>.
 // Dark is the default (tokens live in :root); the `light` class overrides them
@@ -41,11 +42,9 @@ interface ThemeState {
 export const useTheme = create<ThemeState>((set, get) => ({
   theme: "dark",
   setTheme: (t) => {
-    try {
-      localStorage.setItem(KEY, t);
-    } catch {
-      /* not persisted; still applied for this page */
-    }
+    // A preference: remembered only if preferences were accepted
+    // (lib/consent.ts); otherwise it lasts for this visit.
+    setPreference(KEY, t);
     applyTheme(t);
     set({ theme: t });
   },

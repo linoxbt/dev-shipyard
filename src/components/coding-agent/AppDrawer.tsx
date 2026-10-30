@@ -10,18 +10,15 @@ import {
   MessagesSquare,
   Plus,
   Search,
-  Sparkles,
   Store,
   Terminal,
   X,
 } from "lucide-react";
-import { useAccount } from "wagmi";
-import { Identicon } from "@/components/builder/BuilderName";
-import { useQieName } from "@/hooks/useQieIdentity";
+import { LogoMark } from "@/components/shared/Logo";
+import { initials, useAuth } from "@/hooks/useAuth";
 import type { AppProject } from "@/lib/appgen/projects";
 import { ago } from "@/lib/coding-agent/steps";
 import { docsHref } from "@/lib/site-hosts";
-import { truncateAddress } from "@/lib/wallet";
 import { useUi } from "@/lib/ui-state";
 import { CODING_AGENT_ONLY } from "@/lib/features";
 import { cn } from "@/lib/utils";
@@ -68,11 +65,9 @@ export function AppDrawer({
   return (
     <Drawer onClose={onClose}>
       <div className="flex items-center gap-2 px-4 pb-2 pt-4">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-          <Sparkles className="h-4 w-4" />
-        </span>
-        <p className="flex-1 text-[17px] font-semibold tracking-tight text-foreground">
-          Coding Agent
+        <LogoMark className="h-8 w-8" />
+        <p className="flex-1 text-[18px] font-semibold tracking-tight text-foreground">
+          Dev<span className="text-primary">Station</span>
         </p>
         <button
           onClick={onClose}
@@ -218,7 +213,7 @@ function DrawerLink({
   );
 }
 
-/** The wallet as the workspace, at the foot of the drawer. */
+/** Your account, at the foot of the drawer. */
 function WorkspaceRow({
   onAccount,
   onNews,
@@ -230,27 +225,26 @@ function WorkspaceRow({
   newsDot?: boolean;
   count: number;
 }) {
-  const { address } = useAccount();
-  const name = useQieName(address);
+  const account = useAuth((s) => s.account);
   return (
     <div className="flex items-center gap-2 border-t border-border p-3">
       <button
         onClick={onAccount}
         className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1.5 text-left hover:bg-surface-2"
       >
-        {address ? (
-          <Identicon address={address} size={36} className="rounded-xl" />
-        ) : (
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface-2 text-[13px] font-semibold text-muted-foreground">
-            DS
-          </span>
-        )}
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-[14px] font-semibold text-foreground/85">
+          {account ? initials(account) : "DS"}
+        </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] font-medium text-foreground">
-            {name?.full ?? (address ? truncateAddress(address) : "Your workspace")}
+          <span className="block truncate text-[14.5px] font-medium text-foreground">
+            {account
+              ? `${account.name ?? account.email.split("@")[0]}'s Workspace`
+              : "Your workspace"}
           </span>
-          <span className="block truncate text-[12px] text-muted-foreground">
-            {address ? `${count} project${count === 1 ? "" : "s"}` : "No wallet connected"}
+          <span className="block truncate text-[12.5px] text-muted-foreground">
+            {account
+              ? `${count} project${count === 1 ? "" : "s"} · ${account.email}`
+              : "Not signed in"}
           </span>
         </span>
         <ChevronsUpDown className="h-4 w-4 shrink-0 text-meta" />

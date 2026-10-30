@@ -138,3 +138,16 @@ test("the service worker registers with this build's version", async ({ page }) 
   });
   expect(urls.some((u) => /\/sw\.js\?v=.+-.+/.test(u))).toBe(true);
 });
+
+test("the cookie notice asks once, and the policy is there", async ({ page }) => {
+  await page.goto(AGENT_ONLY ? "/" : "/docs/coding-agent", { waitUntil: "networkidle" });
+  const notice = page.getByRole("dialog", { name: "Cookie preferences" });
+  await expect(notice).toBeVisible();
+  await notice.getByRole("button", { name: "Reject all" }).click();
+  await expect(notice).toBeHidden();
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(page.getByRole("dialog", { name: "Cookie preferences" })).toBeHidden();
+  const policy = await page.goto("/cookies", { waitUntil: "domcontentloaded" });
+  expect(policy?.status()).toBe(200);
+  await expect(page.getByRole("heading", { name: "Cookie policy" })).toBeVisible();
+});

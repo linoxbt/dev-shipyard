@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
-  Check,
-  Copy,
+  Cookie,
   Download,
   ExternalLink,
   GitFork,
@@ -22,17 +21,14 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { useAccount, useDisconnect } from "wagmi";
 import { NetworkSelector } from "@/components/web3/NetworkSelector";
 import { CODING_AGENT_ONLY, servedInAgentOnly } from "@/lib/features";
 import { useTheme } from "@/lib/theme";
-import { Identicon } from "@/components/builder/BuilderName";
-import { ConnectModal } from "@/components/web3/ConnectModal";
-import { useQieName } from "@/hooks/useQieIdentity";
+import { initials, useAuth } from "@/hooks/useAuth";
+import { useConsent } from "@/lib/consent";
 import type { AppProject } from "@/lib/appgen/projects";
 import { ago } from "@/lib/coding-agent/steps";
 import { docsHref } from "@/lib/site-hosts";
-import { truncateAddress } from "@/lib/wallet";
 import { cn } from "@/lib/utils";
 import { Modal, Segmented, SheetRow } from "./primitives";
 
@@ -90,43 +86,37 @@ function Meter({
 export function AccountSheet({
   projects,
   usage,
-  network,
+  onSignIn,
   onClose,
 }: {
   projects: AppProject[];
   /** The open project's agent work, when one is open. */
   usage?: { steps: number; costUsd: number } | null;
-  network: string;
+  onSignIn: () => void;
   onClose: () => void;
 }) {
-  const { address } = useAccount();
-  const { disconnect } = useDisconnect();
-  const name = useQieName(address);
+  const account = useAuth((s) => s.account);
+  const signOut = useAuth((s) => s.signOut);
+  const manageCookies = useConsent((s) => s.manage);
   const theme = useTheme((s) => s.theme);
   const toggleTheme = useTheme((s) => s.toggle);
-  const [connecting, setConnecting] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [used, setUsed] = useState(0);
   useEffect(() => setUsed(storageUsed()), []);
-
-  if (connecting) return <ConnectModal onClose={() => setConnecting(false)} />;
 
   return (
     <Modal onClose={onClose}>
       <div className="flex items-center gap-3 border-b border-border pb-4">
-        {address ? (
-          <Identicon address={address} size={44} className="rounded-xl" />
-        ) : (
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface-2 text-[14px] font-semibold text-muted-foreground">
-            DS
-          </span>
-        )}
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-[16px] font-semibold text-foreground/85">
+          {account ? initials(account) : "DS"}
+        </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[16px] font-semibold text-foreground">
-            {name?.full ?? (address ? truncateAddress(address) : "Your workspace")}
+          <p className="truncate text-[16.5px] font-semibold text-foreground">
+            {account
+              ? `${account.name ?? account.email.split("@")[0]}'s Workspace`
+              : "Your workspace"}
           </p>
-          <p className="truncate text-[13px] text-muted-foreground">
-            {projects.length} project{projects.length === 1 ? "" : "s"} · {network}
+          <p className="truncate text-[13.5px] text-muted-foreground">
+            {plural(projects.length, "project")} · {account ? account.email : "not signed in"}
           </p>
         </div>
       </div>
@@ -161,12 +151,15 @@ export function AccountSheet({
         Projects live in this browser. Push to GitHub or download one to keep a copy elsewhere.
       </p>
 
-      {!address && (
+      {!account && (
         <button
-          onClick={() => setConnecting(true)}
+          onClick={() => {
+            onClose();
+            onSignIn();
+          }}
           className="mt-4 w-full rounded-xl border border-primary py-2.5 text-[15px] font-medium text-primary transition hover:bg-primary/10"
         >
-          Connect a wallet
+          Sign in or create an account
         </button>
       )}
 
@@ -184,36 +177,41 @@ export function AccountSheet({
       >
         Appearance
       </SheetRow>
-      {!CODING_AGENT_ONLY && (
-        <Link to="/settings" onClick={onClose} className="block">
-          <SheetRow icon={Settings}>Settings</SheetRow>
-        </Link>
-      )}
+      <SheetRow
+        icon={Cookie}
+        onClick={() => {
+          onClose();
+          manageCookies(true);
+        }}
+      >
+        Cookie preferences
+      </SheetRow>
       <SheetRow icon={BookOpen} href={docsHref("/docs/coding-agent")}>
         How the Coding Agent works
       </SheetRow>
       <SheetRow icon={Terminal} href={docsHref("/docs/cli/install")}>
         Install the CLI
       </SheetRow>
-
-      {address && (
-        <SheetRow icon={LogOut} onClick={() => disconnect()} chevron={false}>
-          Disconnect wallet
-        </SheetRow>
+      {!CODING_AGENT_ONLY && (
+        <Link to="/settings" onClick={onClose} className="block">
+          <SheetRow icon={Settings}>Settings</SheetRow>
+        </Link>
       )}
 
-      {address && (
-        <button
-          onClick={() => {
-            void navigator.clipboard?.writeText(address);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1200);
-          }}
-          className="mt-4 flex w-full items-center gap-2 border-t border-border px-2 pt-4 text-left font-mono text-[12.5px] text-muted-foreground hover:text-foreground"
-        >
-          <span className="min-w-0 flex-1 truncate">{address}</span>
-          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-        </button>
+      {account && (
+        <>
+          <div className="my-2 border-t border-border" />
+          <SheetRow
+            icon={LogOut}
+            chevron={false}
+            onClick={() => {
+              onClose();
+              void signOut();
+            }}
+          >
+            Sign out
+          </SheetRow>
+        </>
       )}
     </Modal>
   );

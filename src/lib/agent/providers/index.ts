@@ -3,6 +3,7 @@ import { EngineProvider } from "./engine";
 import { OpenRouterProvider } from "./openrouter";
 import type { ModelProvider } from "./types";
 import type { Resolved } from "./settings";
+import { AUTO_MODEL, findModel } from "../../coding-agent/models";
 
 export * from "./types";
 export { AnthropicProvider } from "./anthropic";
@@ -37,6 +38,38 @@ export function providerFromEnv(
   const openRouter = env.OPENROUTER_API_KEY || env.AI_API_KEY;
   if (openRouter) return new OpenRouterProvider(openRouter, model);
   return null;
+}
+
+/**
+ * The provider for a model picked in the Coding Agent (lib/coding-agent/models.ts).
+ *
+ * A model with a native Anthropic name runs on the Anthropic key when there is
+ * one; anything else needs OpenRouter. No choice, or "auto", is the runner's
+ * default from providerFromEnv. A model this runner has no key for is an
+ * answer, not a silent swap to another model: the person picked it.
+ */
+export function providerForModel(
+  modelId: string | null | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): { provider: ModelProvider } | { problem: string } {
+  if (!modelId || modelId === AUTO_MODEL) {
+    const provider = providerFromEnv(env);
+    return provider ? { provider } : { problem: "No model provider is configured on the runner." };
+  }
+  const model = findModel(modelId);
+  if (!model) return { problem: `${modelId} is not one of the models on offer.` };
+  if (model.anthropic && env.ANTHROPIC_API_KEY) {
+    return {
+      provider: new AnthropicProvider({ apiKey: env.ANTHROPIC_API_KEY, model: model.anthropic }),
+    };
+  }
+  const openRouter = env.OPENROUTER_API_KEY || env.AI_API_KEY;
+  if (openRouter) return { provider: new OpenRouterProvider(openRouter, model.openrouter) };
+  return {
+    problem: `${model.label} is not available on this runner: it needs ${
+      model.anthropic ? "an Anthropic or an OpenRouter key" : "an OpenRouter key"
+    }. Pick Auto, or ask the operator to add one.`,
+  };
 }
 
 /** Which provider would be chosen, without constructing one. For diagnostics
