@@ -7,9 +7,9 @@ import {
   Github,
   GitPullRequest,
   LoaderCircle,
-  Users,
+  UserPlus,
 } from "lucide-react";
-import { BuilderName } from "@/components/builder/BuilderName";
+import { BuilderName, Identicon } from "@/components/builder/BuilderName";
 import { fetchWithGrant } from "@/lib/agent-access/grant";
 import { postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
 import { useProjects, type AppProject } from "@/lib/appgen/projects";
@@ -89,53 +89,91 @@ export function BuildersDialog({
   const isOwner = members?.role === "owner";
   const valid = /^0x[a-fA-F0-9]{40}$/.test(wallet.trim());
 
+  const everyone = members ? [members.owner, ...members.collaborators] : [];
   return (
-    <Modal title={`Share ${project.name}`} icon={Users} onClose={onClose}>
+    <Modal
+      onClose={onClose}
+      hero={
+        <div className="relative mx-5 mt-2 flex h-36 items-end justify-center overflow-hidden rounded-3xl bg-[radial-gradient(70%_90%_at_50%_100%,color-mix(in_oklch,var(--primary)_35%,transparent),transparent)] pb-5 sm:mt-5">
+          <div className="flex items-end -space-x-3">
+            {(everyone.length ? everyone.slice(0, 4) : ["0x1", "0x2", "0x3"]).map((a, i) => (
+              <Identicon
+                key={a}
+                address={a}
+                size={i === 1 ? 72 : 56}
+                className="ring-4 ring-surface"
+              />
+            ))}
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-2 text-muted-foreground ring-4 ring-surface">
+              <UserPlus className="h-6 w-6" />
+            </span>
+          </div>
+        </div>
+      }
+    >
+      <p className="text-[18px] font-semibold text-foreground">Invite builders</p>
+      <p className="mt-1 text-[14px] leading-6 text-muted-foreground">
+        Builders open the link with the wallet you add. They talk to the same agent and see the same
+        files and preview of {project.name}. The agent takes one message at a time.
+      </p>
       {failed ? (
-        <p className="text-[13px] text-warning">{failed}</p>
+        <p className="mt-4 text-[13.5px] text-warning">{failed}</p>
       ) : !members ? (
-        <p className="flex items-center gap-2 text-[13px] text-meta">
+        <p className="mt-4 flex items-center gap-2 text-[13.5px] text-meta">
           <LoaderCircle className="h-4 w-4 animate-spin" /> Reading the workspace…
         </p>
       ) : (
-        <div className="space-y-4">
-          <p className="text-[13px] leading-5 text-muted-foreground">
-            Builders open the invite link with the wallet you add. They talk to the same agent and
-            see the same files and preview. The agent takes one message at a time.
-          </p>
+        <div className="mt-4 space-y-3">
+          <div className="rounded-2xl bg-background px-4 py-3 text-center font-mono text-[12.5px] text-foreground break-all">
+            {link}
+          </div>
+          <button
+            onClick={() => {
+              void navigator.clipboard.writeText(link);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-[15px] font-medium text-primary-foreground transition hover:bg-primary-hover"
+          >
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copied ? "Copied" : "Copy invite link"}
+          </button>
+
           {isOwner ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-2">
               <input
                 value={wallet}
                 onChange={(e) => setWallet(e.target.value)}
                 placeholder="0x… wallet to add"
-                className={`${inputClass} font-mono`}
+                className={`${inputClass} rounded-full px-4 py-2 font-mono`}
               />
               <button
                 onClick={() => void change(wallet.trim(), false)}
                 disabled={busy || !valid}
-                className={primaryButton}
+                className={`${primaryButton} rounded-full px-4 py-2`}
               >
                 Add
               </button>
             </div>
           ) : (
-            <p className="text-[12px] text-meta">Only the owner adds builders.</p>
+            <p className="pt-1 text-[12.5px] text-meta">Only the owner adds builders.</p>
           )}
-          <ul className="divide-y divide-border rounded-lg border border-border">
-            <li className="flex items-center gap-2 px-3 py-2 font-mono text-[12px]">
+          <ul className="divide-y divide-border">
+            <li className="flex items-center gap-3 py-2.5 font-mono text-[12.5px]">
+              <Identicon address={members.owner} size={28} />
               <BuilderName address={members.owner} link={false} />
-              <span className="ml-auto text-[11px] text-meta">Owner</span>
+              <span className="ml-auto text-[11.5px] text-meta">Owner</span>
             </li>
             {members.collaborators.map((c) => (
-              <li key={c} className="flex items-center gap-2 px-3 py-2 font-mono text-[12px]">
+              <li key={c} className="flex items-center gap-3 py-2.5 font-mono text-[12.5px]">
+                <Identicon address={c} size={28} />
                 <BuilderName address={c} link={false} />
-                <span className="ml-auto text-[11px] text-meta">Builder</span>
+                <span className="ml-auto text-[11.5px] text-meta">Builder</span>
                 {isOwner && (
                   <button
                     onClick={() => void change(c, true)}
                     disabled={busy}
-                    className="text-[11px] text-meta hover:text-danger disabled:opacity-40"
+                    className="text-[11.5px] text-meta hover:text-danger disabled:opacity-40"
                   >
                     Remove
                   </button>
@@ -143,22 +181,6 @@ export function BuildersDialog({
               </li>
             ))}
           </ul>
-          <Field label="Invite link">
-            <div className="flex items-center gap-2">
-              <input readOnly value={link} className={`${inputClass} font-mono text-[11px]`} />
-              <button
-                onClick={() => {
-                  void navigator.clipboard.writeText(link);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1500);
-                }}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[12px] text-muted-foreground hover:border-primary hover:text-primary"
-              >
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? "Copied" : "Copy"}
-              </button>
-            </div>
-          </Field>
         </div>
       )}
     </Modal>

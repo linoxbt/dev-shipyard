@@ -1,4 +1,5 @@
 import { ReactNode, useEffect } from "react";
+import { useRouterState } from "@tanstack/react-router";
 import { PanelLeftOpen } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { WrongNetworkBanner } from "./WrongNetworkBanner";
@@ -14,6 +15,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const toggleSidebar = useUi((s) => s.toggleSidebar);
   const collapsed = useUi((s) => s.sidebarCollapsed);
   const hydrateUi = useUi((s) => s.hydrate);
+  // The Coding Agent has its own bar with its own menu (which also opens this
+  // one), so on a phone it gets the whole screen rather than two bars.
+  const fullScreen = useRouterState({
+    select: (s) => s.location.pathname.startsWith("/launchkit/coding-agent"),
+  });
   useEffect(() => {
     hydrate();
     hydrateUi();
@@ -29,7 +35,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
       >
         {/* Mobile top bar: the toggle opens the drawer */}
-        <header className="flex items-center gap-3 border-b border-border bg-surface px-4 py-2.5 md:hidden">
+        <header
+          className={cn(
+            "flex items-center gap-3 border-b border-border bg-surface px-4 py-2.5 md:hidden",
+            fullScreen && "hidden",
+          )}
+        >
           <button
             onClick={openMobileNav}
             className="rounded p-1 text-muted-foreground hover:text-foreground"

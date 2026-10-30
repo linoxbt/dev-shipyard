@@ -115,9 +115,11 @@ function CodingAgentDocs() {
         ]}
       />
       <P>
-        The project name at the top left switches between your projects, starts a new one and
-        renames this one. Share, GitHub and Publish are at the top right; Download, Remix and Sell
-        are under the ••• menu.
+        The menu at the top left lists your projects, starts a new one and opens templates; your
+        workspace (wallet, projects saved, browser storage) is at its foot. The ••• button holds
+        everything you can do with the open project: publish, invite builders, push to GitHub,
+        download, remix, rename, sell or delete. On a phone, the tabs along the bottom switch
+        between the chat, the preview, the code and the activity.
       </P>
 
       <H2>When you are happy with it</H2>

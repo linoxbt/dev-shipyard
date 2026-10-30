@@ -2,6 +2,9 @@ import { useMemo, useState } from "react";
 import {
   ChevronRight,
   Circle,
+  Copy,
+  Ellipsis,
+  RotateCcw,
   CircleCheck,
   CircleX,
   FileCode2,
@@ -12,7 +15,6 @@ import {
   ListChecks,
   LoaderCircle,
   Search,
-  Sparkles,
   SquareTerminal,
   TriangleAlert,
   Wrench,
@@ -32,6 +34,7 @@ import {
 } from "@/lib/coding-agent/steps";
 import { cn } from "@/lib/utils";
 import { Markdown } from "./Markdown";
+import { Dropdown, MenuItem } from "./primitives";
 
 // The conversation, in the shape Claude Code on the web uses: what you asked,
 // then the agent's work as a list of steps (each one a tool call you can open
@@ -49,26 +52,101 @@ const ICON: Record<ToolKind, React.ComponentType<{ className?: string }>> = {
   other: Wrench,
 };
 
-export function UserMessage({ text }: { text: string }) {
+/** The agent at the head of the conversation, the way Muse introduces itself:
+ *  a round face and a name pill. */
+export function AgentIntro({ name, busy }: { name: string; busy?: boolean }) {
   return (
-    <div className="flex justify-end">
-      <div className="max-w-[88%] rounded-2xl rounded-br-md bg-surface-2 px-3.5 py-2 text-[13.5px] leading-6 text-foreground">
-        <p className="whitespace-pre-wrap break-words">{text}</p>
-      </div>
+    <div className="flex flex-col items-center pb-2 pt-4">
+      <span
+        className={cn(
+          "relative flex h-20 w-20 items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_30%,color-mix(in_oklch,var(--primary)_55%,white),var(--primary)_60%,color-mix(in_oklch,var(--primary)_70%,black))] shadow-xl shadow-primary/20",
+          busy && "animate-pulse",
+        )}
+      >
+        <span className="-mt-2 flex gap-3">
+          <span className="h-2.5 w-2 rounded-full bg-background/85" />
+          <span className="h-2.5 w-2 rounded-full bg-background/85" />
+        </span>
+        <svg
+          viewBox="0 0 20 10"
+          className="absolute bottom-[22px] h-2.5 w-5 text-background/70"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          aria-hidden
+        >
+          <path d="M3 3 Q10 9 17 3" />
+        </svg>
+      </span>
+      <span className="-mt-3 rounded-full border border-border bg-surface-2 px-3.5 py-1 text-[13.5px] font-medium text-foreground shadow">
+        {name}
+      </span>
     </div>
   );
 }
 
-function AgentMark({ busy }: { busy?: boolean }) {
+/** "…" under a message: what you can do with it. */
+function MessageMenu({
+  align,
+  children,
+}: {
+  align: "left" | "right";
+  children: (close: () => void) => React.ReactNode;
+}) {
   return (
-    <span
-      className={cn(
-        "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary",
-        busy && "animate-pulse",
-      )}
-    >
-      <Sparkles className="h-3.5 w-3.5" />
-    </span>
+    <div className={cn("mt-1 flex", align === "right" ? "justify-end pr-2" : "pl-2")}>
+      <Dropdown
+        label="Message options"
+        align={align}
+        triggerClassName="rounded-full px-1.5 py-0.5 text-meta transition hover:bg-surface-2 hover:text-foreground"
+        trigger={() => <Ellipsis className="h-4 w-4" />}
+      >
+        {children}
+      </Dropdown>
+    </div>
+  );
+}
+
+function copy(text: string) {
+  void navigator.clipboard?.writeText(text);
+}
+
+export function UserMessage({ text, onAskAgain }: { text: string; onAskAgain?: () => void }) {
+  return (
+    <div>
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-[24px] bg-primary px-4 py-2.5 text-[15px] leading-6 text-primary-foreground">
+          <p className="whitespace-pre-wrap break-words">{text}</p>
+        </div>
+      </div>
+      <MessageMenu align="right">
+        {(close) => (
+          <>
+            <MenuItem
+              icon={Copy}
+              onClick={() => {
+                close();
+                copy(text);
+              }}
+            >
+              Copy
+            </MenuItem>
+            {onAskAgain && (
+              <MenuItem
+                icon={RotateCcw}
+                onClick={() => {
+                  close();
+                  onAskAgain();
+                }}
+              >
+                Ask again
+              </MenuItem>
+            )}
+          </>
+        )}
+      </MessageMenu>
+    </div>
   );
 }
 
@@ -85,20 +163,19 @@ export function AssistantMessage({
     steps.map((s) => ({ tool: s.tool ?? null, status: s.failed ? "failed" : "done" })),
   );
   return (
-    <div className="flex gap-2.5">
-      <AgentMark />
-      <div className="min-w-0 flex-1 space-y-2">
+    <div>
+      <div className="max-w-[92%] rounded-[24px] bg-surface-2 px-4 py-3">
         {steps.length > 0 && (
-          <div>
+          <div className="mb-2">
             <button
               onClick={() => setOpen((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-md py-0.5 font-mono text-[11px] text-meta hover:text-muted-foreground"
+              className="inline-flex items-center gap-1 text-[12.5px] text-muted-foreground hover:text-foreground"
             >
-              <ChevronRight className={cn("h-3 w-3 transition", open && "rotate-90")} />
+              <ChevronRight className={cn("h-3.5 w-3.5 transition", open && "rotate-90")} />
               {summary || `${steps.length} steps`}
             </button>
             {open && (
-              <div className="mt-1 space-y-0.5 border-l border-border pl-3">
+              <div className="mt-1.5 space-y-0.5 border-l border-border pl-3">
                 {steps.map((s, i) => (
                   <SavedStepRow key={i} step={s} />
                 ))}
@@ -107,15 +184,43 @@ export function AssistantMessage({
           </div>
         )}
         {turn.failed && (
-          <p className="flex items-center gap-1.5 font-mono text-[11px] text-warning">
+          <p className="mb-1 flex items-center gap-1.5 text-[12.5px] text-warning">
             <TriangleAlert className="h-3.5 w-3.5" /> Did not finish
           </p>
         )}
-        <Markdown text={turn.text} />
+        <Markdown text={turn.text} className="text-[15px] leading-[1.65]" />
         {turn.changed && turn.changed.length > 0 && (
-          <ChangedFiles paths={turn.changed} onOpenFile={onOpenFile} />
+          <div className="mt-2.5">
+            <ChangedFiles paths={turn.changed} onOpenFile={onOpenFile} />
+          </div>
         )}
       </div>
+      <MessageMenu align="left">
+        {(close) => (
+          <>
+            <MenuItem
+              icon={Copy}
+              onClick={() => {
+                close();
+                copy(turn.text);
+              }}
+            >
+              Copy reply
+            </MenuItem>
+            {turn.changed && turn.changed.length > 0 && (
+              <MenuItem
+                icon={FileCode2}
+                onClick={() => {
+                  close();
+                  onOpenFile(turn.changed![0]);
+                }}
+              >
+                Open the changed files
+              </MenuItem>
+            )}
+          </>
+        )}
+      </MessageMenu>
     </div>
   );
 }
@@ -239,7 +344,7 @@ export function StepRow({ step, defaultOpen }: { step: Step; defaultOpen?: boole
 export function PlanCard({ plan }: { plan: PlanItem[] }) {
   const done = plan.filter((p) => p.status === "completed").length;
   return (
-    <div className="rounded-lg border border-border bg-surface px-3 py-2">
+    <div className="rounded-2xl border border-border bg-surface px-3.5 py-2.5">
       <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-meta">
         <ListChecks className="h-3 w-3" /> Plan · {done}/{plan.length}
       </p>
@@ -287,33 +392,31 @@ export function LiveTurn({
   const [all, setAll] = useState(false);
   const hidden = all ? 0 : Math.max(0, steps.length - SHOWN_STEPS);
   return (
-    <div className="flex gap-2.5">
-      <AgentMark busy />
-      <div className="min-w-0 flex-1 space-y-2">
-        {plan && <PlanCard plan={plan} />}
-        {steps.length > 0 && (
-          <div className="space-y-0.5">
-            {hidden > 0 && (
-              <button
-                onClick={() => setAll(true)}
-                className="px-1.5 font-mono text-[11px] text-meta hover:text-foreground"
-              >
-                Show {hidden} earlier step{hidden === 1 ? "" : "s"}
-              </button>
-            )}
-            {steps.slice(hidden).map((s) => (
-              <StepRow key={s.id} step={s} />
-            ))}
-          </div>
-        )}
-        {reply && <Markdown text={reply} />}
-        <p className="flex items-center gap-2 text-[12px] text-meta">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-          </span>
-          <span className="truncate">{status || "Working"}</span>
-        </p>
+    <div className="max-w-[92%] space-y-2.5 rounded-[24px] bg-surface-2 px-4 py-3">
+      {plan && <PlanCard plan={plan} />}
+      {steps.length > 0 && (
+        <div className="-mx-1.5 space-y-0.5">
+          {hidden > 0 && (
+            <button
+              onClick={() => setAll(true)}
+              className="px-1.5 text-[12px] text-meta hover:text-foreground"
+            >
+              Show {hidden} earlier step{hidden === 1 ? "" : "s"}
+            </button>
+          )}
+          {steps.slice(hidden).map((s) => (
+            <StepRow key={s.id} step={s} />
+          ))}
+        </div>
+      )}
+      {reply && <Markdown text={reply} className="text-[15px] leading-[1.65]" />}
+      <div className="flex items-center gap-2.5 text-[13px] text-muted-foreground">
+        <span className="ds-typing flex gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
+          <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
+          <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
+        </span>
+        <span className="truncate">{status || "Working"}</span>
       </div>
     </div>
   );

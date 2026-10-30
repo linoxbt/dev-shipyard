@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { X } from "lucide-react";
+import { ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // The few interactive pieces the Coding Agent needs and the app has no
@@ -15,7 +15,10 @@ export function Dropdown({
   align = "left",
   className,
   label,
+  up,
 }: {
+  /** Open above the button, for a menu at the foot of the screen. */
+  up?: boolean;
   /** The button's content; the button itself is rendered here. */
   trigger: (open: boolean) => ReactNode;
   triggerClassName?: string;
@@ -56,7 +59,8 @@ export function Dropdown({
         <div
           role="menu"
           className={cn(
-            "absolute top-full z-50 mt-1.5 min-w-[13rem] overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-xl shadow-black/30",
+            "absolute z-50 min-w-[13rem] overflow-hidden rounded-xl border border-border bg-popover p-1 shadow-xl shadow-black/30",
+            up ? "bottom-full mb-2" : "top-full mt-1.5",
             align === "right" ? "right-0" : "left-0",
             className,
           )}
@@ -109,19 +113,126 @@ export function MenuLabel({ children }: { children: ReactNode }) {
   );
 }
 
+/** A dialog that is a bottom sheet on a phone (grab handle, rounded top, the
+ *  way Muse and Base44 present settings and invites) and a centred card on a
+ *  larger screen. Closes on Escape and on a tap outside. */
 export function Modal({
   title,
   icon: Icon,
   onClose,
   children,
   wide,
+  hero,
 }: {
-  title: ReactNode;
+  title?: ReactNode;
   icon?: Icon;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
+  /** Artwork above the title, as on an invite sheet. */
+  hero?: ReactNode;
 }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = overflow;
+    };
+  }, [onClose]);
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/55 backdrop-blur-[2px] sm:items-start sm:overflow-y-auto sm:p-4 sm:pt-[10vh]"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className={cn(
+          "ds-sheet max-h-[88dvh] w-full overflow-y-auto rounded-t-[28px] border border-b-0 border-border bg-surface shadow-2xl shadow-black/50 sm:max-h-none sm:rounded-3xl sm:border-b",
+          wide ? "sm:max-w-xl" : "sm:max-w-md",
+        )}
+      >
+        <div className="flex justify-center pb-1 pt-3 sm:hidden">
+          <span className="h-1.5 w-12 rounded-full bg-border" />
+        </div>
+        {hero}
+        {title && (
+          <div className="flex items-center gap-2.5 px-5 pb-1 pt-3 sm:pt-5">
+            {Icon && <Icon className="h-4 w-4 text-primary" />}
+            <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-foreground">
+              {title}
+            </p>
+            <button
+              onClick={onClose}
+              className="hidden rounded-full p-1.5 text-meta hover:bg-surface-2 hover:text-foreground sm:block"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        <div className="px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** A row in a settings-style list: icon, label, optional detail, chevron. */
+export function SheetRow({
+  icon: Icon,
+  children,
+  detail,
+  onClick,
+  href,
+  disabled,
+  danger,
+  chevron = true,
+}: {
+  icon: Icon;
+  children: ReactNode;
+  detail?: ReactNode;
+  onClick?: () => void;
+  href?: string;
+  disabled?: boolean;
+  danger?: boolean;
+  chevron?: boolean;
+}) {
+  const body = (
+    <>
+      <Icon className={cn("h-5 w-5 shrink-0", danger ? "text-danger" : "text-foreground/80")} />
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate text-[15px]",
+          danger ? "text-danger" : "text-foreground",
+        )}
+      >
+        {children}
+      </span>
+      {detail && <span className="shrink-0 text-[12.5px] text-meta">{detail}</span>}
+      {chevron && <ChevronRight className="h-4 w-4 shrink-0 text-meta" />}
+    </>
+  );
+  const cls =
+    "flex w-full items-center gap-4 rounded-xl px-2 py-3 text-left transition hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-40";
+  if (href) {
+    return (
+      <a href={href} className={cls}>
+        {body}
+      </a>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} className={cls}>
+      {body}
+    </button>
+  );
+}
+
+/** A panel that slides in from the left over the page. */
+export function Drawer({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -129,31 +240,46 @@ export function Modal({
   }, [onClose]);
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-[12vh] backdrop-blur-[2px]"
+      className="fixed inset-0 z-[55] bg-black/55 backdrop-blur-[2px]"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        className={cn(
-          "w-full rounded-xl border border-border bg-surface shadow-2xl shadow-black/40",
-          wide ? "max-w-xl" : "max-w-md",
-        )}
-      >
-        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          {Icon && <Icon className="h-4 w-4 text-primary" />}
-          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{title}</p>
-          <button
-            onClick={onClose}
-            className="rounded p-1 text-meta hover:bg-surface-2 hover:text-foreground"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="p-4">{children}</div>
-      </div>
+      <aside className="ds-drawer flex h-full w-[min(20rem,86vw)] flex-col border-r border-border bg-surface shadow-2xl shadow-black/50">
+        {children}
+      </aside>
     </div>
+  );
+}
+
+/** A round icon button, as in the headers of both apps. */
+export function RoundButton({
+  onClick,
+  label,
+  icon: Icon,
+  dot,
+  className,
+}: {
+  onClick: () => void;
+  label: string;
+  icon: Icon;
+  dot?: boolean;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={cn(
+        "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-foreground/85 transition hover:bg-border/70 hover:text-foreground",
+        className,
+      )}
+    >
+      <Icon className="h-[18px] w-[18px]" />
+      {dot && (
+        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-surface-2" />
+      )}
+    </button>
   );
 }
 

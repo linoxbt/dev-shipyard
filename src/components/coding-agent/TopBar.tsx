@@ -1,46 +1,29 @@
-import { useState } from "react";
-import { Link } from "@tanstack/react-router";
 import {
   Activity,
-  Check,
-  ChevronDown,
   CodeXml,
-  Download,
   Ellipsis,
   Eye,
-  GitFork,
-  Github,
-  GitPullRequest,
   LoaderCircle,
+  Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  Pencil,
-  Plus,
   Rocket,
-  Search,
-  Sparkles,
-  Store,
-  Terminal,
   Users,
 } from "lucide-react";
 import type { AppProject } from "@/lib/appgen/projects";
-import { ago } from "@/lib/coding-agent/steps";
-import { docsHref } from "@/lib/site-hosts";
 import { cn } from "@/lib/utils";
-import { Dropdown, MenuItem, MenuLabel, Segmented, ghostButton, primaryButton } from "./primitives";
+import { RoundButton, Segmented, ghostButton, primaryButton } from "./primitives";
 
 export type View = "preview" | "code" | "activity";
 
-// One bar across the top, the way Lovable and Base44 lay out a project: the
-// project (and every other one) on the left, what you are looking at in the
-// middle, and what you can do with it on the right, Publish first.
+// The bar across a project. Round buttons at either end, as in both apps: the
+// menu on the left, the project's options on the right, Publish beside them.
+// On a larger screen it also carries Base44's Preview / Code switch; on a
+// phone that job moves to the tab bar at the bottom.
 
 export function TopBar({
   project,
-  projects,
-  onOpen,
-  onNew,
-  onRename,
+  mobile,
   view,
   onView,
   fileCount,
@@ -48,22 +31,15 @@ export function TopBar({
   building,
   shared,
   canPublish,
-  hasRepo,
-  canPullRequest,
-  onShare,
-  onPush,
-  onPullRequest,
-  onPublish,
-  onDownload,
-  onRemix,
   chatOpen,
   onToggleChat,
+  onMenu,
+  onMore,
+  onShare,
+  onPublish,
 }: {
   project: AppProject;
-  projects: AppProject[];
-  onOpen: (id: string) => void;
-  onNew: () => void;
-  onRename: (name: string) => void;
+  mobile: boolean;
   view: View;
   onView: (v: View) => void;
   fileCount: number;
@@ -71,35 +47,63 @@ export function TopBar({
   building: boolean;
   shared: boolean;
   canPublish: boolean;
-  hasRepo: boolean;
-  canPullRequest: boolean;
-  onShare: () => void;
-  onPush: () => void;
-  onPullRequest: () => void;
-  onPublish: () => void;
-  onDownload: () => void;
-  onRemix: () => void;
   chatOpen: boolean;
   onToggleChat: () => void;
+  onMenu: () => void;
+  onMore: () => void;
+  onShare: () => void;
+  onPublish: () => void;
 }) {
+  const subtitle = running
+    ? "Agent working…"
+    : project.source?.repo
+      ? `${project.source.repo}${project.source.ref ? ` @ ${project.source.ref}` : ""}`
+      : `${fileCount} file${fileCount === 1 ? "" : "s"}${shared ? " · shared" : ""}`;
+
+  if (mobile) {
+    return (
+      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-3">
+        <RoundButton onClick={onMenu} label="Menu" icon={Menu} />
+        <div className="min-w-0 flex-1 text-center">
+          <p className="truncate text-[15px] font-semibold text-foreground">{project.name}</p>
+          <p
+            className={cn(
+              "truncate text-[11.5px]",
+              running ? "text-primary" : "text-muted-foreground",
+            )}
+          >
+            {subtitle}
+          </p>
+        </div>
+        <RoundButton onClick={onMore} label="Project options" icon={Ellipsis} />
+        <button
+          onClick={onPublish}
+          disabled={!canPublish || running}
+          aria-label={project.liveUrl ? "Update the live app" : "Publish"}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+        >
+          <Rocket className="h-[18px] w-[18px]" />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-2 sm:px-3">
+    <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-3">
+      <RoundButton onClick={onMenu} label="Menu" icon={Menu} />
       <button
         onClick={onToggleChat}
         title={chatOpen ? "Hide the chat" : "Show the chat"}
-        className={cn(ghostButton, "hidden px-1.5 md:inline-flex")}
+        className={cn(ghostButton, "px-2")}
       >
         {chatOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
       </button>
-      <ProjectSwitcher
-        project={project}
-        projects={projects}
-        onOpen={onOpen}
-        onNew={onNew}
-        onRename={onRename}
-        running={running}
-        shared={shared}
-      />
+      <div className="min-w-0 max-w-[18rem]">
+        <p className="truncate text-[14.5px] font-semibold text-foreground">{project.name}</p>
+        <p className={cn("truncate text-[11.5px]", running ? "text-primary" : "text-meta")}>
+          {subtitle}
+        </p>
+      </div>
 
       <div className="flex flex-1 justify-center">
         <Segmented
@@ -114,297 +118,102 @@ export function TopBar({
                 <LoaderCircle className="h-3 w-3 animate-spin text-primary" />
               ) : undefined,
             },
-            {
-              value: "code",
-              label: "Code",
-              icon: CodeXml,
-              badge: fileCount ? (
-                <span className="hidden font-mono text-[10px] text-meta lg:inline">
-                  {fileCount}
-                </span>
-              ) : undefined,
-            },
+            { value: "code", label: "Code", icon: CodeXml },
             { value: "activity", label: "Activity", icon: Activity },
           ]}
         />
       </div>
 
-      <div className="flex items-center gap-1">
-        <button onClick={onShare} className={cn(ghostButton, "max-md:hidden")} title="Share">
-          <Users className="h-3.5 w-3.5" />
-          <span className="hidden lg:inline">Share</span>
-        </button>
-        <Dropdown
-          label="GitHub"
-          align="right"
-          triggerClassName={cn(ghostButton, "max-md:hidden")}
-          trigger={() => (
-            <>
-              <Github className="h-3.5 w-3.5" />
-              <span className="hidden lg:inline">GitHub</span>
-              <ChevronDown className="h-3 w-3 text-meta" />
-            </>
-          )}
-        >
-          {(close) => (
-            <>
-              <MenuItem
-                icon={Github}
-                disabled={!fileCount || running}
-                onClick={() => {
-                  close();
-                  onPush();
-                }}
-              >
-                Push to a new repository
-              </MenuItem>
-              {hasRepo && (
-                <MenuItem
-                  icon={GitPullRequest}
-                  disabled={!canPullRequest || running}
-                  onClick={() => {
-                    close();
-                    onPullRequest();
-                  }}
-                >
-                  Open a pull request
-                </MenuItem>
-              )}
-            </>
-          )}
-        </Dropdown>
-        <Dropdown
-          label="More"
-          align="right"
-          triggerClassName={ghostButton}
-          trigger={() => <Ellipsis className="h-4 w-4" />}
-        >
-          {(close) => (
-            <>
-              <div className="md:hidden">
-                <MenuItem
-                  icon={Users}
-                  onClick={() => {
-                    close();
-                    onShare();
-                  }}
-                >
-                  Share
-                </MenuItem>
-                <MenuItem
-                  icon={Github}
-                  disabled={!fileCount || running}
-                  onClick={() => {
-                    close();
-                    onPush();
-                  }}
-                >
-                  Push to GitHub
-                </MenuItem>
-                {hasRepo && (
-                  <MenuItem
-                    icon={GitPullRequest}
-                    disabled={!canPullRequest || running}
-                    onClick={() => {
-                      close();
-                      onPullRequest();
-                    }}
-                  >
-                    Open a pull request
-                  </MenuItem>
-                )}
-              </div>
-              <MenuItem
-                icon={Download}
-                disabled={!fileCount}
-                onClick={() => {
-                  close();
-                  onDownload();
-                }}
-              >
-                Download as zip
-              </MenuItem>
-              <MenuItem
-                icon={GitFork}
-                onClick={() => {
-                  close();
-                  onRemix();
-                }}
-              >
-                Remix into a copy
-              </MenuItem>
-              <Link
-                to="/launchkit/marketplace/sell"
-                className="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] text-foreground hover:bg-surface-2"
-              >
-                <Store className="h-3.5 w-3.5 text-muted-foreground" /> Sell on the marketplace
-              </Link>
-              <a
-                href={docsHref("/docs/cli/install")}
-                className="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] text-foreground hover:bg-surface-2"
-              >
-                <Terminal className="h-3.5 w-3.5 text-muted-foreground" /> Same agent in your
-                terminal
-              </a>
-            </>
-          )}
-        </Dropdown>
-        <button
-          onClick={onPublish}
-          disabled={!canPublish || running}
-          className={cn(primaryButton, "ml-1")}
-          title={canPublish ? "Publish" : "There is no built web page to publish yet"}
-        >
-          <Rocket className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">{project.liveUrl ? "Update" : "Publish"}</span>
-        </button>
-      </div>
+      <button onClick={onShare} className={ghostButton} title="Invite builders">
+        <Users className="h-4 w-4" />
+        <span className="hidden lg:inline">Share</span>
+      </button>
+      <RoundButton onClick={onMore} label="Project options" icon={Ellipsis} />
+      <button
+        onClick={onPublish}
+        disabled={!canPublish || running}
+        className={cn(primaryButton, "ml-1 rounded-full px-4")}
+        title={canPublish ? "Publish" : "There is no built web page to publish yet"}
+      >
+        <Rocket className="h-3.5 w-3.5" />
+        {project.liveUrl ? "Update" : "Publish"}
+      </button>
     </div>
   );
 }
 
-function ProjectSwitcher({
-  project,
-  projects,
-  onOpen,
-  onNew,
-  onRename,
+/** The phone's tab bar, Muse-style: icons only, the current one solid. */
+export function TabBar({
+  pane,
+  onPane,
+  onMore,
+  building,
   running,
-  shared,
 }: {
-  project: AppProject;
-  projects: AppProject[];
-  onOpen: (id: string) => void;
-  onNew: () => void;
-  onRename: (name: string) => void;
+  pane: "chat" | View;
+  onPane: (p: "chat" | View) => void;
+  onMore: () => void;
+  building: boolean;
   running: boolean;
-  shared: boolean;
 }) {
-  const [query, setQuery] = useState("");
-  const [renaming, setRenaming] = useState<string | null>(null);
-  const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
-  const q = query.trim().toLowerCase();
-  const shown = q ? sorted.filter((p) => p.name.toLowerCase().includes(q)) : sorted.slice(0, 12);
-
-  if (renaming !== null) {
-    return (
-      <form
-        className="flex min-w-0 items-center gap-1"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (renaming.trim()) onRename(renaming.trim().slice(0, 80));
-          setRenaming(null);
-        }}
-      >
-        <input
-          autoFocus
-          value={renaming}
-          onChange={(e) => setRenaming(e.target.value)}
-          onBlur={() => setRenaming(null)}
-          onKeyDown={(e) => e.key === "Escape" && setRenaming(null)}
-          className="w-44 rounded-md border border-primary bg-background px-2 py-1 text-[13px] text-foreground focus:outline-none"
-        />
-        <button
-          type="submit"
-          onMouseDown={(e) => e.preventDefault()}
-          className="rounded p-1 text-primary"
-          aria-label="Save name"
-        >
-          <Check className="h-4 w-4" />
-        </button>
-      </form>
-    );
-  }
-
+  const items: {
+    id: "chat" | View;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }[] = [
+    { id: "chat", label: "Chat", icon: MessageIcon },
+    { id: "preview", label: "Preview", icon: Eye },
+    { id: "code", label: "Code", icon: CodeXml },
+    { id: "activity", label: "Activity", icon: Activity },
+  ];
   return (
-    <Dropdown
-      label="Projects"
-      className="w-72"
-      triggerClassName="flex min-w-0 max-w-[42vw] items-center gap-2 rounded-md px-1.5 py-1 text-left transition hover:bg-surface-2 sm:max-w-[16rem]"
-      trigger={(open) => (
-        <>
-          <span
+    <nav className="flex shrink-0 items-center justify-around border-t border-border bg-background px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+      {items.map((it) => {
+        const active = pane === it.id;
+        const Icon = it.icon;
+        const busy = (it.id === "preview" && building) || (it.id === "chat" && running && !active);
+        return (
+          <button
+            key={it.id}
+            onClick={() => onPane(it.id)}
+            aria-label={it.label}
+            aria-current={active ? "page" : undefined}
             className={cn(
-              "flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary",
-              running && "animate-pulse",
+              "relative flex h-11 w-14 flex-col items-center justify-center gap-0.5 rounded-2xl transition",
+              active ? "text-foreground" : "text-meta hover:text-muted-foreground",
             )}
           >
-            <Sparkles className="h-3.5 w-3.5" />
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-[13px] font-medium text-foreground">
-              {project.name}
-            </span>
-            <span className="hidden truncate font-mono text-[10px] text-meta sm:block">
-              {running
-                ? "Agent working…"
-                : project.source?.repo
-                  ? `${project.source.repo}${project.source.ref ? ` @ ${project.source.ref}` : ""}`
-                  : `${Object.keys(project.files).length} files${shared ? " · shared" : ""}`}
-            </span>
-          </span>
-          <ChevronDown
-            className={cn("h-3.5 w-3.5 shrink-0 text-meta transition", open && "rotate-180")}
-          />
-        </>
-      )}
+            <Icon
+              className={cn("h-6 w-6", active && it.id === "chat" && "[&_path]:fill-current")}
+            />
+            <span className="text-[10px]">{it.label}</span>
+            {busy && <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />}
+          </button>
+        );
+      })}
+      <button
+        onClick={onMore}
+        aria-label="More"
+        className="flex h-11 w-14 flex-col items-center justify-center gap-0.5 rounded-2xl text-meta hover:text-muted-foreground"
+      >
+        <Menu className="h-6 w-6" />
+        <span className="text-[10px]">More</span>
+      </button>
+    </nav>
+  );
+}
+
+/** A speech bubble that can be drawn solid when its tab is open. */
+function MessageIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      className={className}
     >
-      {(close) => (
-        <>
-          <MenuItem
-            icon={Plus}
-            onClick={() => {
-              close();
-              onNew();
-            }}
-          >
-            New project
-          </MenuItem>
-          <MenuItem
-            icon={Pencil}
-            onClick={() => {
-              close();
-              setRenaming(project.name);
-            }}
-          >
-            Rename this project
-          </MenuItem>
-          <div className="my-1 border-t border-border" />
-          {projects.length > 6 && (
-            <div className="mx-1 mb-1 flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1">
-              <Search className="h-3 w-3 text-meta" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Find a project"
-                className="min-w-0 flex-1 bg-transparent text-[12px] focus:outline-none"
-              />
-            </div>
-          )}
-          <MenuLabel>Recent</MenuLabel>
-          <div className="max-h-72 overflow-y-auto">
-            {shown.map((p) => (
-              <MenuItem
-                key={p.id}
-                onClick={() => {
-                  close();
-                  onOpen(p.id);
-                }}
-                hint={
-                  p.id === project.id ? (
-                    <Check className="h-3 w-3 text-primary" />
-                  ) : (
-                    ago(p.updatedAt)
-                  )
-                }
-              >
-                {p.name}
-              </MenuItem>
-            ))}
-            {shown.length === 0 && <p className="px-2.5 py-1.5 text-[12px] text-meta">None.</p>}
-          </div>
-        </>
-      )}
-    </Dropdown>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+    </svg>
   );
 }

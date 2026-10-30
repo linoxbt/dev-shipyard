@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { toast } from "sonner";
 import {
+  Box,
   Bug,
   Eye,
   FlaskConical,
@@ -12,11 +13,13 @@ import {
   Hammer,
   LoaderCircle,
   Lightbulb,
+  Pencil,
   Plus,
   Rocket,
   Terminal,
   TriangleAlert,
   Wallet,
+  X,
 } from "lucide-react";
 import { SplitLayout } from "@/components/appbuilder/SplitLayout";
 import { PublishDialog } from "@/components/appbuilder/PublishDialog";
@@ -24,10 +27,25 @@ import { ActivityPane } from "@/components/coding-agent/ActivityPane";
 import { CodePane } from "@/components/coding-agent/CodePane";
 import { Composer, ToolChip } from "@/components/coding-agent/Composer";
 import { BuildersDialog, GithubDialog } from "@/components/coding-agent/dialogs";
-import { Landing } from "@/components/coding-agent/Landing";
+import { AppDrawer } from "@/components/coding-agent/AppDrawer";
+import { Landing, type HomeTab } from "@/components/coding-agent/Landing";
+import {
+  Dropdown,
+  MenuItem,
+  MenuLabel,
+  Modal,
+  inputClass,
+  primaryButton,
+} from "@/components/coding-agent/primitives";
+import { AccountSheet, NewsSheet, ProjectSheet } from "@/components/coding-agent/sheets";
 import { PreviewPane } from "@/components/coding-agent/PreviewPane";
-import { TopBar, type View } from "@/components/coding-agent/TopBar";
-import { AssistantMessage, LiveTurn, UserMessage } from "@/components/coding-agent/Transcript";
+import { TabBar, TopBar, type View } from "@/components/coding-agent/TopBar";
+import {
+  AgentIntro,
+  AssistantMessage,
+  LiveTurn,
+  UserMessage,
+} from "@/components/coding-agent/Transcript";
 import {
   nameFromPrompt,
   onProjectsWriteError,
@@ -40,6 +58,7 @@ import { filesUnder, localPreviewPlan } from "@/lib/appgen/local-preview";
 import { compactSteps, stepsFromEvents, type AgentEvent } from "@/lib/coding-agent/steps";
 import { postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
 import { useActiveChain } from "@/hooks/useActiveChain";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { chainConfig } from "@/lib/chains";
 import { docsHref } from "@/lib/site-hosts";
 import { cn } from "@/lib/utils";
@@ -109,6 +128,9 @@ const GITHUB_RESULT: Record<string, string> = {
   no_account: "GitHub did not say who you are. Try connecting again.",
   unreachable: "DevStation could not record the link. Try again shortly.",
 };
+
+/** When the updates sheet was last opened, for the dot on the bell. */
+const NEWS_SEEN_KEY = "devstation-agent-news-seen";
 
 const SKIP_UPLOAD = /(^|\/)(node_modules|\.git|dist|build|\.next|\.turbo|\.venv|__pycache__)\//;
 
@@ -196,12 +218,30 @@ function CodingAgent() {
   const [dialog, setDialog] = useState<null | "push" | "pr" | "builders" | "publish">(null);
   const [prepareNote, setPrepareNote] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(true);
+  const [sheet, setSheet] = useState<null | "drawer" | "account" | "news" | "more">(null);
+  const [homeTab, setHomeTab] = useState<HomeTab>("recent");
+  const [renaming, setRenaming] = useState<string | null>(null);
+  /** On a phone: the one pane on screen. */
+  const [pane, setPane] = useState<"chat" | View>("chat");
+  const [newsSeen, setNewsSeen] = useState(0);
+  const folderInput = useRef<HTMLInputElement | null>(null);
+  const mobile = useIsMobile();
+  /** The workbench's view: the phone's pane, or the desktop switch. */
+  const shownTab: View = mobile ? (pane === "chat" ? "preview" : pane) : tab;
   const preparing = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // Follow new output only while the reader is at the bottom: scrolling up to
   // read an earlier step should not be yanked back down by the next one.
   const stickToBottom = useRef(true);
   const previewSeen = useRef<string>("");
+
+  useEffect(() => {
+    try {
+      setNewsSeen(Number(localStorage.getItem(NEWS_SEEN_KEY)) || 0);
+    } catch {
+      /* no storage: every update looks new, which is harmless */
+    }
+  }, []);
 
   useEffect(() => {
     useProjects.getState().hydrate();
@@ -611,6 +651,11 @@ function CodingAgent() {
   const showFile = (path: string) => {
     setOpenFile(path);
     setTab("code");
+    setPane("code");
+  };
+
+  const scrollToTop = () => {
+    document.querySelector("[data-agent-home]")?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   /** "Fix with agent" on a preview error: send it straight away when the agent
@@ -625,26 +670,83 @@ function CodingAgent() {
   };
 
   const noWallet = !wallet ? (
-    <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-      <Wallet className="h-3.5 w-3.5 text-primary" /> Connect a wallet in the sidebar to start. You
-      sign once, and it costs no gas.
-    </p>
+    <button
+      onClick={() => setSheet("account")}
+      className="flex items-center gap-1.5 text-left text-[12.5px] text-muted-foreground hover:text-foreground"
+    >
+      <Wallet className="h-3.5 w-3.5 shrink-0 text-primary" /> Connect a wallet to start. You sign
+      once, and it costs no gas.
+    </button>
   ) : null;
+
+  const openProject = (id: string) => {
+    useProjects.getState().open(id);
+    setPane("chat");
+  };
+  const deleteProject = (id: string) => {
+    const name = projects.find((p) => p.id === id)?.name;
+    useProjects.getState().remove(id);
+    toast.success(`Deleted ${name ?? "the project"}.`);
+  };
+  const remixProject = (id: string) => {
+    const made = useProjects.getState().remix(id, wallet ?? null);
+    const copy = made ? useProjects.getState().projects.find((p) => p.id === made) : null;
+    if (copy) toast.success(`Remixed into "${copy.name}". The original is untouched.`);
+  };
+  const latestUpdate = projects.reduce((m, p) => Math.max(m, p.updatedAt), 0);
+  const newsDot = latestUpdate > newsSeen;
+  const openNews = () => {
+    setSheet("news");
+    setNewsSeen(Date.now());
+    try {
+      localStorage.setItem(NEWS_SEEN_KEY, String(Date.now()));
+    } catch {
+      /* private mode: the dot just comes back */
+    }
+  };
+
+  // Everything that floats over the page: the drawer and the sheets.
+  const overlays = (
+    <>
+      {sheet === "drawer" && (
+        <AppDrawer
+          projects={projects}
+          activeId={activeId}
+          onOpen={openProject}
+          onNew={newProject}
+          onTemplates={() => {
+            newProject();
+            setHomeTab("templates");
+          }}
+          onAccount={() => setSheet("account")}
+          onNews={openNews}
+          newsDot={newsDot}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === "account" && (
+        <AccountSheet
+          projects={projects}
+          usage={project && view ? { steps: view.steps, costUsd: view.costUsd } : null}
+          network={chain.name}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === "news" && (
+        <NewsSheet projects={projects} onOpen={openProject} onClose={() => setSheet(null)} />
+      )}
+    </>
+  );
 
   // ---------------------------------------------------------------- landing
 
   if (!project) {
-    const pickFiles = (
-      <label className="contents">
-        <ToolChip
-          as="span"
-          icon={FolderUp}
-          active={starter.kind === "files"}
-          title="Start from a folder on this computer"
-        >
-          {starter.kind === "files" ? starter.label : "Upload folder"}
-        </ToolChip>
+    const startIcon =
+      starter.kind === "github" ? Github : starter.kind === "files" ? FolderUp : Box;
+    return (
+      <div className="h-dvh">
         <input
+          ref={folderInput}
           type="file"
           multiple
           className="hidden"
@@ -653,6 +755,7 @@ function CodingAgent() {
           onChange={async (e) => {
             if (!e.target.files?.length) return;
             const read = await readUploads(e.target.files);
+            e.target.value = "";
             const count = Object.keys(read.files).length;
             if (count === 0) return toast.error("None of those files could be read as text.");
             setStarter({ kind: "files", files: read.files, label: `${count} files` });
@@ -661,14 +764,21 @@ function CodingAgent() {
             );
           }}
         />
-      </label>
-    );
-    return (
-      <div className="h-[calc(100dvh-3.5rem)] md:h-dvh">
         <Landing
           projects={projects}
-          onOpen={(id) => useProjects.getState().open(id)}
-          onIdea={(prompt) => setInput(prompt)}
+          tab={homeTab}
+          onTab={setHomeTab}
+          onOpen={openProject}
+          onRemix={remixProject}
+          onDelete={deleteProject}
+          onIdea={(prompt) => {
+            setInput(prompt);
+            scrollToTop();
+          }}
+          onMenu={() => setSheet("drawer")}
+          onNews={openNews}
+          onAccount={() => setSheet("account")}
+          newsDot={newsDot}
           composer={
             <Composer
               variant="hero"
@@ -683,30 +793,68 @@ function CodingAgent() {
               notice={noWallet}
               tools={
                 <>
-                  <ToolChip
-                    icon={Plus}
-                    active={starter.kind === "blank"}
-                    onClick={() => setStarter({ kind: "blank" })}
-                    title="Start from an empty workspace"
+                  <Dropdown
+                    label="Start from"
+                    triggerClassName="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-foreground/85 transition hover:border-primary/40 hover:text-foreground"
+                    trigger={() => <Plus className="h-5 w-5" />}
                   >
-                    Blank
-                  </ToolChip>
+                    {(close) => (
+                      <>
+                        <MenuLabel>Start from</MenuLabel>
+                        <MenuItem
+                          icon={Box}
+                          onClick={() => {
+                            close();
+                            setStarter({ kind: "blank" });
+                          }}
+                        >
+                          Nothing: a blank workspace
+                        </MenuItem>
+                        <MenuItem
+                          icon={Github}
+                          onClick={() => {
+                            close();
+                            setStarter({ kind: "github", repo: repoInput });
+                          }}
+                        >
+                          A GitHub repository
+                        </MenuItem>
+                        <MenuItem
+                          icon={FolderUp}
+                          onClick={() => {
+                            close();
+                            folderInput.current?.click();
+                          }}
+                        >
+                          A folder on this computer
+                        </MenuItem>
+                      </>
+                    )}
+                  </Dropdown>
                   <ToolChip
-                    icon={Github}
-                    active={starter.kind === "github"}
-                    onClick={() => setStarter({ kind: "github", repo: repoInput })}
-                    title="Start from a GitHub repository"
+                    icon={startIcon}
+                    active={starter.kind !== "blank"}
+                    onClick={() => starter.kind !== "blank" && setStarter({ kind: "blank" })}
+                    title={
+                      starter.kind === "blank"
+                        ? "Starting from a blank workspace"
+                        : "Start blank instead"
+                    }
                   >
-                    Repository
+                    {starter.kind === "github"
+                      ? "Repository"
+                      : starter.kind === "files"
+                        ? starter.label
+                        : "Blank"}
+                    {starter.kind !== "blank" && <X className="h-3.5 w-3.5 opacity-70" />}
                   </ToolChip>
-                  {pickFiles}
                 </>
               }
             />
           }
           below={
             starter.kind === "github" ? (
-              <div className="rounded-xl border border-border bg-surface p-2.5">
+              <div className="rounded-2xl border border-border bg-surface p-3">
                 <input
                   autoFocus
                   value={repoInput}
@@ -715,15 +863,15 @@ function CodingAgent() {
                     setStarter({ kind: "github", repo: e.target.value });
                   }}
                   placeholder="owner/name or https://github.com/owner/name"
-                  className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 font-mono text-[12px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-[13px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
                 />
-                <p className="mt-1.5 text-[11.5px] text-meta">
+                <p className="mt-2 text-[12px] text-meta">
                   Public repositories need no sign-in. For a private one, connect GitHub from Push
                   first.
                 </p>
               </div>
             ) : starter.kind === "files" ? (
-              <p className="px-1 text-[12px] text-meta">
+              <p className="px-2 text-[12.5px] text-meta">
                 {starter.label} will be copied into the workspace.
               </p>
             ) : null
@@ -731,12 +879,13 @@ function CodingAgent() {
           footer={
             <a
               href={docsHref("/docs/cli/install")}
-              className="inline-flex items-center gap-1.5 text-[12px] text-meta hover:text-muted-foreground"
+              className="inline-flex items-center gap-1.5 text-[12.5px] text-meta hover:text-muted-foreground"
             >
               <Terminal className="h-3.5 w-3.5" /> The same agent runs in your terminal
             </a>
           }
         />
+        {overlays}
       </div>
     );
   }
@@ -747,6 +896,7 @@ function CodingAgent() {
   const empty = turns.length === 0 && !sending;
   const hasFiles = Object.keys(files).length > 0;
   const source = sourceFor(project);
+  const lastUser = [...turns].reverse().find((t) => t.role === "user");
 
   const chat = (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -758,25 +908,26 @@ function CodingAgent() {
         }}
         className="min-h-0 flex-1 overflow-y-auto"
       >
-        <div className="mx-auto max-w-3xl space-y-5 px-3 py-4 sm:px-4">
+        <div className="mx-auto max-w-2xl space-y-4 px-3 pb-6 sm:px-5">
+          <AgentIntro name="DevStation Agent" busy={running || sending} />
+
           {empty && (
-            <div className="pt-6 text-center">
-              <p className="text-[15px] font-semibold text-foreground">{project.name}</p>
-              <p className="mx-auto mt-1 max-w-xs text-[12.5px] leading-5 text-muted-foreground">
+            <div className="space-y-4">
+              <div className="max-w-[88%] rounded-[24px] bg-surface-2 px-4 py-3 text-[15px] leading-[1.65] text-foreground">
                 {hasFiles
-                  ? "Ask for a change, a fix or a test. The agent works on these files in a sandbox."
-                  : "Say what you want and the agent starts building."}
-              </p>
+                  ? `Hi! I have the ${Object.keys(files).length} files of ${project.name} open. Ask me for a change, a fix or a test, and I will work on them in a sandbox.`
+                  : `Hi! Tell me what to build for ${project.name} and I will start.`}
+              </div>
               {hasFiles && (
-                <div className="mt-4 flex flex-col items-stretch gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {FIRST_ASKS.map((a) => (
                     <button
                       key={a.label}
                       onClick={() => void send(a.prompt)}
                       disabled={!wallet}
-                      className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-left text-[12.5px] text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-full border border-border px-3.5 py-2 text-[13.5px] text-foreground/85 transition hover:border-primary/40 hover:text-foreground disabled:opacity-50"
                     >
-                      <a.icon className="h-3.5 w-3.5 text-primary" /> {a.label}
+                      <a.icon className="h-4 w-4 text-primary" /> {a.label}
                     </button>
                   ))}
                 </div>
@@ -786,7 +937,13 @@ function CodingAgent() {
 
           {turns.map((t, i) =>
             t.role === "user" ? (
-              <UserMessage key={i} text={t.text} />
+              <UserMessage
+                key={i}
+                text={t.text}
+                onAskAgain={
+                  t === lastUser && !running && !sending ? () => void send(t.text) : undefined
+                }
+              />
             ) : (
               <AssistantMessage key={i} turn={t} onOpenFile={showFile} />
             ),
@@ -801,11 +958,11 @@ function CodingAgent() {
           )}
 
           {!running && handoffs.length > 0 && (
-            <div className="space-y-2 pl-8">
+            <div className="space-y-2">
               {handoffs.map((h, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5"
+                  className="flex items-center gap-3 rounded-[22px] border border-primary/30 bg-primary/5 px-4 py-3"
                 >
                   {h.tool === "publish_app" ? (
                     <Rocket className="h-4 w-4 shrink-0 text-primary" />
@@ -814,7 +971,7 @@ function CodingAgent() {
                   ) : (
                     <GitPullRequest className="h-4 w-4 shrink-0 text-primary" />
                   )}
-                  <span className="flex-1 text-[12.5px] text-foreground">
+                  <span className="flex-1 text-[14px] text-foreground">
                     {h.tool === "push_to_github"
                       ? "The agent suggests pushing this to GitHub."
                       : h.tool === "publish_app"
@@ -827,7 +984,7 @@ function CodingAgent() {
                         ? openPublish()
                         : void openDialog(h.tool === "push_to_github" ? "push" : "pr")
                     }
-                    className="rounded-md bg-primary px-2.5 py-1 text-[12px] font-medium text-primary-foreground hover:bg-primary-hover"
+                    className="rounded-full bg-primary px-3.5 py-1.5 text-[13px] font-medium text-primary-foreground hover:bg-primary-hover"
                   >
                     {h.tool === "publish_app"
                       ? "Publish"
@@ -842,7 +999,7 @@ function CodingAgent() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-3xl px-3 pb-3 sm:px-4">
+      <div className="mx-auto w-full max-w-2xl px-3 pb-3 sm:px-5">
         <Composer
           value={input}
           onChange={setInput}
@@ -850,13 +1007,45 @@ function CodingAgent() {
           onStop={() => void stop()}
           running={running}
           sending={sending}
-          placeholder={
-            running
-              ? "The agent is working. You can type your next message…"
-              : "Ask for a change, a fix, a test, anything…"
-          }
-          network={chain.name}
+          placeholder={running ? "Next message…" : "Message"}
           notice={noWallet}
+          plus={
+            <Dropdown
+              label="Quick asks"
+              up
+              triggerClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground/85 transition hover:bg-border/60"
+              trigger={() => <Plus className="h-5 w-5" />}
+            >
+              {(close) => (
+                <>
+                  <MenuLabel>Ask the agent to</MenuLabel>
+                  {FIRST_ASKS.map((a) => (
+                    <MenuItem
+                      key={a.label}
+                      icon={a.icon}
+                      disabled={running || sending || !wallet}
+                      onClick={() => {
+                        close();
+                        void send(a.prompt);
+                      }}
+                    >
+                      {a.label}
+                    </MenuItem>
+                  ))}
+                  <MenuItem
+                    icon={Hammer}
+                    disabled={!view || running || !!building}
+                    onClick={() => {
+                      close();
+                      void rebuildPreview();
+                    }}
+                  >
+                    Rebuild the preview
+                  </MenuItem>
+                </>
+              )}
+            </Dropdown>
+          }
         />
       </div>
     </div>
@@ -928,7 +1117,7 @@ function CodingAgent() {
     <div className="relative flex h-full min-h-0 flex-col">
       {/* The preview stays mounted while you read code, so the app in it
           keeps its state when you switch back. */}
-      <div className={cn("min-h-0 flex-1", tab !== "preview" && "hidden")}>
+      <div className={cn("min-h-0 flex-1", shownTab !== "preview" && "hidden")}>
         <PreviewPane
           files={previewFiles}
           dir={dist ? "" : localPlan.kind === "static" ? localPlan.dir : ""}
@@ -941,7 +1130,7 @@ function CodingAgent() {
           actions={previewActions}
         />
       </div>
-      {tab === "code" && (
+      {shownTab === "code" && (
         <div className="min-h-0 flex-1">
           <CodePane
             files={files}
@@ -955,7 +1144,7 @@ function CodingAgent() {
           />
         </div>
       )}
-      {tab === "activity" && (
+      {shownTab === "activity" && (
         <div className="min-h-0 flex-1">
           <ActivityPane
             events={view?.events ?? []}
@@ -969,46 +1158,71 @@ function CodingAgent() {
     </div>
   );
 
-  return (
-    <div className="flex h-[calc(100dvh-3.5rem)] flex-col md:h-dvh">
-      <TopBar
-        project={project}
-        projects={projects}
-        onOpen={(id) => useProjects.getState().open(id)}
-        onNew={newProject}
-        onRename={(name) => useProjects.getState().rename(project.id, name)}
-        view={tab}
-        onView={setTab}
-        fileCount={Object.keys(files).length}
-        running={running}
-        building={!!building}
-        shared={shared}
-        canPublish={!!publishSource && hasFiles}
-        hasRepo={!!source.repo}
-        canPullRequest={!!(view ?? project.workspaceId)}
-        onShare={() => (wallet ? setDialog("builders") : toast.error("Connect a wallet to share."))}
-        onPush={() => void openDialog("push")}
-        onPullRequest={() => void openDialog("pr")}
-        onPublish={openPublish}
-        onDownload={() => void downloadZip(files, `${slugOf(project.name)}.zip`)}
-        onRemix={remix}
-        chatOpen={chatOpen}
-        onToggleChat={() => setChatOpen((v) => !v)}
-      />
+  const projectSheet = sheet === "more" && (
+    <ProjectSheet
+      project={project}
+      fileCount={Object.keys(files).length}
+      running={running}
+      canPublish={!!publishSource && hasFiles}
+      hasRepo={!!source.repo}
+      canPullRequest={!!(view ?? project.workspaceId)}
+      onShare={() => (wallet ? setDialog("builders") : setSheet("account"))}
+      onPush={() => void openDialog("push")}
+      onPullRequest={() => void openDialog("pr")}
+      onPublish={openPublish}
+      onDownload={() => void downloadZip(files, `${slugOf(project.name)}.zip`)}
+      onRemix={remix}
+      onRename={() => setRenaming(project.name)}
+      onDelete={() => deleteProject(project.id)}
+      onClose={() => setSheet(null)}
+    />
+  );
 
+  const dialogs = (
+    <>
+      {overlays}
+      {projectSheet}
+      {renaming !== null && (
+        <Modal title="Rename project" icon={Pencil} onClose={() => setRenaming(null)}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (renaming.trim())
+                useProjects.getState().rename(project.id, renaming.trim().slice(0, 80));
+              setRenaming(null);
+            }}
+            className="space-y-3"
+          >
+            <input
+              autoFocus
+              value={renaming}
+              onChange={(e) => setRenaming(e.target.value)}
+              className={`${inputClass} rounded-xl px-3 py-2.5 text-[15px]`}
+            />
+            <button
+              type="submit"
+              disabled={!renaming.trim()}
+              className={`${primaryButton} w-full rounded-full py-2.5`}
+            >
+              Save
+            </button>
+          </form>
+        </Modal>
+      )}
       {dialog === "publish" && publishSource && (
-        <div
-          className="fixed inset-0 z-[60] flex items-start justify-end bg-black/30 p-3 pt-14"
-          onMouseDown={(e) => e.target === e.currentTarget && setDialog(null)}
+        <Modal
+          title={project.liveUrl ? "Update the live app" : "Publish"}
+          icon={Rocket}
+          onClose={() => setDialog(null)}
         >
-          <div className="w-full max-w-md overflow-hidden rounded-xl border border-border bg-surface shadow-2xl shadow-black/40">
+          <div className="-mx-5 -mb-5 overflow-hidden">
             <PublishDialog
               project={project}
               files={publishSource}
               onClose={() => setDialog(null)}
             />
           </div>
-        </div>
+        </Modal>
       )}
       {dialog === "builders" && (
         <BuildersDialog
@@ -1022,22 +1236,64 @@ function CodingAgent() {
           kind={dialog}
           project={project}
           workspaceId={view?.id ?? project.workspaceId ?? null}
-          defaultTitle={
-            turns
-              .filter((t) => t.role === "user")
-              .at(-1)
-              ?.text.slice(0, 70) ?? ""
-          }
+          defaultTitle={lastUser?.text.slice(0, 70) ?? ""}
           onClose={() => setDialog(null)}
         />
       )}
+    </>
+  );
 
+  const header = (
+    <TopBar
+      project={project}
+      mobile={mobile}
+      view={tab}
+      onView={setTab}
+      fileCount={Object.keys(files).length}
+      running={running}
+      building={!!building}
+      shared={shared}
+      canPublish={!!publishSource && hasFiles}
+      chatOpen={chatOpen}
+      onToggleChat={() => setChatOpen((v) => !v)}
+      onMenu={() => setSheet("drawer")}
+      onMore={() => setSheet("more")}
+      onShare={() => (wallet ? setDialog("builders") : setSheet("account"))}
+      onPublish={openPublish}
+    />
+  );
+
+  // A phone shows one thing at a time and switches with the tab bar at the
+  // bottom, as Muse does. The preview stays mounted underneath, so switching
+  // to the chat and back does not restart the app in it.
+  if (mobile) {
+    return (
+      <div className="flex h-dvh flex-col">
+        {header}
+        <div className={cn("min-h-0 flex-1", pane !== "chat" && "hidden")}>{chat}</div>
+        <div className={cn("min-h-0 flex-1", pane === "chat" && "hidden")}>{workbench}</div>
+        <TabBar
+          pane={pane}
+          onPane={setPane}
+          onMore={() => setSheet("more")}
+          building={!!building}
+          running={running}
+        />
+        {dialogs}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-dvh flex-col">
+      {header}
       <SplitLayout
         className="min-h-0 flex-1"
         chat={chat}
         preview={workbench}
         chatCollapsed={!chatOpen}
       />
+      {dialogs}
     </div>
   );
 }
