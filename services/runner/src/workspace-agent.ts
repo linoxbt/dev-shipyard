@@ -620,7 +620,7 @@ You are running in DevStation's web console rather than a terminal. The person t
 - Not every message is work on the project. Answer questions, explain, research and advise in the chat; change the workspace only when that is what is asked.
 - Anything can be built here: web apps, smart contracts, scripts, APIs, libraries, command-line tools. Scaffold, install, build and test from the shell as you would on your own machine.
 - Smart contracts: write and test them locally first (forge test, or the Hardhat tests). To deploy, call create_wallet to get this workspace's deployer wallet, tell the person its address, the network and where to get test funds (the network's faucet), then check the balance with onchain (cast balance $DEPLOYER_ADDRESS --rpc-url …) and wait for them before deploying. Deploy with onchain (forge create … --private-key $DEPLOYER_PRIVATE_KEY --broadcast, forge script … --broadcast, or npx hardhat run … --network …, with the config reading process.env.DEPLOYER_PRIVATE_KEY), then report the contract address, the transaction and the explorer link. Testnets unless the person asks for a mainnet in so many words. Never print, write into a file or commit the private key.
-- When the work has a web front end, make it previewable: either a static index.html at the project root, or a package.json whose \`npm run build\` writes static files to dist/ (Vite is a good default). DevStation builds and shows the preview after your turn.
+- When the work has a web front end, make it previewable: either a static index.html at the project root, or a package.json whose \`npm run build\` writes a static site (Vite to dist/ is the simplest; a Next.js app needs output: "export", which writes out/). DevStation builds and shows the preview after your turn; an app that only runs on a server has no static preview, so say so instead of reshaping it.
 - Verify before you finish: run the build or the tests.
 - You cannot push to GitHub, publish, or open a pull request yourself. When the person asks for one, call push_to_github, publish_app or open_pull_request; they confirm it with a button and their own account carries it out.
 - End each turn with a short, plain summary of what you did and what they can do next.`;
@@ -824,7 +824,11 @@ export function previewPlan(files: Record<string, string>): PreviewPlan {
         build = "";
       }
       if (build) {
-        const outDir = /react-scripts/.test(build) ? "build" : "dist";
+        const outDir = /react-scripts/.test(build)
+          ? "build"
+          : /\bnext\b/.test(build)
+            ? "out"
+            : "dist";
         return { kind: "build", dir, outDir };
       }
     }
@@ -1030,22 +1034,31 @@ export async function buildInPlace(
     (await step("install", "npm install --no-audit --no-fund --loglevel=error")) ??
     (await step("build", "npm run build"));
   if (failed) return { ok: false, dist: null, message: failed };
-  const out = join(dir, outDir);
-  try {
-    return {
-      ok: true,
-      dist: readWorkspace(out),
-      distBinary: readBinaryFiles(out),
-      message: "",
-    };
-  } catch {
-    return {
-      ok: false,
-      dist: null,
-      message: `The build finished but wrote nothing to ${outDir}/.`,
-    };
+  // Where the static site landed: the folder the plan expected, then the
+  // usual others (Next.js writes a static export to out/, Create React App
+  // to build/, Nuxt and Nitro to .output/public).
+  const places = [outDir, ...BUILD_OUTPUTS.filter((d) => d !== outDir)];
+  for (const candidate of places) {
+    const out = join(dir, candidate);
+    try {
+      const dist = readWorkspace(out);
+      if (Object.keys(dist).some((p) => p === "index.html" || p.endsWith("/index.html"))) {
+        return { ok: true, dist, distBinary: readBinaryFiles(out), message: "" };
+      }
+    } catch {
+      // Not there; try the next.
+    }
   }
+  return {
+    ok: false,
+    dist: null,
+    message:
+      `The build finished but no static site was found (looked in ${places.map((d) => `${d}/`).join(", ")}). ` +
+      'For a Next.js app set output: "export" in next.config so it writes out/; for anything else make `npm run build` write static files to dist/.',
+  };
 }
+
+const BUILD_OUTPUTS = ["dist", "out", "build", ".output/public"];
 
 /** Builds through this runner's own /jobs endpoint, so previews share the build
  *  queue, its limits and its container isolation. */

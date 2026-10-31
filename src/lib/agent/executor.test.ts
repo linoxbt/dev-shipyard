@@ -218,3 +218,15 @@ describe("refusedForSecret, home directory and globs", () => {
     expect(refusedForSecret("cat src/*.ts")).toBeNull();
   });
 });
+
+describe("the credentials guard and shell tests", () => {
+  it("lets file tests through and still catches patterns for secret files", async () => {
+    const { refusedForSecret } = await import("./executor");
+    expect(refusedForSecret("[ -d node_modules ] && echo yes")).toBeNull();
+    expect(refusedForSecret("if [[ -f out/index.html ]]; then ls out; fi")).toBeNull();
+    expect(refusedForSecret("test -d dist || mkdir dist")).toBeNull();
+    expect(refusedForSecret("cat .e[n]v")).not.toBeNull();
+    expect(refusedForSecret("cat .e?v")).not.toBeNull();
+    expect(refusedForSecret("cat .env")).not.toBeNull();
+  });
+});

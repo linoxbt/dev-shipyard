@@ -33,6 +33,8 @@ export interface Step {
   /** Position of the event that started it, to place it among the agent's
    *  narration (timelineFromEvents). */
   seq?: number;
+  /** For a note, the event it came from ("checkpoint", "handoff", …). */
+  event?: string;
 }
 
 export type ToolKind =
@@ -162,6 +164,7 @@ export function stepsFromEvents(events: readonly AgentEvent[]): Step[] {
       at: e.at,
       tone: NOTE_TONE[e.kind] ?? "info",
       seq: i,
+      event: e.kind,
     });
   });
   return steps;
@@ -185,7 +188,8 @@ export function timelineFromEvents(events: readonly AgentEvent[]): TimelineItem[
     const text = e.kind === NARRATION ? e.message.trim() : "";
     if (text) said.push({ seq: i, item: { type: "say", id: `say-${i}`, text } });
   });
-  const steps = stepsFromEvents(events);
+  // Checkpoints are bookkeeping for undo: listed in Activity, not the chat.
+  const steps = stepsFromEvents(events).filter((s) => s.event !== "checkpoint");
   return groupTimeline([
     ...said,
     ...steps.map((s, n) => ({ seq: s.seq ?? n, item: { type: "step" as const, step: s } })),

@@ -137,6 +137,10 @@ const SECRET_NAMES = [
 function globMatchesSecret(token: string): boolean {
   if (!/[*?[]/.test(token)) return false;
   const base = token.split("/").pop() ?? token;
+  // The shell's test brackets (`[ -d dist ]`, `[[ … ]]`) are words, not
+  // patterns. Treating a lone "[" as one built an invalid expression, and the
+  // error path below refused every command that tested for a file.
+  if (/^[[\]]+$/.test(base)) return false;
   const source = base
     .replace(/[.+^${}()|\\]/g, "\\$&")
     .replace(/\*/g, ".*")
@@ -145,7 +149,9 @@ function globMatchesSecret(token: string): boolean {
     const re = new RegExp(`^${source}$`, "i");
     return SECRET_NAMES.some((name) => re.test(name));
   } catch {
-    return true;
+    // Not a pattern the shell could expand either (an unclosed bracket):
+    // compare it as plain text.
+    return SECRET_NAMES.includes(base.toLowerCase());
   }
 }
 
