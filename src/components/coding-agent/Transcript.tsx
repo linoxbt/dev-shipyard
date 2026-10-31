@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  Camera,
   Blocks,
   Check,
   ChevronRight,
@@ -35,10 +36,13 @@ import {
   type Step,
   type TimelineItem,
   type ToolKind,
+  backgroundTasks,
+  elapsed,
 } from "@/lib/coding-agent/steps";
 import { splitSuggestions } from "@/lib/coding-agent/suggestions";
 import { cn } from "@/lib/utils";
 import { Markdown } from "./Markdown";
+import { ShotThumb } from "./ShotThumb";
 import { Dropdown, MenuItem } from "./primitives";
 
 // The conversation, laid out the way Base44 shows its agent at work: what you
@@ -57,6 +61,7 @@ const ICON: Record<ToolKind, React.ComponentType<{ className?: string }>> = {
   plan: ListChecks,
   wallet: Wallet,
   chain: Blocks,
+  browser: Camera,
   other: Wrench,
 };
 
@@ -328,6 +333,15 @@ function GroupRow({ kind, steps, current }: { kind: ToolKind; steps: Step[]; cur
         </div>
       )}
       {kind === "wallet" && <FundCard steps={steps} />}
+      {steps.some((s) => s.shot) && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {steps
+            .filter((s) => s.shot)
+            .map((s) => (
+              <ShotThumb key={s.id} shot={s.shot!} label={s.title} />
+            ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -491,14 +505,23 @@ export function LiveTurn({
   events,
   reply,
   status,
+  startedAt,
 }: {
   events: AgentEvent[];
   reply: string;
   status: string;
+  /** When the turn started, for the running timer. */
+  startedAt?: number;
 }) {
   const items = useMemo(() => timelineFromEvents(events), [events]);
   const plan = useMemo(() => latestPlan(events), [events]);
+  const background = useMemo(() => backgroundTasks(events), [events]);
   const writing = unsaid(reply, items);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
   return (
     <div className="max-w-[96%] space-y-2.5">
       {plan && <PlanCard plan={plan} />}
@@ -510,7 +533,15 @@ export function LiveTurn({
           <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
           <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
         </span>
-        <span className="truncate">{status || "Working"}</span>
+        <span className="truncate text-primary/90">{status || "Working"}</span>
+        {startedAt && (
+          <span className="shrink-0 tabular-nums text-meta">· {elapsed(now - startedAt)}</span>
+        )}
+        {background > 0 && (
+          <span className="shrink-0 text-info">
+            · {background} running task{background === 1 ? "" : "s"}
+          </span>
+        )}
       </div>
     </div>
   );

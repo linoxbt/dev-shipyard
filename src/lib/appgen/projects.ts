@@ -32,7 +32,7 @@ export interface ProjectTurn {
   failed?: boolean;
   /** The tool steps of an agent turn, titles only, so the conversation can
    *  still say what was done after the workspace has moved on. */
-  steps?: { tool?: string; title: string; target?: string; failed?: boolean }[];
+  steps?: { tool?: string; title: string; target?: string; failed?: boolean; shot?: string }[];
   /** Sent in Plan mode, or the plan that came back. */
   plan?: boolean;
   /** Thumbnails of pictures attached to a message (small JPEG data URLs). */
@@ -105,6 +105,8 @@ const turnSchema = z.object({
         title: z.string().max(1200),
         target: z.string().max(300).optional(),
         failed: z.boolean().optional(),
+        // A screenshot the step took, as a small JPEG data URL.
+        shot: z.string().max(150_000).optional(),
       }),
     )
     .max(100)

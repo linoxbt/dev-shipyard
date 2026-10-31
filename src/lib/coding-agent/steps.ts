@@ -35,6 +35,9 @@ export interface Step {
   seq?: number;
   /** For a note, the event it came from ("checkpoint", "handoff", …). */
   event?: string;
+  /** A screenshot the step took: its name while the turn runs, a JPEG data
+   *  URL once the turn is saved. */
+  shot?: string;
 }
 
 export type ToolKind =
@@ -47,6 +50,7 @@ export type ToolKind =
   | "plan"
   | "wallet"
   | "chain"
+  | "browser"
   | "other";
 
 const KIND: Record<string, ToolKind> = {
@@ -73,6 +77,7 @@ const KIND: Record<string, ToolKind> = {
   remember: "plan",
   create_wallet: "wallet",
   onchain: "chain",
+  screenshot: "browser",
 };
 
 export function toolKind(tool: string | null | undefined): ToolKind {
@@ -142,6 +147,7 @@ export function stepsFromEvents(events: readonly AgentEvent[]): Step[] {
         step.output = typeof e.detail?.output === "string" ? e.detail.output : undefined;
         if (failed) step.title = `${step.title}: ${e.message}`;
         else if (e.message && !step.input) step.title = e.message;
+        if (typeof e.detail?.shot === "string") step.shot = e.detail.shot;
       } else {
         // A failure refused before it started (a gate), or a stream that was
         // trimmed: still worth a line.
@@ -237,6 +243,7 @@ export function timelineFromSaved(saved: readonly SavedStep[]): TimelineItem[] {
                 status: s.failed ? ("failed" as const) : ("done" as const),
                 at: "",
                 ...(s.target ? { input: { path: s.target } } : {}),
+                ...(s.shot ? { shot: s.shot } : {}),
               },
             },
           },
@@ -295,6 +302,8 @@ export function groupLabel(kind: ToolKind | "note", steps: readonly Step[]): str
     }
     case "git":
       return n === 1 ? steps[0].title : `${n} git steps`;
+    case "browser":
+      return n === 1 ? "Took a screenshot" : `Took ${n} screenshots`;
     case "wallet":
       return "Set up a deployer wallet";
     case "chain":
@@ -407,6 +416,8 @@ export interface SavedStep {
   /** The path, command or query it worked on, for the folded line's label. */
   target?: string;
   failed?: boolean;
+  /** A screenshot, as the step's name until the page swaps in its picture. */
+  shot?: string;
 }
 
 /** What a finished turn keeps: its narration and step titles, in order. */
@@ -430,6 +441,7 @@ export function compactSteps(steps: readonly Step[], max = 60): SavedStep[] {
         title: s.title.slice(0, 160),
         ...(target ? { target: target.slice(0, 300) } : {}),
         ...(s.status === "failed" ? { failed: true } : {}),
+        ...(s.shot ? { shot: s.shot } : {}),
       };
     });
 }
@@ -493,4 +505,24 @@ export function ago(ms: number, now = Date.now()): string {
   const d = Math.round(h / 24);
   if (d < 30) return `${d}d ago`;
   return new Date(ms).toLocaleDateString();
+}
+
+/** Background commands still running: started with run_shell and not stopped. */
+export function backgroundTasks(events: readonly AgentEvent[]): number {
+  let n = 0;
+  for (const e of events) {
+    if (e.kind !== "step.completed") continue;
+    if (e.tool === "run_shell" && e.detail?.input?.background === true) n++;
+    if (e.tool === "stop_shell") n = Math.max(0, n - 1);
+  }
+  return n;
+}
+
+/** "45s", "3m 12s", "1h 04m": how long the agent has been working. */
+export function elapsed(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${String(s % 60).padStart(2, "0")}s`;
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
 }

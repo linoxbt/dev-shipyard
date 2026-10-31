@@ -72,6 +72,7 @@ import {
   initWorkspaceStore,
   parseWorkspaceSource,
   previewAssets,
+  workspaceShot,
   previewDist,
   sendWorkspaceMessage,
   setCollaborator,
@@ -883,6 +884,13 @@ async function route(
       const started = startWorkspacePreview(id);
       if (!started.ok) return json(res, started.status, { ok: false, message: started.message });
       return json(res, 200, { ok: true, workspace: workspaceView(started.session) });
+    }
+
+    if (id && action === "shot" && req.method === "GET") {
+      const name = path.split("/").pop() ?? "";
+      const data = workspaceShot(id, name);
+      if (!data) return json(res, 404, { ok: false, message: "No such screenshot." });
+      return json(res, 200, { ok: true, data });
     }
 
     if (id && action === "preview" && req.method === "GET") {

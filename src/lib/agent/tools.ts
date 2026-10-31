@@ -504,6 +504,44 @@ export const TOOLS: Record<string, ToolDefinition> = {
     resourcesFrom: () => ["plan"],
     returnsUntrustedContent: false,
   },
+  screenshot: {
+    name: "screenshot",
+    usage: 'screenshot {"url?", "dir?", "path?", "width?", "height?", "fullPage?"}',
+    jsonSchema: {
+      type: "object",
+      properties: {
+        url: {
+          type: "string",
+          description:
+            "A page to open, such as a dev server you started (http://localhost:5173). Leave out to open built files instead.",
+        },
+        dir: {
+          type: "string",
+          description:
+            'A folder in the project with an index.html to serve and open, such as "dist" or "out". Defaults to the project root when it has an index.html, otherwise "dist".',
+        },
+        path: { type: "string", description: 'Optional page within it, such as "/pricing".' },
+        width: { type: "number", description: "Viewport width; 390 for a phone. Default 1280." },
+        height: { type: "number", description: "Viewport height. Default 800." },
+        fullPage: { type: "boolean", description: "Capture the whole scrolling page." },
+      },
+    },
+    description:
+      "Open a page in a real browser (Playwright's Chromium, installed on first use) and take a screenshot. You see the image, the page's console errors and its visible text, and the person sees the screenshot in the chat. Use it to check that an app actually renders and looks right, at desktop and phone widths, before you say it works.",
+    // Looks and changes nothing in the project (the screenshot is kept under
+    // .devstation/), so it is allowed in plan mode.
+    operation: "project.inspect",
+    schema: z.object({
+      url: z.string().max(500).optional(),
+      dir: z.string().max(200).optional(),
+      path: z.string().max(300).optional(),
+      width: z.number().optional(),
+      height: z.number().optional(),
+      fullPage: z.boolean().optional(),
+    }),
+    resourcesFrom: () => ["browser"],
+    returnsUntrustedContent: true,
+  },
   ask_user: {
     name: "ask_user",
     usage: 'ask_user {"question", "header?", "options", "multiSelect?"}',

@@ -91,6 +91,8 @@ export interface WorkspaceSession {
   root: string;
   source: WorkspaceSource;
   createdAt: number;
+  /** When the current or last turn started, for the chat's running timer. */
+  turnStartedAt?: number;
   updatedAt: number;
   phase: WorkspacePhase;
   status: string;
@@ -541,6 +543,7 @@ export function sendWorkspaceMessage(
   Object.assign(session, {
     phase: "running" as const,
     status: "Starting",
+    turnStartedAt: Date.now(),
     prompt: text,
     reply: "",
     events: [],
@@ -1000,6 +1003,17 @@ export function previewDist(id: string): Record<string, string> | null {
 }
 
 /** The preview's images and fonts, as base64, beside previewDist's text. */
+/** A screenshot the agent took, as a small JPEG in base64, for the chat. */
+export function workspaceShot(id: string, name: string): string | null {
+  const s = sessions.get(id);
+  if (!s || !/^shot-[a-z0-9]+-\d+$/.test(name)) return null;
+  try {
+    return readFileSync(join(s.root, ".devstation", "shots", `${name}.jpg`)).toString("base64");
+  } catch {
+    return null;
+  }
+}
+
 export function previewAssets(id: string): Record<string, string> {
   const s = sessions.get(id);
   if (!s) return {};

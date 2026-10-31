@@ -1,4 +1,5 @@
 import { readdirSync } from "node:fs";
+import { takeScreenshot, type ShotArgs } from "./screenshot";
 import { costOfUsage, ratesFor } from "./pricing";
 import { discardSnapshot, takeSnapshot } from "./snapshots";
 import { checkpoint, isRepo } from "./git";
@@ -260,6 +261,8 @@ export class Orchestrator {
     OrchestratorOptions;
   private usage: ProviderUsage = { ...EMPTY_USAGE };
   private readonly changed = new Set<string>();
+  /** Screenshots taken this turn, shown to the model after the tool results. */
+  private pendingImages: string[] = [];
   private readonly handoffs: Handoff[] = [];
   /** Built once, only when no executor was supplied. */
   private fallback: Executor | null = null;
@@ -504,6 +507,23 @@ export class Orchestrator {
         this.progress(steps, summary, messages);
       }
 
+      // What the agent saw: its screenshots, as a picture it can look at. Only
+      // the newest few stay in the conversation, so a long run of checks does
+      // not carry every old picture along.
+      if (this.pendingImages.length) {
+        const images = this.pendingImages.splice(0).slice(-2);
+        for (const m of messages) {
+          if (m.role === "user" && m.images?.length && m.content.startsWith(SHOT_NOTE)) {
+            delete m.images;
+          }
+        }
+        messages.push({
+          role: "user",
+          content: `${SHOT_NOTE} ${images.length === 1 ? "the screenshot" : `${images.length} screenshots`} you just took.`,
+          images,
+        });
+      }
+
       const partial = partialTurn(
         turn,
         result.toolCalls.filter((call) => call.name !== "update_plan" && call.name !== "ask_user")
@@ -692,6 +712,8 @@ export class Orchestrator {
         ...(SHOWN_OUTPUT.has(call.name) || !outcome.ok
           ? { output: boundOutput(outcome.output) }
           : {}),
+        // A screenshot's name, so the chat can show it.
+        ...(executed.shot ? { shot: executed.shot } : {}),
       },
     });
 
@@ -717,7 +739,9 @@ export class Orchestrator {
     }
   }
 
-  private async execute(call: ProviderToolCall): Promise<{ ok: boolean; output: string }> {
+  private async execute(
+    call: ProviderToolCall,
+  ): Promise<{ ok: boolean; output: string; shot?: string }> {
     const { workspace } = this.opts;
     const args = call.input;
 
@@ -828,6 +852,18 @@ export class Orchestrator {
         return stopped
           ? { ok: true, output: `Stopped ${args.id}.` }
           : { ok: false, output: `There is no background command called ${args.id}.` };
+      }
+
+      case "screenshot": {
+        const executor = this.opts.executor ?? (this.fallback ??= hostExecutor());
+        const shot = await takeScreenshot(
+          executor,
+          workspace.root,
+          args as ShotArgs,
+          this.opts.signal,
+        );
+        if (shot.ok && shot.image) this.pendingImages.push(shot.image);
+        return { ok: shot.ok, output: shot.output, ...(shot.name ? { shot: shot.name } : {}) };
       }
 
       case "update_plan": {
@@ -1018,6 +1054,9 @@ export function partialTurn(turn: TurnOutcome, total: number): string | null {
     "Check what is actually there before continuing, rather than assuming either outcome."
   );
 }
+
+/** How the agent's own screenshots are introduced to it. */
+const SHOT_NOTE = "[screenshot] Here is";
 
 export interface AgentQuestion {
   question: string;

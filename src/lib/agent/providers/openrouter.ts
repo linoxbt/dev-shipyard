@@ -151,6 +151,22 @@ function toOpenAiMessages(system: string, messages: ProviderMessage[]) {
   return out;
 }
 
+function hasImages(messages: GenerateInput["messages"]): boolean {
+  return messages.some((m) => m.role === "user" && !!m.images?.length);
+}
+
+/** The conversation with its pictures taken out and said in words instead. */
+export function withoutImages(messages: GenerateInput["messages"]): GenerateInput["messages"] {
+  return messages.map((m) =>
+    m.role === "user" && m.images?.length
+      ? {
+          role: "user" as const,
+          content: `${m.content}\n\n[${m.images.length} picture(s) left out: this model cannot see images. Rely on the text and on what the tools report.]`,
+        }
+      : m,
+  );
+}
+
 /** Arguments arrive as a string and models vary their escaping, so this parses
  *  rather than pattern-matches, and treats unparseable arguments as empty
  *  instead of throwing. The schema check downstream gives the model a usable
@@ -194,7 +210,7 @@ export class OpenRouterProvider implements ModelProvider {
   async generate(input: GenerateInput): Promise<ProviderResult> {
     const openRouter = this.name === "openrouter";
     const fortytwo = this.name === "fortytwo";
-    const send = (maxTokens: number) =>
+    const send = (maxTokens: number, messages = input.messages) =>
       fetch(this.endpoint, {
         method: "POST",
         headers: {
@@ -207,7 +223,7 @@ export class OpenRouterProvider implements ModelProvider {
         },
         body: JSON.stringify({
           model: this.model,
-          messages: toOpenAiMessages(input.system, input.messages),
+          messages: toOpenAiMessages(input.system, messages),
           stream: true,
           max_tokens: maxTokens,
           // Fortytwo may refuse a sampling setting its model does not list.
@@ -261,6 +277,13 @@ export class OpenRouterProvider implements ModelProvider {
       } else {
         throw new Error(describeFailure(label, res.status, detail));
       }
+    }
+
+    // A model that cannot see pictures refuses a request carrying one. Once,
+    // send it again with each picture replaced by a line saying so, rather
+    // than ending the run over a screenshot.
+    if (!res.ok && [400, 404, 415, 422].includes(res.status) && hasImages(input.messages)) {
+      res = await send(requested, withoutImages(input.messages));
     }
 
     if (!res.ok || !res.body) {

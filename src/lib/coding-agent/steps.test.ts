@@ -5,6 +5,8 @@ import {
   buildFileTree,
   compactSteps,
   latestPlan,
+  backgroundTasks,
+  elapsed,
   pendingQuestion,
   stepSummary,
   stepTarget,
@@ -231,5 +233,45 @@ describe("pendingQuestion", () => {
 
   it("is not shown as a step", () => {
     expect(stepsFromEvents([asked])).toEqual([]);
+  });
+});
+
+describe("the running line", () => {
+  it("counts background commands that are still running", () => {
+    const started = (n: number) =>
+      ev("step.completed", `bg-${n}`, {
+        tool: "run_shell",
+        detail: { input: { command: "npm run dev", background: true } },
+      });
+    expect(backgroundTasks([started(1), started(2)])).toBe(2);
+    expect(
+      backgroundTasks([started(1), started(2), ev("step.completed", "x", { tool: "stop_shell" })]),
+    ).toBe(1);
+    expect(
+      backgroundTasks([
+        ev("step.completed", "x", { tool: "run_shell", detail: { input: { command: "ls" } } }),
+      ]),
+    ).toBe(0);
+  });
+
+  it("says how long the agent has been working", () => {
+    expect(elapsed(45_000)).toBe("45s");
+    expect(elapsed(192_000)).toBe("3m 12s");
+    expect(elapsed(3_840_000)).toBe("1h 04m");
+  });
+
+  it("keeps a screenshot on its step", () => {
+    const steps = stepsFromEvents([
+      ev("step.started", "Taking a screenshot", { tool: "screenshot" }),
+      ev("step.completed", "Screenshot", { tool: "screenshot", detail: { shot: "shot-ab-1" } }),
+    ]);
+    expect(steps[0].shot).toBe("shot-ab-1");
+    expect(
+      compactTimeline([
+        ev("step.started", "Taking a screenshot", { tool: "screenshot" }),
+        ev("step.completed", "Screenshot", { tool: "screenshot", detail: { shot: "shot-ab-1" } }),
+      ])[0].shot,
+    ).toBe("shot-ab-1");
+    expect(groupLabel("browser", steps)).toBe("Took a screenshot");
   });
 });

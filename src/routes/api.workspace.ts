@@ -367,13 +367,18 @@ export const Route = createFileRoute("/api/workspace")({
           return fail("rate_limited", "Too many requests. Wait a moment.", 429);
         }
         const members = url.searchParams.get("members");
-        const suffix = url.searchParams.get("files")
-          ? "/files"
-          : url.searchParams.get("preview")
-            ? "/preview"
-            : members
-              ? "/members"
-              : "";
+        const shot = url.searchParams.get("shot");
+        const suffix = shot
+          ? /^shot-[a-z0-9]+-\d+$/.test(shot)
+            ? `/shot/${shot}`
+            : "/shot/invalid"
+          : url.searchParams.get("files")
+            ? "/files"
+            : url.searchParams.get("preview")
+              ? "/preview"
+              : members
+                ? "/members"
+                : "";
         const result = await runner(
           request,
           `/agent/workspaces/${encodeURIComponent(id)}${suffix}`,

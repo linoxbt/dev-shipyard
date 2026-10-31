@@ -75,7 +75,13 @@ import {
 } from "@/lib/appgen/projects";
 import { downloadZip } from "@/lib/appgen/zip";
 import { filesUnder, localPreviewPlan } from "@/lib/appgen/local-preview";
-import { compactTimeline, pendingQuestion, type AgentEvent } from "@/lib/coding-agent/steps";
+import {
+  compactTimeline,
+  pendingQuestion,
+  type AgentEvent,
+  type SavedStep,
+} from "@/lib/coding-agent/steps";
+import { ShotSource } from "@/lib/coding-agent/shots";
 import { QuestionPanel } from "@/components/coding-agent/QuestionPanel";
 import { postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
 import { AGENT_PATH } from "@/lib/features";
@@ -110,6 +116,32 @@ import { cn } from "@/lib/utils";
 // every tool call as a step you can open to see the command and its output,
 // and the files a turn changed as chips that open them.
 
+/** Most screenshots one saved turn keeps (each a ~30 KB JPEG). */
+const MAX_SAVED_SHOTS = 4;
+
+/** A finished turn's steps, with its newest screenshots fetched and kept as
+ *  pictures, so the conversation still shows them once the workspace moves on. */
+async function withShots(workspaceId: string, steps: SavedStep[]): Promise<SavedStep[]> {
+  const named = steps.filter((s) => s.shot && !s.shot.startsWith("data:"));
+  const keep = new Set(named.slice(-MAX_SAVED_SHOTS));
+  const pictures = await Promise.all(
+    [...keep].map(async (s) => {
+      const res = await fetch(
+        `/api/workspace?id=${encodeURIComponent(workspaceId)}&shot=${encodeURIComponent(s.shot!)}`,
+      ).catch(() => null);
+      const body = (await res?.json().catch(() => null)) as { data?: string } | null;
+      return [s, body?.data ? `data:image/jpeg;base64,${body.data}` : null] as const;
+    }),
+  );
+  const found = new Map(pictures);
+  return steps.map((s) => {
+    if (!s.shot || s.shot.startsWith("data:")) return s;
+    const picture = found.get(s);
+    const { shot: _name, ...rest } = s;
+    return picture ? { ...rest, shot: picture } : rest;
+  });
+}
+
 /** The project named in the address, if it is one of yours. */
 function projectInAddress(): string | null {
   const id = new URLSearchParams(window.location.search).get("project");
@@ -123,6 +155,8 @@ interface Handoff {
 
 interface WorkspaceView {
   id: string;
+  /** When the current or last turn started. */
+  turnStartedAt?: number;
   phase: "idle" | "running" | "error" | "cancelled";
   status: string;
   prompt: string;
@@ -517,7 +551,7 @@ export function CodingAgentPage() {
             ? next.error || "That did not work."
             : next.reply ||
               (next.changed.length ? `Changed ${next.changed.length} file(s).` : "Done.");
-      const steps = compactTimeline(next.events ?? []);
+      const steps = await withShots(next.id, compactTimeline(next.events ?? []));
       const asking = failed ? null : pendingQuestion(next.events ?? []);
       state.save({
         ...(body?.files ? { files: body.files } : {}),
@@ -1196,226 +1230,229 @@ export function CodingAgentPage() {
       : null;
 
   const chat = (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      <div
-        ref={scrollRef}
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-        }}
-        className="min-h-0 flex-1 overflow-y-auto"
-      >
-        <div className="mx-auto max-w-2xl space-y-4 px-3 pb-6 pt-4 sm:px-5">
-          {empty && (
-            <div className="space-y-4">
-              <div className="max-w-[88%] rounded-[24px] bg-surface-2 px-4 py-3 text-[14px] leading-[1.65] text-foreground">
-                {hasFiles
-                  ? `Hi! I have the ${Object.keys(files).length} files of ${project.name} open. Ask me for a change, a fix or a test, and I will work on them in a sandbox.`
-                  : `Hi! Tell me what to build for ${project.name} and I will start.`}
-              </div>
-              {hasFiles && (
-                <div className="flex flex-wrap gap-2">
-                  {FIRST_ASKS.map((a) => (
-                    <button
-                      key={a.label}
-                      onClick={() => void send(a.prompt)}
-                      disabled={!user}
-                      className="inline-flex items-center gap-2 rounded-full border border-border px-3.5 py-2 text-[12.5px] text-foreground/85 transition hover:border-primary/40 hover:text-foreground disabled:opacity-50"
-                    >
-                      <a.icon className="h-4 w-4 text-primary" /> {a.label}
-                    </button>
-                  ))}
+    <ShotSource.Provider value={workspaceId}>
+      <div className="flex h-full min-h-0 flex-col bg-background">
+        <div
+          ref={scrollRef}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+          }}
+          className="min-h-0 flex-1 overflow-y-auto"
+        >
+          <div className="mx-auto max-w-2xl space-y-4 px-3 pb-6 pt-4 sm:px-5">
+            {empty && (
+              <div className="space-y-4">
+                <div className="max-w-[88%] rounded-[24px] bg-surface-2 px-4 py-3 text-[14px] leading-[1.65] text-foreground">
+                  {hasFiles
+                    ? `Hi! I have the ${Object.keys(files).length} files of ${project.name} open. Ask me for a change, a fix or a test, and I will work on them in a sandbox.`
+                    : `Hi! Tell me what to build for ${project.name} and I will start.`}
                 </div>
-              )}
-            </div>
-          )}
+                {hasFiles && (
+                  <div className="flex flex-wrap gap-2">
+                    {FIRST_ASKS.map((a) => (
+                      <button
+                        key={a.label}
+                        onClick={() => void send(a.prompt)}
+                        disabled={!user}
+                        className="inline-flex items-center gap-2 rounded-full border border-border px-3.5 py-2 text-[12.5px] text-foreground/85 transition hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                      >
+                        <a.icon className="h-4 w-4 text-primary" /> {a.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-          {turns.map((t, i) =>
-            t.role === "user" ? (
-              <UserMessage
-                key={i}
-                text={t.text}
-                plan={t.plan}
-                images={t.images}
-                onAskAgain={
-                  t === lastUser && !running && !sending ? () => void send(t.text) : undefined
-                }
-              />
-            ) : (
-              <AssistantMessage
-                key={i}
-                turn={t}
-                onOpenFile={showFile}
-                onBuildPlan={
-                  t.plan && !t.failed && i === turns.length - 1 && !running && !sending
-                    ? () => void send("The plan looks good. Build it.", "build")
-                    : undefined
-                }
-              />
-            ),
-          )}
+            {turns.map((t, i) =>
+              t.role === "user" ? (
+                <UserMessage
+                  key={i}
+                  text={t.text}
+                  plan={t.plan}
+                  images={t.images}
+                  onAskAgain={
+                    t === lastUser && !running && !sending ? () => void send(t.text) : undefined
+                  }
+                />
+              ) : (
+                <AssistantMessage
+                  key={i}
+                  turn={t}
+                  onOpenFile={showFile}
+                  onBuildPlan={
+                    t.plan && !t.failed && i === turns.length - 1 && !running && !sending
+                      ? () => void send("The plan looks good. Build it.", "build")
+                      : undefined
+                  }
+                />
+              ),
+            )}
 
-          {(running || sending) && (
-            <LiveTurn
-              events={running ? (view?.events ?? []) : []}
-              reply={liveReply}
-              status={running ? (view?.status ?? "") : "Starting the workspace"}
+            {(running || sending) && (
+              <LiveTurn
+                events={running ? (view?.events ?? []) : []}
+                reply={liveReply}
+                status={running ? (view?.status ?? "") : "Starting the workspace"}
+                startedAt={running ? view?.turnStartedAt : undefined}
+              />
+            )}
+
+            {!running && handoffs.length > 0 && (
+              <div className="space-y-2">
+                {handoffs.map((h, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 rounded-[22px] border border-primary/30 bg-primary/5 px-4 py-3"
+                  >
+                    {h.tool === "publish_app" ? (
+                      <Rocket className="h-4 w-4 shrink-0 text-primary" />
+                    ) : h.tool === "push_to_github" ? (
+                      <Github className="h-4 w-4 shrink-0 text-primary" />
+                    ) : (
+                      <GitPullRequest className="h-4 w-4 shrink-0 text-primary" />
+                    )}
+                    <span className="flex-1 text-[13px] text-foreground">
+                      {h.tool === "push_to_github"
+                        ? "The agent suggests pushing this to GitHub."
+                        : h.tool === "publish_app"
+                          ? "The agent suggests publishing this app."
+                          : "The agent proposes a pull request."}
+                    </span>
+                    <button
+                      onClick={() =>
+                        h.tool === "publish_app"
+                          ? openPublish()
+                          : void openDialog(h.tool === "push_to_github" ? "push" : "pr")
+                      }
+                      className="rounded-full bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary-hover"
+                    >
+                      {h.tool === "publish_app"
+                        ? "Publish"
+                        : h.tool === "push_to_github"
+                          ? "Push"
+                          : "Review"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div data-dock className="mx-auto w-full max-w-2xl px-3 pb-3 sm:px-5">
+          {!running && !sending && asking && (
+            <QuestionPanel
+              question={asking}
+              onAnswer={(answer) => void send(answer)}
+              onOwn={() => {
+                setDismissedAt(turns.length);
+                document.querySelector<HTMLTextAreaElement>("[data-dock] textarea")?.focus();
+              }}
+              onDismiss={() => setDismissedAt(turns.length)}
             />
           )}
-
-          {!running && handoffs.length > 0 && (
-            <div className="space-y-2">
-              {handoffs.map((h, i) => (
+          {!running && !sending && !asking && nextSteps.length > 0 && (
+            <div className="mb-2 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+              <Lightbulb className="mt-1.5 h-3.5 w-3.5 shrink-0 text-meta" />
+              {nextSteps.map((sgt) => (
+                <button
+                  key={sgt}
+                  onClick={() => setInput(sgt)}
+                  className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-[12px] text-foreground/90 transition hover:border-primary/50"
+                >
+                  {sgt}
+                </button>
+              ))}
+            </div>
+          )}
+          {queue.length > 0 && (
+            <div className="mb-2 space-y-1 px-1">
+              {queue.map((q, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 rounded-[22px] border border-primary/30 bg-primary/5 px-4 py-3"
+                  className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1.5"
                 >
-                  {h.tool === "publish_app" ? (
-                    <Rocket className="h-4 w-4 shrink-0 text-primary" />
-                  ) : h.tool === "push_to_github" ? (
-                    <Github className="h-4 w-4 shrink-0 text-primary" />
-                  ) : (
-                    <GitPullRequest className="h-4 w-4 shrink-0 text-primary" />
-                  )}
-                  <span className="flex-1 text-[13px] text-foreground">
-                    {h.tool === "push_to_github"
-                      ? "The agent suggests pushing this to GitHub."
-                      : h.tool === "publish_app"
-                        ? "The agent suggests publishing this app."
-                        : "The agent proposes a pull request."}
+                  <Clock3 className="h-3.5 w-3.5 shrink-0 text-meta" />
+                  <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/90">
+                    {q.pictures.length > 0 && `${q.pictures.length} picture(s) · `}
+                    {q.text}
+                  </span>
+                  <span className="shrink-0 text-[10.5px] text-meta">
+                    {i === 0 ? "Next" : `#${i + 1}`}
                   </span>
                   <button
-                    onClick={() =>
-                      h.tool === "publish_app"
-                        ? openPublish()
-                        : void openDialog(h.tool === "push_to_github" ? "push" : "pr")
-                    }
-                    className="rounded-full bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary-hover"
+                    onClick={() => setQueue((all) => all.filter((_, j) => j !== i))}
+                    aria-label="Remove from the queue"
+                    className="text-meta hover:text-foreground"
                   >
-                    {h.tool === "publish_app"
-                      ? "Publish"
-                      : h.tool === "push_to_github"
-                        ? "Push"
-                        : "Review"}
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      </div>
-
-      <div data-dock className="mx-auto w-full max-w-2xl px-3 pb-3 sm:px-5">
-        {!running && !sending && asking && (
-          <QuestionPanel
-            question={asking}
-            onAnswer={(answer) => void send(answer)}
-            onOwn={() => {
-              setDismissedAt(turns.length);
-              document.querySelector<HTMLTextAreaElement>("[data-dock] textarea")?.focus();
-            }}
-            onDismiss={() => setDismissedAt(turns.length)}
-          />
-        )}
-        {!running && !sending && !asking && nextSteps.length > 0 && (
-          <div className="mb-2 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
-            <Lightbulb className="mt-1.5 h-3.5 w-3.5 shrink-0 text-meta" />
-            {nextSteps.map((sgt) => (
-              <button
-                key={sgt}
-                onClick={() => setInput(sgt)}
-                className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-[12px] text-foreground/90 transition hover:border-primary/50"
-              >
-                {sgt}
-              </button>
-            ))}
+          <div className="mb-2 flex items-center gap-2 px-1">
+            <ModeButton compact value={mode} onClick={() => setSheet("mode")} />
+            <ModelButton compact value={model} onClick={() => setSheet("model")} />
+            {mobile && <PreviewButton onClick={() => setPane("preview")} building={!!building} />}
           </div>
-        )}
-        {queue.length > 0 && (
-          <div className="mb-2 space-y-1 px-1">
-            {queue.map((q, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1.5"
+          <Composer
+            value={input}
+            onChange={setInput}
+            onSend={() => void send()}
+            onStop={() => void stop()}
+            running={running}
+            sending={sending}
+            placeholder={running ? "Next message…" : "Message"}
+            notice={signInNotice}
+            attachments={pictures.map((p) => p.thumb)}
+            onAttach={(files) => void addPictures(files)}
+            onRemoveAttachment={(i) => setPictures((p) => p.filter((_, j) => j !== i))}
+            plus={
+              <Dropdown
+                label="Quick asks"
+                up
+                triggerClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground/85 transition hover:bg-border/60"
+                trigger={() => <Plus className="h-5 w-5" />}
               >
-                <Clock3 className="h-3.5 w-3.5 shrink-0 text-meta" />
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/90">
-                  {q.pictures.length > 0 && `${q.pictures.length} picture(s) · `}
-                  {q.text}
-                </span>
-                <span className="shrink-0 text-[10.5px] text-meta">
-                  {i === 0 ? "Next" : `#${i + 1}`}
-                </span>
-                <button
-                  onClick={() => setQueue((all) => all.filter((_, j) => j !== i))}
-                  aria-label="Remove from the queue"
-                  className="text-meta hover:text-foreground"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="mb-2 flex items-center gap-2 px-1">
-          <ModeButton compact value={mode} onClick={() => setSheet("mode")} />
-          <ModelButton compact value={model} onClick={() => setSheet("model")} />
-          {mobile && <PreviewButton onClick={() => setPane("preview")} building={!!building} />}
-        </div>
-        <Composer
-          value={input}
-          onChange={setInput}
-          onSend={() => void send()}
-          onStop={() => void stop()}
-          running={running}
-          sending={sending}
-          placeholder={running ? "Next message…" : "Message"}
-          notice={signInNotice}
-          attachments={pictures.map((p) => p.thumb)}
-          onAttach={(files) => void addPictures(files)}
-          onRemoveAttachment={(i) => setPictures((p) => p.filter((_, j) => j !== i))}
-          plus={
-            <Dropdown
-              label="Quick asks"
-              up
-              triggerClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground/85 transition hover:bg-border/60"
-              trigger={() => <Plus className="h-5 w-5" />}
-            >
-              {(close) => (
-                <>
-                  <MenuLabel>Add</MenuLabel>
-                  {pictureItem(close)}
-                  <MenuLabel>Ask the agent to</MenuLabel>
-                  {FIRST_ASKS.map((a) => (
+                {(close) => (
+                  <>
+                    <MenuLabel>Add</MenuLabel>
+                    {pictureItem(close)}
+                    <MenuLabel>Ask the agent to</MenuLabel>
+                    {FIRST_ASKS.map((a) => (
+                      <MenuItem
+                        key={a.label}
+                        icon={a.icon}
+                        disabled={running || sending || !user}
+                        onClick={() => {
+                          close();
+                          void send(a.prompt);
+                        }}
+                      >
+                        {a.label}
+                      </MenuItem>
+                    ))}
                     <MenuItem
-                      key={a.label}
-                      icon={a.icon}
-                      disabled={running || sending || !user}
+                      icon={Hammer}
+                      disabled={!view || running || !!building}
                       onClick={() => {
                         close();
-                        void send(a.prompt);
+                        void rebuildPreview();
                       }}
                     >
-                      {a.label}
+                      Rebuild the preview
                     </MenuItem>
-                  ))}
-                  <MenuItem
-                    icon={Hammer}
-                    disabled={!view || running || !!building}
-                    onClick={() => {
-                      close();
-                      void rebuildPreview();
-                    }}
-                  >
-                    Rebuild the preview
-                  </MenuItem>
-                </>
-              )}
-            </Dropdown>
-          }
-        />
+                  </>
+                )}
+              </Dropdown>
+            }
+          />
+        </div>
       </div>
-    </div>
+    </ShotSource.Provider>
   );
 
   const previewFiles = dist ?? (localPlan.kind === "static" ? files : null);
