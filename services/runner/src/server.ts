@@ -64,6 +64,7 @@ import { ActivityStore, activityFile } from "./activity";
 import { AccountsStore, accountsFile } from "./accounts";
 import { codeMessage, mailConfigured, sendMail } from "./mail";
 import {
+  connectorEnv,
   cancelWorkspace,
   createWorkspace,
   getWorkspace,
@@ -847,6 +848,7 @@ async function route(
         context?: unknown;
         model?: unknown;
         plan?: unknown;
+        env?: unknown;
       }>(req, 100_000);
       if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
       const sent = sendWorkspaceMessage(
@@ -858,6 +860,11 @@ async function route(
           // one ends the turn with a reason rather than running something else.
           model: typeof body.value.model === "string" ? body.value.model.slice(0, 60) : undefined,
           plan: body.value.plan === true,
+          // Connected accounts for this turn; only known variables survive.
+          env:
+            body.value.env && typeof body.value.env === "object"
+              ? connectorEnv(body.value.env as Record<string, string>)
+              : undefined,
         },
       );
       if (!sent.ok) return json(res, sent.status, { ok: false, message: sent.message });

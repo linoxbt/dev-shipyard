@@ -177,7 +177,11 @@ function RootComponent() {
   const isLanding = pathname === "/" && !CODING_AGENT_ONLY;
   // The docs are their own site, with their own header and navigation, rather
   // than a page inside the console's sidebar.
-  const isDocs = pathname === "/docs" || pathname.startsWith("/docs/") || pathname === "/cookies";
+  const isDocs =
+    pathname === "/docs" ||
+    pathname.startsWith("/docs/") ||
+    pathname === "/cookies" ||
+    pathname === "/admin/stats";
 
   // Re-apply the persisted theme on mount (covers client navigation / hydration).
   useEffect(() => {

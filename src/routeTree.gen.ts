@@ -18,16 +18,20 @@ import { Route as ExplorerRouteImport } from './routes/explorer'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as AdminStatsRouteImport } from './routes/admin.stats'
 import { Route as ApiAccessRouteImport } from './routes/api.access'
 import { Route as ApiAccountRouteImport } from './routes/api.account'
 import { Route as ApiAgentRouteImport } from './routes/api.agent'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
 import { Route as ApiBuildRouteImport } from './routes/api.build'
+import { Route as ApiConnectorsRouteImport } from './routes/api.connectors'
 import { Route as ApiGithubRouteImport } from './routes/api.github'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiLabelRelayRouteImport } from './routes/api.label-relay'
 import { Route as ApiListingsRouteImport } from './routes/api.listings'
+import { Route as ApiMetricsRouteImport } from './routes/api.metrics'
+import { Route as ApiPlanRouteImport } from './routes/api.plan'
 import { Route as ApiPublishRouteImport } from './routes/api.publish'
 import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
 import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
@@ -66,6 +70,7 @@ import { Route as RoutebookIndexRouteImport } from './routes/routebook.index'
 import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
 import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
 import { Route as ApiAccessSessionRouteImport } from './routes/api.access.session'
+import { Route as ApiAdminStatsRouteImport } from './routes/api.admin.stats'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
 import { Route as ApiGithubPushRouteImport } from './routes/api.github.push'
 import { Route as DocsCliIndexRouteImport } from './routes/docs.cli.index'
@@ -142,6 +147,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminStatsRoute = AdminStatsRouteImport.update({
+  id: '/admin/stats',
+  path: '/admin/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAccessRoute = ApiAccessRouteImport.update({
   id: '/api/access',
   path: '/api/access',
@@ -172,6 +182,11 @@ const ApiBuildRoute = ApiBuildRouteImport.update({
   path: '/api/build',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiConnectorsRoute = ApiConnectorsRouteImport.update({
+  id: '/api/connectors',
+  path: '/api/connectors',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGithubRoute = ApiGithubRouteImport.update({
   id: '/api/github',
   path: '/api/github',
@@ -190,6 +205,16 @@ const ApiLabelRelayRoute = ApiLabelRelayRouteImport.update({
 const ApiListingsRoute = ApiListingsRouteImport.update({
   id: '/api/listings',
   path: '/api/listings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMetricsRoute = ApiMetricsRouteImport.update({
+  id: '/api/metrics',
+  path: '/api/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPlanRoute = ApiPlanRouteImport.update({
+  id: '/api/plan',
+  path: '/api/plan',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublishRoute = ApiPublishRouteImport.update({
@@ -382,6 +407,11 @@ const ApiAccessSessionRoute = ApiAccessSessionRouteImport.update({
   path: '/session',
   getParentRoute: () => ApiAccessRoute,
 } as any)
+const ApiAdminStatsRoute = ApiAdminStatsRouteImport.update({
+  id: '/api/admin/stats',
+  path: '/api/admin/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGithubCallbackRoute = ApiGithubCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -552,16 +582,20 @@ export interface FileRoutesByFullPath {
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
+  '/admin/stats': typeof AdminStatsRoute
   '/api/access': typeof ApiAccessRouteWithChildren
   '/api/account': typeof ApiAccountRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
+  '/api/connectors': typeof ApiConnectorsRoute
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/label-relay': typeof ApiLabelRelayRoute
   '/api/listings': typeof ApiListingsRoute
+  '/api/metrics': typeof ApiMetricsRoute
+  '/api/plan': typeof ApiPlanRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
@@ -600,6 +634,7 @@ export interface FileRoutesByFullPath {
   '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/api/access/session': typeof ApiAccessSessionRoute
+  '/api/admin/stats': typeof ApiAdminStatsRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
   '/docs/cli/install': typeof DocsCliInstallRoute
@@ -639,16 +674,20 @@ export interface FileRoutesByTo {
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
+  '/admin/stats': typeof AdminStatsRoute
   '/api/access': typeof ApiAccessRouteWithChildren
   '/api/account': typeof ApiAccountRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
+  '/api/connectors': typeof ApiConnectorsRoute
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/label-relay': typeof ApiLabelRelayRoute
   '/api/listings': typeof ApiListingsRoute
+  '/api/metrics': typeof ApiMetricsRoute
+  '/api/plan': typeof ApiPlanRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
@@ -685,6 +724,7 @@ export interface FileRoutesByTo {
   '/explorer': typeof ExplorerIndexRoute
   '/routebook': typeof RoutebookIndexRoute
   '/api/access/session': typeof ApiAccessSessionRoute
+  '/api/admin/stats': typeof ApiAdminStatsRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
   '/docs/cli/install': typeof DocsCliInstallRoute
@@ -727,16 +767,20 @@ export interface FileRoutesById {
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
+  '/admin/stats': typeof AdminStatsRoute
   '/api/access': typeof ApiAccessRouteWithChildren
   '/api/account': typeof ApiAccountRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
+  '/api/connectors': typeof ApiConnectorsRoute
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/label-relay': typeof ApiLabelRelayRoute
   '/api/listings': typeof ApiListingsRoute
+  '/api/metrics': typeof ApiMetricsRoute
+  '/api/plan': typeof ApiPlanRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
@@ -775,6 +819,7 @@ export interface FileRoutesById {
   '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/api/access/session': typeof ApiAccessSessionRoute
+  '/api/admin/stats': typeof ApiAdminStatsRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
   '/docs/cli/install': typeof DocsCliInstallRoute
@@ -818,16 +863,20 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/overview'
     | '/settings'
+    | '/admin/stats'
     | '/api/access'
     | '/api/account'
     | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
     | '/api/build'
+    | '/api/connectors'
     | '/api/github'
     | '/api/health'
     | '/api/label-relay'
     | '/api/listings'
+    | '/api/metrics'
+    | '/api/plan'
     | '/api/publish'
     | '/api/repo-agent'
     | '/api/sponsor-topup'
@@ -866,6 +915,7 @@ export interface FileRouteTypes {
     | '/explorer/'
     | '/routebook/'
     | '/api/access/session'
+    | '/api/admin/stats'
     | '/api/github/callback'
     | '/api/github/push'
     | '/docs/cli/install'
@@ -905,16 +955,20 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/overview'
     | '/settings'
+    | '/admin/stats'
     | '/api/access'
     | '/api/account'
     | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
     | '/api/build'
+    | '/api/connectors'
     | '/api/github'
     | '/api/health'
     | '/api/label-relay'
     | '/api/listings'
+    | '/api/metrics'
+    | '/api/plan'
     | '/api/publish'
     | '/api/repo-agent'
     | '/api/sponsor-topup'
@@ -951,6 +1005,7 @@ export interface FileRouteTypes {
     | '/explorer'
     | '/routebook'
     | '/api/access/session'
+    | '/api/admin/stats'
     | '/api/github/callback'
     | '/api/github/push'
     | '/docs/cli/install'
@@ -992,16 +1047,20 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/overview'
     | '/settings'
+    | '/admin/stats'
     | '/api/access'
     | '/api/account'
     | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
     | '/api/build'
+    | '/api/connectors'
     | '/api/github'
     | '/api/health'
     | '/api/label-relay'
     | '/api/listings'
+    | '/api/metrics'
+    | '/api/plan'
     | '/api/publish'
     | '/api/repo-agent'
     | '/api/sponsor-topup'
@@ -1040,6 +1099,7 @@ export interface FileRouteTypes {
     | '/explorer/'
     | '/routebook/'
     | '/api/access/session'
+    | '/api/admin/stats'
     | '/api/github/callback'
     | '/api/github/push'
     | '/docs/cli/install'
@@ -1082,16 +1142,20 @@ export interface RootRouteChildren {
   LeaderboardRoute: typeof LeaderboardRoute
   OverviewRoute: typeof OverviewRoute
   SettingsRoute: typeof SettingsRoute
+  AdminStatsRoute: typeof AdminStatsRoute
   ApiAccessRoute: typeof ApiAccessRouteWithChildren
   ApiAccountRoute: typeof ApiAccountRoute
   ApiAgentRoute: typeof ApiAgentRoute
   ApiAiRoute: typeof ApiAiRoute
   ApiAppsDeployRoute: typeof ApiAppsDeployRoute
   ApiBuildRoute: typeof ApiBuildRoute
+  ApiConnectorsRoute: typeof ApiConnectorsRoute
   ApiGithubRoute: typeof ApiGithubRouteWithChildren
   ApiHealthRoute: typeof ApiHealthRoute
   ApiLabelRelayRoute: typeof ApiLabelRelayRoute
   ApiListingsRoute: typeof ApiListingsRoute
+  ApiMetricsRoute: typeof ApiMetricsRoute
+  ApiPlanRoute: typeof ApiPlanRoute
   ApiPublishRoute: typeof ApiPublishRoute
   ApiRepoAgentRoute: typeof ApiRepoAgentRoute
   ApiSponsorTopupRoute: typeof ApiSponsorTopupRoute
@@ -1107,6 +1171,7 @@ export interface RootRouteChildren {
   RoutebookTxHashRoute: typeof RoutebookTxHashRoute
   RoutebookLabelsRoute: typeof RoutebookLabelsRoute
   RoutebookIndexRoute: typeof RoutebookIndexRoute
+  ApiAdminStatsRoute: typeof ApiAdminStatsRoute
   LaunchkitAppsIdRoute: typeof LaunchkitAppsIdRoute
   LaunchkitTemplatesIdRoute: typeof LaunchkitTemplatesIdRoute
   LaunchkitTemplatesSubmitRoute: typeof LaunchkitTemplatesSubmitRoute
@@ -1179,6 +1244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/stats': {
+      id: '/admin/stats'
+      path: '/admin/stats'
+      fullPath: '/admin/stats'
+      preLoaderRoute: typeof AdminStatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/access': {
       id: '/api/access'
       path: '/api/access'
@@ -1221,6 +1293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBuildRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/connectors': {
+      id: '/api/connectors'
+      path: '/api/connectors'
+      fullPath: '/api/connectors'
+      preLoaderRoute: typeof ApiConnectorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/github': {
       id: '/api/github'
       path: '/api/github'
@@ -1247,6 +1326,20 @@ declare module '@tanstack/react-router' {
       path: '/api/listings'
       fullPath: '/api/listings'
       preLoaderRoute: typeof ApiListingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/metrics': {
+      id: '/api/metrics'
+      path: '/api/metrics'
+      fullPath: '/api/metrics'
+      preLoaderRoute: typeof ApiMetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/plan': {
+      id: '/api/plan'
+      path: '/api/plan'
+      fullPath: '/api/plan'
+      preLoaderRoute: typeof ApiPlanRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/publish': {
@@ -1514,6 +1607,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/access/session'
       preLoaderRoute: typeof ApiAccessSessionRouteImport
       parentRoute: typeof ApiAccessRoute
+    }
+    '/api/admin/stats': {
+      id: '/api/admin/stats'
+      path: '/api/admin/stats'
+      fullPath: '/api/admin/stats'
+      preLoaderRoute: typeof ApiAdminStatsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/github/callback': {
       id: '/api/github/callback'
@@ -1891,16 +1991,20 @@ const rootRouteChildren: RootRouteChildren = {
   LeaderboardRoute: LeaderboardRoute,
   OverviewRoute: OverviewRoute,
   SettingsRoute: SettingsRoute,
+  AdminStatsRoute: AdminStatsRoute,
   ApiAccessRoute: ApiAccessRouteWithChildren,
   ApiAccountRoute: ApiAccountRoute,
   ApiAgentRoute: ApiAgentRoute,
   ApiAiRoute: ApiAiRoute,
   ApiAppsDeployRoute: ApiAppsDeployRoute,
   ApiBuildRoute: ApiBuildRoute,
+  ApiConnectorsRoute: ApiConnectorsRoute,
   ApiGithubRoute: ApiGithubRouteWithChildren,
   ApiHealthRoute: ApiHealthRoute,
   ApiLabelRelayRoute: ApiLabelRelayRoute,
   ApiListingsRoute: ApiListingsRoute,
+  ApiMetricsRoute: ApiMetricsRoute,
+  ApiPlanRoute: ApiPlanRoute,
   ApiPublishRoute: ApiPublishRoute,
   ApiRepoAgentRoute: ApiRepoAgentRoute,
   ApiSponsorTopupRoute: ApiSponsorTopupRoute,
@@ -1916,6 +2020,7 @@ const rootRouteChildren: RootRouteChildren = {
   RoutebookTxHashRoute: RoutebookTxHashRoute,
   RoutebookLabelsRoute: RoutebookLabelsRoute,
   RoutebookIndexRoute: RoutebookIndexRoute,
+  ApiAdminStatsRoute: ApiAdminStatsRoute,
   LaunchkitAppsIdRoute: LaunchkitAppsIdRoute,
   LaunchkitTemplatesIdRoute: LaunchkitTemplatesIdRoute,
   LaunchkitTemplatesSubmitRoute: LaunchkitTemplatesSubmitRoute,

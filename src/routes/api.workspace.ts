@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { sandboxHostEnabled, sandboxRunner, splitId } from "@/lib/orchestrator/sandbox.server";
+import { modelProblem } from "@/lib/db/access.server";
+import { connectorEnvFor } from "@/lib/db/connectors.server";
+import { recordTurn } from "@/lib/db/turns.server";
+import { bumpMetric } from "@/lib/db/admin.server";
 import { isControlPath, looksLikeSecret } from "@/lib/agent/workspace";
 import { AUTO_MODEL, MODEL_IDS } from "@/lib/coding-agent/models";
 import { accountAddress } from "@/lib/auth/account.server";
@@ -276,6 +280,20 @@ async function resolveSource(request: Request, source: Source): Promise<Source |
   }
 }
 
+/** The person's connected accounts, for the agent to act as them this turn:
+ *  saved connectors, and the GitHub account linked to their session. */
+async function turnEnv(request: Request, owner: string): Promise<Record<string, string>> {
+  const env = await connectorEnvFor(owner).catch(() => ({}) as Record<string, string>);
+  if (!env.GH_TOKEN) {
+    const linked = await linkedGithub(request).catch(() => null);
+    if (linked?.ok) {
+      env.GH_TOKEN = linked.token;
+      env.GITHUB_TOKEN = linked.token;
+    }
+  }
+  return env;
+}
+
 async function create(
   request: Request,
   owner: string,
@@ -300,7 +318,12 @@ async function create(
       {
         method: "POST",
         owner,
-        body: JSON.stringify({ prompt, context, ...turnBody(turn) }),
+        body: JSON.stringify({
+          prompt,
+          context,
+          ...turnBody(turn),
+          env: await turnEnv(request, owner),
+        }),
       },
     );
     if (!sent.ok)
@@ -345,6 +368,10 @@ export const Route = createFileRoute("/api/workspace")({
           `/agent/workspaces/${encodeURIComponent(id)}${suffix}`,
           members ? { owner: ownerOf(claimsOf(request)) ?? "" } : {},
         );
+        // A finished turn is recorded once, for the stats and credit spend.
+        if (!suffix && result.ok) {
+          await recordTurn(ownerOf(claimsOf(request)), id, result.body.workspace);
+        }
         return Response.json(result.body, { status: result.status });
       },
 
@@ -367,8 +394,13 @@ export const Route = createFileRoute("/api/workspace")({
             const isolation = await runnerIsolation(url, token);
             if (!isolation.ok) return fail("not_isolated", isolation.why, 503);
           }
+          if (data.prompt?.trim()) {
+            const locked = await modelProblem(owner, data.model);
+            if (locked) return fail("upgrade_required", locked, 402);
+          }
           const made = await create(request, owner, data.source, data.prompt, data.context, data);
           if (made instanceof Response) return made;
+          await bumpMetric("projects_created");
           return withCookie(made, claimCookieHeader(withClaim(claims, made.workspace.id, owner)));
         }
 
@@ -379,6 +411,9 @@ export const Route = createFileRoute("/api/workspace")({
           if (!(await checkRateLimit(`workspace:message:${key}`, MESSAGE_LIMIT, WINDOW_MS))) {
             return fail("rate_limited", "Too many messages. Try again later.", 429);
           }
+          const locked = await modelProblem(owner, data.model);
+          if (locked) return fail("upgrade_required", locked, 402);
+          await bumpMetric("messages");
           const sent = await runner(
             request,
             `/agent/workspaces/${encodeURIComponent(data.id)}/messages`,
@@ -389,6 +424,7 @@ export const Route = createFileRoute("/api/workspace")({
                 prompt: data.prompt,
                 context: data.context,
                 ...turnBody(data),
+                env: await turnEnv(request, owner),
               }),
             },
           );

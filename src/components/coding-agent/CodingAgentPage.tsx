@@ -27,6 +27,9 @@ import { Composer, ToolChip } from "@/components/coding-agent/Composer";
 import { BuildersDialog, GithubDialog } from "@/components/coding-agent/dialogs";
 import { AppDrawer } from "@/components/coding-agent/AppDrawer";
 import { AuthSheet } from "@/components/coding-agent/AuthSheet";
+import { ConnectorsSheet } from "@/components/coding-agent/ConnectorsSheet";
+import { UpgradeSheet } from "@/components/coding-agent/UpgradeSheet";
+import { countVisit, fetchAccess, type Access } from "@/lib/coding-agent/account-client";
 import { WelcomeSheet } from "@/components/coding-agent/WelcomeSheet";
 import { ModeButton, ModeSheet, ModelButton, ModelSheet } from "@/components/coding-agent/pickers";
 import { Landing, type HomeTab } from "@/components/coding-agent/Landing";
@@ -63,7 +66,13 @@ import { AGENT_PATH } from "@/lib/features";
 import { useActiveChain } from "@/hooks/useActiveChain";
 import { useAuth } from "@/hooks/useAuth";
 import { getPreference, setPreference } from "@/lib/consent";
-import { AUTO_MODEL, DEFAULT_MODEL, MODEL_IDS, type AgentMode } from "@/lib/coding-agent/models";
+import {
+  AUTO_MODEL,
+  DEFAULT_MODEL,
+  MODEL_IDS,
+  isPremiumModel,
+  type AgentMode,
+} from "@/lib/coding-agent/models";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { chainConfig } from "@/lib/chains";
 import { docsHref } from "@/lib/site-hosts";
@@ -226,12 +235,25 @@ export function CodingAgentPage() {
   const [prepareNote, setPrepareNote] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(true);
   const [sheet, setSheet] = useState<
-    null | "drawer" | "account" | "news" | "more" | "auth" | "model" | "mode" | "welcome" | "name"
+    | null
+    | "drawer"
+    | "account"
+    | "news"
+    | "more"
+    | "auth"
+    | "model"
+    | "mode"
+    | "welcome"
+    | "name"
+    | "upgrade"
+    | "connectors"
   >(null);
   // The model and mode for the next message. Remembered only with consent
   // to preference storage (lib/consent.ts).
   const [model, setModelState] = useState<string>(DEFAULT_MODEL);
   const [mode, setModeState] = useState<AgentMode>("build");
+  // The account's plan and launch credit, which decide the premium models.
+  const [access, setAccess] = useState<Access | null>(null);
   useEffect(() => {
     const m = getPreference(MODEL_PREF);
     if (m && (m === AUTO_MODEL || MODEL_IDS.includes(m))) setModelState(m);
@@ -264,6 +286,7 @@ export function CodingAgentPage() {
   useEffect(() => {
     setNewsSeen(Number(getPreference(NEWS_SEEN_KEY)) || 0);
     useAuth.getState().init();
+    countVisit();
   }, []);
 
   // A new account has no name yet: ask for it, and for a theme, once.
@@ -332,6 +355,18 @@ export function CodingAgentPage() {
   const files = useMemo(() => project?.files ?? {}, [project?.files]);
   const turns: ProjectTurn[] = project?.turns ?? [];
   const running = view?.phase === "running";
+
+  // Plan and credit: on sign-in, and again after each turn (credit is spent
+  // at the cost of the turn that just finished).
+  useEffect(() => {
+    if (!user) return setAccess(null);
+    if (running) return;
+    let live = true;
+    void fetchAccess().then((a) => live && setAccess(a));
+    return () => {
+      live = false;
+    };
+  }, [user, running]);
   const building = view?.preview.phase === "building";
   const localPlan = useMemo(() => localPreviewPlan(files), [files]);
   const shared = !!(project?.shared || project?.role === "builder");
@@ -557,6 +592,10 @@ export function CodingAgentPage() {
         setSheet("auth");
         return;
       }
+      if (isPremiumModel(model) && access && !access.premium) {
+        setSheet("upgrade");
+        return;
+      }
       const turnMode = modeOverride ?? mode;
       const turn = { model, mode: turnMode };
       setSending(true);
@@ -598,6 +637,10 @@ export function CodingAgentPage() {
             ...turn,
           });
 
+      if (!result.ok && result.data.reason === "upgrade_required") {
+        toast.error(String(result.data.message));
+        setSheet("upgrade");
+      }
       if (!result.ok) {
         const latest = useProjects.getState().active()!;
         useProjects.getState().save({
@@ -629,7 +672,7 @@ export function CodingAgentPage() {
     },
     // restoreBody is a plain helper recreated each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [input, sending, running, user, starter, model, mode],
+    [input, sending, running, user, starter, model, mode, access],
   );
 
   const stop = async () => {
@@ -767,8 +810,28 @@ export function CodingAgentPage() {
           onSignIn={() => setSheet("auth")}
           onEditName={() => setSheet("name")}
           onClose={() => setSheet(null)}
+          plan={
+            access?.plan === "pro"
+              ? "Pro"
+              : access && access.claimed > 0
+                ? `$${access.balance.toFixed(2)} credit`
+                : "Free"
+          }
+          onUpgrade={() => setSheet("upgrade")}
+          onConnectors={() => setSheet("connectors")}
+          admin={access?.admin}
         />
       )}
+      {sheet === "upgrade" && (
+        <UpgradeSheet
+          access={access}
+          signedIn={!!user}
+          onSignIn={() => setSheet("auth")}
+          onChange={setAccess}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === "connectors" && <ConnectorsSheet onClose={() => setSheet(null)} />}
       {sheet === "auth" && (
         // Signing in may already have opened the welcome sheet: leave it open.
         <AuthSheet onClose={() => setSheet((s) => (s === "auth" ? null : s))} />
@@ -776,7 +839,13 @@ export function CodingAgentPage() {
       {sheet === "welcome" && <WelcomeSheet onClose={() => setSheet(null)} />}
       {sheet === "name" && <WelcomeSheet only="name" onClose={() => setSheet(null)} />}
       {sheet === "model" && (
-        <ModelSheet value={model} onChange={setModel} onClose={() => setSheet(null)} />
+        <ModelSheet
+          value={model}
+          onChange={setModel}
+          onClose={() => setSheet(null)}
+          unlocked={!!access?.premium}
+          onUpgrade={() => setSheet("upgrade")}
+        />
       )}
       {sheet === "mode" && (
         <ModeSheet value={mode} onChange={setMode} onClose={() => setSheet(null)} />

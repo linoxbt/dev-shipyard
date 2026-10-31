@@ -113,6 +113,9 @@ export interface WorkspaceSession {
   preview: { phase: PreviewPhase; revision: number; message: string | null };
   /** Other wallets the owner has added as builders, lowercased. */
   collaborators?: string[];
+  /** The current or most recent turn on its own, for the site's records:
+   *  `steps` and `costUsd` above are totals across turns. */
+  lastTurn?: { model: string; plan: boolean; steps: number; costUsd: number; changed: number };
 }
 
 export type WorkspaceView = Omit<WorkspaceSession, "root" | "owner" | "collaborators">;
@@ -489,6 +492,10 @@ export interface SendOptions {
   /** Tests turn the automatic preview off; it builds through the runner's own
    *  HTTP queue, which is not running under a unit test. */
   preview?: boolean;
+  /** Accounts the person connected (GitHub, Vercel, Netlify, Railway,
+   *  Supabase), as the environment variables their tools read. For this turn
+   *  only: never written to disk. */
+  env?: Record<string, string>;
 }
 
 export function sendWorkspaceMessage(
@@ -556,6 +563,52 @@ export const ISOLATED_HOST_ADDENDUM = `
 
 Your commands run on a machine of your own, made for this project and nothing else: an Ubuntu VM with internet access and sudo. Install what you need (npm, pip, sudo apt-get, or the language's own tools), clone repositories, download SDKs, call APIs and run servers, as you would on your own computer. The workspace is the current directory and is kept between messages.`;
 
+// --- connected accounts --------------------------------------------------------
+
+/** The variables a connected account may set, and what they open. Anything
+ *  else in a request is dropped. */
+export const CONNECTOR_VARS: Record<string, string> = {
+  GH_TOKEN:
+    "GitHub: the gh CLI and git over HTTPS (install gh with sudo apt-get install -y gh if it is missing)",
+  GITHUB_TOKEN: "GitHub, for tools that read GITHUB_TOKEN",
+  VERCEL_TOKEN: "Vercel: npx vercel --token $VERCEL_TOKEN (deploy, env, domains)",
+  NETLIFY_AUTH_TOKEN: "Netlify: npx netlify-cli (reads NETLIFY_AUTH_TOKEN)",
+  RAILWAY_API_TOKEN: "Railway: npx @railway/cli (reads RAILWAY_API_TOKEN)",
+  SUPABASE_ACCESS_TOKEN: "Supabase: npx supabase (reads SUPABASE_ACCESS_TOKEN)",
+};
+
+export function connectorEnv(env: Record<string, string> | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(env ?? {})) {
+    if (k in CONNECTOR_VARS && typeof v === "string" && v.length > 0 && v.length < 4000) out[k] = v;
+  }
+  return out;
+}
+
+/** Tell the agent which accounts it may act as, and how. */
+export function connectorsNote(env: Record<string, string> | undefined): string {
+  const set = Object.keys(connectorEnv(env));
+  if (set.length === 0) return "";
+  const lines = set.filter((k) => k !== "GITHUB_TOKEN").map((k) => `- ${CONNECTOR_VARS[k]}`);
+  return `
+
+The person connected these accounts. Their tokens are already in your shell's environment, so the tools below act as the person, with their permissions:
+${lines.join("\n")}
+Use them when the work calls for it (pushing to their repositories, deploying, reading their projects). Say what you are about to do on an account before you do it, never print a token or write one into a file, and do not delete or overwrite anything on their accounts unless they asked for exactly that.`;
+}
+
+/** Every command this turn runs gets the connected accounts' variables. */
+function withEnv(executor: Executor, env: Record<string, string>): Executor {
+  if (Object.keys(env).length === 0) return executor;
+  return {
+    ...executor,
+    run: (command, o) => executor.run(command, { ...o, env: { ...env, ...o.env } }),
+    ...(executor.start
+      ? { start: (command, o) => executor.start!(command, { ...o, env: { ...env, ...o.env } }) }
+      : {}),
+  };
+}
+
 export function workspaceNetworkEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return (env.DEVSTATION_WORKSPACE_NETWORK ?? "on").toLowerCase() !== "off";
 }
@@ -617,7 +670,14 @@ async function runTurn(
 
     const wantSandbox = opts.sandbox ?? sandboxEnabled();
     const network = opts.network ?? workspaceNetworkEnabled();
-    executor = hostExecutor();
+    executor = withEnv(hostExecutor(), connectorEnv(opts.env));
+    session.lastTurn = {
+      model: opts.model ?? "auto",
+      plan: opts.plan === true,
+      steps: 0,
+      costUsd: 0,
+      changed: 0,
+    };
     if (wantSandbox) {
       touch({ status: "Preparing the sandbox" });
       const problem = readinessProblem(await sandboxReadiness());
@@ -669,6 +729,7 @@ async function runTurn(
       systemAddendum:
         sandboxNote +
         WORKSPACE_ADDENDUM +
+        connectorsNote(opts.env) +
         repoNote +
         context +
         (opts.plan ? PLAN_MODE_ADDENDUM : ""),
@@ -692,6 +753,13 @@ async function runTurn(
     }).run(prompt, workspaceMessages(session.id));
 
     writeAtomic(messagesFile(session), JSON.stringify(trimHistory(result.messages)));
+    session.lastTurn = {
+      model: opts.model ?? "auto",
+      plan: opts.plan === true,
+      steps: result.steps,
+      costUsd: result.costUsd,
+      changed: result.filesChanged.length,
+    };
     finish({
       phase: signal.aborted ? "cancelled" : "idle",
       reply: result.summary || session.reply,

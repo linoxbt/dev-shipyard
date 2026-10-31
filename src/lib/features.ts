@@ -29,6 +29,8 @@ export function servedInAgentOnly(pathname: string): boolean {
   return (
     pathname === "/" ||
     pathname === "/cookies" ||
+    // The admins' figures (the page itself checks who is asking).
+    pathname === "/admin/stats" ||
     isPassthrough(pathname) ||
     DOCS_KEPT.some((re) => re.test(pathname))
   );

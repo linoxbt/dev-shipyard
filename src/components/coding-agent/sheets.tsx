@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
+  BarChart3,
   BookOpen,
   Cookie,
+  Crown,
+  Plug,
   Download,
   ExternalLink,
   GitFork,
@@ -88,6 +91,10 @@ export function AccountSheet({
   onSignIn,
   onEditName,
   onClose,
+  plan,
+  onUpgrade,
+  onConnectors,
+  admin,
 }: {
   projects: AppProject[];
   /** The open project's agent work, when one is open. */
@@ -95,6 +102,11 @@ export function AccountSheet({
   onSignIn: () => void;
   onEditName: () => void;
   onClose: () => void;
+  /** "Pro", "$4.20 credit" or "Free", for the plan row. */
+  plan?: string;
+  onUpgrade: () => void;
+  onConnectors: () => void;
+  admin?: boolean;
 }) {
   const account = useAuth((s) => s.account);
   const updateProfile = useAuth((s) => s.updateProfile);
@@ -176,6 +188,34 @@ export function AccountSheet({
           }}
         >
           Your name
+        </SheetRow>
+      )}
+      {account && (
+        <SheetRow
+          icon={Crown}
+          detail={plan}
+          onClick={() => {
+            onClose();
+            onUpgrade();
+          }}
+        >
+          Plan and credit
+        </SheetRow>
+      )}
+      {account && (
+        <SheetRow
+          icon={Plug}
+          onClick={() => {
+            onClose();
+            onConnectors();
+          }}
+        >
+          Connected accounts
+        </SheetRow>
+      )}
+      {admin && (
+        <SheetRow icon={BarChart3} href="/admin/stats">
+          DevStation stats
         </SheetRow>
       )}
       <SheetRow

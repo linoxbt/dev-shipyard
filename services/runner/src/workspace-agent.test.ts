@@ -409,3 +409,17 @@ describe("other builders on one workspace", () => {
     expect(workspaceMembers(session.id)).toEqual({ owner: "0xabc", collaborators: [friend] });
   });
 });
+
+describe("connected accounts in a turn", () => {
+  it("passes only known variables, and tells the agent what it can use", async () => {
+    const { connectorEnv, connectorsNote } = await import("./workspace-agent");
+    expect(connectorEnv({ GH_TOKEN: "t1", AWS_SECRET_ACCESS_KEY: "x", VERCEL_TOKEN: "" })).toEqual({
+      GH_TOKEN: "t1",
+    });
+    expect(connectorsNote({})).toBe("");
+    const note = connectorsNote({ VERCEL_TOKEN: "v", GH_TOKEN: "g" });
+    expect(note).toContain("Vercel");
+    expect(note).toContain("GitHub");
+    expect(note).not.toContain("v\n");
+  });
+});

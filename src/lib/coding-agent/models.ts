@@ -105,6 +105,15 @@ export type ModelChoice = typeof AUTO_MODEL | (typeof AGENT_MODELS)[number]["id"
 
 export const MODEL_IDS: readonly string[] = AGENT_MODELS.map((m) => m.id);
 
+/**
+ * Whether a choice needs Pro or launch credit. Qwen on Fortytwo (and Auto,
+ * which is Qwen) is free for every account; every other model is premium.
+ */
+export function isPremiumModel(id: string | null | undefined): boolean {
+  if (!id || id === AUTO_MODEL || id === DEFAULT_MODEL) return false;
+  return findModel(id) !== null;
+}
+
 export function findModel(id: string | null | undefined): AgentModel | null {
   return AGENT_MODELS.find((m) => m.id === id) ?? null;
 }
