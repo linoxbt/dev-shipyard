@@ -123,7 +123,15 @@ function toOpenAiMessages(system: string, messages: ProviderMessage[]) {
     if (m.role === "tool") {
       out.push({ role: "tool", tool_call_id: m.toolCallId, content: m.content });
     } else if (m.role === "user") {
-      out.push({ role: "user", content: m.content });
+      out.push({
+        role: "user",
+        content: m.images?.length
+          ? [
+              { type: "text", text: m.content },
+              ...m.images.map((url) => ({ type: "image_url", image_url: { url } })),
+            ]
+          : m.content,
+      });
     } else {
       out.push({
         role: "assistant",

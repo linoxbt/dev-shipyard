@@ -346,14 +346,17 @@ export class Orchestrator {
     });
   }
 
-  async run(goal: string, prior: ProviderMessage[] = []): Promise<RunResult> {
+  async run(goal: string, prior: ProviderMessage[] = [], images?: string[]): Promise<RunResult> {
     const started = Date.now();
 
     // No automatic project search in front of the message. It turned "Hello"
     // into "Found 22 relevant place(s)" and answered a greeting with a tour of
     // the files, which is not what an assistant does. The agent searches when a
     // request needs it, through recall, search_files or web_search.
-    const messages: ProviderMessage[] = [...prior, { role: "user", content: goal }];
+    const messages: ProviderMessage[] = [
+      ...prior,
+      { role: "user", content: goal, ...(images?.length ? { images } : {}) },
+    ];
 
     const system =
       CODING_AGENT_SYSTEM +

@@ -457,6 +457,16 @@ export function trimHistory(
 ): ProviderMessage[] {
   const size = (m: ProviderMessage) =>
     m.content.length + ("toolCalls" in m && m.toolCalls ? JSON.stringify(m.toolCalls).length : 0);
+  // Pictures are seen once, in the turn they came with; the history keeps a
+  // note of them (the files stay in attachments/) instead of resending them.
+  messages = messages.map((m) =>
+    m.role === "user" && m.images?.length
+      ? {
+          role: "user" as const,
+          content: `${m.content}\n[${m.images.length} image(s) were attached to this message.]`,
+        }
+      : m,
+  );
   let total = 0;
   let start = messages.length;
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -493,6 +503,9 @@ export interface SendOptions {
   /** Tests turn the automatic preview off; it builds through the runner's own
    *  HTTP queue, which is not running under a unit test. */
   preview?: boolean;
+  /** Pictures the person attached, as data: URLs: shown to the model and
+   *  saved in the workspace under attachments/. */
+  images?: string[];
   /** Accounts the person connected (GitHub, Vercel, Netlify, Railway,
    *  Supabase), as the environment variables their tools read. For this turn
    *  only: never written to disk. */
@@ -563,6 +576,42 @@ export function isolatedHost(env: NodeJS.ProcessEnv = process.env): boolean {
 export const ISOLATED_HOST_ADDENDUM = `
 
 Your commands run on a machine of your own, made for this project and nothing else: an Ubuntu VM with internet access and sudo. Install what you need (npm, pip, sudo apt-get, or the language's own tools), clone repositories, download SDKs, call APIs and run servers, as you would on your own computer. The workspace is the current directory and is kept between messages.`;
+
+// --- attached pictures -----------------------------------------------------------
+
+const IMAGE_URL = /^data:image\/(png|jpeg|gif|webp);base64,([A-Za-z0-9+/=]+)$/;
+
+/** Only well-formed pictures, at most four, each under 3 MB of text. */
+export function cleanImages(images: unknown): string[] | undefined {
+  if (!Array.isArray(images)) return undefined;
+  const ok = images
+    .filter((i): i is string => typeof i === "string" && i.length < 3_000_000 && IMAGE_URL.test(i))
+    .slice(0, 4);
+  return ok.length ? ok : undefined;
+}
+
+/** Save the pictures into the workspace and tell the agent where they are. */
+function saveAttachments(root: string, images: string[] | undefined): string {
+  if (!images?.length) return "";
+  const dir = join(root, "attachments");
+  const saved: string[] = [];
+  try {
+    mkdirSync(dir, { recursive: true });
+    const stamp = Date.now().toString(36);
+    images.forEach((url, i) => {
+      const m = IMAGE_URL.exec(url);
+      if (!m) return;
+      const name = `image-${stamp}-${i + 1}.${m[1] === "jpeg" ? "jpg" : m[1]}`;
+      writeFileSync(join(dir, name), Buffer.from(m[2], "base64"));
+      saved.push(`attachments/${name}`);
+    });
+  } catch {
+    // The model still sees them; only the copies are missing.
+  }
+  return saved.length
+    ? `\n\n(The person attached ${saved.length} image(s), which you can see, also saved as ${saved.join(", ")}.)`
+    : "";
+}
 
 // --- connected accounts --------------------------------------------------------
 
@@ -769,7 +818,11 @@ async function runTurn(
         }
         if (event.kind !== "usage") touch({ status: event.message.slice(0, 200) });
       },
-    }).run(prompt, workspaceMessages(session.id));
+    }).run(
+      prompt + saveAttachments(session.root, opts.images),
+      workspaceMessages(session.id),
+      opts.images,
+    );
 
     writeAtomic(messagesFile(session), JSON.stringify(trimHistory(result.messages)));
     session.lastTurn = {

@@ -153,6 +153,16 @@ const turnOptions = {
     .refine((m) => m === AUTO_MODEL || MODEL_IDS.includes(m), "Unknown model.")
     .optional(),
   mode: z.enum(["build", "plan"]).optional(),
+  /** Pictures for this message: JPEG or PNG data URLs, resized in the browser. */
+  images: z
+    .array(
+      z
+        .string()
+        .max(1_500_000)
+        .regex(/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/),
+    )
+    .max(4)
+    .optional(),
 };
 
 const bodySchema = z.discriminatedUnion("action", [
@@ -202,13 +212,14 @@ const bodySchema = z.discriminatedUnion("action", [
   }),
 ]);
 
-type Turn = { model?: string; mode?: "build" | "plan" };
+type Turn = { model?: string; mode?: "build" | "plan"; images?: string[] };
 
 /** What the runner takes: a model it resolves itself, and plan as a flag. */
-function turnBody(turn: Turn): { model?: string; plan?: boolean } {
+function turnBody(turn: Turn): { model?: string; plan?: boolean; images?: string[] } {
   return {
     ...(turn.model && turn.model !== AUTO_MODEL ? { model: turn.model } : {}),
     ...(turn.mode === "plan" ? { plan: true } : {}),
+    ...(turn.images?.length ? { images: turn.images } : {}),
   };
 }
 

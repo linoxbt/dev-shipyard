@@ -18,6 +18,7 @@ import {
   TriangleAlert,
   LogIn,
   X,
+  Clock3,
 } from "lucide-react";
 import { SplitLayout } from "@/components/appbuilder/SplitLayout";
 import { PublishDialog } from "@/components/appbuilder/PublishDialog";
@@ -30,6 +31,8 @@ import { AuthSheet } from "@/components/coding-agent/AuthSheet";
 import { ConnectorsSheet } from "@/components/coding-agent/ConnectorsSheet";
 import { UpgradeSheet } from "@/components/coding-agent/UpgradeSheet";
 import { countVisit, fetchAccess, type Access } from "@/lib/coding-agent/account-client";
+import { MAX_ATTACHMENTS, prepareImage, type Attachment } from "@/lib/coding-agent/images";
+import { splitSuggestions } from "@/lib/coding-agent/suggestions";
 import { WelcomeSheet } from "@/components/coding-agent/WelcomeSheet";
 import { ModeButton, ModeSheet, ModelButton, ModelSheet } from "@/components/coding-agent/pickers";
 import { Landing, type HomeTab } from "@/components/coding-agent/Landing";
@@ -209,6 +212,12 @@ async function readUploads(
   return { files, skipped };
 }
 
+/** A message typed while the agent was working, waiting to be sent. */
+interface QueuedMessage {
+  text: string;
+  pictures: Attachment[];
+}
+
 export function CodingAgentPage() {
   // Who is signed in (email, through Supabase). Their email doubles as the
   // project owner label kept in this browser.
@@ -254,6 +263,23 @@ export function CodingAgentPage() {
   const [mode, setModeState] = useState<AgentMode>("build");
   // The account's plan and launch credit, which decide the premium models.
   const [access, setAccess] = useState<Access | null>(null);
+  // Pictures waiting to go with the next message, and messages typed while
+  // the agent was working, sent one after another as each turn ends.
+  const [pictures, setPictures] = useState<Attachment[]>([]);
+  const [queue, setQueue] = useState<QueuedMessage[]>([]);
+  const addPictures = async (files: File[]) => {
+    const room = MAX_ATTACHMENTS - pictures.length;
+    if (room <= 0) return toast.error(`At most ${MAX_ATTACHMENTS} pictures per message.`);
+    const ready: Attachment[] = [];
+    for (const file of files.slice(0, room)) {
+      try {
+        ready.push(await prepareImage(file));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "That picture could not be read.");
+      }
+    }
+    setPictures((p) => [...p, ...ready].slice(0, MAX_ATTACHMENTS));
+  };
   useEffect(() => {
     const m = getPreference(MODEL_PREF);
     if (m && (m === AUTO_MODEL || MODEL_IDS.includes(m))) setModelState(m);
@@ -367,6 +393,16 @@ export function CodingAgentPage() {
       live = false;
     };
   }, [user, running]);
+
+  // Queued messages go out one at a time, each when the turn before ends.
+  useEffect(() => {
+    if (running || sending || queue.length === 0) return;
+    const [next, ...rest] = queue;
+    setQueue(rest);
+    void send(undefined, undefined, next);
+    // send is recreated every render; the queue and turn state drive this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, sending, queue]);
   const building = view?.preview.phase === "building";
   const localPlan = useMemo(() => localPreviewPlan(files), [files]);
   const shared = !!(project?.shared || project?.role === "builder");
@@ -585,9 +621,22 @@ export function CodingAgentPage() {
   };
 
   const send = useCallback(
-    async (override?: string, modeOverride?: AgentMode) => {
-      const prompt = (override ?? input).trim();
-      if (!prompt || sending || running) return;
+    async (override?: string, modeOverride?: AgentMode, queued?: QueuedMessage) => {
+      const typed = override === undefined && !queued;
+      const pics = queued ? queued.pictures : typed ? pictures : [];
+      const prompt =
+        (queued?.text ?? override ?? input).trim() ||
+        (pics.length ? "Here is what I attached." : "");
+      if (!prompt) return;
+      // While the agent works, a typed message waits its turn.
+      if (sending || running) {
+        if (typed) {
+          setQueue((q) => [...q, { text: prompt, pictures: pics }]);
+          setInput("");
+          setPictures([]);
+        }
+        return;
+      }
       if (!user) {
         setSheet("auth");
         return;
@@ -597,7 +646,11 @@ export function CodingAgentPage() {
         return;
       }
       const turnMode = modeOverride ?? mode;
-      const turn = { model, mode: turnMode };
+      const turn = {
+        model,
+        mode: turnMode,
+        ...(pics.length ? { images: pics.map((p) => p.full) } : {}),
+      };
       setSending(true);
       setHandoffs([]);
       stickToBottom.current = true;
@@ -617,10 +670,18 @@ export function CodingAgentPage() {
       store.save({
         turns: [
           ...current.turns,
-          { role: "user", text: prompt, ...(turnMode === "plan" ? { plan: true } : {}) },
+          {
+            role: "user",
+            text: prompt,
+            ...(turnMode === "plan" ? { plan: true } : {}),
+            ...(pics.length ? { images: pics.map((p) => p.thumb) } : {}),
+          },
         ],
       });
-      setInput("");
+      if (typed) {
+        setInput("");
+        setPictures([]);
+      }
 
       const result = current.workspaceId
         ? await postWorkspace({
@@ -672,7 +733,7 @@ export function CodingAgentPage() {
     },
     // restoreBody is a plain helper recreated each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [input, sending, running, user, starter, model, mode, access],
+    [input, sending, running, user, starter, model, mode, access, pictures],
   );
 
   const stop = async () => {
@@ -910,6 +971,9 @@ export function CodingAgentPage() {
               placeholder="Describe the app you want to build…"
               trailing={<ModeButton value={mode} onClick={() => setSheet("mode")} />}
               notice={signInNotice}
+              attachments={pictures.map((p) => p.thumb)}
+              onAttach={(files) => void addPictures(files)}
+              onRemoveAttachment={(i) => setPictures((p) => p.filter((_, j) => j !== i))}
               tools={
                 <>
                   <Dropdown
@@ -1011,6 +1075,12 @@ export function CodingAgentPage() {
   const hasFiles = Object.keys(files).length > 0;
   const source = sourceFor(project);
   const lastUser = [...turns].reverse().find((t) => t.role === "user");
+  // The agent's closing suggestions on its latest reply, as buttons.
+  const lastTurn = turns[turns.length - 1];
+  const nextSteps =
+    lastTurn?.role === "assistant" && !lastTurn.failed
+      ? splitSuggestions(lastTurn.text).suggestions
+      : [];
 
   const chat = (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -1053,6 +1123,7 @@ export function CodingAgentPage() {
                 key={i}
                 text={t.text}
                 plan={t.plan}
+                images={t.images}
                 onAskAgain={
                   t === lastUser && !running && !sending ? () => void send(t.text) : undefined
                 }
@@ -1122,6 +1193,46 @@ export function CodingAgentPage() {
       </div>
 
       <div className="mx-auto w-full max-w-2xl px-3 pb-3 sm:px-5">
+        {!running && !sending && nextSteps.length > 0 && (
+          <div className="mb-2 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+            <Lightbulb className="mt-1.5 h-3.5 w-3.5 shrink-0 text-meta" />
+            {nextSteps.map((sgt) => (
+              <button
+                key={sgt}
+                onClick={() => setInput(sgt)}
+                className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-[12px] text-foreground/90 transition hover:border-primary/50"
+              >
+                {sgt}
+              </button>
+            ))}
+          </div>
+        )}
+        {queue.length > 0 && (
+          <div className="mb-2 space-y-1 px-1">
+            {queue.map((q, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1.5"
+              >
+                <Clock3 className="h-3.5 w-3.5 shrink-0 text-meta" />
+                <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/90">
+                  {q.pictures.length > 0 && `${q.pictures.length} picture(s) · `}
+                  {q.text}
+                </span>
+                <span className="shrink-0 text-[10.5px] text-meta">
+                  {i === 0 ? "Next" : `#${i + 1}`}
+                </span>
+                <button
+                  onClick={() => setQueue((all) => all.filter((_, j) => j !== i))}
+                  aria-label="Remove from the queue"
+                  className="text-meta hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="mb-2 flex items-center gap-2 px-1">
           <ModeButton compact value={mode} onClick={() => setSheet("mode")} />
           <ModelButton compact value={model} onClick={() => setSheet("model")} />
@@ -1136,6 +1247,9 @@ export function CodingAgentPage() {
           sending={sending}
           placeholder={running ? "Next message…" : "Message"}
           notice={signInNotice}
+          attachments={pictures.map((p) => p.thumb)}
+          onAttach={(files) => void addPictures(files)}
+          onRemoveAttachment={(i) => setPictures((p) => p.filter((_, j) => j !== i))}
           plus={
             <Dropdown
               label="Quick asks"

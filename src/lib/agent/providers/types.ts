@@ -23,7 +23,12 @@ export interface ProviderToolCall {
  * mapping wrong is the classic way these ports break.
  */
 export type ProviderMessage =
-  | { role: "user"; content: string }
+  | {
+      role: "user";
+      content: string;
+      /** Pictures the person attached, as data: URLs (JPEG or PNG). */
+      images?: string[];
+    }
   | { role: "assistant"; content: string; toolCalls?: ProviderToolCall[] }
   | { role: "tool"; toolCallId: string; content: string; isError?: boolean };
 

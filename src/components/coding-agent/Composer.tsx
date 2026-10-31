@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, LoaderCircle, Mic, Square } from "lucide-react";
+import { ArrowUp, ImagePlus, LoaderCircle, Mic, Square, X } from "lucide-react";
 import { toast } from "sonner";
+import { imagesFrom } from "@/lib/coding-agent/images";
 import { cn } from "@/lib/utils";
 
 // The message box, in two shapes.
@@ -181,6 +182,9 @@ export function Composer({
   trailing,
   notice,
   autoFocus,
+  attachments,
+  onAttach,
+  onRemoveAttachment,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -199,6 +203,10 @@ export function Composer({
   trailing?: ReactNode;
   notice?: ReactNode;
   autoFocus?: boolean;
+  /** Pictures waiting to go with the message, as thumbnails. */
+  attachments?: string[];
+  onAttach?: (files: File[]) => void;
+  onRemoveAttachment?: (index: number) => void;
 }) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const hero = variant === "hero";
@@ -212,7 +220,9 @@ export function Composer({
     el.style.height = `${Math.min(el.scrollHeight, hero ? 280 : 200)}px`;
   }, [value, hero]);
 
-  const disabled = !value.trim() || !!sending || !canSend;
+  const fileInput = useRef<HTMLInputElement | null>(null);
+  const hasPictures = !!attachments?.length;
+  const disabled = (!value.trim() && !hasPictures) || !!sending || !canSend;
   const send = () => {
     dictation.cancel();
     onSend();
@@ -223,10 +233,18 @@ export function Composer({
       value={value}
       autoFocus={autoFocus}
       onChange={(e) => onChange(e.target.value)}
+      onPaste={(e) => {
+        const files = imagesFrom(e.clipboardData?.items ?? null);
+        if (files.length && onAttach) {
+          e.preventDefault();
+          onAttach(files);
+        }
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
           e.preventDefault();
-          if (!disabled && !running) send();
+          // While the agent works this queues the message (the page decides).
+          if (!disabled) send();
         }
       }}
       rows={hero ? 3 : 1}
@@ -257,14 +275,66 @@ export function Composer({
     </button>
   ) : null;
 
+  const pictures = hasPictures ? (
+    <div className="flex flex-wrap gap-2">
+      {attachments!.map((src, i) => (
+        <div key={i} className="relative">
+          <img
+            src={src}
+            alt={`Attached picture ${i + 1}`}
+            className="h-14 w-14 rounded-xl border border-border object-cover"
+          />
+          <button
+            type="button"
+            onClick={() => onRemoveAttachment?.(i)}
+            aria-label="Remove picture"
+            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ))}
+    </div>
+  ) : null;
+  const attach = onAttach ? (
+    <>
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(e) => {
+          const files = imagesFrom(e.target.files);
+          if (files.length) onAttach(files);
+          e.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => fileInput.current?.click()}
+        title="Attach pictures (or paste them)"
+        aria-label="Attach pictures"
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-2 hover:text-foreground",
+          hero ? "h-8 w-8" : "h-10 w-10",
+        )}
+      >
+        <ImagePlus className={hero ? "h-4 w-4" : "h-5 w-5"} />
+      </button>
+    </>
+  ) : null;
+
   if (hero) {
     return (
       <div className="rounded-3xl border border-border bg-surface shadow-2xl shadow-black/25 transition focus-within:border-primary/50">
         {notice && <div className="border-b border-border px-5 py-2">{notice}</div>}
+        {pictures && <div className="px-4 pt-3">{pictures}</div>}
         {textarea}
         <div className="flex items-center gap-1.5 px-3 pb-2.5 pt-1.5">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{tools}</div>
           {trailing}
+          {attach}
           {mic}
           <button
             onClick={send}
@@ -286,10 +356,22 @@ export function Composer({
   return (
     <div>
       {notice && <div className="mb-2 px-2">{notice}</div>}
+      {pictures && <div className="mb-2 px-2">{pictures}</div>}
       <div className="flex items-end gap-1 rounded-[28px] border border-border bg-surface-2 py-1.5 pl-1.5 pr-1.5 shadow-xl shadow-black/25 transition focus-within:border-primary/50">
         {plus}
         <div className="min-w-0 flex-1 px-1">{textarea}</div>
+        {attach}
         {!running && !value.trim() && mic}
+        {running && (value.trim() || hasPictures) && (
+          <button
+            onClick={send}
+            disabled={disabled}
+            title="Queue this message: it is sent when the agent finishes"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
+          >
+            <ArrowUp className="h-5 w-5" />
+          </button>
+        )}
         {running ? (
           <button
             onClick={onStop}
@@ -298,7 +380,7 @@ export function Composer({
           >
             <Square className="h-3.5 w-3.5 fill-current" />
           </button>
-        ) : value.trim() || sending ? (
+        ) : value.trim() || hasPictures || sending ? (
           <button
             onClick={send}
             disabled={disabled}

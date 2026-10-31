@@ -34,6 +34,8 @@ export interface ProjectTurn {
   steps?: { tool?: string; title: string; target?: string; failed?: boolean }[];
   /** Sent in Plan mode, or the plan that came back. */
   plan?: boolean;
+  /** Thumbnails of pictures attached to a message (small JPEG data URLs). */
+  images?: string[];
 }
 
 /** The contract an app is wired to, if any. */
@@ -105,6 +107,7 @@ const turnSchema = z.object({
     .max(100)
     .optional(),
   plan: z.boolean().optional(),
+  images: z.array(z.string().max(120_000)).max(4).optional(),
 });
 
 const messageSchema = z.object({

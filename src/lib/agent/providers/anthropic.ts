@@ -88,7 +88,25 @@ export function toAnthropicMessages(messages: ProviderMessage[]): Anthropic.Mess
     flush();
 
     if (message.role === "user") {
-      out.push({ role: "user", content: message.content });
+      const pictures = (message.images ?? [])
+        .map((url) => /^data:(image\/(?:png|jpeg|gif|webp));base64,(.+)$/.exec(url))
+        .filter((m): m is RegExpExecArray => m !== null);
+      out.push({
+        role: "user",
+        content: pictures.length
+          ? [
+              ...pictures.map((m) => ({
+                type: "image" as const,
+                source: {
+                  type: "base64" as const,
+                  media_type: m[1] as "image/png" | "image/jpeg" | "image/gif" | "image/webp",
+                  data: m[2],
+                },
+              })),
+              { type: "text" as const, text: message.content },
+            ]
+          : message.content,
+      });
       continue;
     }
 

@@ -36,6 +36,7 @@ import {
   type TimelineItem,
   type ToolKind,
 } from "@/lib/coding-agent/steps";
+import { splitSuggestions } from "@/lib/coding-agent/suggestions";
 import { cn } from "@/lib/utils";
 import { Markdown } from "./Markdown";
 import { Dropdown, MenuItem } from "./primitives";
@@ -85,21 +86,51 @@ function copy(text: string) {
   void navigator.clipboard?.writeText(text);
 }
 
+/** A long message (a pasted brief, a log) shows its first lines until opened. */
+const LONG_LINES = 6;
+const LONG_CHARS = 480;
+
 export function UserMessage({
   text,
   plan,
+  images,
   onAskAgain,
 }: {
   text: string;
   plan?: boolean;
+  images?: string[];
   onAskAgain?: () => void;
 }) {
+  const long = text.split("\n").length > LONG_LINES || text.length > LONG_CHARS;
+  const [open, setOpen] = useState(false);
   return (
     <div>
       {plan && <p className="mb-1 pr-2 text-right text-[10.5px] text-primary">Plan first</p>}
+      {images && images.length > 0 && (
+        <div className="mb-1.5 flex flex-wrap justify-end gap-1.5">
+          {images.map((src, i) => (
+            <img
+              key={i}
+              src={src}
+              alt={`Attached picture ${i + 1}`}
+              className="h-20 w-20 rounded-2xl border border-border object-cover"
+            />
+          ))}
+        </div>
+      )}
       <div className="flex justify-end">
         <div className="max-w-[85%] rounded-[24px] bg-primary px-4 py-2.5 text-[14px] leading-6 text-primary-foreground">
-          <p className="whitespace-pre-wrap break-words">{text}</p>
+          <p className={cn("whitespace-pre-wrap break-words", long && !open && "line-clamp-6")}>
+            {text}
+          </p>
+          {long && (
+            <button
+              onClick={() => setOpen((v) => !v)}
+              className="mt-1 text-[12.5px] font-medium text-primary-foreground/85 underline-offset-2 hover:underline"
+            >
+              {open ? "Show less" : "Show more"}
+            </button>
+          )}
         </div>
       </div>
       <MessageMenu align="right">
@@ -155,7 +186,7 @@ export function AssistantMessage({
             <TriangleAlert className="h-3.5 w-3.5" /> Did not finish
           </p>
         )}
-        <Markdown text={turn.text} className="text-[14px] leading-[1.65]" />
+        <Markdown text={splitSuggestions(turn.text).body} className="text-[14px] leading-[1.65]" />
         {turn.changed && turn.changed.length > 0 && (
           <div>
             <ChangedFiles paths={turn.changed} onOpenFile={onOpenFile} />
