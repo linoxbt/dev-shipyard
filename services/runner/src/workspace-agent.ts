@@ -35,6 +35,7 @@ import {
   SANDBOX_NETWORK_ADDENDUM,
 } from "../../../src/lib/agent/system-prompt";
 import { hostExecutor, type Executor } from "../../../src/lib/agent/executor";
+import { McpHub, loadConfig } from "../../../src/lib/agent/mcp";
 import { runShell } from "../../../src/lib/agent/shell";
 import {
   readinessProblem,
@@ -619,6 +620,7 @@ You are running in DevStation's web console rather than a terminal. The person t
 
 - Not every message is work on the project. Answer questions, explain, research and advise in the chat; change the workspace only when that is what is asked.
 - Anything can be built here: web apps, smart contracts, scripts, APIs, libraries, command-line tools. Scaffold, install, build and test from the shell as you would on your own machine.
+- To use an MCP server, add it to .mcp.json at the project root, as {"mcpServers": {"name": {"command": "npx", "args": ["-y", "<package>"], "env": {}}}}; its tools appear from the next message, named for the server.
 - Smart contracts: write and test them locally first (forge test, or the Hardhat tests). To deploy, call create_wallet to get this workspace's deployer wallet, tell the person its address, the network and where to get test funds (the network's faucet), then check the balance with onchain (cast balance $DEPLOYER_ADDRESS --rpc-url …) and wait for them before deploying. Deploy with onchain (forge create … --private-key $DEPLOYER_PRIVATE_KEY --broadcast, forge script … --broadcast, or npx hardhat run … --network …, with the config reading process.env.DEPLOYER_PRIVATE_KEY), then report the contract address, the transaction and the explorer link. Testnets unless the person asks for a mainnet in so many words. Never print, write into a file or commit the private key.
 - When the work has a web front end, make it previewable: either a static index.html at the project root, or a package.json whose \`npm run build\` writes a static site (Vite to dist/ is the simplest; a Next.js app needs output: "export", which writes out/). DevStation builds and shows the preview after your turn; an app that only runs on a server has no static preview, so say so instead of reshaping it.
 - Verify before you finish: run the build or the tests.
@@ -632,6 +634,7 @@ async function runTurn(
   signal: AbortSignal,
 ): Promise<void> {
   let executor: Executor | null = null;
+  let mcp: McpHub | null = null;
   let memory: MemoryStore | null = null;
   let lastWrite = 0;
   const touch = (patch: Partial<WorkspaceSession>, force = false) => {
@@ -691,6 +694,21 @@ async function runTurn(
       executor = sandboxExecutor({ workspace: session.root, network });
     }
 
+    // MCP servers the project configures (.mcp.json at its root). Only on a
+    // machine of its own: there the VM is the boundary, so starting the
+    // project's servers needs no separate trust step.
+    if (isolatedHost()) {
+      try {
+        const config = loadConfig(session.root, "");
+        if (Object.keys(config.mcpServers).length > 0) {
+          touch({ status: "Starting the project's MCP servers" });
+          mcp = await McpHub.start(config);
+        }
+      } catch {
+        mcp = null;
+      }
+    }
+
     const embeddings = embeddingsFromEnv();
     try {
       memory = openStore(session.root);
@@ -737,6 +755,7 @@ async function runTurn(
       // the model asks for.
       ...(opts.plan ? { readOnly: true } : {}),
       offerPersonTools: personTools,
+      mcp,
       // Without an approver every gated action is refused, which in a web
       // conversation meant no installs, no builds and no scaffolding at all.
       ...((opts.approve ?? (executor.kind === "sandbox" || isolatedHost()))
@@ -782,6 +801,7 @@ async function runTurn(
   } finally {
     memory?.close();
     await executor?.dispose();
+    mcp?.stop();
   }
 }
 

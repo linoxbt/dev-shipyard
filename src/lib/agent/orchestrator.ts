@@ -34,6 +34,7 @@ import {
 import { agentDiff, agentStatus, git as gitOp, type GitOp } from "./git";
 import { cloneDirName, cloneUrlProblem, gitArgsProblem } from "./git-ops";
 import { CODING_AGENT_SYSTEM, GIT_ADDENDUM } from "./system-prompt";
+import { readProjectInstructions } from "./project-instructions";
 import { ensureWallet, onchainCommandProblem, readWallet, redactWallet, walletEnv } from "./wallet";
 import { renderContext, retrieve } from "./memory/retrieve";
 import { webSearch, fetchPage } from "./web";
@@ -358,6 +359,7 @@ export class Orchestrator {
       CODING_AGENT_SYSTEM +
       (isRepo(this.opts.workspace.root) ? GIT_ADDENDUM : "") +
       renderMemory(readMemory(this.opts.workspace.root)) +
+      readProjectInstructions(this.opts.workspace.root) +
       (this.opts.systemAddendum ?? "");
     const tools = [
       ...availableTools(this.opts.offerPersonTools),
