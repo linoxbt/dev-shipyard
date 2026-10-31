@@ -85,6 +85,8 @@ export const NARRATION = "narration";
 /** Events that are bookkeeping, not something a person needs to see. */
 const SILENT = new Set([
   "usage",
+  // Shown as the choices above the message box, not as a step.
+  "question",
   "approval.requested",
   "approval.granted",
   "turn.partial",
@@ -307,6 +309,46 @@ export function groupLabel(kind: ToolKind | "note", steps: readonly Step[]): str
     default:
       return n === 1 ? steps[0].title : `${n} steps`;
   }
+}
+
+/** A decision the agent handed to the person: a question with a few choices. */
+export interface AgentQuestion {
+  question: string;
+  header?: string;
+  options: { label: string; description?: string }[];
+  multiSelect?: boolean;
+}
+
+/** The question a turn ended on, if it ended on one. */
+export function pendingQuestion(events: readonly AgentEvent[]): AgentQuestion | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e.kind === "usage" || e.kind === "task.completed" || e.kind === "checkpoint") continue;
+    if (e.kind !== "question") return null;
+    const d = e.detail ?? {};
+    const options = Array.isArray(d.options)
+      ? (d.options as unknown[])
+          .filter(
+            (o): o is { label: string; description?: unknown } =>
+              !!o && typeof (o as { label?: unknown }).label === "string",
+          )
+          .slice(0, 4)
+          .map((o) => ({
+            label: o.label.slice(0, 80),
+            ...(typeof o.description === "string"
+              ? { description: o.description.slice(0, 300) }
+              : {}),
+          }))
+      : [];
+    if (options.length < 2) return null;
+    return {
+      question: (typeof d.question === "string" ? d.question : e.message).slice(0, 600),
+      ...(typeof d.header === "string" && d.header ? { header: d.header.slice(0, 40) } : {}),
+      options,
+      ...(d.multiSelect === true ? { multiSelect: true } : {}),
+    };
+  }
+  return null;
 }
 
 export interface PlanItem {

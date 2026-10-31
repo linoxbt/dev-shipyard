@@ -16,6 +16,7 @@
 import { create } from "zustand";
 import { z } from "zod";
 import type { ChatMessage } from "@/lib/ai";
+import type { AgentQuestion } from "@/lib/coding-agent/steps";
 
 const STORAGE_KEY = "devstation-apps-v1";
 /** Projects retained. Each carries files and a transcript, and localStorage is
@@ -36,6 +37,8 @@ export interface ProjectTurn {
   plan?: boolean;
   /** Thumbnails of pictures attached to a message (small JPEG data URLs). */
   images?: string[];
+  /** The decision an agent turn ended on, offered as choices to tap. */
+  question?: AgentQuestion;
 }
 
 /** The contract an app is wired to, if any. */
@@ -108,6 +111,17 @@ const turnSchema = z.object({
     .optional(),
   plan: z.boolean().optional(),
   images: z.array(z.string().max(120_000)).max(4).optional(),
+  question: z
+    .object({
+      question: z.string().max(600),
+      header: z.string().max(40).optional(),
+      options: z
+        .array(z.object({ label: z.string().max(80), description: z.string().max(300).optional() }))
+        .min(2)
+        .max(4),
+      multiSelect: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 const messageSchema = z.object({

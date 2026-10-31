@@ -504,6 +504,55 @@ export const TOOLS: Record<string, ToolDefinition> = {
     resourcesFrom: () => ["plan"],
     returnsUntrustedContent: false,
   },
+  ask_user: {
+    name: "ask_user",
+    usage: 'ask_user {"question", "header?", "options", "multiSelect?"}',
+    jsonSchema: {
+      type: "object",
+      properties: {
+        question: {
+          type: "string",
+          description: "The question, complete and on its own: the person may read nothing else.",
+        },
+        header: { type: "string", description: "Optional: a two-or-three word label for it." },
+        options: {
+          type: "array",
+          description:
+            "Two to four distinct choices. Put the one you recommend first and end its label with (Recommended).",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string", description: "The choice, in one to five words." },
+              description: { type: "string", description: "What picking it means." },
+            },
+            required: ["label"],
+          },
+        },
+        multiSelect: { type: "boolean", description: "True when several choices can be picked." },
+      },
+      required: ["question", "options"],
+    },
+    description:
+      "Ask the person to decide something only they can decide, as a question with two to four choices they tap (they can also type their own). Your turn ends here, and their answer arrives as their next message. Use it for a real fork in the road: which of two designs, which service to deploy to, whether to replace something they made. Not for anything you can settle from the request, the code or a sensible default, and never to ask permission to keep going.",
+    // Changes nothing: allowed in plan mode and never asks for approval.
+    operation: "project.inspect",
+    schema: z.object({
+      question: z.string().min(1).max(600),
+      header: z.string().max(40).optional(),
+      options: z
+        .array(
+          z.object({
+            label: z.string().min(1).max(80),
+            description: z.string().max(300).optional(),
+          }),
+        )
+        .min(2)
+        .max(4),
+      multiSelect: z.boolean().optional(),
+    }),
+    resourcesFrom: () => ["conversation"],
+    returnsUntrustedContent: false,
+  },
   shell_output: {
     name: "shell_output",
     usage: 'shell_output {"id"}',

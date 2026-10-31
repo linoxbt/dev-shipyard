@@ -1,15 +1,17 @@
 // Accounts a person connects so the agent can act as them: GitHub, Vercel,
 // Netlify, Railway and Supabase.
 //
-// A token is checked against the provider before it is kept (so a typo is
-// caught at once), then stored encrypted (AES-256-GCM, key derived from
-// SESSION_SECRET or RUNNER_TOKEN) in the connectors table, which only this
-// server can reach. Each message the person sends carries their tokens to
-// their own sandbox for that turn, as the variables the providers' CLIs read
-// (services/runner CONNECTOR_VARS); the browser never sees one again.
+// Connected over OAuth (oauth.server.ts): the grant the provider returns is
+// stored encrypted (AES-256-GCM, key derived from SESSION_SECRET or
+// RUNNER_TOKEN) in the connectors table, which only this server can reach.
+// Each message the person sends carries a fresh access token (refreshed first
+// when it is about to expire) to their own sandbox for that turn, as the
+// variables the providers' CLIs read (services/runner CONNECTOR_VARS); the
+// browser never sees one.
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { dbConfigured, insert, remove, select } from "./admin.server";
+import { expiresSoon, refreshGrant, type OAuthGrant } from "./oauth.server";
 
 export type ConnectorId = "github" | "vercel" | "netlify" | "railway" | "supabase";
 
@@ -18,7 +20,7 @@ interface Provider {
   /** Environment variables the token is given to the sandbox as. */
   env: string[];
   /** Who the token belongs to, or null when the provider refused it. */
-  whoami: (token: string) => Promise<string | null>;
+  whoami: (token: string, team?: string) => Promise<string | null>;
 }
 
 const json = async (res: Response) =>
@@ -42,12 +44,15 @@ const PROVIDERS: Record<ConnectorId, Provider> = {
   vercel: {
     id: "vercel",
     env: ["VERCEL_TOKEN"],
-    whoami: async (token) => {
+    whoami: async (token, team) => {
       const me = await json(
-        await fetch("https://api.vercel.com/v2/user", {
-          headers: { authorization: `Bearer ${token}` },
-          signal: t(),
-        }),
+        await fetch(
+          `https://api.vercel.com/v2/user${team ? `?teamId=${encodeURIComponent(team)}` : ""}`,
+          {
+            headers: { authorization: `Bearer ${token}` },
+            signal: t(),
+          },
+        ),
       );
       const user = me?.user as { username?: string; email?: string } | undefined;
       return me ? String(user?.username ?? user?.email ?? "Vercel account") : null;
@@ -86,13 +91,13 @@ const PROVIDERS: Record<ConnectorId, Provider> = {
     id: "supabase",
     env: ["SUPABASE_ACCESS_TOKEN"],
     whoami: async (token) => {
-      const res = await fetch("https://api.supabase.com/v1/projects", {
-        headers: { authorization: `Bearer ${token}` },
-        signal: t(),
-      });
-      if (!res.ok) return null;
-      const projects = (await res.json()) as unknown[];
-      return `${projects.length} project${projects.length === 1 ? "" : "s"}`;
+      const me = await json(
+        await fetch("https://api.supabase.com/v1/profile", {
+          headers: { authorization: `Bearer ${token}` },
+          signal: t(),
+        }),
+      );
+      return me ? String(me.username || me.primary_email || "Supabase account") : null;
     },
   },
 };
@@ -149,28 +154,45 @@ export async function listConnectors(owner: string): Promise<ConnectedAccount[]>
     }));
 }
 
-/** Check the token with the provider, then keep it. */
-export async function saveConnector(
-  owner: string,
-  provider: ConnectorId,
-  token: string,
-): Promise<{ ok: true; label: string } | { ok: false; message: string }> {
-  const clean = token.trim();
-  if (clean.length < 8 || clean.length > 2000 || /\s/.test(clean)) {
-    return { ok: false, message: "That does not look like a token." };
-  }
-  let label: string | null;
+/** A stored grant. Accounts connected before OAuth hold a bare token. */
+export function readGrant(sealed: string): OAuthGrant | null {
+  const raw = openToken(sealed);
+  if (!raw) return null;
+  if (!raw.startsWith("{")) return { a: raw };
   try {
-    label = await PROVIDERS[provider].whoami(clean);
+    const grant = JSON.parse(raw) as OAuthGrant;
+    return typeof grant.a === "string" && grant.a ? grant : null;
   } catch {
-    return { ok: false, message: "The provider could not be reached. Try again in a moment." };
+    return null;
   }
-  if (!label) return { ok: false, message: "The provider did not accept that token." };
+}
+
+async function keep(owner: string, provider: ConnectorId, grant: OAuthGrant, label: string) {
   await insert(
     "connectors",
-    { owner, provider, token_enc: sealToken(clean), label, created_at: new Date().toISOString() },
+    {
+      owner,
+      provider,
+      token_enc: sealToken(JSON.stringify(grant)),
+      label,
+      created_at: new Date().toISOString(),
+    },
     { upsertOn: "owner,provider" },
   );
+}
+
+/** Keep a grant the provider just issued, labelled with whose account it is. */
+export async function saveGrant(
+  owner: string,
+  provider: ConnectorId,
+  grant: OAuthGrant,
+): Promise<{ ok: true; label: string }> {
+  // The name is only a label: a grant the provider just issued is kept even
+  // when the app's scopes do not cover reading the profile.
+  const fallback = `${provider[0].toUpperCase()}${provider.slice(1)} account`;
+  const label =
+    (await PROVIDERS[provider].whoami(grant.a, grant.team).catch(() => null)) ?? fallback;
+  await keep(owner, provider, grant, label);
   return { ok: true, label };
 }
 
@@ -184,16 +206,27 @@ export async function deleteConnector(owner: string, provider: ConnectorId): Pro
 /** The environment a turn gets from the person's connected accounts. */
 export async function connectorEnvFor(owner: string): Promise<Record<string, string>> {
   if (!dbConfigured()) return {};
-  const rows = await select<{ provider: string; token_enc: string }>(
+  const rows = await select<{ provider: string; token_enc: string; label: string | null }>(
     "connectors",
-    `owner=eq.${encodeURIComponent(owner)}&select=provider,token_enc`,
+    `owner=eq.${encodeURIComponent(owner)}&select=provider,token_enc,label`,
   ).catch(() => []);
   const env: Record<string, string> = {};
-  for (const row of rows) {
-    if (!isConnectorId(row.provider)) continue;
-    const token = openToken(row.token_enc);
-    if (!token) continue;
-    for (const name of PROVIDERS[row.provider].env) env[name] = token;
-  }
+  await Promise.all(
+    rows.map(async (row) => {
+      if (!isConnectorId(row.provider)) return;
+      let grant = readGrant(row.token_enc);
+      if (!grant) return;
+      if (expiresSoon(grant)) {
+        const fresh = await refreshGrant(row.provider, grant).catch(() => null);
+        // Refused: the person revoked access or it lapsed. Leave it out; the
+        // account still shows as connected until they reconnect or remove it.
+        if (!fresh) return;
+        grant = fresh;
+        await keep(owner, row.provider, grant, row.label ?? "").catch(() => {});
+      }
+      for (const name of PROVIDERS[row.provider].env) env[name] = grant.a;
+      if (row.provider === "vercel" && grant.team) env.VERCEL_TEAM_ID = grant.team;
+    }),
+  );
   return env;
 }

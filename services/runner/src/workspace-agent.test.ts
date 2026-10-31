@@ -8,6 +8,7 @@ import {
   cancelWorkspace,
   createWorkspace,
   getWorkspace,
+  livePreview,
   parseWorkspaceSource,
   previewAssets,
   previewDist,
@@ -250,6 +251,31 @@ describe("the preview", () => {
     expect(started.ok).toBe(true);
     expect(getWorkspace(session.id)!.preview.phase).toBe("ready");
     expect(previewDist(session.id)).toEqual({ "index.html": "<p>x</p>" });
+  });
+
+  it("follows the agent's changes mid-run, and picks up a build it ran itself", async () => {
+    const session = await blank();
+    const live = getWorkspace(session.id)!;
+    writeFileSync(join(live.root, "index.html"), "<p>one</p>");
+    expect(livePreview(live)).toBe(true);
+    expect(live.preview.phase).toBe("ready");
+    expect(live.preview.live).toBeGreaterThan(0);
+    expect(previewDist(session.id)).toEqual({ "index.html": "<p>one</p>" });
+    // Nothing changed: no new revision for viewers to fetch.
+    expect(livePreview(live)).toBe(false);
+    writeFileSync(join(live.root, "index.html"), "<p>two</p>");
+    expect(livePreview(live)).toBe(true);
+    expect(previewDist(session.id)).toEqual({ "index.html": "<p>two</p>" });
+
+    // A project with a build step shows nothing until a build has written output.
+    rmSync(join(live.root, "index.html"));
+    writeFileSync(join(live.root, "package.json"), '{"scripts":{"build":"vite build"}}');
+    writeFileSync(join(live.root, "src.js"), "x");
+    expect(livePreview(live)).toBe(false);
+    mkdirSync(join(live.root, "dist"));
+    writeFileSync(join(live.root, "dist", "index.html"), "<p>built</p>");
+    expect(livePreview(live)).toBe(true);
+    expect(previewDist(session.id)).toEqual({ "index.html": "<p>built</p>" });
   });
 
   it("builds a project with a build script, and reports a failed build", async () => {

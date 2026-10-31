@@ -10,6 +10,7 @@ import {
   GitPullRequest,
   Hammer,
   LoaderCircle,
+  ImagePlus,
   Lightbulb,
   Pencil,
   Plus,
@@ -31,8 +32,18 @@ import { AuthSheet } from "@/components/coding-agent/AuthSheet";
 import { ConnectorsSheet } from "@/components/coding-agent/ConnectorsSheet";
 import { UpgradeSheet } from "@/components/coding-agent/UpgradeSheet";
 import { templateFiles, type AppTemplate } from "@/lib/coding-agent/app-templates";
-import { countVisit, fetchAccess, type Access } from "@/lib/coding-agent/account-client";
-import { MAX_ATTACHMENTS, prepareImage, type Attachment } from "@/lib/coding-agent/images";
+import {
+  connectError,
+  countVisit,
+  fetchAccess,
+  type Access,
+} from "@/lib/coding-agent/account-client";
+import {
+  MAX_ATTACHMENTS,
+  imagesFrom,
+  prepareImage,
+  type Attachment,
+} from "@/lib/coding-agent/images";
 import { splitSuggestions } from "@/lib/coding-agent/suggestions";
 import { WelcomeSheet } from "@/components/coding-agent/WelcomeSheet";
 import { ModeButton, ModeSheet, ModelButton, ModelSheet } from "@/components/coding-agent/pickers";
@@ -64,7 +75,8 @@ import {
 } from "@/lib/appgen/projects";
 import { downloadZip } from "@/lib/appgen/zip";
 import { filesUnder, localPreviewPlan } from "@/lib/appgen/local-preview";
-import { compactTimeline, type AgentEvent } from "@/lib/coding-agent/steps";
+import { compactTimeline, pendingQuestion, type AgentEvent } from "@/lib/coding-agent/steps";
+import { QuestionPanel } from "@/components/coding-agent/QuestionPanel";
 import { postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
 import { AGENT_PATH } from "@/lib/features";
 import { useActiveChain } from "@/hooks/useActiveChain";
@@ -98,6 +110,12 @@ import { cn } from "@/lib/utils";
 // every tool call as a step you can open to see the command and its output,
 // and the files a turn changed as chips that open them.
 
+/** The project named in the address, if it is one of yours. */
+function projectInAddress(): string | null {
+  const id = new URLSearchParams(window.location.search).get("project");
+  return id && useProjects.getState().projects.some((p) => p.id === id) ? id : null;
+}
+
 interface Handoff {
   tool: string;
   args: Record<string, unknown>;
@@ -123,6 +141,8 @@ interface WorkspaceView {
     phase: "none" | "building" | "ready" | "error" | "unsupported";
     revision: number;
     message: string | null;
+    /** Refreshed mid-run (the preview follows the agent as it works). */
+    live?: number;
   };
 }
 
@@ -298,8 +318,11 @@ export function CodingAgentPage() {
   const [renaming, setRenaming] = useState<string | null>(null);
   /** On a phone: the one pane on screen. */
   const [pane, setPane] = useState<"chat" | View>("chat");
+  /** The turn count at which the person hid the agent's question. */
+  const [dismissedAt, setDismissedAt] = useState(-1);
   const [newsSeen, setNewsSeen] = useState(0);
   const folderInput = useRef<HTMLInputElement | null>(null);
+  const pictureInput = useRef<HTMLInputElement | null>(null);
   const mobile = useIsMobile();
   /** The workbench's view: the phone's pane, or the desktop switch. */
   const shownTab: View = mobile ? (pane === "chat" ? "preview" : pane) : tab;
@@ -327,9 +350,36 @@ export function CodingAgentPage() {
 
   useEffect(() => {
     useProjects.getState().hydrate();
+    // The open project is the one in the address (?project=<id>), the way an
+    // app builder keeps a link per project: refreshing stays where you are,
+    // and the bare address is always the home screen.
+    useProjects.setState({ activeId: projectInAddress() });
     onProjectsWriteError((message) => toast.error(message));
-    return () => onProjectsWriteError(null);
+    const onBack = () => useProjects.setState({ activeId: projectInAddress() });
+    window.addEventListener("popstate", onBack);
+    return () => {
+      onProjectsWriteError(null);
+      window.removeEventListener("popstate", onBack);
+    };
   }, []);
+
+  // Keep the address in step with the open project, as a history entry, so
+  // Back returns from a project to the home screen.
+  const addressSynced = useRef(false);
+  useEffect(() => {
+    const { hydrated, activeId: current } = useProjects.getState();
+    if (!hydrated) return;
+    const params = new URLSearchParams(window.location.search);
+    const first = !addressSynced.current;
+    addressSynced.current = true;
+    if ((params.get("project") ?? null) === current) return;
+    if (current) params.set("project", current);
+    else params.delete("project");
+    const qs = params.toString();
+    const next = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
+    if (first) window.history.replaceState(null, "", next);
+    else window.history.pushState(null, "", next);
+  }, [activeId]);
 
   // Back from GitHub sign-in: say so, and tidy the address bar.
   useEffect(() => {
@@ -345,6 +395,27 @@ export function CodingAgentPage() {
 
   // Opened from a builder invite: ?join=<workspace>&name=<app>. Waits for a
   // sign-in, because joining is checked against the account the owner added.
+  // Back from connecting an account (api/oauth): say how it went, show the
+  // connections, and take the outcome out of the address.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("connected");
+    const failed = params.get("connect_error");
+    if (!connected && !failed) return;
+    const provider = params.get("provider");
+    for (const k of ["connected", "connect_error", "provider"]) params.delete(k);
+    const qs = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+    if (connected) {
+      toast.success(
+        `${connected[0].toUpperCase()}${connected.slice(1)} is connected. The agent can use it now.`,
+      );
+    } else {
+      toast.error(connectError(failed!, provider));
+    }
+    setSheet("connectors");
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     const params = new URLSearchParams(window.location.search);
@@ -447,6 +518,7 @@ export function CodingAgentPage() {
             : next.reply ||
               (next.changed.length ? `Changed ${next.changed.length} file(s).` : "Done.");
       const steps = compactTimeline(next.events ?? []);
+      const asking = failed ? null : pendingQuestion(next.events ?? []);
       state.save({
         ...(body?.files ? { files: body.files } : {}),
         workspaceTurns: next.turns,
@@ -461,13 +533,14 @@ export function CodingAgentPage() {
             ...(steps.length ? { steps } : {}),
             // Answering a Plan message: the reply is a plan to approve.
             ...(asked?.plan ? { plan: true } : {}),
+            ...(asking ? { question: asking } : {}),
           },
         ],
       });
       setHandoffs(next.handoffs ?? []);
     }
 
-    const key = `${next.id}:${next.preview.revision}`;
+    const key = `${next.id}:${next.preview.revision}:${next.preview.live ?? 0}`;
     if (next.preview.phase === "ready" && previewSeen.current !== key) {
       previewSeen.current = key;
       const res = await fetch(`/api/workspace?id=${encodeURIComponent(next.id)}&preview=1`).catch(
@@ -924,6 +997,34 @@ export function CodingAgentPage() {
     </>
   );
 
+  // Pictures picked from the "+" menu (they can also be pasted into the box).
+  const picturePicker = (
+    <input
+      ref={pictureInput}
+      type="file"
+      accept="image/*"
+      multiple
+      hidden
+      onChange={(e) => {
+        const picked = imagesFrom(e.target.files);
+        if (picked.length) void addPictures(picked);
+        e.target.value = "";
+      }}
+    />
+  );
+  const pictureItem = (close: () => void) => (
+    <MenuItem
+      icon={ImagePlus}
+      disabled={pictures.length >= MAX_ATTACHMENTS}
+      onClick={() => {
+        close();
+        pictureInput.current?.click();
+      }}
+    >
+      Add pictures
+    </MenuItem>
+  );
+
   // ---------------------------------------------------------------- landing
 
   if (!project) {
@@ -931,6 +1032,7 @@ export function CodingAgentPage() {
       starter.kind === "github" ? Github : starter.kind === "files" ? FolderUp : Box;
     return (
       <div className="h-dvh">
+        {picturePicker}
         <input
           ref={folderInput}
           type="file"
@@ -987,6 +1089,8 @@ export function CodingAgentPage() {
                   >
                     {(close) => (
                       <>
+                        <MenuLabel>Add</MenuLabel>
+                        {pictureItem(close)}
                         <MenuLabel>Start from</MenuLabel>
                         <MenuItem
                           icon={Box}
@@ -1085,6 +1189,11 @@ export function CodingAgentPage() {
     lastTurn?.role === "assistant" && !lastTurn.failed
       ? splitSuggestions(lastTurn.text).suggestions
       : [];
+  // A decision the agent is waiting on, until it is answered or hidden.
+  const asking =
+    lastTurn?.role === "assistant" && lastTurn.question && dismissedAt !== turns.length
+      ? lastTurn.question
+      : null;
 
   const chat = (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -1196,8 +1305,19 @@ export function CodingAgentPage() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-2xl px-3 pb-3 sm:px-5">
-        {!running && !sending && nextSteps.length > 0 && (
+      <div data-dock className="mx-auto w-full max-w-2xl px-3 pb-3 sm:px-5">
+        {!running && !sending && asking && (
+          <QuestionPanel
+            question={asking}
+            onAnswer={(answer) => void send(answer)}
+            onOwn={() => {
+              setDismissedAt(turns.length);
+              document.querySelector<HTMLTextAreaElement>("[data-dock] textarea")?.focus();
+            }}
+            onDismiss={() => setDismissedAt(turns.length)}
+          />
+        )}
+        {!running && !sending && !asking && nextSteps.length > 0 && (
           <div className="mb-2 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
             <Lightbulb className="mt-1.5 h-3.5 w-3.5 shrink-0 text-meta" />
             {nextSteps.map((sgt) => (
@@ -1263,6 +1383,8 @@ export function CodingAgentPage() {
             >
               {(close) => (
                 <>
+                  <MenuLabel>Add</MenuLabel>
+                  {pictureItem(close)}
                   <MenuLabel>Ask the agent to</MenuLabel>
                   {FIRST_ASKS.map((a) => (
                     <MenuItem
@@ -1326,6 +1448,11 @@ export function CodingAgentPage() {
           )}
         </>
       )
+    ) : running && previewFiles ? (
+      <span className="flex items-center gap-1.5">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" /> Live: updating as the
+        agent works
+      </span>
     ) : null;
 
   const previewActions = view ? (
@@ -1544,6 +1671,7 @@ export function CodingAgentPage() {
         )}
         <TabBar pane={pane} onPane={setPane} onMore={() => setSheet("more")} running={running} />
         {dialogs}
+        {picturePicker}
       </div>
     );
   }
@@ -1558,6 +1686,7 @@ export function CodingAgentPage() {
         chatCollapsed={!chatOpen}
       />
       {dialogs}
+      {picturePicker}
     </div>
   );
 }

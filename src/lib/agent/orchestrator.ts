@@ -70,6 +70,7 @@ export type AgentEventKind =
   | "turn.partial"
   | "narration"
   | "handoff"
+  | "question"
   | "usage"
   | "task.completed"
   | "task.aborted";
@@ -465,8 +466,31 @@ export class Orchestrator {
       // fully happened or fully did not, so a half-applied turn is said out
       // loud, in the transcript and to the model.
       const turn: TurnOutcome = { applied: [], failed: [] };
+      let asked = false;
       for (const call of result.toolCalls) {
         steps++;
+        // A question for the person ends the run: it is shown as a set of
+        // choices, and their pick arrives as the next message.
+        if (call.name === "ask_user") {
+          const question = parseQuestion(call.input);
+          const first = !!question && !asked;
+          if (question && first) {
+            asked = true;
+            summary = question.question;
+            this.emit("question", question.question, { tool: call.name, detail: { ...question } });
+          }
+          messages.push({
+            role: "tool",
+            toolCallId: call.id,
+            content: !question
+              ? "That question needs a question and two to four options with labels."
+              : first
+                ? "Asked. The person's answer arrives as their next message."
+                : "Only one question at a time: this one was not asked.",
+            isError: !first,
+          });
+          continue;
+        }
         const outcome = await this.runOne(call);
         // A plan update changes nothing in the project, so it is neither half
         // of a change nor evidence that one happened.
@@ -482,7 +506,8 @@ export class Orchestrator {
 
       const partial = partialTurn(
         turn,
-        result.toolCalls.filter((call) => call.name !== "update_plan").length,
+        result.toolCalls.filter((call) => call.name !== "update_plan" && call.name !== "ask_user")
+          .length,
       );
       if (partial) {
         this.emit("turn.partial", partial, { detail: { ...turn } });
@@ -517,6 +542,8 @@ export class Orchestrator {
           discardSnapshot(this.opts.workspace.root, pending.id);
         }
       }
+
+      if (asked) break;
     }
 
     this.emit("task.completed", summary || "Done.", {
@@ -990,6 +1017,29 @@ export function partialTurn(turn: TurnOutcome, total: number): string | null {
     `(${turn.failed.join(", ")}). The workspace is in a half-applied state. ` +
     "Check what is actually there before continuing, rather than assuming either outcome."
   );
+}
+
+export interface AgentQuestion {
+  question: string;
+  header?: string;
+  options: { label: string; description?: string }[];
+  multiSelect?: boolean;
+}
+
+/** An ask_user call's arguments, checked, or null when they are unusable. */
+export function parseQuestion(input: Record<string, unknown>): AgentQuestion | null {
+  const parsed = TOOLS.ask_user.schema.safeParse(input);
+  if (!parsed.success) return null;
+  const { question, header, options, multiSelect } = parsed.data as AgentQuestion;
+  return {
+    question,
+    ...(header ? { header } : {}),
+    options: options.map((o) => ({
+      label: o.label,
+      ...(o.description ? { description: o.description } : {}),
+    })),
+    ...(multiSelect ? { multiSelect: true } : {}),
+  };
 }
 
 function present(result: { ok: boolean } & Parameters<typeof formatShell>[0]) {

@@ -23,7 +23,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join, relative, sep } from "node:path";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { Orchestrator, type AgentEvent, type Handoff } from "../../../src/lib/agent/orchestrator";
 import type { ProviderMessage } from "../../../src/lib/agent/providers/types";
 import { isControlPath, looksBinary, Workspace } from "../../../src/lib/agent/workspace";
@@ -111,7 +111,13 @@ export interface WorkspaceSession {
   /** Bumped when a turn finishes, so the browser knows to fetch the files. */
   revision: number;
   fileCount: number;
-  preview: { phase: PreviewPhase; revision: number; message: string | null };
+  preview: {
+    phase: PreviewPhase;
+    revision: number;
+    message: string | null;
+    /** Set when the preview was refreshed mid-run, so viewers fetch it again. */
+    live?: number;
+  };
   /** Other wallets the owner has added as builders, lowercased. */
   collaborators?: string[];
   /** The current or most recent turn on its own, for the site's records:
@@ -621,10 +627,15 @@ export const CONNECTOR_VARS: Record<string, string> = {
   GH_TOKEN:
     "GitHub: the gh CLI and git over HTTPS (install gh with sudo apt-get install -y gh if it is missing)",
   GITHUB_TOKEN: "GitHub, for tools that read GITHUB_TOKEN",
-  VERCEL_TOKEN: "Vercel: npx vercel --token $VERCEL_TOKEN (deploy, env, domains)",
+  VERCEL_TOKEN:
+    "Vercel: npx vercel --token $VERCEL_TOKEN (deploy, env, domains), or the REST API with Authorization: Bearer $VERCEL_TOKEN",
+  VERCEL_TEAM_ID:
+    "Vercel team: add --scope $VERCEL_TEAM_ID to vercel commands and ?teamId=$VERCEL_TEAM_ID to REST calls",
   NETLIFY_AUTH_TOKEN: "Netlify: npx netlify-cli (reads NETLIFY_AUTH_TOKEN)",
-  RAILWAY_API_TOKEN: "Railway: npx @railway/cli (reads RAILWAY_API_TOKEN)",
-  SUPABASE_ACCESS_TOKEN: "Supabase: npx supabase (reads SUPABASE_ACCESS_TOKEN)",
+  RAILWAY_API_TOKEN:
+    "Railway: npx @railway/cli (reads RAILWAY_API_TOKEN), or the GraphQL API at https://backboard.railway.com/graphql/v2 with Authorization: Bearer $RAILWAY_API_TOKEN",
+  SUPABASE_ACCESS_TOKEN:
+    "Supabase: npx supabase (reads SUPABASE_ACCESS_TOKEN), or the Management API at https://api.supabase.com/v1 with Authorization: Bearer $SUPABASE_ACCESS_TOKEN (POST /v1/projects/{ref}/database/query runs SQL)",
 };
 
 export function connectorEnv(env: Record<string, string> | undefined): Record<string, string> {
@@ -817,6 +828,9 @@ async function runTurn(
           session.events.splice(0, session.events.length - MAX_EVENTS);
         }
         if (event.kind !== "usage") touch({ status: event.message.slice(0, 200) });
+        if (event.kind === "step.completed" && event.tool && LIVE_TOOLS.has(event.tool)) {
+          scheduleLivePreview(session);
+        }
       },
     }).run(
       prompt + saveAttachments(session.root, opts.images),
@@ -1087,6 +1101,97 @@ export function startWorkspacePreview(
   return { ok: true, session };
 }
 
+// --- live preview -------------------------------------------------------------
+//
+// While the agent works, the preview follows it: a plain site is re-read after
+// each change, and a project with a build step picks up the agent's own build
+// output whenever it runs one. Nothing is built here mid-run (that would race
+// the agent's own commands); the full build still runs when the turn ends.
+
+const LIVE_TOOLS = new Set([
+  "write_file",
+  "edit_file",
+  "run_shell",
+  "run_build",
+  "run_tests",
+  "install_dependency",
+]);
+const LIVE_DELAY_MS = 1200;
+const liveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const liveShown = new Map<string, string>();
+
+function scheduleLivePreview(session: WorkspaceSession) {
+  clearTimeout(liveTimers.get(session.id));
+  liveTimers.set(
+    session.id,
+    setTimeout(() => {
+      liveTimers.delete(session.id);
+      try {
+        livePreview(session);
+      } catch {
+        // A half-written file or a folder mid-delete: the next change retries.
+      }
+    }, LIVE_DELAY_MS),
+  );
+}
+
+/** Refresh the preview from what is on disk now. True when it changed. */
+export function livePreview(session: WorkspaceSession): boolean {
+  if (sessions.get(session.id) !== session || session.preview.phase === "building") return false;
+  const files = workspaceFiles(session.id) ?? {};
+  const plan = previewPlan(files);
+  let found: { dist: Record<string, string>; distBinary: Record<string, string> } | null = null;
+  if (plan.kind === "static") {
+    found = {
+      dist: under(files, plan.dir),
+      distBinary: readBinaryFiles(join(session.root, plan.dir)),
+    };
+  } else if (plan.kind === "build") {
+    found = builtOutput(join(session.root, plan.dir), plan.outDir);
+  }
+  if (
+    !found ||
+    !Object.keys(found.dist).some((p) => p === "index.html" || p.endsWith("/index.html"))
+  ) {
+    return false;
+  }
+  const dist = JSON.stringify(found.dist);
+  const assets = JSON.stringify(found.distBinary);
+  const signature = createHash("sha1").update(dist).update(assets).digest("hex");
+  if (liveShown.get(session.id) === signature) return false;
+  liveShown.set(session.id, signature);
+  writeAtomic(previewFile(session), dist);
+  writeAtomic(previewAssetsFile(session), assets);
+  session.preview = {
+    phase: "ready",
+    revision: session.preview.revision,
+    message: null,
+    live: Date.now(),
+  };
+  session.updatedAt = Date.now();
+  persist(session);
+  return true;
+}
+
+/** A static site a build already wrote, in the expected folder or the usual others. */
+function builtOutput(
+  dir: string,
+  outDir: string,
+): { dist: Record<string, string>; distBinary: Record<string, string> } | null {
+  for (const candidate of [outDir, ...BUILD_OUTPUTS.filter((d) => d !== outDir)]) {
+    const out = join(dir, candidate);
+    try {
+      const dist = readWorkspace(out);
+      if (Object.keys(dist).some((p) => p === "index.html" || p.endsWith("/index.html"))) {
+        return { dist, distBinary: readBinaryFiles(out) };
+      }
+    } catch {
+      // Not there; try the next.
+    }
+  }
+  return null;
+}
+
 /** Install and build a project where it sits, on an isolated host. */
 export async function buildInPlace(
   dir: string,
@@ -1111,17 +1216,8 @@ export async function buildInPlace(
   // usual others (Next.js writes a static export to out/, Create React App
   // to build/, Nuxt and Nitro to .output/public).
   const places = [outDir, ...BUILD_OUTPUTS.filter((d) => d !== outDir)];
-  for (const candidate of places) {
-    const out = join(dir, candidate);
-    try {
-      const dist = readWorkspace(out);
-      if (Object.keys(dist).some((p) => p === "index.html" || p.endsWith("/index.html"))) {
-        return { ok: true, dist, distBinary: readBinaryFiles(out), message: "" };
-      }
-    } catch {
-      // Not there; try the next.
-    }
-  }
+  const built = builtOutput(dir, outDir);
+  if (built) return { ok: true, ...built, message: "" };
   return {
     ok: false,
     dist: null,

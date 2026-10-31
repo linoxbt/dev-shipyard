@@ -73,6 +73,7 @@ import { Route as ApiAccessSessionRouteImport } from './routes/api.access.sessio
 import { Route as ApiAdminStatsRouteImport } from './routes/api.admin.stats'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
 import { Route as ApiGithubPushRouteImport } from './routes/api.github.push'
+import { Route as ApiOauthProviderRouteImport } from './routes/api.oauth.$provider'
 import { Route as DocsCliIndexRouteImport } from './routes/docs.cli.index'
 import { Route as DocsCliInstallRouteImport } from './routes/docs.cli.install'
 import { Route as DocsCliModelsRouteImport } from './routes/docs.cli.models'
@@ -97,6 +98,7 @@ import { Route as LaunchkitMarketplaceSellRouteImport } from './routes/launchkit
 import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
 import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
 import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
+import { Route as ApiOauthProviderCallbackRouteImport } from './routes/api.oauth.$provider.callback'
 import { Route as ExplorerNetworkAddressHashRouteImport } from './routes/explorer.$network.address.$hash'
 import { Route as ExplorerNetworkBlockHeightRouteImport } from './routes/explorer.$network.block.$height'
 import { Route as ExplorerNetworkTokenHashRouteImport } from './routes/explorer.$network.token.$hash'
@@ -422,6 +424,11 @@ const ApiGithubPushRoute = ApiGithubPushRouteImport.update({
   path: '/push',
   getParentRoute: () => ApiGithubRoute,
 } as any)
+const ApiOauthProviderRoute = ApiOauthProviderRouteImport.update({
+  id: '/api/oauth/$provider',
+  path: '/api/oauth/$provider',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocsCliIndexRoute = DocsCliIndexRouteImport.update({
   id: '/cli/',
   path: '/cli/',
@@ -548,6 +555,12 @@ const LaunchkitTemplatesSubmitRoute =
     path: '/launchkit/templates/submit',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiOauthProviderCallbackRoute =
+  ApiOauthProviderCallbackRouteImport.update({
+    id: '/callback',
+    path: '/callback',
+    getParentRoute: () => ApiOauthProviderRoute,
+  } as any)
 const ExplorerNetworkAddressHashRoute =
   ExplorerNetworkAddressHashRouteImport.update({
     id: '/address/$hash',
@@ -637,6 +650,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/stats': typeof ApiAdminStatsRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
+  '/api/oauth/$provider': typeof ApiOauthProviderRouteWithChildren
   '/docs/cli/install': typeof DocsCliInstallRoute
   '/docs/cli/models': typeof DocsCliModelsRoute
   '/docs/cli/permissions': typeof DocsCliPermissionsRoute
@@ -661,6 +675,7 @@ export interface FileRoutesByFullPath {
   '/launchkit/apps/': typeof LaunchkitAppsIndexRoute
   '/launchkit/marketplace/': typeof LaunchkitMarketplaceIndexRoute
   '/launchkit/templates/': typeof LaunchkitTemplatesIndexRoute
+  '/api/oauth/$provider/callback': typeof ApiOauthProviderCallbackRoute
   '/explorer/$network/address/$hash': typeof ExplorerNetworkAddressHashRoute
   '/explorer/$network/block/$height': typeof ExplorerNetworkBlockHeightRoute
   '/explorer/$network/token/$hash': typeof ExplorerNetworkTokenHashRoute
@@ -727,6 +742,7 @@ export interface FileRoutesByTo {
   '/api/admin/stats': typeof ApiAdminStatsRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
+  '/api/oauth/$provider': typeof ApiOauthProviderRouteWithChildren
   '/docs/cli/install': typeof DocsCliInstallRoute
   '/docs/cli/models': typeof DocsCliModelsRoute
   '/docs/cli/permissions': typeof DocsCliPermissionsRoute
@@ -751,6 +767,7 @@ export interface FileRoutesByTo {
   '/launchkit/apps': typeof LaunchkitAppsIndexRoute
   '/launchkit/marketplace': typeof LaunchkitMarketplaceIndexRoute
   '/launchkit/templates': typeof LaunchkitTemplatesIndexRoute
+  '/api/oauth/$provider/callback': typeof ApiOauthProviderCallbackRoute
   '/explorer/$network/address/$hash': typeof ExplorerNetworkAddressHashRoute
   '/explorer/$network/block/$height': typeof ExplorerNetworkBlockHeightRoute
   '/explorer/$network/token/$hash': typeof ExplorerNetworkTokenHashRoute
@@ -822,6 +839,7 @@ export interface FileRoutesById {
   '/api/admin/stats': typeof ApiAdminStatsRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
+  '/api/oauth/$provider': typeof ApiOauthProviderRouteWithChildren
   '/docs/cli/install': typeof DocsCliInstallRoute
   '/docs/cli/models': typeof DocsCliModelsRoute
   '/docs/cli/permissions': typeof DocsCliPermissionsRoute
@@ -846,6 +864,7 @@ export interface FileRoutesById {
   '/launchkit/apps/': typeof LaunchkitAppsIndexRoute
   '/launchkit/marketplace/': typeof LaunchkitMarketplaceIndexRoute
   '/launchkit/templates/': typeof LaunchkitTemplatesIndexRoute
+  '/api/oauth/$provider/callback': typeof ApiOauthProviderCallbackRoute
   '/explorer/$network/address/$hash': typeof ExplorerNetworkAddressHashRoute
   '/explorer/$network/block/$height': typeof ExplorerNetworkBlockHeightRoute
   '/explorer/$network/token/$hash': typeof ExplorerNetworkTokenHashRoute
@@ -918,6 +937,7 @@ export interface FileRouteTypes {
     | '/api/admin/stats'
     | '/api/github/callback'
     | '/api/github/push'
+    | '/api/oauth/$provider'
     | '/docs/cli/install'
     | '/docs/cli/models'
     | '/docs/cli/permissions'
@@ -942,6 +962,7 @@ export interface FileRouteTypes {
     | '/launchkit/apps/'
     | '/launchkit/marketplace/'
     | '/launchkit/templates/'
+    | '/api/oauth/$provider/callback'
     | '/explorer/$network/address/$hash'
     | '/explorer/$network/block/$height'
     | '/explorer/$network/token/$hash'
@@ -1008,6 +1029,7 @@ export interface FileRouteTypes {
     | '/api/admin/stats'
     | '/api/github/callback'
     | '/api/github/push'
+    | '/api/oauth/$provider'
     | '/docs/cli/install'
     | '/docs/cli/models'
     | '/docs/cli/permissions'
@@ -1032,6 +1054,7 @@ export interface FileRouteTypes {
     | '/launchkit/apps'
     | '/launchkit/marketplace'
     | '/launchkit/templates'
+    | '/api/oauth/$provider/callback'
     | '/explorer/$network/address/$hash'
     | '/explorer/$network/block/$height'
     | '/explorer/$network/token/$hash'
@@ -1102,6 +1125,7 @@ export interface FileRouteTypes {
     | '/api/admin/stats'
     | '/api/github/callback'
     | '/api/github/push'
+    | '/api/oauth/$provider'
     | '/docs/cli/install'
     | '/docs/cli/models'
     | '/docs/cli/permissions'
@@ -1126,6 +1150,7 @@ export interface FileRouteTypes {
     | '/launchkit/apps/'
     | '/launchkit/marketplace/'
     | '/launchkit/templates/'
+    | '/api/oauth/$provider/callback'
     | '/explorer/$network/address/$hash'
     | '/explorer/$network/block/$height'
     | '/explorer/$network/token/$hash'
@@ -1172,6 +1197,7 @@ export interface RootRouteChildren {
   RoutebookLabelsRoute: typeof RoutebookLabelsRoute
   RoutebookIndexRoute: typeof RoutebookIndexRoute
   ApiAdminStatsRoute: typeof ApiAdminStatsRoute
+  ApiOauthProviderRoute: typeof ApiOauthProviderRouteWithChildren
   LaunchkitAppsIdRoute: typeof LaunchkitAppsIdRoute
   LaunchkitTemplatesIdRoute: typeof LaunchkitTemplatesIdRoute
   LaunchkitTemplatesSubmitRoute: typeof LaunchkitTemplatesSubmitRoute
@@ -1629,6 +1655,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGithubPushRouteImport
       parentRoute: typeof ApiGithubRoute
     }
+    '/api/oauth/$provider': {
+      id: '/api/oauth/$provider'
+      path: '/api/oauth/$provider'
+      fullPath: '/api/oauth/$provider'
+      preLoaderRoute: typeof ApiOauthProviderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/docs/cli/': {
       id: '/docs/cli/'
       path: '/cli'
@@ -1796,6 +1829,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/launchkit/templates/submit'
       preLoaderRoute: typeof LaunchkitTemplatesSubmitRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/$provider/callback': {
+      id: '/api/oauth/$provider/callback'
+      path: '/callback'
+      fullPath: '/api/oauth/$provider/callback'
+      preLoaderRoute: typeof ApiOauthProviderCallbackRouteImport
+      parentRoute: typeof ApiOauthProviderRoute
     }
     '/explorer/$network/address/$hash': {
       id: '/explorer/$network/address/$hash'
@@ -1981,6 +2021,17 @@ const LaunchkitMarketplaceRouteChildren: LaunchkitMarketplaceRouteChildren = {
 const LaunchkitMarketplaceRouteWithChildren =
   LaunchkitMarketplaceRoute._addFileChildren(LaunchkitMarketplaceRouteChildren)
 
+interface ApiOauthProviderRouteChildren {
+  ApiOauthProviderCallbackRoute: typeof ApiOauthProviderCallbackRoute
+}
+
+const ApiOauthProviderRouteChildren: ApiOauthProviderRouteChildren = {
+  ApiOauthProviderCallbackRoute: ApiOauthProviderCallbackRoute,
+}
+
+const ApiOauthProviderRouteWithChildren =
+  ApiOauthProviderRoute._addFileChildren(ApiOauthProviderRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
@@ -2021,6 +2072,7 @@ const rootRouteChildren: RootRouteChildren = {
   RoutebookLabelsRoute: RoutebookLabelsRoute,
   RoutebookIndexRoute: RoutebookIndexRoute,
   ApiAdminStatsRoute: ApiAdminStatsRoute,
+  ApiOauthProviderRoute: ApiOauthProviderRouteWithChildren,
   LaunchkitAppsIdRoute: LaunchkitAppsIdRoute,
   LaunchkitTemplatesIdRoute: LaunchkitTemplatesIdRoute,
   LaunchkitTemplatesSubmitRoute: LaunchkitTemplatesSubmitRoute,

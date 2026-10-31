@@ -103,6 +103,59 @@ describe("the agent loop", () => {
     expect(events.map((e) => e.kind)).toContain("task.completed");
   });
 
+  it("ends the run on a question for the person, with the choices in the event", async () => {
+    const workspace = ws();
+    const provider = new MockProvider([
+      {
+        text: "Two good ways to host this.",
+        toolCalls: [
+          {
+            id: "1",
+            name: "ask_user",
+            input: {
+              question: "Where should I deploy it?",
+              header: "Hosting",
+              options: [
+                { label: "Vercel (Recommended)", description: "Fast previews" },
+                { label: "Netlify" },
+              ],
+            },
+          },
+        ],
+      },
+      { text: "should never be reached" },
+    ]);
+    const events: AgentEvent[] = [];
+    const result = await new Orchestrator({
+      provider,
+      workspace,
+      onEvent: (e) => events.push(e),
+    }).run("deploy my app");
+
+    expect(provider.calls).toHaveLength(1);
+    expect(result.ok).toBe(true);
+    expect(result.summary).toBe("Where should I deploy it?");
+    const asked = events.find((e) => e.kind === "question");
+    expect(asked?.detail?.options).toEqual([
+      { label: "Vercel (Recommended)", description: "Fast previews" },
+      { label: "Netlify" },
+    ]);
+    const answer = result.messages.find((m) => m.role === "tool") as { content: string };
+    expect(answer.content).toContain("next message");
+  });
+
+  it("hands an unusable question back to the model instead of asking it", async () => {
+    const workspace = ws();
+    const provider = new MockProvider([
+      { toolCalls: [{ id: "1", name: "ask_user", input: { question: "Which?", options: [] } }] },
+      { text: "Going with the default." },
+    ]);
+    const events: AgentEvent[] = [];
+    await new Orchestrator({ provider, workspace, onEvent: (e) => events.push(e) }).run("go");
+    expect(provider.calls).toHaveLength(2);
+    expect(events.some((e) => e.kind === "question")).toBe(false);
+  });
+
   it("feeds a tool's real output back, rather than assuming it worked", async () => {
     const workspace = ws({ "greet.js": GREET });
     const provider = new MockProvider([

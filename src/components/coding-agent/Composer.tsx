@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, ImagePlus, LoaderCircle, Mic, Square, X } from "lucide-react";
+import { ArrowUp, LoaderCircle, Mic, Square, X } from "lucide-react";
 import { toast } from "sonner";
 import { imagesFrom } from "@/lib/coding-agent/images";
 import { cn } from "@/lib/utils";
@@ -220,7 +220,6 @@ export function Composer({
     el.style.height = `${Math.min(el.scrollHeight, hero ? 280 : 200)}px`;
   }, [value, hero]);
 
-  const fileInput = useRef<HTMLInputElement | null>(null);
   const hasPictures = !!attachments?.length;
   const disabled = (!value.trim() && !hasPictures) || !!sending || !canSend;
   const send = () => {
@@ -296,35 +295,6 @@ export function Composer({
       ))}
     </div>
   ) : null;
-  const attach = onAttach ? (
-    <>
-      <input
-        ref={fileInput}
-        type="file"
-        accept="image/*"
-        multiple
-        hidden
-        onChange={(e) => {
-          const files = imagesFrom(e.target.files);
-          if (files.length) onAttach(files);
-          e.target.value = "";
-        }}
-      />
-      <button
-        type="button"
-        onClick={() => fileInput.current?.click()}
-        title="Attach pictures (or paste them)"
-        aria-label="Attach pictures"
-        className={cn(
-          "flex shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-2 hover:text-foreground",
-          hero ? "h-8 w-8" : "h-10 w-10",
-        )}
-      >
-        <ImagePlus className={hero ? "h-4 w-4" : "h-5 w-5"} />
-      </button>
-    </>
-  ) : null;
-
   if (hero) {
     return (
       <div className="rounded-3xl border border-border bg-surface shadow-2xl shadow-black/25 transition focus-within:border-primary/50">
@@ -334,7 +304,6 @@ export function Composer({
         <div className="flex items-center gap-1.5 px-3 pb-2.5 pt-1.5">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{tools}</div>
           {trailing}
-          {attach}
           {mic}
           <button
             onClick={send}
@@ -360,7 +329,6 @@ export function Composer({
       <div className="flex items-end gap-1 rounded-[28px] border border-border bg-surface-2 py-1.5 pl-1.5 pr-1.5 shadow-xl shadow-black/25 transition focus-within:border-primary/50">
         {plus}
         <div className="min-w-0 flex-1 px-1">{textarea}</div>
-        {attach}
         {!running && !value.trim() && mic}
         {running && (value.trim() || hasPictures) && (
           <button

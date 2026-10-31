@@ -5,6 +5,7 @@ import {
   buildFileTree,
   compactSteps,
   latestPlan,
+  pendingQuestion,
   stepSummary,
   stepTarget,
   stepsFromEvents,
@@ -200,5 +201,35 @@ describe("the timeline", () => {
       "Searched the web for “foundry deploy”",
     );
     expect(groupLabel("read", [step("read_file", { path: "src/index.ts" })])).toBe("Read index.ts");
+  });
+});
+
+describe("pendingQuestion", () => {
+  const asked = ev("question", "Where should I deploy it?", {
+    tool: "ask_user",
+    detail: {
+      question: "Where should I deploy it?",
+      options: [{ label: "Vercel" }, { label: "Netlify", description: "Drag and drop" }],
+    },
+  });
+
+  it("finds the question a turn ended on", () => {
+    expect(pendingQuestion([asked, ev("usage", "x"), ev("task.completed", "x")])).toEqual({
+      question: "Where should I deploy it?",
+      options: [{ label: "Vercel" }, { label: "Netlify", description: "Drag and drop" }],
+    });
+  });
+
+  it("ignores a question the agent moved past, and one without real choices", () => {
+    expect(pendingQuestion([asked, ev("step.started", "Reading", { tool: "read_file" })])).toBe(
+      null,
+    );
+    expect(
+      pendingQuestion([ev("question", "Which?", { detail: { options: [{ label: "Only" }] } })]),
+    ).toBe(null);
+  });
+
+  it("is not shown as a step", () => {
+    expect(stepsFromEvents([asked])).toEqual([]);
   });
 });
