@@ -30,6 +30,7 @@ import { AppDrawer } from "@/components/coding-agent/AppDrawer";
 import { AuthSheet } from "@/components/coding-agent/AuthSheet";
 import { ConnectorsSheet } from "@/components/coding-agent/ConnectorsSheet";
 import { UpgradeSheet } from "@/components/coding-agent/UpgradeSheet";
+import { templateFiles, type AppTemplate } from "@/lib/coding-agent/app-templates";
 import { countVisit, fetchAccess, type Access } from "@/lib/coding-agent/account-client";
 import { MAX_ATTACHMENTS, prepareImage, type Attachment } from "@/lib/coding-agent/images";
 import { splitSuggestions } from "@/lib/coding-agent/suggestions";
@@ -798,10 +799,6 @@ export function CodingAgentPage() {
     setPane("code");
   };
 
-  const scrollToTop = () => {
-    document.querySelector("[data-agent-home]")?.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   /** "Fix with agent" on a preview error: send it straight away when the agent
    *  is free, otherwise leave it in the box to send next. */
   const fixError = (message: string) => {
@@ -826,6 +823,16 @@ export function CodingAgentPage() {
   const openProject = (id: string) => {
     useProjects.getState().open(id);
     setPane("chat");
+  };
+  // A finished app from the Templates tab: it becomes your own project and
+  // opens straight on its preview, ready for the agent to build on.
+  const openTemplate = (t: AppTemplate) => {
+    const store = useProjects.getState();
+    store.create(t.name, user);
+    store.save({ source: { kind: "files" }, files: templateFiles(t) });
+    setTab("preview");
+    setPane("preview");
+    toast.success(`${t.name} is now your project. Ask the agent to change anything.`);
   };
   const deleteProject = (id: string) => {
     const name = projects.find((p) => p.id === id)?.name;
@@ -950,10 +957,7 @@ export function CodingAgentPage() {
           onOpen={openProject}
           onRemix={remixProject}
           onDelete={deleteProject}
-          onIdea={(prompt) => {
-            setInput(prompt);
-            scrollToTop();
-          }}
+          onTemplate={openTemplate}
           onMenu={() => setSheet("drawer")}
           onNews={openNews}
           onAccount={() => setSheet("account")}
@@ -1371,29 +1375,51 @@ export function CodingAgentPage() {
           actions={previewActions}
         />
       </div>
-      {shownTab === "code" && (
-        <div className="min-h-0 flex-1">
-          <CodePane
-            files={files}
-            changed={
-              view?.changed ??
-              [...turns].reverse().find((t) => t.role === "assistant")?.changed ??
-              []
-            }
-            openFile={openFile}
-            onOpenFile={setOpenFile}
-          />
-        </div>
-      )}
-      {shownTab === "activity" && (
-        <div className="min-h-0 flex-1">
-          <ActivityPane
-            events={view?.events ?? []}
-            running={running}
-            steps={view?.steps ?? 0}
-            costUsd={view?.costUsd ?? 0}
-            turns={view?.turns ?? 0}
-          />
+      {(shownTab === "activity" || shownTab === "code") && (
+        // Activity and the code, as two tabs of one page.
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex shrink-0 gap-1 border-b border-border px-3 py-2">
+            {(["activity", "code"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => {
+                  setTab(v);
+                  setPane(v);
+                }}
+                aria-pressed={shownTab === v}
+                className={cn(
+                  "rounded-full px-3.5 py-1.5 text-[12.5px] transition",
+                  shownTab === v
+                    ? "bg-surface-2 font-medium text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {v === "activity" ? "Activity" : `Code · ${Object.keys(files).length}`}
+              </button>
+            ))}
+          </div>
+          <div className="min-h-0 flex-1">
+            {shownTab === "code" ? (
+              <CodePane
+                files={files}
+                changed={
+                  view?.changed ??
+                  [...turns].reverse().find((t) => t.role === "assistant")?.changed ??
+                  []
+                }
+                openFile={openFile}
+                onOpenFile={setOpenFile}
+              />
+            ) : (
+              <ActivityPane
+                events={view?.events ?? []}
+                running={running}
+                steps={view?.steps ?? 0}
+                costUsd={view?.costUsd ?? 0}
+                turns={view?.turns ?? 0}
+              />
+            )}
+          </div>
         </div>
       )}
     </div>

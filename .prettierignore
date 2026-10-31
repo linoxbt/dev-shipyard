@@ -14,3 +14,6 @@ src/lib/abis
 src/lib/data/marketplace/official/*/files
 marketplace-content
 src/lib/orchestrator/agent-server.gen.mjs
+
+# Finished template apps, shipped as written (imported with ?raw).
+src/lib/coding-agent/app-templates/

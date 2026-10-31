@@ -1,13 +1,13 @@
 // Starting points offered on the Coding Agent's first screen: as quick chips
-// under the prompt, and as cards on its Templates tab.
+// under the prompt. The Templates tab shows finished apps instead.
 
 export type IdeaKind = "community" | "token" | "api" | "nft" | "dashboard" | "game";
 
 export const IDEAS: { label: string; prompt: string; blurb: string; kind: IdeaKind }[] = [
   {
     label: "Token-gated community page",
-    prompt: "Build a token-gated community page for QIE holders, with a members-only feed",
-    blurb: "A members-only feed that checks the visitor's QIE balance.",
+    prompt: "Build a token-gated community page for holders of my token, with a members-only feed",
+    blurb: "A members-only feed that checks the visitor's token balance.",
     kind: "community",
   },
   {

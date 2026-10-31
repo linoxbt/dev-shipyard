@@ -1,15 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
-import {
-  Database,
-  ExternalLink,
-  Github,
-  Globe,
-  LoaderCircle,
-  Plug,
-  TrainFront,
-  Triangle,
-  X,
-} from "lucide-react";
+import { ExternalLink, LoaderCircle, Plug, X } from "lucide-react";
+import githubLogo from "@/assets/connector-logos/github.svg?raw";
+import netlifyLogo from "@/assets/connector-logos/netlify.svg?raw";
+import railwayLogo from "@/assets/connector-logos/railway.svg?raw";
+import supabaseLogo from "@/assets/connector-logos/supabase.svg?raw";
+import vercelLogo from "@/assets/connector-logos/vercel.svg?raw";
 import { toast } from "sonner";
 import {
   connect,
@@ -29,42 +24,46 @@ import { Modal } from "./primitives";
 const PROVIDERS: {
   id: ConnectorId;
   name: string;
-  icon: React.ComponentType<{ className?: string }>;
+  /** Bundled SVG text (Simple Icons), drawn in the brand colour when it has one. */
+  logo: string;
+  color?: string;
   tokenUrl: string;
   hint: string;
 }[] = [
   {
     id: "github",
     name: "GitHub",
-    icon: Github,
+    logo: githubLogo,
     tokenUrl: "https://github.com/settings/personal-access-tokens/new",
     hint: "A fine-grained token with the repositories and permissions you want the agent to have.",
   },
   {
     id: "vercel",
     name: "Vercel",
-    icon: Triangle,
+    logo: vercelLogo,
     tokenUrl: "https://vercel.com/account/settings/tokens",
     hint: "A token scoped to the team the agent should deploy to.",
   },
   {
     id: "netlify",
     name: "Netlify",
-    icon: Globe,
+    logo: netlifyLogo,
+    color: "#00C7B7",
     tokenUrl: "https://app.netlify.com/user/applications#personal-access-tokens",
     hint: "A personal access token.",
   },
   {
     id: "railway",
     name: "Railway",
-    icon: TrainFront,
+    logo: railwayLogo,
     tokenUrl: "https://railway.com/account/tokens",
     hint: "An account token (or a team token for one workspace).",
   },
   {
     id: "supabase",
     name: "Supabase",
-    icon: Database,
+    logo: supabaseLogo,
+    color: "#3FCF8E",
     tokenUrl: "https://supabase.com/dashboard/account/tokens",
     hint: "An access token for the Supabase Management API.",
   },
@@ -118,11 +117,15 @@ export function ConnectorsSheet({ onClose }: { onClose: () => void }) {
       <div className="space-y-1">
         {PROVIDERS.map((p) => {
           const on = connected?.find((c) => c.provider === p.id);
-          const Icon = p.icon;
           return (
             <div key={p.id} className="rounded-xl border border-border">
               <div className="flex items-center gap-3 px-3 py-2.5">
-                <Icon className="h-5 w-5 shrink-0 text-foreground/80" />
+                <span
+                  aria-hidden
+                  className="inline-flex h-5 w-5 shrink-0 text-foreground [&>svg]:h-full [&>svg]:w-full"
+                  style={p.color ? { color: p.color } : undefined}
+                  dangerouslySetInnerHTML={{ __html: p.logo }}
+                />
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px] text-foreground">{p.name}</p>
                   <p className="truncate text-[11.5px] text-meta">

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Prism · Generative collection</title>
+<style>
+  :root { --bg:#07070a; --card:#101016; --line:#22222c; --text:#f4f4f8; --muted:#9a9aab; --accent:#8b5cf6; }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  .wrap { max-width:1000px; margin:0 auto; padding:20px 16px 48px; }
+  nav { display:flex; justify-content:space-between; align-items:center; margin-bottom:26px; } .logo { font-weight:800; font-size:20px; letter-spacing:-.02em; }
+  .hero { display:grid; grid-template-columns:1.1fr 1fr; gap:28px; align-items:center; }
+  .art { aspect-ratio:1; border-radius:24px; overflow:hidden; border:1px solid var(--line); box-shadow:0 30px 60px -30px #8b5cf680; }
+  .art svg { width:100%; height:100%; display:block; }
+  h1 { font-size:clamp(32px,5vw,52px); letter-spacing:-.04em; line-height:1.05; } .muted { color:var(--muted); }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:20px 0; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; } .stat b { display:block; font-size:18px; } .stat span { font-size:12px; color:var(--muted); }
+  .bar { height:8px; border-radius:999px; background:var(--line); overflow:hidden; margin:8px 0 18px; } .bar div { height:100%; background:linear-gradient(90deg,#8b5cf6,#ec4899); transition:width .5s; }
+  .qty { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .qty button { width:40px; height:40px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--text); font-size:18px; cursor:pointer; }
+  .qty b { min-width:24px; text-align:center; font-size:18px; }
+  .mint { width:100%; border:0; border-radius:14px; padding:15px; font-size:16px; font-weight:700; color:#fff; background:linear-gradient(90deg,#8b5cf6,#ec4899); cursor:pointer; }
+  .mint:disabled { opacity:.55; cursor:not-allowed; } .msg { min-height:20px; font-size:13px; margin-top:10px; }
+  h2 { font-size:20px; margin:40px 0 14px; display:flex; justify-content:space-between; align-items:baseline; } h2 span { font-size:13px; color:var(--muted); font-weight:400; }
+  .gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+  .item { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; } .item svg { display:block; width:100%; aspect-ratio:1; }
+  .item p { padding:9px 11px; font-size:13px; display:flex; justify-content:space-between; } .item p span { color:var(--muted); }
+  .empty { color:var(--muted); grid-column:1/-1; text-align:center; padding:28px; border:1.5px dashed var(--line); border-radius:16px; }
+  @media (max-width:760px) { .hero { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav><div class="logo">◆ Prism</div><span class="muted" style="font-size:13px">Generative art · 500 pieces</span></nav>
+  <section class="hero">
+    <div class="art" id="preview" aria-label="Preview of a Prism piece"></div>
+    <div>
+      <h1>Every piece is drawn once, for you.</h1>
+      <p class="muted" style="margin-top:12px">Prism generates a unique composition of colour and form at the moment you mint. No two are alike.</p>
+      <div class="stats">
+        <div class="stat"><b id="minted">0</b><span>minted</span></div>
+        <div class="stat"><b>0.01</b><span>ETH each</span></div>
+        <div class="stat"><b>5</b><span>per wallet</span></div>
+      </div>
+      <div class="bar" aria-hidden="true"><div id="progress"></div></div>
+      <div class="qty"><button id="minus" aria-label="One fewer">−</button><b id="qty" aria-live="polite">1</b><button id="plus" aria-label="One more">＋</button><span class="muted" id="cost" style="margin-left:auto">0.01 ETH</span></div>
+      <button class="mint" id="mint">Mint</button>
+      <p class="msg" id="msg" role="status"></p>
+    </div>
+  </section>
+  <h2>Your collection <span id="owned">0 pieces</span></h2>
+  <div class="gallery" id="gallery"></div>
+</div>
+<script>
+  const SUPPLY = 500, PRICE = 0.01, LIMIT = 5;
+  const $ = (id) => document.getElementById(id);
+  let minted = 137, qty = 1, mine = [];
+  // A deterministic piece of art from a seed: layered shapes in a palette.
+  function art(seed) {
+    let s = seed * 9301 + 49297; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+    const hue = Math.floor(rnd() * 360), shapes = [];
+    for (let i = 0; i < 7; i++) {
+      const h = (hue + rnd() * 120) % 360, x = rnd() * 100, y = rnd() * 100, r = 12 + rnd() * 38, o = 0.35 + rnd() * 0.5;
+      shapes.push(rnd() > 0.5 ? `<circle cx="${x}" cy="${y}" r="${r}" fill="hsl(${h} 85% 60%)" opacity="${o}"/>` : `<rect x="${x - r / 2}" y="${y - r / 2}" width="${r}" height="${r}" rx="${r / 6}" transform="rotate(${rnd() * 90} ${x} ${y})" fill="hsl(${h} 80% 55%)" opacity="${o}"/>`);
+    }
+    return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="hsl(${hue} 40% 10%)"/>${shapes.join("")}</svg>`;
+  }
+  function render() {
+    $("minted").textContent = minted; $("progress").style.width = `${(minted / SUPPLY) * 100}%`;
+    $("qty").textContent = qty; $("cost").textContent = `${(qty * PRICE).toFixed(2)} ETH`;
+    const left = Math.min(LIMIT - mine.length, SUPPLY - minted);
+    $("minus").disabled = qty <= 1; $("plus").disabled = qty >= left;
+    $("mint").disabled = left <= 0; $("mint").textContent = left <= 0 ? (minted >= SUPPLY ? "Sold out" : "Limit reached") : `Mint ${qty}`;
+    $("owned").textContent = `${mine.length} piece${mine.length === 1 ? "" : "s"}`;
+    $("gallery").innerHTML = mine.length ? mine.map((id) => `<div class="item">${art(id)}<p>Prism #${id}<span>yours</span></p></div>`).join("") : '<p class="empty">Nothing minted yet. Your pieces appear here.</p>';
+  }
+  $("preview").innerHTML = art(Date.now() % 1000);
+  setInterval(() => ($("preview").innerHTML = art(Math.floor(Math.random() * 1e6))), 2500);
+  $("minus").onclick = () => { qty = Math.max(1, qty - 1); render(); };
+  $("plus").onclick = () => { qty++; render(); };
+  $("mint").onclick = () => {
+    const btn = $("mint"); btn.disabled = true; btn.textContent = "Confirming…"; $("msg").textContent = "";
+    setTimeout(() => {
+      for (let i = 0; i < qty; i++) mine.push(++minted);
+      $("msg").textContent = `Minted ${qty} piece${qty === 1 ? "" : "s"}. Welcome to Prism.`;
+      qty = 1; render();
+    }, 1200);
+  };
+  render();
+</script>
+</body>
+</html>

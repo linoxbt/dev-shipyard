@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Taskboard</title>
+<style>
+  :root { --bg:#f6f5f2; --col:#ecebe6; --card:#fff; --line:#dedbd3; --text:#1f2328; --muted:#6b7280; --accent:#e67e22; }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  header { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; padding:18px 16px; }
+  h1 { font-size:20px; letter-spacing:-.02em; } h1 span { color:var(--accent); }
+  form { display:flex; gap:8px; flex:1; max-width:520px; min-width:260px; }
+  input, select { flex:1; border:1px solid var(--line); background:#fff; border-radius:10px; padding:10px 12px; font-size:14px; color:var(--text); }
+  input { min-width:0; } select { flex:0 0 auto; }
+  input:focus, select:focus { outline:2px solid var(--accent); border-color:transparent; }
+  button { cursor:pointer; font:inherit; }
+  .add { background:var(--accent); color:#fff; border:0; border-radius:10px; padding:10px 14px; font-weight:600; }
+  .board { display:grid; grid-template-columns:repeat(3,minmax(260px,1fr)); gap:14px; padding:0 16px 24px; overflow-x:auto; }
+  .col { background:var(--col); border-radius:16px; padding:12px; min-height:320px; transition:background .15s; }
+  .col.over { background:#e4dfd3; }
+  .col h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); display:flex; justify-content:space-between; margin:2px 4px 10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:11px 12px; margin-bottom:8px; cursor:grab; box-shadow:0 1px 2px #0000000d; }
+  .card.dragging { opacity:.4; }
+  .card p { font-size:14px; line-height:1.4; word-break:break-word; }
+  .meta { display:flex; align-items:center; gap:6px; margin-top:8px; }
+  .tag { font-size:11px; padding:2px 8px; border-radius:999px; }
+  .low { background:#e8f5e9; color:#2e7d32; } .med { background:#fff4e5; color:#b45309; } .high { background:#fde8e8; color:#b91c1c; }
+  .meta button { margin-left:auto; border:0; background:none; color:var(--muted); font-size:13px; padding:2px 4px; border-radius:6px; }
+  .meta button:hover { background:var(--col); color:var(--text); }
+  .empty { color:var(--muted); font-size:13px; text-align:center; padding:24px 8px; border:1.5px dashed var(--line); border-radius:12px; }
+  .err { color:#b91c1c; font-size:12px; padding:0 16px 8px; min-height:18px; }
+  @media (max-width: 820px) { .board { grid-template-columns:1fr; } .col { min-height:0; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Task<span>board</span></h1>
+  <form id="form" novalidate>
+    <label class="sr" for="title" hidden>New task</label>
+    <input id="title" maxlength="140" placeholder="Add a task and press Enter" aria-label="New task" />
+    <select id="prio" aria-label="Priority"><option value="low">Low</option><option value="med" selected>Medium</option><option value="high">High</option></select>
+    <button class="add">Add</button>
+  </form>
+</header>
+<p class="err" id="err" role="alert"></p>
+<main class="board" id="board"></main>
+
+<script>
+  const store = (() => { try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); return localStorage; }
+    catch { const m = {}; return { getItem: (k) => m[k] ?? null, setItem: (k, v) => { m[k] = String(v); } }; } })();
+  const COLS = [["todo", "To do"], ["doing", "In progress"], ["done", "Done"]];
+  let tasks = JSON.parse(store.getItem("board") || "null") || [
+    { id: 1, title: "Sketch the onboarding flow", prio: "high", col: "todo" },
+    { id: 2, title: "Set up the database schema", prio: "med", col: "doing" },
+    { id: 3, title: "Write the README", prio: "low", col: "done" },
+  ];
+  const save = () => store.setItem("board", JSON.stringify(tasks));
+  const board = document.getElementById("board");
+
+  function render() {
+    board.innerHTML = "";
+    for (const [key, name] of COLS) {
+      const items = tasks.filter((t) => t.col === key);
+      const col = document.createElement("section");
+      col.className = "col"; col.dataset.col = key;
+      col.innerHTML = `<h2><span>${name}</span><span>${items.length}</span></h2>`;
+      if (!items.length) col.insertAdjacentHTML("beforeend", '<p class="empty">Nothing here. Drag a task in.</p>');
+      for (const t of items) {
+        const card = document.createElement("article");
+        card.className = "card"; card.draggable = true; card.dataset.id = t.id;
+        card.innerHTML = `<p></p><div class="meta"><span class="tag ${t.prio}">${{ low: "Low", med: "Medium", high: "High" }[t.prio]}</span>
+          ${key !== "todo" ? '<button data-move="-1" aria-label="Move left">←</button>' : ""}
+          ${key !== "done" ? '<button data-move="1" aria-label="Move right">→</button>' : ""}
+          <button data-del aria-label="Delete task">✕</button></div>`;
+        card.querySelector("p").textContent = t.title;
+        card.addEventListener("dragstart", (e) => { card.classList.add("dragging"); e.dataTransfer.setData("text/plain", String(t.id)); });
+        card.addEventListener("dragend", () => card.classList.remove("dragging"));
+        col.appendChild(card);
+      }
+      col.addEventListener("dragover", (e) => { e.preventDefault(); col.classList.add("over"); });
+      col.addEventListener("dragleave", () => col.classList.remove("over"));
+      col.addEventListener("drop", (e) => {
+        e.preventDefault(); col.classList.remove("over");
+        const t = tasks.find((x) => x.id === Number(e.dataTransfer.getData("text/plain")));
+        if (t) { t.col = key; save(); render(); }
+      });
+      board.appendChild(col);
+    }
+  }
+
+  board.addEventListener("click", (e) => {
+    const card = e.target.closest(".card"); if (!card) return;
+    const t = tasks.find((x) => x.id === Number(card.dataset.id)); if (!t) return;
+    if (e.target.dataset.del !== undefined) tasks = tasks.filter((x) => x !== t);
+    else if (e.target.dataset.move) { const i = COLS.findIndex(([k]) => k === t.col) + Number(e.target.dataset.move); t.col = COLS[Math.max(0, Math.min(2, i))][0]; }
+    else return;
+    save(); render();
+  });
+
+  document.getElementById("form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const title = document.getElementById("title").value.trim();
+    document.getElementById("err").textContent = title ? "" : "Give the task a name first.";
+    if (!title) return;
+    tasks.push({ id: Date.now(), title, prio: document.getElementById("prio").value, col: "todo" });
+    save(); render(); e.target.reset(); document.getElementById("prio").value = "med";
+  });
+  render();
+</script>
+</body>
+</html>

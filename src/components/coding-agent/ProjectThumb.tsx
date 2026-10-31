@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Code2, FileCode2 } from "lucide-react";
 import type { AppProject } from "@/lib/appgen/projects";
+import type { AppTemplate } from "@/lib/coding-agent/app-templates";
 import { localPreviewPlan } from "@/lib/appgen/local-preview";
 import { buildPreview } from "@/lib/appgen/preview";
 import { cn } from "@/lib/utils";
@@ -13,7 +14,9 @@ import { cn } from "@/lib/utils";
 const WIDTH = 1280;
 const HEIGHT = 800;
 
-export function ProjectThumb({ project, className }: { project: AppProject; className?: string }) {
+// Whether the card has come into view yet, and how far to shrink a
+// full-size frame to fit its width.
+function useThumbBox() {
   const ref = useRef<HTMLDivElement | null>(null);
   const [visible, setVisible] = useState(false);
   const [scale, setScale] = useState(0.25);
@@ -32,6 +35,48 @@ export function ProjectThumb({ project, className }: { project: AppProject; clas
       ro.disconnect();
     };
   }, []);
+  return { ref, visible, scale };
+}
+
+function ThumbFrame({ title, srcDoc, scale }: { title: string; srcDoc: string; scale: number }) {
+  return (
+    <iframe
+      title={title}
+      srcDoc={srcDoc}
+      // Scripts only, no same-origin and no input: a picture of the app.
+      sandbox="allow-scripts"
+      tabIndex={-1}
+      aria-hidden
+      loading="lazy"
+      className="pointer-events-none absolute left-0 top-0 origin-top-left border-0 bg-white"
+      style={{ width: WIDTH, height: HEIGHT, transform: `scale(${scale})` }}
+    />
+  );
+}
+
+/** A template's card picture: the finished app itself, running small. */
+export function TemplateThumb({
+  template,
+  className,
+}: {
+  template: AppTemplate;
+  className?: string;
+}) {
+  const { ref, visible, scale } = useThumbBox();
+  return (
+    <div
+      ref={ref}
+      className={cn("relative aspect-[16/10] overflow-hidden bg-surface-2", className)}
+    >
+      {visible && (
+        <ThumbFrame title={`${template.name} preview`} srcDoc={template.html} scale={scale} />
+      )}
+    </div>
+  );
+}
+
+export function ProjectThumb({ project, className }: { project: AppProject; className?: string }) {
+  const { ref, visible, scale } = useThumbBox();
 
   const source = useMemo(() => {
     if (project.dist && Object.keys(project.dist).length) return { files: project.dist, dir: "" };
@@ -58,17 +103,7 @@ export function ProjectThumb({ project, className }: { project: AppProject; clas
       className={cn("relative aspect-[16/10] overflow-hidden bg-surface-2", className)}
     >
       {bundle ? (
-        <iframe
-          title={`${project.name} preview`}
-          srcDoc={bundle.srcdoc}
-          // Scripts only, no same-origin and no input: a picture of the app.
-          sandbox="allow-scripts"
-          tabIndex={-1}
-          aria-hidden
-          loading="lazy"
-          className="pointer-events-none absolute left-0 top-0 origin-top-left border-0 bg-white"
-          style={{ width: WIDTH, height: HEIGHT, transform: `scale(${scale})` }}
-        />
+        <ThumbFrame title={`${project.name} preview`} srcDoc={bundle.srcdoc} scale={scale} />
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[radial-gradient(80%_80%_at_30%_20%,color-mix(in_oklch,var(--primary)_16%,transparent),transparent)]">
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-surface text-muted-foreground shadow-sm">

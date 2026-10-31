@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Focus · Pomodoro timer</title>
+<style>
+  :root { --bg:#1a1325; --card:#241a33; --line:#35284a; --text:#f5f0ff; --muted:#b4a7cc; --focus:#f472b6; --break:#34d399; }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:radial-gradient(circle at 50% 0,#2d1f45,var(--bg) 60%); color:var(--text); min-height:100vh; display:grid; place-items:center; padding:24px 16px; }
+  main { width:100%; max-width:380px; text-align:center; }
+  .modes { display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:4px; margin-bottom:26px; }
+  .modes button { flex:1; background:none; border:0; color:var(--muted); padding:9px; border-radius:999px; font:inherit; font-size:14px; cursor:pointer; }
+  .modes button[aria-pressed="true"] { background:var(--text); color:var(--bg); font-weight:600; }
+  .ring { position:relative; width:260px; height:260px; margin:0 auto; }
+  svg { transform:rotate(-90deg); } circle { fill:none; stroke-width:12; } .bg { stroke:var(--line); } .fg { stroke:var(--focus); stroke-linecap:round; transition:stroke-dashoffset .9s linear, stroke .3s; }
+  .time { position:absolute; inset:0; display:grid; place-content:center; } .time b { font-size:58px; letter-spacing:-.03em; font-variant-numeric:tabular-nums; } .time span { color:var(--muted); font-size:14px; }
+  .controls { display:flex; gap:10px; justify-content:center; margin:26px 0 16px; }
+  .controls button { border:0; border-radius:16px; padding:14px 22px; font:inherit; font-weight:600; cursor:pointer; }
+  .main { background:var(--focus); color:#2a0d1f; min-width:140px; } .ghost { background:var(--card); color:var(--text); border:1px solid var(--line) !important; }
+  .stats { display:flex; justify-content:center; gap:6px; margin-top:4px; } .stats i { width:12px; height:12px; border-radius:50%; background:var(--line); } .stats i.on { background:var(--focus); }
+  details { margin-top:22px; text-align:left; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px 16px; }
+  summary { cursor:pointer; color:var(--muted); font-size:14px; } label { display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:14px; }
+  input { width:72px; background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:7px; text-align:center; font-size:14px; }
+  .done { color:var(--muted); font-size:13px; margin-top:12px; min-height:18px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="modes" role="group" aria-label="Mode">
+    <button aria-pressed="true" data-mode="focus">Focus</button>
+    <button aria-pressed="false" data-mode="short">Short break</button>
+    <button aria-pressed="false" data-mode="long">Long break</button>
+  </div>
+  <div class="ring">
+    <svg width="260" height="260" viewBox="0 0 260 260" aria-hidden="true"><circle class="bg" cx="130" cy="130" r="118" /><circle class="fg" id="arc" cx="130" cy="130" r="118" /></svg>
+    <div class="time" aria-live="polite"><b id="clock">25:00</b><span id="label">Time to focus</span></div>
+  </div>
+  <div class="controls">
+    <button class="ghost" id="reset" aria-label="Reset">↺</button>
+    <button class="main" id="toggle">Start</button>
+    <button class="ghost" id="skip" aria-label="Skip">⏭</button>
+  </div>
+  <div class="stats" id="dots" aria-label="Sessions today"></div>
+  <p class="done" id="done"></p>
+  <details>
+    <summary>Settings</summary>
+    <label>Focus (minutes) <input type="number" min="1" max="90" id="focusMin" value="25" /></label>
+    <label>Short break <input type="number" min="1" max="30" id="shortMin" value="5" /></label>
+    <label>Long break <input type="number" min="1" max="60" id="longMin" value="15" /></label>
+  </details>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const R = 118, C = 2 * Math.PI * R; $("arc").style.strokeDasharray = C;
+  const LABEL = { focus: "Time to focus", short: "Short break", long: "Long break" };
+  let mode = "focus", total = 0, left = 0, timer = null, sessions = 0;
+  const minutes = (m) => Math.min(90, Math.max(1, Number($(`${m === "focus" ? "focus" : m}Min`).value) || 1));
+
+  function setMode(m) {
+    mode = m; clearInterval(timer); timer = null;
+    total = left = minutes(m) * 60;
+    document.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
+    $("arc").style.stroke = m === "focus" ? "var(--focus)" : "var(--break)";
+    document.querySelector(".main").style.background = m === "focus" ? "var(--focus)" : "var(--break)";
+    draw();
+  }
+  function draw() {
+    const mm = String(Math.floor(left / 60)).padStart(2, "0"), ss = String(left % 60).padStart(2, "0");
+    $("clock").textContent = `${mm}:${ss}`; document.title = `${mm}:${ss} · Focus`;
+    $("arc").style.strokeDashoffset = C * (1 - left / total);
+    $("label").textContent = timer ? LABEL[mode] : left === total ? LABEL[mode] : "Paused";
+    $("toggle").textContent = timer ? "Pause" : left === total ? "Start" : "Resume";
+    $("dots").innerHTML = Array.from({ length: Math.max(4, sessions) }, (_, i) => `<i class="${i < sessions ? "on" : ""}"></i>`).join("");
+  }
+  function finish() {
+    clearInterval(timer); timer = null;
+    if (mode === "focus") { sessions++; $("done").textContent = `Session ${sessions} done. Take a break.`; setMode(sessions % 4 === 0 ? "long" : "short"); }
+    else { $("done").textContent = "Break over. Ready for the next session?"; setMode("focus"); }
+    try { navigator.vibrate?.(200); } catch {}
+  }
+  $("toggle").onclick = () => {
+    if (timer) { clearInterval(timer); timer = null; }
+    else timer = setInterval(() => { left = Math.max(0, left - 1); left === 0 ? finish() : draw(); }, 1000);
+    draw();
+  };
+  $("reset").onclick = () => setMode(mode);
+  $("skip").onclick = finish;
+  document.querySelectorAll("[data-mode]").forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
+  ["focusMin", "shortMin", "longMin"].forEach((id) => $(id).addEventListener("change", () => { if (!timer) setMode(mode); }));
+  document.addEventListener("keydown", (e) => { if (e.code === "Space" && e.target === document.body) { e.preventDefault(); $("toggle").click(); } });
+  setMode("focus");
+</script>
+</body>
+</html>

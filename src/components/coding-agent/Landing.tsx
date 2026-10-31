@@ -1,28 +1,15 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Bell,
-  Coins,
-  Ellipsis,
-  Gamepad2,
-  Globe,
-  Image,
-  LayoutDashboard,
-  Menu,
-  Server,
-  Users,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bell, Ellipsis, Globe, Menu } from "lucide-react";
 import { LogoMark } from "@/components/shared/Logo";
 import { firstName, initials, useAuth } from "@/hooks/useAuth";
 import type { AppProject } from "@/lib/appgen/projects";
-import { IDEAS, type IdeaKind } from "@/lib/coding-agent/ideas";
+import { APP_TEMPLATES, type AppTemplate } from "@/lib/coding-agent/app-templates";
 import { CODING_AGENT_ONLY } from "@/lib/features";
 import { ago } from "@/lib/coding-agent/steps";
 import { cn } from "@/lib/utils";
 import { Dropdown, MenuItem, RoundButton } from "./primitives";
-import { ProjectThumb } from "./ProjectThumb";
+import { ProjectThumb, TemplateThumb } from "./ProjectThumb";
 
 // The first screen, laid out the way Base44 opens: a greeting, one big prompt,
 // and underneath it your work as large cards with a picture of each app, with
@@ -30,24 +17,6 @@ import { ProjectThumb } from "./ProjectThumb";
 // bar along the top.
 
 export type HomeTab = "recent" | "templates";
-
-const KIND_ICON: Record<IdeaKind, React.ComponentType<{ className?: string }>> = {
-  community: Users,
-  token: Coins,
-  api: Server,
-  nft: Image,
-  dashboard: LayoutDashboard,
-  game: Gamepad2,
-};
-
-const KIND_TINT: Record<IdeaKind, string> = {
-  community: "from-primary/60 via-primary/20",
-  token: "from-warning/60 via-warning/15",
-  api: "from-info/60 via-info/15",
-  nft: "from-cat-nft/60 via-cat-nft/15",
-  dashboard: "from-success/50 via-success/15",
-  game: "from-cat-gov/60 via-cat-gov/15",
-};
 
 export function Landing({
   composer,
@@ -58,7 +27,7 @@ export function Landing({
   onOpen,
   onRemix,
   onDelete,
-  onIdea,
+  onTemplate,
   onMenu,
   onNews,
   onAccount,
@@ -74,7 +43,7 @@ export function Landing({
   onOpen: (id: string) => void;
   onRemix: (id: string) => void;
   onDelete: (id: string) => void;
-  onIdea: (prompt: string) => void;
+  onTemplate: (t: AppTemplate) => void;
   onMenu: () => void;
   onNews: () => void;
   onAccount: () => void;
@@ -193,34 +162,24 @@ export function Landing({
             </div>
           )
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {IDEAS.map((idea) => {
-              const Icon = KIND_ICON[idea.kind];
-              return (
-                <button
-                  key={idea.label}
-                  onClick={() => onIdea(idea.prompt)}
-                  className="group overflow-hidden rounded-2xl border border-border bg-surface text-left transition hover:border-primary/40"
-                >
-                  <div
-                    className={cn(
-                      "relative flex aspect-[16/9] items-center justify-center bg-gradient-to-br to-transparent",
-                      KIND_TINT[idea.kind],
-                    )}
-                  >
-                    <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-background/80 text-foreground shadow-lg backdrop-blur transition group-hover:scale-105">
-                      <Icon className="h-6 w-6" />
-                    </span>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-[15px] font-semibold text-foreground">{idea.label}</p>
-                    <p className="mt-1 text-[12.5px] leading-5 text-muted-foreground">
-                      {idea.blurb}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
+          <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+            {APP_TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => onTemplate(t)}
+                className="group text-left"
+                aria-label={`Open the ${t.name} template`}
+              >
+                <div className="relative overflow-hidden rounded-2xl border border-border transition group-hover:border-primary/40">
+                  <TemplateThumb template={t} />
+                  <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-[11.5px] font-medium text-foreground opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100">
+                    Open <ArrowUpRight className="h-3 w-3" />
+                  </span>
+                </div>
+                <p className="mt-3 text-[15px] font-semibold text-foreground">{t.name}</p>
+                <p className="mt-0.5 text-[12.5px] leading-5 text-muted-foreground">{t.blurb}</p>
+              </button>
+            ))}
           </div>
         )}
         {footer && <div className="mt-12 flex justify-center">{footer}</div>}
