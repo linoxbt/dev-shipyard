@@ -58,6 +58,8 @@ const AGENT_API = [
   /^\/api\/plan$/,
   /^\/api\/projects$/,
   /^\/api\/credits$/,
+  /^\/api\/billing$/,
+  /^\/api\/payments\/(stripe|paystack)$/,
   /^\/api\/stats\/shared$/,
   /^\/api\/connectors$/,
   /^\/api\/oauth\/[a-z]+(\/callback)?$/,

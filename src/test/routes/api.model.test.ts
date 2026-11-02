@@ -127,7 +127,9 @@ describe("/api/model, premium metering", () => {
       async fetch(req) {
         const url = new URL(req.url);
         const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-        if (url.pathname.endsWith("/rpc/account_access")) return Response.json({ plan: "pro" });
+        if (url.pathname.endsWith("/rpc/account_access")) {
+          return Response.json({ plan: "free", claimed: 50, spent: 0 });
+        }
         if (url.pathname.endsWith("/model_usage")) {
           writes.push({ method: req.method, path: url.pathname + url.search, body });
           return Response.json(req.method === "POST" ? [{ id: 7 }] : [{ id: 7 }]);
@@ -192,6 +194,8 @@ describe("/api/model, premium metering", () => {
     expect(settle.path).toContain("id=eq.7");
     expect(settle.body.output_tokens).toBe(100);
     expect(Number(settle.body.cost_usd)).toBeLessThan(Number(reserve.body.cost_usd));
+    // Charged at the model's price plus the margin (1.25 by default).
+    expect(Number(settle.body.billed_usd)).toBeCloseTo(Number(settle.body.cost_usd) * 1.25, 6);
   });
 
   it("keeps a charge on a call cut off midway", async () => {

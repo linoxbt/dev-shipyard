@@ -541,3 +541,80 @@ export function elapsed(ms: number): string {
   if (m < 60) return `${m}m ${String(s % 60).padStart(2, "0")}s`;
   return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
 }
+
+/** Words for a model reasoning, taken in turn every few seconds, so a long
+ *  think reads as work going on rather than a frozen label. */
+const THINKING = [
+  "Thinking",
+  "Reasoning it through",
+  "Planning the next step",
+  "Weighing the options",
+  "Working it out",
+  "Thinking it over",
+];
+
+const compactCount = (n: number) =>
+  n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : String(Math.round(n));
+
+/**
+ * The status line of a running turn, as it should read now: what the runner
+ * says the agent is doing, made readable, with the reasoning count while it
+ * thinks. `elapsedMs` (since the turn started) picks the thinking verb.
+ */
+export function liveStatus(
+  status: string,
+  thinking: number | undefined,
+  elapsedMs: number,
+): string {
+  const s = status.trim();
+  if (!s || s === "Thinking" || s === "Starting") {
+    const verb = THINKING[Math.floor(Math.max(0, elapsedMs) / 4000) % THINKING.length];
+    return thinking && thinking > 0 ? `${verb}… ↓ ${compactCount(thinking)} tokens` : `${verb}…`;
+  }
+  if (s === "Writing") return "Writing…";
+  const clean = readableTitle(s);
+  return /[.…:!?]$/.test(clean) ? clean : `${clean}…`;
+}
+
+export type PhaseState = "done" | "active" | "pending";
+
+/** The stages of building an app, as the preview shows them while it waits. */
+export const BUILD_PHASES = [
+  "Understanding the request",
+  "Writing the code",
+  "Installing packages",
+  "Building the app",
+  "Checking it in a browser",
+] as const;
+
+const INSTALL = /\b(npm|pnpm|yarn|bun)\s+(i|install|add|ci)\b|\bpip3?\s+install\b/;
+const BUILD = /\b(npm|pnpm|yarn|bun)\s+(run\s+)?build\b|\bvite\s+build\b|\bnext\s+build\b/;
+
+/**
+ * Where a turn has got to, as the five stages of building an app: the furthest
+ * stage reached is active (done once the turn is over), every one before it is
+ * done (a stage can be skipped: a plain HTML page installs nothing), and the
+ * rest wait. `building` is the preview's own build after the turn.
+ */
+export function buildPhases(
+  events: readonly AgentEvent[],
+  opts: { building?: boolean; running?: boolean } = {},
+): { label: string; state: PhaseState }[] {
+  let reached = 0;
+  for (const s of stepsFromEvents(events)) {
+    const kind = toolKind(s.tool);
+    const command = String(s.input?.command ?? s.input?.name ?? "");
+    let at = 0;
+    if (kind === "write") at = 1;
+    if (s.tool === "install_dependency" || INSTALL.test(command)) at = 2;
+    if (s.tool === "run_build" || s.tool === "run_tests" || BUILD.test(command)) at = 3;
+    if (kind === "browser") at = 4;
+    reached = Math.max(reached, at);
+  }
+  if (opts.building) reached = Math.max(reached, 3);
+  const live = opts.running || opts.building;
+  return BUILD_PHASES.map((label, i) => ({
+    label,
+    state: i < reached ? "done" : i === reached ? (live ? "active" : "done") : "pending",
+  }));
+}

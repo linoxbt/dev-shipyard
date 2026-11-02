@@ -28,6 +28,7 @@ import {
   groupLabel,
   latestPlan,
   stepTarget,
+  liveStatus,
   timelineFromEvents,
   timelineFromSaved,
   toolKind,
@@ -507,12 +508,15 @@ export function LiveTurn({
   events,
   reply,
   status,
+  thinking,
   startedAt,
   jobs,
 }: {
   events: AgentEvent[];
   reply: string;
   status: string;
+  /** Tokens reasoned since the last step, while the model thinks. */
+  thinking?: number;
   /** When the turn started (on this device's clock), for the running timer. */
   startedAt?: number;
   /** Background commands running, as the server counts them. */
@@ -541,7 +545,9 @@ export function LiveTurn({
           <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
           <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
         </span>
-        <span className="truncate text-primary/90">{status || "Working"}</span>
+        <span className="ds-shimmer truncate text-primary/90" aria-live="polite">
+          {liveStatus(status, thinking, startedAt ? now - startedAt : now)}
+        </span>
         {startedAt && (
           <span className="shrink-0 tabular-nums text-meta">
             · {elapsed(Math.max(0, now - startedAt))}

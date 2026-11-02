@@ -43,6 +43,8 @@ export interface Day {
   visits: number;
   projects_created: number;
   messages: number;
+  revenue_topup?: number;
+  revenue_pro?: number;
 }
 
 export interface Dashboard {
@@ -70,6 +72,8 @@ export interface Dashboard {
     plan: string;
   }[];
   generated_at: string;
+  /** What Pro costs a month, for recurring revenue. */
+  pro_price_usd?: number;
 }
 
 export interface Payload {
@@ -364,7 +368,7 @@ function PlatformStrip({ d, pending }: { d: Dashboard; pending: number }) {
       `${num(k.credits_claimed)} / ${num(k.credits_total)}`,
       <Progress key="p" value={k.credits_total ? k.credits_claimed / k.credits_total : 0} />,
     ],
-    ["Premium credit used", usd(k.credit_used)],
+    ["Credit charged", usd(k.credit_used)],
     ["Pro accounts", num(k.pro_accounts)],
     ["Waiting for Pro", num(pending)],
   ];
@@ -1023,6 +1027,7 @@ export function Overview({
 
       <Kpis d={d} />
       <PlatformStrip d={d} pending={pending} />
+      <Revenue d={d} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Agent turns" note="Per day, by how they ended">
@@ -1063,5 +1068,122 @@ export function Overview({
 
       {children}
     </div>
+  );
+}
+
+/** What DevStation earns: payments in the period against the one before,
+ *  recurring revenue from Pro, who pays, and what usage charged to credit
+ *  earned over its model cost; then revenue per day. */
+function Revenue({ d }: { d: Dashboard }) {
+  const k = d.kpis;
+  const price = Number(d.pro_price_usd ?? 0);
+  const mrr = (Number(k.subscribers ?? 0) + Number(k.pro_passes ?? 0)) * price;
+  const billed = Number(k.usage_billed ?? 0);
+  const margin = billed - Number(k.usage_billed_cost ?? 0);
+  const tiles = [
+    {
+      label: "Revenue",
+      value: usd(Number(k.revenue ?? 0)),
+      delta: change(Number(k.revenue ?? 0), Number(k.revenue_prev ?? 0)),
+      compare: true,
+      hint: "Payments received",
+    },
+    {
+      label: "Monthly recurring",
+      value: usd(mrr),
+      delta: null,
+      hint: `${num(k.subscribers ?? 0)} subscribed · ${num(k.pro_passes ?? 0)} on a pass`,
+    },
+    {
+      label: "Paying accounts",
+      value: num(Number(k.paying_accounts ?? 0)),
+      delta: change(Number(k.paying_accounts ?? 0), Number(k.paying_accounts_prev ?? 0)),
+      compare: true,
+      hint: `${num(k.customers_ever ?? 0)} ever`,
+    },
+    {
+      label: "Margin on usage",
+      value: usd(margin),
+      delta: null,
+      hint:
+        billed > 0 ? `${pct(margin / billed)} of ${usd(billed)} charged` : "Nothing charged yet",
+    },
+  ];
+  const rows = d.series.map((s) => ({
+    day: s.day,
+    topup: Number(s.revenue_topup ?? 0),
+    pro: Number(s.revenue_pro ?? 0),
+  }));
+  return (
+    <section className="grid gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:col-span-2">
+        {tiles.map((t) => (
+          <div
+            key={t.label}
+            className="flex flex-col rounded-2xl border border-border bg-surface p-4"
+          >
+            <p className="text-[12px] font-medium text-muted-foreground">{t.label}</p>
+            <p className="mt-1.5 text-[22px] font-semibold leading-none tracking-tight tabular-nums">
+              {t.value}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {t.compare && <Delta value={t.delta} />}
+              <span className="text-[11px] text-meta">{t.hint}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <Card title="Revenue" note="Per day, credit top-ups and Pro" className="lg:col-span-3">
+        {rows.some((r) => r.topup || r.pro) ? (
+          <>
+            <Legend
+              items={[
+                ["Credit top-ups", "var(--s1)"],
+                ["Pro", "var(--s2)"],
+              ]}
+            />
+            <ResponsiveContainer width="100%" height={CHART_H - 20}>
+              <BarChart
+                data={rows}
+                margin={{ top: 4, right: 4, bottom: 0, left: -8 }}
+                barCategoryGap="22%"
+              >
+                <CartesianGrid vertical={false} stroke="var(--grid)" />
+                <XAxis
+                  dataKey="day"
+                  ticks={tickDays(d.series)}
+                  tickFormatter={shortDay}
+                  {...AXIS}
+                />
+                <YAxis tickFormatter={(v: number) => `$${compact(v)}`} {...AXIS} />
+                <Tooltip cursor={{ fill: "var(--grid)" }} content={<Tip format={usd} total />} />
+                <Bar
+                  dataKey="topup"
+                  name="Credit top-ups"
+                  stackId="r"
+                  fill="var(--s1)"
+                  isAnimationActive={false}
+                />
+                <Bar
+                  dataKey="pro"
+                  name="Pro"
+                  stackId="r"
+                  fill="var(--s2)"
+                  radius={[4, 4, 0, 0]}
+                  isAnimationActive={false}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </>
+        ) : (
+          <div
+            className="grid place-items-center rounded-xl bg-surface-2/50 text-center text-[12.5px] text-muted-foreground"
+            style={{ height: CHART_H - 20 }}
+          >
+            No payments in this period yet
+          </div>
+        )}
+      </Card>
+    </section>
   );
 }

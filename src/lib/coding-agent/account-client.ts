@@ -5,14 +5,87 @@ import { fetchWithGrant } from "@/lib/agent-access/grant";
 
 export interface Access {
   plan: "free" | "pro";
+  /** Pro granted by an admin: no allowance, no charge. */
+  unlimited?: boolean;
+  /** How Pro was bought: "subscription" (renews), "pass" (30 days), or null. */
+  billing?: "subscription" | "pass" | null;
+  /** When paid Pro ends or renews. */
+  proUntil?: string | null;
+  /** A Stripe customer exists: the billing portal can open. */
+  portal?: boolean;
+  subscribed?: boolean;
   proRequested: boolean;
+  /** Launch credit claimed. */
+  launch?: number;
+  /** All credit added: launch, top-ups, Pro's included credit. */
   claimed: number;
   spent: number;
   balance: number;
   slotsLeft: number;
   premium: boolean;
+  /** The free model's cost today that was not charged, and today's allowance. */
+  freeUsedToday?: number;
+  freeDailyUsd?: number | null;
   available: boolean;
   admin?: boolean;
+}
+
+/** What credit costs and buys (api/billing). */
+export interface BillingConfig {
+  markup: number;
+  freeDailyUsd: number | null;
+  proFreeDailyUsd: number | null;
+  proPriceUsd: number;
+  proIncludedUsd: number;
+  topUps: number[];
+  minTopUpUsd: number;
+  maxTopUpUsd: number;
+  providers: ("stripe" | "paystack")[];
+  paystackCurrency: string;
+}
+
+export async function fetchBilling(): Promise<BillingConfig | null> {
+  try {
+    const res = await fetch("/api/billing", { cache: "no-store" });
+    return res.ok ? ((await res.json()) as BillingConfig) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Open a payment page (the browser leaves for the gateway on success). */
+export async function startCheckout(input: {
+  kind: "topup" | "pro";
+  provider: "stripe" | "paystack";
+  amount?: number;
+}): Promise<{ ok: true; url: string } | { ok: false; message: string }> {
+  const r = await call<{ url: string }>("/api/billing", {
+    method: "POST",
+    body: JSON.stringify({ action: "checkout", ...input }),
+  });
+  return r.ok ? { ok: true, url: r.data.url } : r;
+}
+
+export async function openBillingPortal(): Promise<
+  { ok: true; url: string } | { ok: false; message: string }
+> {
+  const r = await call<{ url: string }>("/api/billing", {
+    method: "POST",
+    body: JSON.stringify({ action: "portal" }),
+  });
+  return r.ok ? { ok: true, url: r.data.url } : r;
+}
+
+/** Back from paying: have it applied now (the webhook may still be on its way). */
+export async function confirmPayment(
+  provider: "stripe" | "paystack",
+  id: string,
+): Promise<{ ok: true; paid: boolean; applied: boolean } | { ok: false; message: string }> {
+  const r = await call<{ paid: boolean; applied: boolean }>("/api/billing", {
+    method: "POST",
+    body: JSON.stringify({ action: "confirm", provider, id }),
+  });
+  return r.ok ? { ok: true, paid: r.data.paid, applied: r.data.applied } : r;
 }
 
 export type ConnectorId = "github" | "vercel" | "netlify" | "railway" | "supabase";

@@ -134,6 +134,8 @@ export interface OrchestratorOptions {
   maxCostUsd?: number;
   onEvent?: (event: AgentEvent) => void;
   onDelta?: (chunk: string) => void;
+  /** Reasoning as it streams, by size (see GenerateInput.onThinking). */
+  onThinking?: (chars: number) => void;
   /** Called after every message rather than at the end of the run, so a host
    *  that persists this can resume a task that crashed half way through. */
   onProgress?: (snapshot: RunSnapshot) => void;
@@ -444,6 +446,7 @@ export class Orchestrator {
         tools,
         signal: this.opts.signal,
         onDelta: this.opts.onDelta,
+        onThinking: this.opts.onThinking,
       });
 
       this.usage = addUsage(this.usage, result.usage);

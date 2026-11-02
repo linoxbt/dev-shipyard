@@ -1,6 +1,7 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import { insertReturning, rpc, select, selectAll, update } from "./admin.server";
 import { openToken, sealToken } from "./connectors.server";
+import { billingConfig } from "@/lib/billing/config.server";
 
 // DevStation's figures, read for the admins (routes/api.admin.stats.ts) and
 // for whoever holds a share link (routes/api.stats.shared.ts): the dashboard
@@ -105,7 +106,9 @@ interface AccountRow {
  * replaces every email and account id with its pseudonym.
  */
 export async function statsDashboard(days: number, shared: boolean): Promise<Row> {
-  const d = await rpc<Row>("devstation_dashboard", { p_days: days });
+  const raw = await rpc<Row>("devstation_dashboard", { p_days: days });
+  // The price recurring revenue is counted at.
+  const d: Row = { ...raw, pro_price_usd: billingConfig().proPriceUsd };
   if (!shared) return d;
   const hide = (rows: unknown) =>
     (Array.isArray(rows) ? (rows as AccountRow[]) : []).map((r) => {

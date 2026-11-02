@@ -8,7 +8,8 @@ import {
 } from "@/lib/agent/providers";
 import { costOfUsage, ratesFor } from "@/lib/agent/pricing";
 import { isPremiumModel } from "@/lib/coding-agent/models";
-import { accessOf } from "@/lib/db/access.server";
+import { accessOf, chargeFor, type Access } from "@/lib/db/access.server";
+import { billingConfig } from "@/lib/billing/config.server";
 import { dbConfigured, insert, insertReturning, update } from "@/lib/db/admin.server";
 import { passFromRequest } from "@/lib/db/turn-token.server";
 import { checkRateLimit } from "@/lib/rateLimit.server";
@@ -54,6 +55,27 @@ const PREMIUM_MAX_TOKENS = 32_000;
  *  count never arrived (the call was cut off). */
 const tokensIn = (chars: number) => Math.ceil(chars / 4);
 
+/** When plans cannot be read, the free model still runs, uncharged: a
+ *  database hiccup should not stop the free tier. */
+const FREE_FALLBACK: Access = {
+  plan: "free",
+  unlimited: false,
+  billing: null,
+  proUntil: null,
+  portal: false,
+  subscribed: false,
+  proRequested: false,
+  launch: 0,
+  claimed: 0,
+  spent: 0,
+  balance: 0,
+  slotsLeft: 0,
+  premium: false,
+  freeUsedToday: 0,
+  freeDailyUsd: null,
+  available: false,
+};
+
 const fail = (status: number, message: string) => Response.json({ ok: false, message }, { status });
 
 export const Route = createFileRoute("/api/model")({
@@ -69,20 +91,26 @@ export const Route = createFileRoute("/api/model")({
         if (!parsed.success) return fail(400, "Malformed model request.");
 
         const premium = isPremiumModel(pass.model);
-        if (premium) {
-          let allowed = false;
+        // How this call is paid for: free (the free model within today's
+        // allowance), or charged to credit at cost times the margin.
+        let pay: "free" | "credit" = "free";
+        if (dbConfigured()) {
+          let access: Access;
           try {
-            allowed = (await accessOf(pass.owner)).premium;
+            access = await accessOf(pass.owner);
           } catch {
-            return fail(503, "Plans could not be checked just now. Try again in a moment.");
+            if (premium) {
+              return fail(503, "Plans could not be checked just now. Try again in a moment.");
+            }
+            access = { ...FREE_FALLBACK };
           }
-          if (!allowed) {
-            return fail(
-              402,
-              "Your launch credit is used up, or this account has no upgrade. Switch to Qwen, which is free, or upgrade.",
-            );
-          }
+          const charge = chargeFor(access, pass.model);
+          if ("refused" in charge) return fail(402, charge.refused);
+          pay = charge.pay;
+        } else if (premium) {
+          return fail(402, "Premium models need the database to be set up.");
         }
+        const markup = billingConfig().markup;
 
         const chosen = providerForModel(pass.model);
         if ("problem" in chosen) return fail(503, chosen.problem);
@@ -101,11 +129,16 @@ export const Route = createFileRoute("/api/model")({
         const inputTokens = tokensIn(
           JSON.stringify([parsed.data.system, parsed.data.messages, parsed.data.tools]).length,
         );
-        const row = (usage: ProviderUsage) => ({
-          cost_usd: Math.max(0, costOfUsage(usage, rates)),
-          input_tokens: usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens,
-          output_tokens: usage.outputTokens,
-        });
+        const row = (usage: ProviderUsage) => {
+          const cost = Math.max(0, costOfUsage(usage, rates));
+          return {
+            cost_usd: cost,
+            // What the account is charged: nothing on the free allowance.
+            billed_usd: pay === "credit" ? Number((cost * markup).toFixed(6)) : null,
+            input_tokens: usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens,
+            output_tokens: usage.outputTokens,
+          };
+        };
         const usageRow = {
           owner: pass.owner,
           workspace: pass.workspace.slice(0, 120),
@@ -113,13 +146,12 @@ export const Route = createFileRoute("/api/model")({
           premium,
         };
 
-        // A premium call is charged before it starts, at the most it can
-        // cost, and settled to what it did cost when it ends. Calls fired side
-        // by side each see the others' charges, and a call cut off midway
+        // A call paid from credit is charged before it starts, at the most it
+        // can cost, and settled to what it did cost when it ends. Calls fired
+        // side by side each see the others' charges, and a call cut off midway
         // keeps a charge: the provider bills it either way.
         let reserved: number | null = null;
-        if (premium) {
-          if (!dbConfigured()) return fail(503, "Premium models need the database to be set up.");
+        if (pay === "credit") {
           try {
             const held = await insertReturning<{ id: number }>("model_usage", {
               ...usageRow,
@@ -164,6 +196,15 @@ export const Route = createFileRoute("/api/model")({
             };
             const keepAlive = setInterval(() => send({ k: 1 }), 15_000);
             let streamed = 0;
+            // Reasoning is passed on by size only, gathered for half a second
+            // at a time: enough for a status line to count it as it grows.
+            let thought = 0;
+            const flushThought = setInterval(() => {
+              if (thought > 0) {
+                send({ t: thought });
+                thought = 0;
+              }
+            }, 500);
             try {
               const result = await provider.generate({
                 system: parsed.data.system,
@@ -174,6 +215,11 @@ export const Route = createFileRoute("/api/model")({
                 onDelta: (chunk) => {
                   streamed += chunk.length;
                   send({ d: chunk });
+                },
+                onThinking: (chars) => {
+                  // Billed by the provider like any output.
+                  streamed += chars;
+                  thought += chars;
                 },
               });
               await settle(result.usage);
@@ -197,6 +243,7 @@ export const Route = createFileRoute("/api/model")({
               });
             } finally {
               clearInterval(keepAlive);
+              clearInterval(flushThought);
               controller.close();
             }
           },

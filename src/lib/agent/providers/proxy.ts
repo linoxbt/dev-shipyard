@@ -90,13 +90,14 @@ export class ProxyProvider implements ModelProvider {
     let failure: string | null = null;
     const handle = (line: string) => {
       if (!line.trim()) return;
-      let frame: { d?: string; r?: ProviderResult; e?: string };
+      let frame: { d?: string; t?: number; r?: ProviderResult; e?: string };
       try {
         frame = JSON.parse(line);
       } catch {
         return;
       }
       if (typeof frame.d === "string") input.onDelta?.(frame.d);
+      if (typeof frame.t === "number" && frame.t > 0) input.onThinking?.(frame.t);
       if (frame.r) result = frame.r;
       if (typeof frame.e === "string") failure = frame.e;
     };

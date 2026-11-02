@@ -145,6 +145,36 @@ nothing is running on it.
 The full list of variables the Coding Agent needs, required and optional, is
 at the top of `.env.example`.
 
+### Payments and pricing
+
+DevStation earns from credit and Pro (see `src/lib/billing/config.server.ts`):
+
+| Plan          | What it is                                                                                                                                          |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Free          | Qwen 3.8 27B up to `FREE_DAILY_USD` of model cost a day (default $0.50), then from credit                                                           |
+| Pay as you go | Credit bought from $5; every charged call costs the model's price × `BILLING_MARKUP` (default 1.25)                                                 |
+| Pro           | `PRO_PRICE_USD` a month (default $20) with `PRO_INCLUDED_CREDIT_USD` of credit included each month and `PRO_FREE_DAILY_USD` of free-model use a day |
+
+Pro granted by hand on `/admin/stats` stays unlimited. Launch credit ($5 for
+the first 20 accounts) is unchanged.
+
+Gateways (either or both; each appears on `/credits` once its keys are set):
+
+- **Stripe** (cards, Apple Pay, Google Pay; Pro as a monthly subscription with
+  the customer portal): set `STRIPE_SECRET_KEY`, then add a webhook endpoint at
+  `https://<site>/api/payments/stripe` for `checkout.session.completed`,
+  `checkout.session.async_payment_succeeded`, `invoice.paid` and
+  `customer.subscription.deleted`, and put its signing secret in
+  `STRIPE_WEBHOOK_SECRET`. Turn on the customer portal in Stripe's settings.
+- **Paystack** (cards, bank transfer and USSD; Pro as a 30-day pass): set
+  `PAYSTACK_SECRET_KEY` and the Webhook URL `https://<site>/api/payments/paystack`
+  in the Paystack dashboard. Paystack charges in USD by default; for a local
+  currency set `PAYSTACK_CURRENCY` (e.g. `NGN`) and `PAYSTACK_USD_RATE`.
+
+Every payment is applied once (`apply_payment` in the database), whether the
+webhook or the customer's return to `/credits` confirms it first. Revenue,
+recurring revenue and the margin on usage are on `/admin/stats`.
+
 ### Runner (services/runner)
 
 The runner is a separate long-running service on its own host. Its required

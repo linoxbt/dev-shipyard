@@ -48,7 +48,8 @@ export function UpgradeSheet({
           Unlock every model
         </p>
         <p className="mt-1 max-w-xs text-[13px] leading-5 text-muted-foreground">
-          Qwen 3.8 27B is free. Claude, GPT and Gemini need Pro or launch credit.
+          Qwen 3.8 27B is free every day up to an allowance. Claude, GPT and Gemini are paid from
+          credit, or included with Pro.
         </p>
         <div className="mt-3 flex flex-wrap justify-center gap-1.5">
           {premium.slice(0, 6).map((m) => (
@@ -104,28 +105,31 @@ export function UpgradeSheet({
 
           <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4">
             <p className="flex items-center gap-2 text-[14px] font-medium text-foreground">
-              <Crown className="h-4 w-4 text-primary" /> DevStation Pro
+              <Crown className="h-4 w-4 text-primary" /> Credit and Pro
             </p>
             <p className="mt-1 text-[12.5px] leading-5 text-muted-foreground">
-              Every model, with no credit to run out.
+              Add credit from $5, paid at each model&apos;s own price, or go Pro for credit included
+              every month.
             </p>
             {access?.plan === "pro" ? (
               <p className="mt-3 flex items-center gap-1.5 text-[13px] font-medium text-success">
                 <Check className="h-4 w-4" /> You are on Pro
               </p>
-            ) : access?.proRequested ? (
-              <p className="mt-3 text-[12.5px] text-foreground">
-                Requested. We will be in touch to turn it on.
-              </p>
             ) : (
-              <button
-                onClick={() => void act("request_pro")}
-                disabled={!!busy}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-primary py-2.5 text-[13.5px] font-medium text-primary hover:bg-primary/10 disabled:opacity-50"
-              >
-                {busy === "request_pro" && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                Upgrade to Pro
-              </button>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <a
+                  href="/credits?add=1"
+                  className="flex items-center justify-center rounded-full bg-primary py-2.5 text-[13px] font-medium text-primary-foreground hover:bg-primary-hover"
+                >
+                  Add credit
+                </a>
+                <a
+                  href="/credits"
+                  className="flex items-center justify-center rounded-full border border-primary py-2.5 text-[13px] font-medium text-primary hover:bg-primary/10"
+                >
+                  See Pro
+                </a>
+              </div>
             )}
           </div>
         </div>

@@ -25,6 +25,7 @@ import { Route as ApiAccountRouteImport } from './routes/api.account'
 import { Route as ApiAgentRouteImport } from './routes/api.agent'
 import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
+import { Route as ApiBillingRouteImport } from './routes/api.billing'
 import { Route as ApiBuildRouteImport } from './routes/api.build'
 import { Route as ApiConnectorsRouteImport } from './routes/api.connectors'
 import { Route as ApiCreditsRouteImport } from './routes/api.credits'
@@ -81,6 +82,8 @@ import { Route as ApiGithubPushRouteImport } from './routes/api.github.push'
 import { Route as ApiModelHeartbeatRouteImport } from './routes/api.model.heartbeat'
 import { Route as ApiModelTurnRouteImport } from './routes/api.model.turn'
 import { Route as ApiOauthProviderRouteImport } from './routes/api.oauth.$provider'
+import { Route as ApiPaymentsPaystackRouteImport } from './routes/api.payments.paystack'
+import { Route as ApiPaymentsStripeRouteImport } from './routes/api.payments.stripe'
 import { Route as ApiStatsSharedRouteImport } from './routes/api.stats.shared'
 import { Route as DocsCliIndexRouteImport } from './routes/docs.cli.index'
 import { Route as DocsCliInstallRouteImport } from './routes/docs.cli.install'
@@ -191,6 +194,11 @@ const ApiAiRoute = ApiAiRouteImport.update({
 const ApiAppsDeployRoute = ApiAppsDeployRouteImport.update({
   id: '/api/apps-deploy',
   path: '/api/apps-deploy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBillingRoute = ApiBillingRouteImport.update({
+  id: '/api/billing',
+  path: '/api/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiBuildRoute = ApiBuildRouteImport.update({
@@ -473,6 +481,16 @@ const ApiOauthProviderRoute = ApiOauthProviderRouteImport.update({
   path: '/api/oauth/$provider',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPaymentsPaystackRoute = ApiPaymentsPaystackRouteImport.update({
+  id: '/api/payments/paystack',
+  path: '/api/payments/paystack',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPaymentsStripeRoute = ApiPaymentsStripeRouteImport.update({
+  id: '/api/payments/stripe',
+  path: '/api/payments/stripe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiStatsSharedRoute = ApiStatsSharedRouteImport.update({
   id: '/api/stats/shared',
   path: '/api/stats/shared',
@@ -656,6 +674,7 @@ export interface FileRoutesByFullPath {
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
+  '/api/billing': typeof ApiBillingRoute
   '/api/build': typeof ApiBuildRoute
   '/api/connectors': typeof ApiConnectorsRoute
   '/api/credits': typeof ApiCreditsRoute
@@ -712,6 +731,8 @@ export interface FileRoutesByFullPath {
   '/api/model/heartbeat': typeof ApiModelHeartbeatRoute
   '/api/model/turn': typeof ApiModelTurnRoute
   '/api/oauth/$provider': typeof ApiOauthProviderRouteWithChildren
+  '/api/payments/paystack': typeof ApiPaymentsPaystackRoute
+  '/api/payments/stripe': typeof ApiPaymentsStripeRoute
   '/api/stats/shared': typeof ApiStatsSharedRoute
   '/docs/cli/install': typeof DocsCliInstallRoute
   '/docs/cli/models': typeof DocsCliModelsRoute
@@ -759,6 +780,7 @@ export interface FileRoutesByTo {
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
+  '/api/billing': typeof ApiBillingRoute
   '/api/build': typeof ApiBuildRoute
   '/api/connectors': typeof ApiConnectorsRoute
   '/api/credits': typeof ApiCreditsRoute
@@ -813,6 +835,8 @@ export interface FileRoutesByTo {
   '/api/model/heartbeat': typeof ApiModelHeartbeatRoute
   '/api/model/turn': typeof ApiModelTurnRoute
   '/api/oauth/$provider': typeof ApiOauthProviderRouteWithChildren
+  '/api/payments/paystack': typeof ApiPaymentsPaystackRoute
+  '/api/payments/stripe': typeof ApiPaymentsStripeRoute
   '/api/stats/shared': typeof ApiStatsSharedRoute
   '/docs/cli/install': typeof DocsCliInstallRoute
   '/docs/cli/models': typeof DocsCliModelsRoute
@@ -863,6 +887,7 @@ export interface FileRoutesById {
   '/api/agent': typeof ApiAgentRoute
   '/api/ai': typeof ApiAiRoute
   '/api/apps-deploy': typeof ApiAppsDeployRoute
+  '/api/billing': typeof ApiBillingRoute
   '/api/build': typeof ApiBuildRoute
   '/api/connectors': typeof ApiConnectorsRoute
   '/api/credits': typeof ApiCreditsRoute
@@ -919,6 +944,8 @@ export interface FileRoutesById {
   '/api/model/heartbeat': typeof ApiModelHeartbeatRoute
   '/api/model/turn': typeof ApiModelTurnRoute
   '/api/oauth/$provider': typeof ApiOauthProviderRouteWithChildren
+  '/api/payments/paystack': typeof ApiPaymentsPaystackRoute
+  '/api/payments/stripe': typeof ApiPaymentsStripeRoute
   '/api/stats/shared': typeof ApiStatsSharedRoute
   '/docs/cli/install': typeof DocsCliInstallRoute
   '/docs/cli/models': typeof DocsCliModelsRoute
@@ -970,6 +997,7 @@ export interface FileRouteTypes {
     | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
+    | '/api/billing'
     | '/api/build'
     | '/api/connectors'
     | '/api/credits'
@@ -1026,6 +1054,8 @@ export interface FileRouteTypes {
     | '/api/model/heartbeat'
     | '/api/model/turn'
     | '/api/oauth/$provider'
+    | '/api/payments/paystack'
+    | '/api/payments/stripe'
     | '/api/stats/shared'
     | '/docs/cli/install'
     | '/docs/cli/models'
@@ -1073,6 +1103,7 @@ export interface FileRouteTypes {
     | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
+    | '/api/billing'
     | '/api/build'
     | '/api/connectors'
     | '/api/credits'
@@ -1127,6 +1158,8 @@ export interface FileRouteTypes {
     | '/api/model/heartbeat'
     | '/api/model/turn'
     | '/api/oauth/$provider'
+    | '/api/payments/paystack'
+    | '/api/payments/stripe'
     | '/api/stats/shared'
     | '/docs/cli/install'
     | '/docs/cli/models'
@@ -1176,6 +1209,7 @@ export interface FileRouteTypes {
     | '/api/agent'
     | '/api/ai'
     | '/api/apps-deploy'
+    | '/api/billing'
     | '/api/build'
     | '/api/connectors'
     | '/api/credits'
@@ -1232,6 +1266,8 @@ export interface FileRouteTypes {
     | '/api/model/heartbeat'
     | '/api/model/turn'
     | '/api/oauth/$provider'
+    | '/api/payments/paystack'
+    | '/api/payments/stripe'
     | '/api/stats/shared'
     | '/docs/cli/install'
     | '/docs/cli/models'
@@ -1282,6 +1318,7 @@ export interface RootRouteChildren {
   ApiAgentRoute: typeof ApiAgentRoute
   ApiAiRoute: typeof ApiAiRoute
   ApiAppsDeployRoute: typeof ApiAppsDeployRoute
+  ApiBillingRoute: typeof ApiBillingRoute
   ApiBuildRoute: typeof ApiBuildRoute
   ApiConnectorsRoute: typeof ApiConnectorsRoute
   ApiCreditsRoute: typeof ApiCreditsRoute
@@ -1311,6 +1348,8 @@ export interface RootRouteChildren {
   ApiAdminStatsRoute: typeof ApiAdminStatsRoute
   ApiCronSandboxesRoute: typeof ApiCronSandboxesRoute
   ApiOauthProviderRoute: typeof ApiOauthProviderRouteWithChildren
+  ApiPaymentsPaystackRoute: typeof ApiPaymentsPaystackRoute
+  ApiPaymentsStripeRoute: typeof ApiPaymentsStripeRoute
   ApiStatsSharedRoute: typeof ApiStatsSharedRoute
   LaunchkitAppsIdRoute: typeof LaunchkitAppsIdRoute
   LaunchkitTemplatesIdRoute: typeof LaunchkitTemplatesIdRoute
@@ -1432,6 +1471,13 @@ declare module '@tanstack/react-router' {
       path: '/api/apps-deploy'
       fullPath: '/api/apps-deploy'
       preLoaderRoute: typeof ApiAppsDeployRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/billing': {
+      id: '/api/billing'
+      path: '/api/billing'
+      fullPath: '/api/billing'
+      preLoaderRoute: typeof ApiBillingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/build': {
@@ -1824,6 +1870,20 @@ declare module '@tanstack/react-router' {
       path: '/api/oauth/$provider'
       fullPath: '/api/oauth/$provider'
       preLoaderRoute: typeof ApiOauthProviderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/payments/paystack': {
+      id: '/api/payments/paystack'
+      path: '/api/payments/paystack'
+      fullPath: '/api/payments/paystack'
+      preLoaderRoute: typeof ApiPaymentsPaystackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/payments/stripe': {
+      id: '/api/payments/stripe'
+      path: '/api/payments/stripe'
+      fullPath: '/api/payments/stripe'
+      preLoaderRoute: typeof ApiPaymentsStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/stats/shared': {
@@ -2241,6 +2301,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAgentRoute: ApiAgentRoute,
   ApiAiRoute: ApiAiRoute,
   ApiAppsDeployRoute: ApiAppsDeployRoute,
+  ApiBillingRoute: ApiBillingRoute,
   ApiBuildRoute: ApiBuildRoute,
   ApiConnectorsRoute: ApiConnectorsRoute,
   ApiCreditsRoute: ApiCreditsRoute,
@@ -2270,6 +2331,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminStatsRoute: ApiAdminStatsRoute,
   ApiCronSandboxesRoute: ApiCronSandboxesRoute,
   ApiOauthProviderRoute: ApiOauthProviderRouteWithChildren,
+  ApiPaymentsPaystackRoute: ApiPaymentsPaystackRoute,
+  ApiPaymentsStripeRoute: ApiPaymentsStripeRoute,
   ApiStatsSharedRoute: ApiStatsSharedRoute,
   LaunchkitAppsIdRoute: LaunchkitAppsIdRoute,
   LaunchkitTemplatesIdRoute: LaunchkitTemplatesIdRoute,

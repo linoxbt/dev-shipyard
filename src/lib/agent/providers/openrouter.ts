@@ -345,12 +345,19 @@ export class OpenRouterProvider implements ModelProvider {
         try {
           const chunk = JSON.parse(data) as {
             choices?: Array<{
-              delta?: { content?: string; tool_calls?: Array<OpenAiToolCall & { index: number }> };
+              delta?: {
+                content?: string;
+                reasoning?: string | null;
+                reasoning_content?: string | null;
+                tool_calls?: Array<OpenAiToolCall & { index: number }>;
+              };
               finish_reason?: string | null;
             }>;
             usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
           };
           const choice = chunk.choices?.[0];
+          const thought = choice?.delta?.reasoning ?? choice?.delta?.reasoning_content;
+          if (thought) input.onThinking?.(thought.length);
           const delta = choice?.delta?.content;
           if (delta) {
             text += delta;

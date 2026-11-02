@@ -304,3 +304,53 @@ describe("commands as a person reads them", () => {
     ).toBe("Ran node debug.mjs");
   });
 });
+
+describe("the status of a running turn", () => {
+  it("moves through words while the model thinks, and counts its reasoning", async () => {
+    const { liveStatus } = await import("./steps");
+    expect(liveStatus("Thinking", 0, 0)).toBe("Thinking…");
+    expect(liveStatus("Thinking", 0, 4500)).not.toBe("Thinking…");
+    expect(liveStatus("Thinking", 2400, 0)).toBe("Thinking… ↓ 2.4k tokens");
+    expect(liveStatus("", undefined, 0)).toBe("Thinking…");
+    expect(liveStatus("Writing", 0, 0)).toBe("Writing…");
+    expect(
+      liveStatus("Running cd /vercel/devstation/state/workspaces/ws-1 && npm install", 0, 0),
+    ).toBe("Running npm install…");
+  });
+});
+
+describe("the stages of a build", () => {
+  const started = (tool: string, input: Record<string, unknown>, i: number) => ({
+    kind: "step.started",
+    tool,
+    message: tool,
+    at: String(i),
+    detail: { input },
+  });
+  it("marks the furthest stage reached, with every one before it done", async () => {
+    const { buildPhases } = await import("./steps");
+    const events = [
+      started("write_file", { path: "index.html" }, 1),
+      started("run_shell", { command: "npm install" }, 2),
+    ];
+    expect(buildPhases(events, { running: true }).map((p) => p.state)).toEqual([
+      "done",
+      "done",
+      "active",
+      "pending",
+      "pending",
+    ]);
+    // A screenshot after a plain HTML page: installing and building were
+    // never needed, and count as done.
+    const shot = [started("write_file", { path: "index.html" }, 1), started("screenshot", {}, 2)];
+    expect(buildPhases(shot, { running: true }).map((p) => p.state)).toEqual([
+      "done",
+      "done",
+      "done",
+      "done",
+      "active",
+    ]);
+    expect(buildPhases([], { running: true })[0].state).toBe("active");
+    expect(buildPhases([], { building: true })[3].state).toBe("active");
+  });
+});

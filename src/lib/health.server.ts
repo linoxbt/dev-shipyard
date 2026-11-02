@@ -141,5 +141,18 @@ export async function readiness(env: NodeJS.ProcessEnv = process.env): Promise<H
       : "CRON_SECRET is not set: abandoned sandboxes are never deleted.",
   });
 
+  const payments = [
+    has("STRIPE_SECRET_KEY") && has("STRIPE_WEBHOOK_SECRET") ? "Stripe" : null,
+    has("PAYSTACK_SECRET_KEY") ? "Paystack" : null,
+  ].filter(Boolean);
+  checks.push({
+    name: "payments",
+    ok: payments.length > 0,
+    required: false,
+    detail: payments.length
+      ? `taking payments through ${payments.join(" and ")}`
+      : "no gateway set (STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET, or PAYSTACK_SECRET_KEY): credit cannot be bought.",
+  });
+
   return { ok: checks.every((c) => c.ok || !c.required), checks };
 }

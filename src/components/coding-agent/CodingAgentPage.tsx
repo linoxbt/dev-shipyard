@@ -77,7 +77,10 @@ import {
 import { downloadZip } from "@/lib/appgen/zip";
 import { filesUnder, localPreviewPlan } from "@/lib/appgen/local-preview";
 import {
+  buildPhases,
   compactTimeline,
+  elapsed,
+  liveStatus,
   pendingQuestion,
   type AgentEvent,
   type AgentQuestion,
@@ -87,6 +90,7 @@ import { ShotSource } from "@/lib/coding-agent/shots";
 import { QuestionPanel } from "@/components/coding-agent/QuestionPanel";
 import { getWorkspace, postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
 import { useAuth } from "@/hooks/useAuth";
+import { BuildStage } from "./BuildStage";
 import { startProjectSync } from "@/lib/appgen/project-sync";
 import { getPreference, setPreference } from "@/lib/consent";
 import {
@@ -164,6 +168,8 @@ interface WorkspaceView {
   updatedAt?: number;
   /** Background commands still running. */
   jobs?: number;
+  /** Tokens reasoned since the last step. */
+  thinking?: number;
   phase: "idle" | "running" | "error" | "cancelled";
   status: string;
   prompt: string;
@@ -1526,6 +1532,7 @@ export function CodingAgentPage() {
                 events={running ? (view?.events ?? []) : []}
                 reply={liveReply}
                 status={running ? (view?.status ?? "") : "Starting the workspace"}
+                thinking={running ? view?.thinking : undefined}
                 startedAt={
                   running && view?.turnStartedAt
                     ? view.turnStartedAt + clockSkew.current
@@ -1739,24 +1746,40 @@ export function CodingAgentPage() {
     </button>
   ) : null;
 
-  const previewEmpty = (
-    <div className="max-w-sm text-center">
-      {building || (localPlan.kind === "build" && !prepareNote && user) || running ? (
-        <LoaderCircle className="mx-auto h-6 w-6 animate-spin text-meta" />
-      ) : (
-        <Eye className="mx-auto h-6 w-6 text-meta" />
-      )}
-      <p className="mt-3 whitespace-pre-wrap text-[12px] leading-5 text-muted-foreground">
-        {prepareNote ??
-          (running ? "The preview appears when the agent finishes this turn." : null) ??
-          (localPlan.kind === "build" && !view?.preview.message
-            ? "Building the preview from this app's files…"
-            : null) ??
-          view?.preview.message ??
-          "Anything with a web page shows up here after the agent builds it. Contracts, APIs and scripts live in Code."}
-      </p>
-    </div>
-  );
+  const turnMs =
+    running && view?.turnStartedAt
+      ? Math.max(0, Date.now() - (view.turnStartedAt + clockSkew.current))
+      : 0;
+  const previewEmpty =
+    (running || building) && view ? (
+      <BuildStage
+        title={project?.name ?? "your app"}
+        detail={
+          running
+            ? liveStatus(view.status, view.thinking, turnMs)
+            : "Installing and building the preview…"
+        }
+        phases={buildPhases(view.events ?? [], { running, building: !!building })}
+        elapsed={running && view.turnStartedAt ? elapsed(turnMs) : undefined}
+      />
+    ) : (
+      <div className="max-w-sm text-center">
+        {building || (localPlan.kind === "build" && !prepareNote && user) || running ? (
+          <LoaderCircle className="mx-auto h-6 w-6 animate-spin text-meta" />
+        ) : (
+          <Eye className="mx-auto h-6 w-6 text-meta" />
+        )}
+        <p className="mt-3 whitespace-pre-wrap text-[12px] leading-5 text-muted-foreground">
+          {prepareNote ??
+            (running ? "The preview appears when the agent finishes this turn." : null) ??
+            (localPlan.kind === "build" && !view?.preview.message
+              ? "Building the preview from this app's files…"
+              : null) ??
+            view?.preview.message ??
+            "Anything with a web page shows up here after the agent builds it. Contracts, APIs and scripts live in Code."}
+        </p>
+      </div>
+    );
 
   const workbench = (
     <div className="relative flex h-full min-h-0 flex-col">

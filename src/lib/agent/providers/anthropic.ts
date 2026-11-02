@@ -180,6 +180,9 @@ export class AnthropicProvider implements ModelProvider {
     );
 
     if (input.onDelta) stream.on("text", (chunk: string) => input.onDelta?.(chunk));
+    if (input.onThinking) {
+      stream.on("thinking", (chunk: string) => input.onThinking?.(chunk.length));
+    }
 
     const message = await stream.finalMessage();
 

@@ -84,6 +84,9 @@ export interface GenerateInput {
   /** Prose as it arrives, so the UI reads as the model thinks rather than
    *  sitting on a spinner. */
   onDelta?: (chunk: string) => void;
+  /** Reasoning as it streams, by size only (characters): what a status line
+   *  shows while a model thinks before it writes or acts. */
+  onThinking?: (chars: number) => void;
   maxTokens?: number;
 }
 

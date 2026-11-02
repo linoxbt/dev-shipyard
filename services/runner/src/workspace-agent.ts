@@ -119,6 +119,8 @@ export interface WorkspaceSession {
   turnStartedAt?: number;
   /** Background commands still running (a dev server the agent started). */
   jobs?: number;
+  /** Tokens the model has reasoned since its last step, for the status line. */
+  thinking?: number;
   updatedAt: number;
   phase: WorkspacePhase;
   status: string;
@@ -946,6 +948,8 @@ async function runTurn(
   let proxy: ProxyProvider | null = null;
   /** Spend so far this turn, from the usage events. */
   let spentSoFar = 0;
+  /** Reasoning since the last step, for the status line's count. */
+  let thinkingChars = 0;
   let lastWrite = 0;
   const touch = (patch: Partial<WorkspaceSession>, force = false) => {
     Object.assign(session, patch, { updatedAt: Date.now() });
@@ -1100,7 +1104,14 @@ async function runTurn(
         ...Object.values(connectorEnv(opts.env)),
         ...(opts.proxy ? [opts.proxy.token] : []),
       ],
-      onDelta: (chunk) => touch({ reply: session.reply + chunk }),
+      // What the status line says follows what is happening: the model's
+      // reasoning (with how far it has got), its words as they stream, the
+      // step it is running, and back to thinking when a step ends.
+      onDelta: (chunk) => touch({ reply: session.reply + chunk, status: "Writing", thinking: 0 }),
+      onThinking: (chars) => {
+        thinkingChars += chars;
+        touch({ status: "Thinking", thinking: Math.round(thinkingChars / 4) });
+      },
       onEvent: (event) => {
         session.events.push(event);
         if (session.events.length > MAX_EVENTS) {
@@ -1109,7 +1120,14 @@ async function runTurn(
         if (event.kind === "usage" && typeof event.detail?.costUsd === "number") {
           spentSoFar = event.detail.costUsd;
         }
-        if (event.kind !== "usage") touch({ status: event.message.slice(0, 200) });
+        if (event.kind === "step.started") thinkingChars = 0;
+        if (event.kind === "step.completed" || event.kind === "step.failed") {
+          // The step is over: the model is reading its result and deciding.
+          thinkingChars = 0;
+          touch({ status: "Thinking", thinking: 0 });
+        } else if (event.kind !== "usage" && event.kind !== "narration") {
+          touch({ status: event.message.slice(0, 200), thinking: 0 });
+        }
         if (
           event.tool === "run_shell" ||
           event.tool === "stop_shell" ||
