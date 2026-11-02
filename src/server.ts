@@ -4,6 +4,7 @@ import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { refusal, requestProblem, withSecurityHeaders } from "./lib/http-guard.server";
 import { apiServedInAgentOnly } from "./lib/features";
+import { siteResponse } from "./lib/hosting/serve.server";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -41,6 +42,10 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    // A published app (<slug>.devstation.online, or a domain of its own) is
+    // served as it is: none of DevStation's own headers or routes apply.
+    const site = await siteResponse(request).catch(() => null);
+    if (site) return site;
     const problem = requestProblem(request);
     if (problem) return withSecurityHeaders(refusal(problem));
     if (!apiServedInAgentOnly(new URL(request.url).pathname)) {

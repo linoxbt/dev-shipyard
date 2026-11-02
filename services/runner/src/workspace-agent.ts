@@ -595,6 +595,8 @@ export interface SendOptions {
   proxy?: ProxyTarget;
   /** The account that sent the message. */
   by?: string;
+  /** Accounts the person connected that this turn may not use (names). */
+  withheld?: string[];
 }
 
 export function sendWorkspaceMessage(
@@ -854,9 +856,40 @@ export function connectorEnv(env: Record<string, string> | undefined): Record<st
 }
 
 /** Tell the agent which accounts it may act as, and how. */
-export function connectorsNote(env: Record<string, string> | undefined): string {
+/** Which provider each connector variable belongs to. */
+const VAR_PROVIDER: Record<string, string> = {
+  GH_TOKEN: "GitHub",
+  GITHUB_TOKEN: "GitHub",
+  VERCEL_TOKEN: "Vercel",
+  VERCEL_TEAM_ID: "Vercel",
+  NETLIFY_AUTH_TOKEN: "Netlify",
+  RAILWAY_API_TOKEN: "Railway",
+  SUPABASE_ACCESS_TOKEN: "Supabase",
+};
+
+/** The providers a set of connector variables stands for, once each. */
+export function providersOf(env: Record<string, string> | undefined): string[] {
+  return [
+    ...new Set(
+      Object.keys(connectorEnv(env))
+        .map((k) => VAR_PROVIDER[k])
+        .filter(Boolean),
+    ),
+  ];
+}
+
+export function connectorsNote(
+  env: Record<string, string> | undefined,
+  withheld: string[] = [],
+): string {
   const set = Object.keys(connectorEnv(env));
-  if (set.length === 0) return "";
+  if (set.length === 0) {
+    const names = [...new Set(withheld)].filter((n) => /^[A-Za-z ]{2,20}$/.test(n));
+    if (names.length === 0) return "";
+    return `
+
+The person has connected ${names.join(", ")} to their DevStation account, but those accounts are not available in this project: it is shared with other builders (or was sent by someone other than its owner), and an account's access is never handed to a machine others can work in. So there are no tokens for them in your environment. If the work needs one, say exactly that: the owner can use it from a project of their own, or remove the other builders from this one. Do not say the accounts are not connected.`;
+  }
   const lines = set.filter((k) => k !== "GITHUB_TOKEN").map((k) => `- ${CONNECTOR_VARS[k]}`);
   return `
 
@@ -1083,7 +1116,7 @@ async function runTurn(
       systemAddendum:
         sandboxNote +
         WORKSPACE_ADDENDUM +
-        connectorsNote(opts.env) +
+        connectorsNote(opts.env, opts.withheld) +
         repoNote +
         context +
         (opts.plan ? PLAN_MODE_ADDENDUM : ""),
@@ -1341,7 +1374,11 @@ export function workspaceShot(id: string, name: string): string | null {
  *  caps a response at 4.5 MB, and the text of the app comes first. */
 const MAX_ASSET_RESPONSE = 3_000_000;
 
-export function previewAssets(id: string): Record<string, string> {
+/** For publishing: every asset, up to this much (a site is not a response
+ *  to a browser, so the 4.5 MB limit does not apply). */
+export const MAX_ASSETS_PUBLISH = 60_000_000;
+
+export function previewAssets(id: string, max = MAX_ASSET_RESPONSE): Record<string, string> {
   const s = sessions.get(id);
   if (!s) return {};
   const all = readJson<Record<string, string>>(previewAssetsFile(s)) ?? {};
@@ -1349,7 +1386,7 @@ export function previewAssets(id: string): Record<string, string> {
   let size = 0;
   // Smallest first, so one huge video does not crowd out every icon.
   for (const [path, data] of Object.entries(all).sort((a, b) => a[1].length - b[1].length)) {
-    if (size + data.length > MAX_ASSET_RESPONSE) continue;
+    if (size + data.length > max) continue;
     size += data.length;
     out[path] = data;
   }

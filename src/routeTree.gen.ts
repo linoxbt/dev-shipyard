@@ -10,15 +10,19 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as ConnectionsRouteImport } from './routes/connections'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as CreditsRouteImport } from './routes/credits'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as ExplorerRouteImport } from './routes/explorer'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as OverviewRouteImport } from './routes/overview'
+import { Route as PublishRouteImport } from './routes/publish'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as UpdatesRouteImport } from './routes/updates'
 import { Route as AdminStatsRouteImport } from './routes/admin.stats'
 import { Route as ApiAccessRouteImport } from './routes/api.access'
 import { Route as ApiAccountRouteImport } from './routes/api.account'
@@ -39,6 +43,7 @@ import { Route as ApiPlanRouteImport } from './routes/api.plan'
 import { Route as ApiProjectsRouteImport } from './routes/api.projects'
 import { Route as ApiPublishRouteImport } from './routes/api.publish'
 import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
+import { Route as ApiSitesRouteImport } from './routes/api.sites'
 import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
 import { Route as ApiWorkspaceRouteImport } from './routes/api.workspace'
 import { Route as DevAddressRouteImport } from './routes/dev.$address'
@@ -121,6 +126,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ActivityRoute = ActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
@@ -129,6 +139,11 @@ const ActivityRoute = ActivityRouteImport.update({
 const AnalyticsRoute = AnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnectionsRoute = ConnectionsRouteImport.update({
+  id: '/connections',
+  path: '/connections',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CookiesRoute = CookiesRouteImport.update({
@@ -161,9 +176,19 @@ const OverviewRoute = OverviewRouteImport.update({
   path: '/overview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PublishRoute = PublishRouteImport.update({
+  id: '/publish',
+  path: '/publish',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UpdatesRoute = UpdatesRouteImport.update({
+  id: '/updates',
+  path: '/updates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminStatsRoute = AdminStatsRouteImport.update({
@@ -264,6 +289,11 @@ const ApiPublishRoute = ApiPublishRouteImport.update({
 const ApiRepoAgentRoute = ApiRepoAgentRouteImport.update({
   id: '/api/repo-agent',
   path: '/api/repo-agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSitesRoute = ApiSitesRouteImport.update({
+  id: '/api/sites',
+  path: '/api/sites',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSponsorTopupRoute = ApiSponsorTopupRouteImport.update({
@@ -659,15 +689,19 @@ const ExplorerNetworkTxHashRoute = ExplorerNetworkTxHashRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/activity': typeof ActivityRoute
   '/analytics': typeof AnalyticsRoute
+  '/connections': typeof ConnectionsRoute
   '/cookies': typeof CookiesRoute
   '/credits': typeof CreditsRoute
   '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRouteWithChildren
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
+  '/publish': typeof PublishRoute
   '/settings': typeof SettingsRoute
+  '/updates': typeof UpdatesRoute
   '/admin/stats': typeof AdminStatsRoute
   '/api/access': typeof ApiAccessRouteWithChildren
   '/api/account': typeof ApiAccountRoute
@@ -688,6 +722,7 @@ export interface FileRoutesByFullPath {
   '/api/projects': typeof ApiProjectsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
+  '/api/sites': typeof ApiSitesRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/api/workspace': typeof ApiWorkspaceRoute
   '/dev/$address': typeof DevAddressRoute
@@ -767,13 +802,17 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/activity': typeof ActivityRoute
   '/analytics': typeof AnalyticsRoute
+  '/connections': typeof ConnectionsRoute
   '/cookies': typeof CookiesRoute
   '/credits': typeof CreditsRoute
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
+  '/publish': typeof PublishRoute
   '/settings': typeof SettingsRoute
+  '/updates': typeof UpdatesRoute
   '/admin/stats': typeof AdminStatsRoute
   '/api/access': typeof ApiAccessRouteWithChildren
   '/api/account': typeof ApiAccountRoute
@@ -794,6 +833,7 @@ export interface FileRoutesByTo {
   '/api/projects': typeof ApiProjectsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
+  '/api/sites': typeof ApiSitesRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/api/workspace': typeof ApiWorkspaceRoute
   '/dev/$address': typeof DevAddressRoute
@@ -872,15 +912,19 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/activity': typeof ActivityRoute
   '/analytics': typeof AnalyticsRoute
+  '/connections': typeof ConnectionsRoute
   '/cookies': typeof CookiesRoute
   '/credits': typeof CreditsRoute
   '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRouteWithChildren
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
+  '/publish': typeof PublishRoute
   '/settings': typeof SettingsRoute
+  '/updates': typeof UpdatesRoute
   '/admin/stats': typeof AdminStatsRoute
   '/api/access': typeof ApiAccessRouteWithChildren
   '/api/account': typeof ApiAccountRoute
@@ -901,6 +945,7 @@ export interface FileRoutesById {
   '/api/projects': typeof ApiProjectsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
+  '/api/sites': typeof ApiSitesRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/api/workspace': typeof ApiWorkspaceRoute
   '/dev/$address': typeof DevAddressRoute
@@ -982,15 +1027,19 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/activity'
     | '/analytics'
+    | '/connections'
     | '/cookies'
     | '/credits'
     | '/docs'
     | '/explorer'
     | '/leaderboard'
     | '/overview'
+    | '/publish'
     | '/settings'
+    | '/updates'
     | '/admin/stats'
     | '/api/access'
     | '/api/account'
@@ -1011,6 +1060,7 @@ export interface FileRouteTypes {
     | '/api/projects'
     | '/api/publish'
     | '/api/repo-agent'
+    | '/api/sites'
     | '/api/sponsor-topup'
     | '/api/workspace'
     | '/dev/$address'
@@ -1090,13 +1140,17 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/activity'
     | '/analytics'
+    | '/connections'
     | '/cookies'
     | '/credits'
     | '/leaderboard'
     | '/overview'
+    | '/publish'
     | '/settings'
+    | '/updates'
     | '/admin/stats'
     | '/api/access'
     | '/api/account'
@@ -1117,6 +1171,7 @@ export interface FileRouteTypes {
     | '/api/projects'
     | '/api/publish'
     | '/api/repo-agent'
+    | '/api/sites'
     | '/api/sponsor-topup'
     | '/api/workspace'
     | '/dev/$address'
@@ -1194,15 +1249,19 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/account'
     | '/activity'
     | '/analytics'
+    | '/connections'
     | '/cookies'
     | '/credits'
     | '/docs'
     | '/explorer'
     | '/leaderboard'
     | '/overview'
+    | '/publish'
     | '/settings'
+    | '/updates'
     | '/admin/stats'
     | '/api/access'
     | '/api/account'
@@ -1223,6 +1282,7 @@ export interface FileRouteTypes {
     | '/api/projects'
     | '/api/publish'
     | '/api/repo-agent'
+    | '/api/sites'
     | '/api/sponsor-topup'
     | '/api/workspace'
     | '/dev/$address'
@@ -1303,15 +1363,19 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
   ActivityRoute: typeof ActivityRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  ConnectionsRoute: typeof ConnectionsRoute
   CookiesRoute: typeof CookiesRoute
   CreditsRoute: typeof CreditsRoute
   DocsRoute: typeof DocsRouteWithChildren
   ExplorerRoute: typeof ExplorerRouteWithChildren
   LeaderboardRoute: typeof LeaderboardRoute
   OverviewRoute: typeof OverviewRoute
+  PublishRoute: typeof PublishRoute
   SettingsRoute: typeof SettingsRoute
+  UpdatesRoute: typeof UpdatesRoute
   AdminStatsRoute: typeof AdminStatsRoute
   ApiAccessRoute: typeof ApiAccessRouteWithChildren
   ApiAccountRoute: typeof ApiAccountRoute
@@ -1332,6 +1396,7 @@ export interface RootRouteChildren {
   ApiProjectsRoute: typeof ApiProjectsRoute
   ApiPublishRoute: typeof ApiPublishRoute
   ApiRepoAgentRoute: typeof ApiRepoAgentRoute
+  ApiSitesRoute: typeof ApiSitesRoute
   ApiSponsorTopupRoute: typeof ApiSponsorTopupRoute
   ApiWorkspaceRoute: typeof ApiWorkspaceRoute
   DevAddressRoute: typeof DevAddressRoute
@@ -1368,6 +1433,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/activity': {
       id: '/activity'
       path: '/activity'
@@ -1380,6 +1452,13 @@ declare module '@tanstack/react-router' {
       path: '/analytics'
       fullPath: '/analytics'
       preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connections': {
+      id: '/connections'
+      path: '/connections'
+      fullPath: '/connections'
+      preLoaderRoute: typeof ConnectionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cookies': {
@@ -1424,11 +1503,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OverviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/publish': {
+      id: '/publish'
+      path: '/publish'
+      fullPath: '/publish'
+      preLoaderRoute: typeof PublishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/updates': {
+      id: '/updates'
+      path: '/updates'
+      fullPath: '/updates'
+      preLoaderRoute: typeof UpdatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/stats': {
@@ -1569,6 +1662,13 @@ declare module '@tanstack/react-router' {
       path: '/api/repo-agent'
       fullPath: '/api/repo-agent'
       preLoaderRoute: typeof ApiRepoAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sites': {
+      id: '/api/sites'
+      path: '/api/sites'
+      fullPath: '/api/sites'
+      preLoaderRoute: typeof ApiSitesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/sponsor-topup': {
@@ -2286,15 +2386,19 @@ const ApiOauthProviderRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
   ActivityRoute: ActivityRoute,
   AnalyticsRoute: AnalyticsRoute,
+  ConnectionsRoute: ConnectionsRoute,
   CookiesRoute: CookiesRoute,
   CreditsRoute: CreditsRoute,
   DocsRoute: DocsRouteWithChildren,
   ExplorerRoute: ExplorerRouteWithChildren,
   LeaderboardRoute: LeaderboardRoute,
   OverviewRoute: OverviewRoute,
+  PublishRoute: PublishRoute,
   SettingsRoute: SettingsRoute,
+  UpdatesRoute: UpdatesRoute,
   AdminStatsRoute: AdminStatsRoute,
   ApiAccessRoute: ApiAccessRouteWithChildren,
   ApiAccountRoute: ApiAccountRoute,
@@ -2315,6 +2419,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiProjectsRoute: ApiProjectsRoute,
   ApiPublishRoute: ApiPublishRoute,
   ApiRepoAgentRoute: ApiRepoAgentRoute,
+  ApiSitesRoute: ApiSitesRoute,
   ApiSponsorTopupRoute: ApiSponsorTopupRoute,
   ApiWorkspaceRoute: ApiWorkspaceRoute,
   DevAddressRoute: DevAddressRoute,

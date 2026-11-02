@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   Box,
@@ -28,8 +29,6 @@ import { Composer, ToolChip } from "@/components/coding-agent/Composer";
 import { BuildersDialog, GithubDialog } from "@/components/coding-agent/dialogs";
 import { AppDrawer } from "@/components/coding-agent/AppDrawer";
 import { AuthSheet } from "@/components/coding-agent/AuthSheet";
-import { ConnectorsSheet } from "@/components/coding-agent/ConnectorsSheet";
-import { UpgradeSheet } from "@/components/coding-agent/UpgradeSheet";
 import { templateFiles, type AppTemplate } from "@/lib/coding-agent/app-templates";
 import {
   connectError,
@@ -57,7 +56,7 @@ import {
   inputClass,
   primaryButton,
 } from "@/components/coding-agent/primitives";
-import { AccountSheet, NewsSheet, ProjectSheet } from "@/components/coding-agent/sheets";
+import { ProjectSheet } from "@/components/coding-agent/sheets";
 import { PreviewPane } from "@/components/coding-agent/PreviewPane";
 import {
   BackToChatButton,
@@ -69,7 +68,6 @@ import {
 import { AssistantMessage, LiveTurn, UserMessage } from "@/components/coding-agent/Transcript";
 import {
   nameFromPrompt,
-  onProjectsWriteError,
   useProjects,
   type AppProject,
   type ProjectTurn,
@@ -91,6 +89,7 @@ import { QuestionPanel } from "@/components/coding-agent/QuestionPanel";
 import { getWorkspace, postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
 import { useAuth } from "@/hooks/useAuth";
 import { BuildStage } from "./BuildStage";
+import { pageHref } from "./PageShell";
 import { startProjectSync } from "@/lib/appgen/project-sync";
 import { getPreference, setPreference } from "@/lib/consent";
 import {
@@ -390,6 +389,10 @@ export function CodingAgentPage() {
   // Follow new output only while the reader is at the bottom: scrolling up to
   // read an earlier step should not be yanked back down by the next one.
   const stickToBottom = useRef(true);
+  // The account's own pages (account, connected accounts, credits, updates)
+  // open as pages, with a way back to exactly here.
+  const navigate = useNavigate();
+  const goTo = useCallback((path: string) => void navigate({ href: pageHref(path) }), [navigate]);
   const previewSeen = useRef<string>("");
 
   useEffect(() => {
@@ -420,18 +423,17 @@ export function CodingAgentPage() {
   }, [account]);
 
   useEffect(() => {
-    useProjects.getState().hydrate();
     // The open project is the one in the address (?project=<id>), the way an
     // app builder keeps a link per project: refreshing stays where you are,
-    // and the bare address is always the home screen.
-    useProjects.setState({ activeId: projectInAddress() });
-    onProjectsWriteError((message) => toast.error(message));
+    // and the bare address is always the home screen. Read once this
+    // browser's copy of the projects has loaded.
+    void useProjects
+      .getState()
+      .hydrate()
+      .then(() => useProjects.setState({ activeId: projectInAddress() }));
     const onBack = () => useProjects.setState({ activeId: projectInAddress() });
     window.addEventListener("popstate", onBack);
-    return () => {
-      onProjectsWriteError(null);
-      window.removeEventListener("popstate", onBack);
-    };
+    return () => window.removeEventListener("popstate", onBack);
   }, []);
 
   // Keep the address in step with the open project, as a history entry, so
@@ -454,6 +456,23 @@ export function CodingAgentPage() {
 
   // Opened from a builder invite: ?join=<workspace>&name=<app>. Waits for a
   // sign-in, because joining is checked against the account the owner added.
+  // Back from the publish page's "Ask the agent": deploy to the person's own
+  // hosting, once the project is open.
+  const deployAsked = useRef(false);
+  useEffect(() => {
+    if (deployAsked.current || !project || !user) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("deploy") !== "own") return;
+    deployAsked.current = true;
+    params.delete("deploy");
+    const qs = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+    void deployToOwnHosting();
+    // deployToOwnHosting is recreated each render; the project and the
+    // account decide when this runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id, user]);
+
   // Back from connecting an account (api/oauth): say how it went, show the
   // connections, and take the outcome out of the address.
   useEffect(() => {
@@ -470,7 +489,6 @@ export function CodingAgentPage() {
     } else {
       toast.error(connectError(failed!, provider));
     }
-    setSheet("connectors");
   }, []);
 
   useEffect(() => {
@@ -484,8 +502,8 @@ export function CodingAgentPage() {
     const qs = params.toString();
     window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
     void (async () => {
+      await useProjects.getState().hydrate();
       const store = useProjects.getState();
-      store.hydrate();
       const existing = store.projects.find((p) => p.workspaceId === join);
       if (existing) return store.open(existing.id);
       const result = await postWorkspace({ action: "join", id: join });
@@ -907,7 +925,7 @@ export function CodingAgentPage() {
         return false;
       }
       if (isPremiumModel(model) && access && !access.premium) {
-        setSheet("upgrade");
+        goTo("/credits");
         return false;
       }
       const turnMode = modeOverride ?? mode;
@@ -998,7 +1016,7 @@ export function CodingAgentPage() {
 
         if (!result.ok && result.data.reason === "upgrade_required") {
           toast.error(String(result.data.message));
-          setSheet("upgrade");
+          goTo("/credits");
         }
         const latest = now();
         if (!latest) return false;
@@ -1067,10 +1085,18 @@ export function CodingAgentPage() {
     [dist, files, localPlan],
   );
 
-  // Publishing goes to the person's own hosting, connected in Connected
-  // accounts: the agent builds, deploys with that account, checks the live
-  // address with a screenshot and reports it.
-  const openPublish = async () => {
+  // Publish opens the publish page: DevStation hosting (<name>.devstation.online,
+  // with a domain of one's own), or the agent deploying to the person's own
+  // hosting (deployToOwnHosting, "Ask the agent" there).
+  const openPublish = () => {
+    if (!project) return;
+    goTo(`/publish?project=${encodeURIComponent(project.id)}`);
+  };
+
+  // The person's own hosting, connected in Connected accounts: the agent
+  // builds, deploys with that account, checks the live address with a
+  // screenshot and reports it.
+  const deployToOwnHosting = async () => {
     if (!project) return;
     if (!user) return toast.error("Sign in with your email to publish.");
     const { connected } = await fetchConnectors();
@@ -1079,7 +1105,7 @@ export function CodingAgentPage() {
     );
     if (!host) {
       toast.message("Connect Vercel or Netlify, then press Publish again.");
-      setSheet("connectors");
+      goTo("/connections");
       return;
     }
     void send(
@@ -1097,7 +1123,7 @@ export function CodingAgentPage() {
         ? "GitHub needs connecting again."
         : "Connect GitHub first, then push or open a pull request.",
     );
-    setSheet("connectors");
+    goTo("/connections");
     return false;
   };
 
@@ -1163,7 +1189,7 @@ export function CodingAgentPage() {
     .reduce((m, p) => Math.max(m, p.updatedAt), 0);
   const newsDot = latestUpdate > newsSeen;
   const openNews = () => {
-    setSheet("news");
+    goTo("/updates");
     setNewsSeen(Date.now());
     setPreference(NEWS_SEEN_KEY, String(Date.now()));
   };
@@ -1181,40 +1207,12 @@ export function CodingAgentPage() {
             newProject();
             setHomeTab("templates");
           }}
-          onAccount={() => setSheet("account")}
+          onAccount={() => goTo("/account")}
           onNews={openNews}
           newsDot={newsDot}
           onClose={() => setSheet(null)}
         />
       )}
-      {sheet === "account" && (
-        <AccountSheet
-          projects={projects}
-          onSignIn={() => setSheet("auth")}
-          onEditName={() => setSheet("name")}
-          onClose={() => setSheet(null)}
-          plan={
-            access?.plan === "pro"
-              ? "Pro"
-              : access && access.claimed > 0
-                ? `$${access.balance.toFixed(2)} credit`
-                : "Free"
-          }
-          onUpgrade={() => setSheet("upgrade")}
-          onConnectors={() => setSheet("connectors")}
-          admin={access?.admin}
-        />
-      )}
-      {sheet === "upgrade" && (
-        <UpgradeSheet
-          access={access}
-          signedIn={!!user}
-          onSignIn={() => setSheet("auth")}
-          onChange={setAccess}
-          onClose={() => setSheet(null)}
-        />
-      )}
-      {sheet === "connectors" && <ConnectorsSheet onClose={() => setSheet(null)} />}
       {sheet === "auth" && (
         // Signing in may already have opened the welcome sheet: leave it open.
         <AuthSheet onClose={() => setSheet((s) => (s === "auth" ? null : s))} />
@@ -1227,14 +1225,11 @@ export function CodingAgentPage() {
           onChange={setModel}
           onClose={() => setSheet(null)}
           unlocked={!!access?.premium}
-          onUpgrade={() => setSheet("upgrade")}
+          onUpgrade={() => goTo("/credits")}
         />
       )}
       {sheet === "mode" && (
         <ModeSheet value={mode} onChange={setMode} onClose={() => setSheet(null)} />
-      )}
-      {sheet === "news" && (
-        <NewsSheet projects={projects} onOpen={openProject} onClose={() => setSheet(null)} />
       )}
     </>
   );
@@ -1304,7 +1299,7 @@ export function CodingAgentPage() {
           onTemplate={openTemplate}
           onMenu={() => setSheet("drawer")}
           onNews={openNews}
-          onAccount={() => setSheet("account")}
+          onAccount={() => goTo("/account")}
           onSignIn={() => setSheet("auth")}
           newsDot={newsDot}
           composer={

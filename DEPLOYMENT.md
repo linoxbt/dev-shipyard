@@ -175,6 +175,29 @@ Every payment is applied once (`apply_payment` in the database), whether the
 webhook or the customer's return to `/credits` confirms it first. Revenue,
 recurring revenue and the margin on usage are on `/admin/stats`.
 
+### Hosting: apps at `<name>.devstation.online`
+
+Publishing (the Publish button, then `/publish`) uploads a project's build to
+the public `sites` storage bucket and serves it at `<name>.devstation.online`;
+a person can add a domain of their own. The server answers for a site before
+anything else (`src/lib/hosting`), and a post-build step
+(`scripts/vercel-site-routes.ts`) sends `*.devstation.online` to the server
+ahead of this app's static files.
+
+Set up once:
+
+1. **DNS** at the host of `devstation.online` (today NS1 / Netlify DNS): add a
+   wildcard record `*` of type `CNAME` with the value `cname.vercel-dns.com`.
+   `roots` and the apex keep their own records.
+2. **Vercel**: `VERCEL_API_TOKEN` (a token from Account Settings, Tokens) on
+   this project. `VERCEL_PROJECT_ID` and `VERCEL_TEAM_ID` are already set. Each
+   site's subdomain is then added to the project on its first publish and gets
+   its own certificate; people's own domains are added the same way, with the
+   records to create shown to them on `/publish`.
+
+Without the token, sites still publish, but a subdomain is reachable only
+once it is added to the project by hand.
+
 ### Runner (services/runner)
 
 The runner is a separate long-running service on its own host. Its required

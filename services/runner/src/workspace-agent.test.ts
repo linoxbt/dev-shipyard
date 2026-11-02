@@ -516,3 +516,19 @@ describe("what the agent may do with nobody to ask", () => {
     expect(personApproves(mainnet, "deploy my token to mainnet")).toBe(true);
   });
 });
+
+describe("connected accounts the agent may not use", () => {
+  it("are still named, with the reason, so the agent never says they are not connected", async () => {
+    const { connectorsNote, providersOf } = await import("./workspace-agent");
+    expect(providersOf({ GH_TOKEN: "g", GITHUB_TOKEN: "g", NETLIFY_AUTH_TOKEN: "n" })).toEqual([
+      "GitHub",
+      "Netlify",
+    ]);
+    const note = connectorsNote(undefined, ["Netlify", "GitHub"]);
+    expect(note).toContain("Netlify, GitHub");
+    expect(note).toContain("Do not say the accounts are not connected");
+    expect(connectorsNote(undefined, [])).toBe("");
+    // With the tokens, the usual note: how to use them.
+    expect(connectorsNote({ NETLIFY_AUTH_TOKEN: "n" })).toContain("netlify-cli");
+  });
+});

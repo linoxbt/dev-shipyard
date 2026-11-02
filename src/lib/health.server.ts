@@ -154,5 +154,15 @@ export async function readiness(env: NodeJS.ProcessEnv = process.env): Promise<H
       : "no gateway set (STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET, or PAYSTACK_SECRET_KEY): credit cannot be bought.",
   });
 
+  checks.push({
+    name: "hosting",
+    ok: has("VERCEL_API_TOKEN") && has("VERCEL_PROJECT_ID"),
+    required: false,
+    detail:
+      has("VERCEL_API_TOKEN") && has("VERCEL_PROJECT_ID")
+        ? "published apps get their subdomain and custom domains automatically"
+        : "VERCEL_API_TOKEN or VERCEL_PROJECT_ID is not set: sites publish, but their subdomains and custom domains are not added to the project.",
+  });
+
   return { ok: checks.every((c) => c.ok || !c.required), checks };
 }

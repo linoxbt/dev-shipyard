@@ -218,6 +218,10 @@ function RootComponent() {
     pathname === "/cookies" ||
     pathname === "/admin/stats" ||
     pathname === "/credits" ||
+    pathname === "/account" ||
+    pathname === "/connections" ||
+    pathname === "/updates" ||
+    pathname === "/publish" ||
     pathname.startsWith("/stats/shared/");
 
   // Re-apply the persisted theme on mount (covers client navigation / hydration).

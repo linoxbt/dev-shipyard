@@ -220,20 +220,19 @@ const NEWS: { title: string; body: string; date: string; href: string; tint: str
   },
 ];
 
-export function NewsSheet({
+/** Your projects' latest work and what is new on DevStation (the updates page). */
+export function UpdatesBody({
   projects,
   onOpen,
-  onClose,
 }: {
   projects: AppProject[];
   onOpen: (id: string) => void;
-  onClose: () => void;
 }) {
   const [tab, setTab] = useState<"updates" | "news">(projects.length ? "updates" : "news");
-  const recent = [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 12);
+  const recent = [...projects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 30);
   return (
-    <Modal onClose={onClose} wide>
-      <div className="flex justify-center">
+    <div>
+      <div className="flex">
         <Segmented
           value={tab}
           onChange={setTab}
@@ -254,13 +253,7 @@ export function NewsSheet({
               const last = [...p.turns].reverse().find((t) => t.role === "assistant");
               return (
                 <li key={p.id}>
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onOpen(p.id);
-                    }}
-                    className="w-full py-3 text-left"
-                  >
+                  <button onClick={() => onOpen(p.id)} className="w-full py-3.5 text-left">
                     <span className="flex items-baseline justify-between gap-3">
                       <span className="truncate text-[14px] font-medium text-foreground">
                         {p.name}
@@ -304,7 +297,7 @@ export function NewsSheet({
           ))}
         </div>
       )}
-    </Modal>
+    </div>
   );
 }
 

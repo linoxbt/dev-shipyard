@@ -6,10 +6,11 @@ import {
   type TurnBody,
 } from "@/lib/orchestrator/sandbox.server";
 import { modelProblem } from "@/lib/db/access.server";
-import { connectorEnvFor } from "@/lib/db/connectors.server";
+import { connectorEnvFor, listConnectors } from "@/lib/db/connectors.server";
 import { mintTurnPass } from "@/lib/db/turn-token.server";
 import { recordTurn } from "@/lib/db/turns.server";
-import { bumpMetric } from "@/lib/db/admin.server";
+import { bumpMetric, dbConfigured, select } from "@/lib/db/admin.server";
+import { publishSite, siteUrl } from "@/lib/hosting/sites.server";
 import { isControlPath, looksLikeSecret } from "@/lib/agent/workspace";
 import { AUTO_MODEL, MODEL_IDS } from "@/lib/coding-agent/models";
 import { accountAddress } from "@/lib/auth/account.server";
@@ -28,6 +29,7 @@ import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 import {
   CLAIM_COOKIE,
   claimCookieHeader,
+  holdsClaim,
   openClaims,
   ownerOf,
   readCookie,
@@ -98,13 +100,13 @@ function runnerConfig() {
 async function runner(
   request: Request,
   path: string,
-  init: RequestInit & { owner?: string; turn?: TurnBody } = {},
+  init: RequestInit & { owner?: string; turn?: TurnBody; claimed?: boolean } = {},
 ): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
   if (!sandboxHostEnabled()) {
     // The separate runner is this site's own server, not a machine an agent
     // runs in, so its record of owners and builders is trusted: it passes
     // connected accounts on only to the owner's turns (services/runner).
-    const { turn, ...rest } = init;
+    const { turn, claimed: _claimed, ...rest } = init;
     return httpRunner(
       request,
       path,
@@ -225,6 +227,12 @@ const bodySchema = z.discriminatedUnion("action", [
     .refine((v) => !!v.email !== !!v.wallet, "Give an email or an id."),
   z.object({ action: z.literal("preview"), id: z.string().min(1).max(80) }),
   z.object({
+    action: z.literal("publish_site"),
+    id: z.string().min(1).max(80),
+    slug: z.string().trim().toLowerCase().min(3).max(40),
+    name: z.string().trim().max(120).default(""),
+  }),
+  z.object({
     action: z.literal("pull_request"),
     id: z.string().min(1).max(80),
     repo: z.string().min(1).max(200),
@@ -265,9 +273,31 @@ function turnBody(
         url: `${new URL(request.url).origin}/api/model`,
         token: mintTurnPass({ owner: payer || sender, workspace, model }),
       },
-      ...(withAccounts ? { env: await turnEnv(sender) } : {}),
+      ...(withAccounts
+        ? { env: await turnEnv(sender) }
+        : // The agent is still told which accounts exist, and why it cannot
+          // use them here, rather than concluding there are none.
+          { withheld: await connectedNames(sender) }),
     });
   };
+}
+
+/**
+ * Whether every model call this site ever metered for a workspace was this
+ * account's (and there was at least one): evidence, written by this site and
+ * never by the workspace's machine, that nobody else has worked there.
+ */
+async function onlyUserOf(workspace: string, owner: string): Promise<boolean> {
+  if (!dbConfigured()) return false;
+  try {
+    const rows = await select<{ owner: string }>(
+      "model_usage",
+      `select=owner&workspace=eq.${encodeURIComponent(workspace)}&limit=500`,
+    );
+    return rows.length > 0 && rows.every((r) => r.owner.toLowerCase() === owner.toLowerCase());
+  } catch {
+    return false;
+  }
 }
 
 function claimsOf(request: Request) {
@@ -341,6 +371,25 @@ async function resolveSource(request: Request, source: Source): Promise<Source |
 /** The person's connected accounts, for the agent to act as them this turn.
  *  Only what they connected in Connected accounts: disconnecting one there
  *  takes it away from the agent. */
+/** The names of the accounts this person has connected ("GitHub", "Netlify"). */
+async function connectedNames(owner: string): Promise<string[]> {
+  try {
+    return (await listConnectors(owner))
+      .filter((c) => !c.needsReconnect)
+      .map((c) => PROVIDER_NAMES[c.provider] ?? c.provider);
+  } catch {
+    return [];
+  }
+}
+
+const PROVIDER_NAMES: Record<string, string> = {
+  github: "GitHub",
+  vercel: "Vercel",
+  netlify: "Netlify",
+  railway: "Railway",
+  supabase: "Supabase",
+};
+
 async function turnEnv(owner: string): Promise<Record<string, string>> {
   return connectorEnvFor(owner).catch(() => ({}) as Record<string, string>);
 }
@@ -493,6 +542,7 @@ export const Route = createFileRoute("/api/workspace")({
               method: "POST",
               owner,
               turn: turnBody(request, owner, data.id, data),
+              claimed: holdsClaim(claimsOf(request), data.id) || (await onlyUserOf(data.id, owner)),
             },
           );
           if (sent.ok) {
@@ -582,6 +632,44 @@ export const Route = createFileRoute("/api/workspace")({
             },
           );
           return Response.json(result.body, { status: result.status });
+        }
+
+        if (data.action === "publish_site") {
+          // Publishing: the project's built files, all of them, from its
+          // machine, up as a new deploy of <slug>.devstation.online.
+          if (!(await checkRateLimit(`publish:${owner}`, 30, 60 * 60_000))) {
+            return fail("rate_limited", "Too many publishes in an hour. Wait a little.", 429);
+          }
+          if (!dbConfigured()) return fail("not_configured", "Hosting is not set up yet.", 503);
+          const built = await runner(
+            request,
+            `/agent/workspaces/${encodeURIComponent(data.id)}/preview?all=1`,
+            { method: "GET", owner },
+          );
+          if (!built.ok) {
+            return fail(
+              "no_build",
+              built.status === 404
+                ? "There is no build to publish yet. Build the preview first (the hammer above the preview), then publish."
+                : String(built.body.message ?? "The build could not be read."),
+              built.status === 404 ? 409 : built.status,
+            );
+          }
+          const published = await publishSite({
+            owner,
+            slug: data.slug,
+            name: data.name,
+            workspace: data.id,
+            dist: (built.body.dist as Record<string, string>) ?? {},
+            assets: (built.body.assets as Record<string, string>) ?? {},
+          });
+          if (!published.ok) return fail("publish", published.message, 400);
+          await bumpMetric("sites_published");
+          return Response.json({
+            ok: true,
+            site: published.site,
+            url: siteUrl(published.site.slug),
+          });
         }
 
         if (data.action === "unqueue") {

@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite dev",
-    "build": "bun scripts/build-agent-server.ts && vite build",
+    "build": "bun scripts/build-agent-server.ts && vite build && bun scripts/vercel-site-routes.ts",
     "build:agent-server": "bun scripts/build-agent-server.ts",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",

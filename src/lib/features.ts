@@ -33,6 +33,11 @@ export function servedInAgentOnly(pathname: string): boolean {
     pathname === "/admin/stats" ||
     // Credit and usage, and a shared read-only copy of the figures.
     pathname === "/credits" ||
+    // The account's own pages.
+    pathname === "/account" ||
+    pathname === "/connections" ||
+    pathname === "/updates" ||
+    pathname === "/publish" ||
     /^\/stats\/shared\/[A-Za-z0-9_-]{16,80}$/.test(pathname) ||
     isPassthrough(pathname) ||
     DOCS_KEPT.some((re) => re.test(pathname))
@@ -59,6 +64,7 @@ const AGENT_API = [
   /^\/api\/projects$/,
   /^\/api\/credits$/,
   /^\/api\/billing$/,
+  /^\/api\/sites$/,
   /^\/api\/payments\/(stripe|paystack)$/,
   /^\/api\/stats\/shared$/,
   /^\/api\/connectors$/,

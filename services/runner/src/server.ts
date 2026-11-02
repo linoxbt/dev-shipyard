@@ -80,6 +80,8 @@ import {
   workspaceFiles,
   workspaceMembers,
   unqueueMessage,
+  MAX_ASSETS_PUBLISH,
+  providersOf,
   workspaceRole,
   workspaceView,
 } from "./workspace-agent";
@@ -862,8 +864,19 @@ async function route(
         images?: unknown;
         proxy?: unknown;
         by?: unknown;
+        withheld?: unknown;
       }>(req, 12_000_000);
       if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
+      const sentEnv =
+        body.value.env && typeof body.value.env === "object"
+          ? connectorEnv(body.value.env as Record<string, string>)
+          : undefined;
+      // Connected accounts for this turn; only known variables survive, only
+      // the owner's (a builder's tokens never go into a machine somebody else
+      // controls), and only while nobody else builds here: a builder's
+      // commands run as the same user in the same machine, where a process
+      // the owner's turn left running still holds them.
+      const accountsAllowed = role === "owner" && !workspaceMembers(id)?.collaborators.length;
       const sent = sendWorkspaceMessage(
         id,
         typeof body.value.prompt === "string" ? body.value.prompt : "",
@@ -874,18 +887,18 @@ async function route(
           model: typeof body.value.model === "string" ? body.value.model.slice(0, 60) : undefined,
           plan: body.value.plan === true,
           images: cleanImages(body.value.images),
-          // Connected accounts for this turn; only known variables survive,
-          // only the owner's (a builder's tokens never go into a machine
-          // somebody else controls), and only while nobody else builds here:
-          // a builder's commands run as the same user in the same machine,
-          // where a process the owner's turn left running still holds them.
-          env:
-            role === "owner" &&
-            !workspaceMembers(id)?.collaborators.length &&
-            body.value.env &&
-            typeof body.value.env === "object"
-              ? connectorEnv(body.value.env as Record<string, string>)
-              : undefined,
+          env: accountsAllowed ? sentEnv : undefined,
+          // Not handed over: still named, so the agent can say why.
+          withheld: accountsAllowed
+            ? undefined
+            : [
+                ...providersOf(sentEnv),
+                ...(Array.isArray(body.value.withheld)
+                  ? body.value.withheld
+                      .filter((n): n is string => typeof n === "string")
+                      .slice(0, 10)
+                  : []),
+              ],
           proxy: proxyTarget(body.value.proxy),
           by: sender || undefined,
         },
@@ -927,8 +940,14 @@ async function route(
     if (id && action === "preview" && req.method === "GET") {
       const dist = previewDist(id);
       if (!dist) return json(res, 404, { ok: false, message: "No preview has been built." });
-      // Images and fonts travel beside the text, as base64.
-      return json(res, 200, { ok: true, dist, assets: previewAssets(id) });
+      // Images and fonts travel beside the text, as base64: all of them when
+      // the site is publishing (?all=1), within a browser response otherwise.
+      const all = new URL(req.url ?? "/", "http://runner").searchParams.get("all") === "1";
+      return json(res, 200, {
+        ok: true,
+        dist,
+        assets: previewAssets(id, all ? MAX_ASSETS_PUBLISH : undefined),
+      });
     }
 
     // Who builds on a workspace. The wallet asking comes in the owner header,

@@ -14,7 +14,6 @@ import {
   type ConnectorState,
   type ConnectorId,
 } from "@/lib/coding-agent/account-client";
-import { Modal } from "./primitives";
 
 // Accounts the agent may act as. Connecting one goes to the provider to
 // approve access (OAuth) and comes back; the grant is kept encrypted on
@@ -65,7 +64,8 @@ const PROVIDERS: {
   },
 ];
 
-export function ConnectorsSheet({ onClose }: { onClose: () => void }) {
+/** The accounts, each with its state and a button to connect or remove it. */
+export function ConnectorsList() {
   const [state, setState] = useState<ConnectorState | null>(null);
   const [going, setGoing] = useState<ConnectorId | null>(null);
   const [confirming, setConfirming] = useState<ConnectorId | null>(null);
@@ -85,34 +85,34 @@ export function ConnectorsSheet({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal onClose={onClose} title="Connected accounts">
-      <p className="-mt-1 mb-3 px-1 text-[12.5px] leading-5 text-muted-foreground">
-        Connect an account and the agent can work on it for you. You approve access on the
-        provider&apos;s own page and can remove it here at any time. DevStation never sees your
-        password.
-      </p>
+    <>
       {state && !state.available && (
         <p className="mb-3 rounded-xl bg-surface-2 px-3 py-2.5 text-[12.5px] text-muted-foreground">
           Connected accounts open soon.
         </p>
       )}
-      <div className="space-y-1">
+      {!state && (
+        <p className="flex items-center gap-2 py-6 text-[13px] text-muted-foreground">
+          <LoaderCircle className="h-4 w-4 animate-spin" /> Loading your accounts
+        </p>
+      )}
+      <div className="space-y-2">
         {PROVIDERS.map((p) => {
           const on = state?.connected.find((c) => c.provider === p.id);
           const ready = !!state?.available && !!state.configured[p.id];
           return (
             <div
               key={p.id}
-              className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5"
+              className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3.5"
             >
               <span
                 aria-hidden
-                className="inline-flex h-5 w-5 shrink-0 text-foreground [&>svg]:h-full [&>svg]:w-full"
+                className="inline-flex h-6 w-6 shrink-0 text-foreground [&>svg]:h-full [&>svg]:w-full"
                 style={p.color ? { color: p.color } : undefined}
                 dangerouslySetInnerHTML={{ __html: p.logo }}
               />
               <div className="min-w-0 flex-1">
-                <p className="text-[14px] text-foreground">{p.name}</p>
+                <p className="text-[14.5px] font-medium text-foreground">{p.name}</p>
                 <p
                   className={
                     on?.needsReconnect
@@ -176,6 +176,6 @@ export function ConnectorsSheet({ onClose }: { onClose: () => void }) {
           );
         })}
       </div>
-    </Modal>
+    </>
   );
 }

@@ -253,7 +253,11 @@ function sandboxProblem(error: unknown): RunnerReply {
  *  screenshot its name. Null for anything else. */
 export function routeOf(
   path: string,
-): { ids: { name: string; inner: string }; action: string; tail: string } | null {
+): { ids: { name: string; inner: string }; action: string; tail: string; search: string } | null {
+  const q = path.indexOf("?");
+  // Only a plain query (?all=1) is carried through; anything odd is dropped.
+  const search = q >= 0 && /^\?[A-Za-z0-9_=&-]{1,200}$/.test(path.slice(q)) ? path.slice(q) : "";
+  if (q >= 0) path = path.slice(0, q);
   const match = path.match(/^\/agent\/workspaces\/([^/]+)(\/[a-z_]+)?(\/shot-[a-z0-9]+-\d+)?$/);
   if (!match) return null;
   let id: string;
@@ -266,7 +270,7 @@ export function routeOf(
   const action = match[2] ?? "";
   const tail = match[3] ?? "";
   if (!ids || (tail && action !== "/shot")) return null;
-  return { ids, action, tail };
+  return { ids, action, tail, search };
 }
 
 /**
@@ -286,13 +290,57 @@ export function ownerOfSandbox(tags: Record<string, string> | undefined): string
   return owner && /^0x[0-9a-f]{40}$/.test(owner) ? owner : null;
 }
 
+/** Machines made before owners were recorded on them (owner tags shipped
+ *  2026-11-02 18:54 UTC). Only these can have an owner recorded later. */
+export const OWNER_TAGS_SINCE = Date.parse("2026-11-02T19:10:00Z");
+
+/**
+ * Record the owner of a machine made before owners were recorded, so its
+ * owner's connected accounts reach it again. Only when everything agrees:
+ * the machine is that old, the sender's own session (signed by this site)
+ * lists the project, and the project has no other builders, so no one else's
+ * turns could ever run beside those accounts. Null when any of it is missing.
+ */
+export async function adoptLegacyOwner(
+  sandbox: Pick<Sandbox, "createdAt" | "tags" | "update">,
+  base: string,
+  token: string,
+  inner: string,
+  sender: string,
+  caller: string,
+  fwd: typeof forward = forward,
+): Promise<string | null> {
+  try {
+    if (sandbox.createdAt.getTime() >= OWNER_TAGS_SINCE) return null;
+    const members = await fwd(
+      base,
+      token,
+      `/agent/workspaces/${encodeURIComponent(inner)}/members`,
+      { method: "GET", owner: sender },
+      caller,
+    );
+    const body = members.body as { role?: unknown; owner?: unknown; collaborators?: unknown };
+    const others = Array.isArray(body.collaborators) ? body.collaborators.length : -1;
+    if (!members.ok || body.role !== "owner" || body.owner !== sender || others !== 0) return null;
+    await sandbox.update({ tags: { ...(sandbox.tags ?? {}), app: "devstation", owner: sender } });
+    return sender;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * The runner contract (POST /agent/workspaces, /agent/workspaces/:id/...),
  * answered by the project's own sandbox.
  */
 export async function sandboxRunner(
   path: string,
-  init: RequestInit & { owner?: string; turn?: TurnBody },
+  init: RequestInit & {
+    owner?: string;
+    turn?: TurnBody;
+    /** The sender's own session (signed by this site) lists this workspace. */
+    claimed?: boolean;
+  },
   caller: string,
 ): Promise<RunnerReply> {
   try {
@@ -337,7 +385,7 @@ export async function sandboxRunner(
 
     const route = routeOf(path);
     if (!route) return fail(404, "That workspace is gone.");
-    const { ids, action, tail } = route;
+    const { ids, action, tail, search } = route;
 
     let sandbox: Sandbox;
     try {
@@ -358,16 +406,7 @@ export async function sandboxRunner(
       sandbox = await Sandbox.get({ name: ids.name, resume: true });
     }
     const token = await tokenOf(sandbox, ids.name);
-    if (init.turn) {
-      // The turn is written now, against the owner this site recorded.
-      const owner = ownerOfSandbox(sandbox.tags);
-      const sender = (init.owner ?? "").toLowerCase();
-      init = {
-        ...init,
-        body: await init.turn(owner ?? sender, owner !== null && owner === sender),
-      };
-    }
-    const inner = `/agent/workspaces/${encodeURIComponent(ids.inner)}${action}${tail}`;
+    const inner = `/agent/workspaces/${encodeURIComponent(ids.inner)}${action}${tail}${search}`;
     const startsWork = init.method === "POST" && (action === "/messages" || action === "/preview");
     const base = await ready(sandbox, token, {
       // Replace an older agent server only when new work arrives and nothing
@@ -386,6 +425,18 @@ export async function sandboxRunner(
           }
         : undefined,
     });
+    if (init.turn) {
+      // The turn is written now, against the owner this site recorded.
+      let owner = ownerOfSandbox(sandbox.tags);
+      const sender = (init.owner ?? "").toLowerCase();
+      if (owner === null && init.claimed && /^0x[0-9a-f]{40}$/.test(sender)) {
+        owner = await adoptLegacyOwner(sandbox, base, token, ids.inner, sender, caller);
+      }
+      init = {
+        ...init,
+        body: await init.turn(owner ?? sender, owner !== null && owner === sender),
+      };
+    }
     // A message is work about to happen: keep the machine up for it.
     if (action === "/messages" && init.method === "POST") {
       await sandbox.extendTimeout(timeoutMs()).catch(() => undefined);

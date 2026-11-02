@@ -13,10 +13,10 @@ export const Route = createFileRoute("/cookies")({
 
 const ESSENTIAL: [string, string, string, string][] = [
   [
-    "devstation_jobs",
+    "__Host-devstation_jobs",
     "Cookie",
-    "Says you are signed in and which agent workspaces are yours. httpOnly: page scripts cannot read it.",
-    "24 hours",
+    "Says you are signed in and which agent workspaces are yours. httpOnly: page scripts cannot read it, and no other site can set it.",
+    "7 days",
   ],
   [
     "devstation_gh, devstation_gh_state, devstation_gh_return",

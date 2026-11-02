@@ -24,7 +24,15 @@ const MAX_CLAIMS = 30;
  *  the last visit. */
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-export const CLAIM_COOKIE = "devstation_jobs";
+/**
+ * In production the cookie carries the __Host- prefix: the browser then only
+ * keeps it if it is Secure, for "/", and set by this exact host, so an app
+ * published on a sibling subdomain (<name>.devstation.online) cannot set a
+ * cookie of the same name over it. Development over http keeps the plain name
+ * (a __Host- cookie needs https).
+ */
+export const CLAIM_COOKIE =
+  process.env.NODE_ENV === "production" ? "__Host-devstation_jobs" : "devstation_jobs";
 
 /**
  * The signing key.

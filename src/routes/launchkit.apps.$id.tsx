@@ -68,7 +68,7 @@ function AppDetail() {
   const open = useProjects((s) => s.open);
   const rename = useProjects((s) => s.rename);
   const remove = useProjects((s) => s.remove);
-  useEffect(() => hydrate(), [hydrate]);
+  useEffect(() => void hydrate(), [hydrate]);
 
   const project = projects.find((p) => p.id === id) ?? null;
 

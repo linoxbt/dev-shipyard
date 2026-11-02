@@ -37,7 +37,7 @@ function AppsPage() {
 
   // Read storage after mount, never during render, so the server and the first
   // client render agree.
-  useEffect(() => hydrate(), [hydrate]);
+  useEffect(() => void hydrate(), [hydrate]);
   useEffect(() => {
     if (editing) inputRef.current?.select();
   }, [editing]);

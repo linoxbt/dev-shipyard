@@ -13,6 +13,7 @@
 //
 // Stored in localStorage, like the rest of DevStation's state. No database.
 
+import { idbAvailable, idbGet, idbSet, idbWorks } from "./idb";
 import { create } from "zustand";
 import { z } from "zod";
 import type { ChatMessage } from "@/lib/ai";
@@ -180,9 +181,10 @@ interface ProjectsState {
   projects: AppProject[];
   activeId: string | null;
   hydrated: boolean;
-  /** Read localStorage. Called from an effect, never during render, so the
-   *  server and the first client render agree. */
-  hydrate: () => void;
+  /** Read this browser's copy (IndexedDB, or localStorage). Called from an
+   *  effect, never during render, so the server and the first client render
+   *  agree. Resolves once the projects are in the store. */
+  hydrate: () => Promise<void>;
   create: (name?: string, owner?: string | null) => string;
   open: (id: string) => void;
   rename: (id: string, name: string) => void;
@@ -253,7 +255,16 @@ function read(): { projects: AppProject[]; activeId: string | null } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { projects: [], activeId: null };
-    const parsed = JSON.parse(raw) as { projects?: unknown; activeId?: unknown };
+    return parseStored(JSON.parse(raw));
+  } catch {
+    return { projects: [], activeId: null };
+  }
+}
+
+/** A stored copy (from IndexedDB or localStorage), checked project by project. */
+function parseStored(stored: unknown): { projects: AppProject[]; activeId: string | null } {
+  try {
+    const parsed = (stored ?? {}) as { projects?: unknown; activeId?: unknown };
     // Validate per project and keep the good ones. One corrupt entry loses
     // that project, not every project.
     const projects: AppProject[] = [];
@@ -340,63 +351,74 @@ export function onProjectRemoved(fn: (id: string) => void): () => void {
   return () => removedListeners.delete(fn);
 }
 
-/** Told when a save fails, so the UI can say so instead of quietly losing work. */
-let onWriteError: ((message: string) => void) | null = null;
-export function onProjectsWriteError(fn: ((message: string) => void) | null) {
-  onWriteError = fn;
+/** Where this browser's copy of the projects lives: IndexedDB when it works
+ *  (decided on hydrate), localStorage otherwise. The account's copy on the
+ *  server is the one that matters (project-sync.ts); this is a cache, so a
+ *  full cache never interrupts anyone. */
+let useIdb = false;
+const IDB_KEY = STORAGE_KEY;
+let pending: { projects: AppProject[]; activeId: string | null } | null = null;
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushIdb(): void {
+  flushTimer = null;
+  const snapshot = pending;
+  pending = null;
+  if (snapshot) void idbSet(IDB_KEY, snapshot);
+}
+
+if (typeof window !== "undefined") {
+  // Leaving the page: write what is waiting now, not in a quarter second.
+  window.addEventListener("pagehide", () => {
+    if (flushTimer) clearTimeout(flushTimer);
+    flushIdb();
+  });
 }
 
 function write(projects: AppProject[], activeId: string | null): boolean {
+  if (useIdb) {
+    pending = { projects, activeId };
+    if (!flushTimer) flushTimer = setTimeout(flushIdb, 250);
+    return true;
+  }
   if (typeof localStorage === "undefined") return false;
   const attempt = (list: AppProject[]) =>
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects: list, activeId }));
-  try {
-    attempt(projects);
-    return true;
-  } catch {
-    // Out of quota. Rather than silently dropping the write, which loses work
-    // with no signal at all: shed the oldest projects' build output (much the
-    // largest part of a project) and retry, then tell the caller if even that
-    // was not enough.
-    // Keep the newest project's preview and shed the rest. Mapped back into
-    // the original order afterwards, so a storage retry never silently
-    // reshuffles the list the user is looking at.
-    const newestId = [...projects].sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id;
-    const trimmed = projects.map((p) => (p.id === newestId ? p : { ...p, dist: null }));
+  // Out of room: shed what can be had again, quietly. Older builds first
+  // (they rebuild), then older screenshots, then older projects altogether
+  // (they are on the account and come back with it).
+  const newestFirst = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
+  const newestId = newestFirst[0]?.id;
+  const noBuilds = projects.map((p) => (p.id === newestId ? p : { ...p, dist: null }));
+  const noPictures = noBuilds.map((p) => ({
+    ...p,
+    turns: p.turns.map((t, i) =>
+      p.id === newestId && i >= p.turns.length - 6
+        ? t
+        : {
+            ...t,
+            ...(t.steps ? { steps: t.steps.map(({ shot: _s, ...rest }) => rest) } : {}),
+            images: undefined,
+          },
+    ),
+  }));
+  const attempts = [projects, noBuilds, noPictures];
+  for (let keep = Math.min(10, projects.length); keep >= 1; keep = Math.floor(keep / 2)) {
+    const ids = new Set(newestFirst.slice(0, keep).map((p) => p.id));
+    attempts.push(noPictures.filter((p) => ids.has(p.id) || p.id === activeId));
+  }
+  for (const list of attempts) {
     try {
-      attempt(trimmed);
-      onWriteError?.(
-        "Storage was full: older previews were cleared to make room. They rebuild on the next prompt.",
-      );
+      attempt(list);
       return true;
     } catch {
-      // Then the screenshots kept in older conversations: the chat still
-      // says what was done, without the pictures.
-      const lighter = trimmed.map((p) => ({
-        ...p,
-        turns: p.turns.map((t, i) =>
-          p.id === newestId && i >= p.turns.length - 6
-            ? t
-            : {
-                ...t,
-                ...(t.steps ? { steps: t.steps.map(({ shot: _s, ...rest }) => rest) } : {}),
-                images: undefined,
-              },
-        ),
-      }));
-      try {
-        attempt(lighter);
-        onWriteError?.("Storage was full: older screenshots were cleared to make room.");
-        return true;
-      } catch {
-        onWriteError?.(
-          "Storage is full, so this could not be saved. Delete a project you no longer need (its ··· menu on the home screen) to free space.",
-        );
-        return false;
-      }
+      // Try the lighter one.
     }
   }
+  return false;
 }
+
+let hydrating: Promise<void> | null = null;
 
 export const useProjects = create<ProjectsState>((set, get) => ({
   // Deterministic on the server AND on the first client render, so hydration
@@ -406,9 +428,33 @@ export const useProjects = create<ProjectsState>((set, get) => ({
   hydrated: false,
 
   hydrate: () => {
-    if (get().hydrated) return;
-    const { projects, activeId } = read();
-    set({ projects, activeId, hydrated: true });
+    if (get().hydrated) return Promise.resolve();
+    if (hydrating) return hydrating;
+    hydrating = (async () => {
+      let loaded = read();
+      if (idbAvailable() && (await idbWorks())) {
+        const stored = await idbGet<unknown>(IDB_KEY);
+        if (stored) {
+          loaded = parseStored(stored);
+        } else if (loaded.projects.length) {
+          // Moving in from localStorage: once, then its space is freed.
+          await idbSet(IDB_KEY, loaded);
+        }
+        useIdb = true;
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+        } catch {
+          /* nothing to free */
+        }
+      }
+      // Changes made while loading (a project created at once) are kept.
+      const made = get().projects.filter((p) => !loaded.projects.some((l) => l.id === p.id));
+      set({ projects: [...made, ...loaded.projects], activeId: loaded.activeId, hydrated: true });
+      if (made.length) write(get().projects, get().activeId);
+    })().finally(() => {
+      hydrating = null;
+    });
+    return hydrating;
   },
 
   create: (name, owner) => {

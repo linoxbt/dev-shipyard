@@ -144,7 +144,7 @@ function CreditsPage() {
   const signedIn = useAuth((s) => !!s.account);
   useEffect(() => {
     useAuth.getState().init();
-    useProjects.getState().hydrate();
+    void useProjects.getState().hydrate();
     void fetchBilling().then(setBilling);
   }, []);
 
