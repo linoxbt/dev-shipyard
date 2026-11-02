@@ -116,7 +116,8 @@ function CodingAgentDocs() {
       />
       <P>
         The menu at the top left lists your projects, starts a new one and opens templates; your
-        workspace (wallet, projects saved, browser storage) is at its foot. The ••• button holds
+        account is at its foot. Projects belong to your account, not the browser: sign in on another
+        device and they are all there, chat, files and build included. The ••• button holds
         everything you can do with the open project: publish, invite builders, push to GitHub,
         download, remix, rename, sell or delete. On a phone, the tabs along the bottom switch
         between the chat, the preview, the code and the activity.

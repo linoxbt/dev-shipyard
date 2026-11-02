@@ -52,6 +52,14 @@ const TABLE: Array<{ match: RegExp; rates: Rates }> = [
     rates: { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
   },
   { match: /sonnet/i, rates: { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 } },
+  // Qwen 3.8 27B, the free default on Fortytwo. Fortytwo publishes no rate of
+  // its own; this is Alibaba Cloud's first-party price (October 2026). Without
+  // it, the default model was priced at the dearest row: its costs read about
+  // twenty times too high and its per-turn budget ran out early.
+  {
+    match: /^auto$|qwen-?3\.8-27b|qwen3\.8-27b/i,
+    rates: { input: 0.5, output: 3, cacheRead: 0.05, cacheWrite: 0.5 },
+  },
 ];
 
 /**

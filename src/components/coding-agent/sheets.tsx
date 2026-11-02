@@ -404,8 +404,8 @@ export function ProjectSheet({
       {confirming ? (
         <div className="mt-2 rounded-2xl border border-danger/40 bg-danger/5 p-3">
           <p className="text-[12.5px] leading-5 text-foreground">
-            Delete {project.name} from this browser? Its conversation and files go too. A copy on
-            GitHub or a live app is not touched.
+            Delete {project.name}? It goes from every device you are signed in on, with its
+            conversation and files. A copy on GitHub or a live app is not touched.
           </p>
           <div className="mt-3 flex justify-end gap-2">
             <button

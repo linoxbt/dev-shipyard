@@ -53,6 +53,7 @@ const AGENT_API = [
   /^\/api\/workspace$/,
   /^\/api\/model(\/turn)?$/,
   /^\/api\/plan$/,
+  /^\/api\/projects$/,
   /^\/api\/connectors$/,
   /^\/api\/oauth\/[a-z]+(\/callback)?$/,
   /^\/api\/metrics$/,

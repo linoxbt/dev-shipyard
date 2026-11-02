@@ -78,7 +78,8 @@ export const Route = createFileRoute("/api/admin/stats")({
             503,
           );
         }
-        const what = new URL(request.url).searchParams.get("download");
+        const url = new URL(request.url);
+        const what = url.searchParams.get("download");
         try {
           if (what === "turns.csv") {
             const rows = await selectAll<Row>(
@@ -102,12 +103,18 @@ export const Route = createFileRoute("/api/admin/stats")({
               "text/csv",
             );
           }
-          const [summary, daily] = await Promise.all([
+          const days = [7, 30, 90].includes(Number(url.searchParams.get("days")))
+            ? Number(url.searchParams.get("days"))
+            : 30;
+          const [summary, daily, dashboard] = await Promise.all([
             rpc<Row>("devstation_stats"),
             selectAll<Row>(
               "site_daily",
               `select=day,metric,count&day=gte.${since90()}&order=day.desc`,
             ),
+            what === "summary.json"
+              ? Promise.resolve(null)
+              : rpc<Row>("devstation_dashboard", { p_days: days }),
           ]);
           if (what === "summary.json") {
             // For publishing: totals and daily figures, no accounts.
@@ -121,7 +128,10 @@ export const Route = createFileRoute("/api/admin/stats")({
             "account_plans",
             "select=owner,plan,contact,pro_requested_at&or=(pro_requested_at.not.is.null,plan.eq.pro)&order=pro_requested_at.desc.nullslast",
           );
-          return Response.json({ ok: true, summary, daily, proRequests: requests });
+          return Response.json(
+            { ok: true, summary, dashboard, proRequests: requests },
+            { headers: { "cache-control": "no-store" } },
+          );
         } catch {
           return fail("db", "The figures could not be read.", 502);
         }

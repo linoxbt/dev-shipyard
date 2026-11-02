@@ -196,6 +196,10 @@ interface ProjectsState {
    *  switch the builder's active project as a side effect of viewing a page. */
   update: (id: string, patch: Partial<Omit<AppProject, "id" | "createdAt">>) => void;
   active: () => AppProject | null;
+  /** Take versions saved from another device: replaces each by id (or adds
+   *  it) as it is, without touching its updatedAt, and drops the ids in
+   *  `gone`. The open project is left open unless it was deleted. */
+  mergeRemote: (incoming: AppProject[], gone?: string[]) => void;
   /** Copy a project into a new one and open it: same files, preview and
    *  conversation, but its own workspace, address and repository, so nothing
    *  done to the remix touches the original. Returns the new id. */
@@ -235,6 +239,13 @@ export function nameFromPrompt(prompt: string): string {
 export function cleanName(raw: string, fallback = "Untitled app"): string {
   const name = raw.replace(/\s+/g, " ").trim().slice(0, 60);
   return name || fallback;
+}
+
+/** A project read from anywhere outside this browser's own storage, checked
+ *  the same way: valid as it is, repaired, or null. */
+export function parseProject(candidate: unknown): AppProject | null {
+  const result = projectSchema.safeParse(candidate);
+  return result.success ? (result.data as AppProject) : repairProject(candidate);
 }
 
 function read(): { projects: AppProject[]; activeId: string | null } {
@@ -319,6 +330,14 @@ export function repairProject(candidate: unknown): AppProject | null {
   }
   const final = projectSchema.safeParse(raw);
   return final.success ? (final.data as AppProject) : null;
+}
+
+/** Told when a project is deleted here, so the deletion can reach the
+ *  account's other devices (project-sync.ts). */
+const removedListeners = new Set<(id: string) => void>();
+export function onProjectRemoved(fn: (id: string) => void): () => void {
+  removedListeners.add(fn);
+  return () => removedListeners.delete(fn);
 }
 
 /** Told when a save fails, so the UI can say so instead of quietly losing work. */
@@ -430,6 +449,7 @@ export const useProjects = create<ProjectsState>((set, get) => ({
   },
 
   remove: (id) => {
+    for (const fn of removedListeners) fn(id);
     const next = get().projects.filter((p) => p.id !== id);
     // Deleting the open project goes home, never into some other project.
     const activeId = get().activeId === id ? null : get().activeId;
@@ -450,6 +470,21 @@ export const useProjects = create<ProjectsState>((set, get) => ({
     set({ projects: next });
     // activeId is passed through untouched: persisting a patch to some other
     // project must not change which one is open.
+    write(next, activeId);
+  },
+
+  mergeRemote: (incoming, gone = []) => {
+    if (!incoming.length && !gone.length) return;
+    const byId = new Map(incoming.map((p) => [p.id, p]));
+    const drop = new Set(gone);
+    const kept = get()
+      .projects.filter((p) => !drop.has(p.id))
+      .map((p) => byId.get(p.id) ?? p);
+    const known = new Set(kept.map((p) => p.id));
+    const added = incoming.filter((p) => !known.has(p.id) && !drop.has(p.id));
+    const next = [...added, ...kept].sort((a, b) => b.updatedAt - a.updatedAt);
+    const activeId = drop.has(get().activeId ?? "") ? null : get().activeId;
+    set({ projects: next, activeId });
     write(next, activeId);
   },
 

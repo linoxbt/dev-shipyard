@@ -33,6 +33,7 @@ import { Route as ApiListingsRouteImport } from './routes/api.listings'
 import { Route as ApiMetricsRouteImport } from './routes/api.metrics'
 import { Route as ApiModelRouteImport } from './routes/api.model'
 import { Route as ApiPlanRouteImport } from './routes/api.plan'
+import { Route as ApiProjectsRouteImport } from './routes/api.projects'
 import { Route as ApiPublishRouteImport } from './routes/api.publish'
 import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
 import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
@@ -225,6 +226,11 @@ const ApiModelRoute = ApiModelRouteImport.update({
 const ApiPlanRoute = ApiPlanRouteImport.update({
   id: '/api/plan',
   path: '/api/plan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectsRoute = ApiProjectsRouteImport.update({
+  id: '/api/projects',
+  path: '/api/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublishRoute = ApiPublishRouteImport.update({
@@ -628,6 +634,7 @@ export interface FileRoutesByFullPath {
   '/api/metrics': typeof ApiMetricsRoute
   '/api/model': typeof ApiModelRouteWithChildren
   '/api/plan': typeof ApiPlanRoute
+  '/api/projects': typeof ApiProjectsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
@@ -725,6 +732,7 @@ export interface FileRoutesByTo {
   '/api/metrics': typeof ApiMetricsRoute
   '/api/model': typeof ApiModelRouteWithChildren
   '/api/plan': typeof ApiPlanRoute
+  '/api/projects': typeof ApiProjectsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
@@ -823,6 +831,7 @@ export interface FileRoutesById {
   '/api/metrics': typeof ApiMetricsRoute
   '/api/model': typeof ApiModelRouteWithChildren
   '/api/plan': typeof ApiPlanRoute
+  '/api/projects': typeof ApiProjectsRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
@@ -924,6 +933,7 @@ export interface FileRouteTypes {
     | '/api/metrics'
     | '/api/model'
     | '/api/plan'
+    | '/api/projects'
     | '/api/publish'
     | '/api/repo-agent'
     | '/api/sponsor-topup'
@@ -1021,6 +1031,7 @@ export interface FileRouteTypes {
     | '/api/metrics'
     | '/api/model'
     | '/api/plan'
+    | '/api/projects'
     | '/api/publish'
     | '/api/repo-agent'
     | '/api/sponsor-topup'
@@ -1118,6 +1129,7 @@ export interface FileRouteTypes {
     | '/api/metrics'
     | '/api/model'
     | '/api/plan'
+    | '/api/projects'
     | '/api/publish'
     | '/api/repo-agent'
     | '/api/sponsor-topup'
@@ -1218,6 +1230,7 @@ export interface RootRouteChildren {
   ApiMetricsRoute: typeof ApiMetricsRoute
   ApiModelRoute: typeof ApiModelRouteWithChildren
   ApiPlanRoute: typeof ApiPlanRoute
+  ApiProjectsRoute: typeof ApiProjectsRoute
   ApiPublishRoute: typeof ApiPublishRoute
   ApiRepoAgentRoute: typeof ApiRepoAgentRoute
   ApiSponsorTopupRoute: typeof ApiSponsorTopupRoute
@@ -1411,6 +1424,13 @@ declare module '@tanstack/react-router' {
       path: '/api/plan'
       fullPath: '/api/plan'
       preLoaderRoute: typeof ApiPlanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/projects': {
+      id: '/api/projects'
+      path: '/api/projects'
+      fullPath: '/api/projects'
+      preLoaderRoute: typeof ApiProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/publish': {
@@ -2128,6 +2148,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMetricsRoute: ApiMetricsRoute,
   ApiModelRoute: ApiModelRouteWithChildren,
   ApiPlanRoute: ApiPlanRoute,
+  ApiProjectsRoute: ApiProjectsRoute,
   ApiPublishRoute: ApiPublishRoute,
   ApiRepoAgentRoute: ApiRepoAgentRoute,
   ApiSponsorTopupRoute: ApiSponsorTopupRoute,

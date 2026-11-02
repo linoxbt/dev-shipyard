@@ -86,6 +86,7 @@ import { ShotSource } from "@/lib/coding-agent/shots";
 import { QuestionPanel } from "@/components/coding-agent/QuestionPanel";
 import { getWorkspace, postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
 import { useAuth } from "@/hooks/useAuth";
+import { startProjectSync } from "@/lib/appgen/project-sync";
 import { getPreference, setPreference } from "@/lib/consent";
 import {
   AUTO_MODEL,
@@ -376,6 +377,18 @@ export function CodingAgentPage() {
     useAuth.getState().init();
     countVisit();
   }, []);
+
+  // Projects follow the account: saved to the server as they change, and
+  // brought down on any other device signed in to it.
+  useEffect(() => {
+    if (!user) return;
+    return startProjectSync(user, {
+      onTooLarge: (name) =>
+        toast.error(
+          `${name} is too large to save across devices. It is still saved in this browser.`,
+        ),
+    });
+  }, [user]);
 
   // A new account has no name yet: ask for it, and for a theme, once.
   const welcomed = useRef(false);
