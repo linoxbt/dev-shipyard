@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as CookiesRouteImport } from './routes/cookies'
+import { Route as CreditsRouteImport } from './routes/credits'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as ExplorerRouteImport } from './routes/explorer'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
@@ -26,6 +27,7 @@ import { Route as ApiAiRouteImport } from './routes/api.ai'
 import { Route as ApiAppsDeployRouteImport } from './routes/api.apps-deploy'
 import { Route as ApiBuildRouteImport } from './routes/api.build'
 import { Route as ApiConnectorsRouteImport } from './routes/api.connectors'
+import { Route as ApiCreditsRouteImport } from './routes/api.credits'
 import { Route as ApiGithubRouteImport } from './routes/api.github'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiLabelRelayRouteImport } from './routes/api.label-relay'
@@ -76,8 +78,10 @@ import { Route as ApiAdminStatsRouteImport } from './routes/api.admin.stats'
 import { Route as ApiCronSandboxesRouteImport } from './routes/api.cron.sandboxes'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
 import { Route as ApiGithubPushRouteImport } from './routes/api.github.push'
+import { Route as ApiModelHeartbeatRouteImport } from './routes/api.model.heartbeat'
 import { Route as ApiModelTurnRouteImport } from './routes/api.model.turn'
 import { Route as ApiOauthProviderRouteImport } from './routes/api.oauth.$provider'
+import { Route as ApiStatsSharedRouteImport } from './routes/api.stats.shared'
 import { Route as DocsCliIndexRouteImport } from './routes/docs.cli.index'
 import { Route as DocsCliInstallRouteImport } from './routes/docs.cli.install'
 import { Route as DocsCliModelsRouteImport } from './routes/docs.cli.models'
@@ -102,6 +106,7 @@ import { Route as LaunchkitMarketplaceSellRouteImport } from './routes/launchkit
 import { Route as LaunchkitTemplatesIndexRouteImport } from './routes/launchkit.templates.index'
 import { Route as LaunchkitTemplatesIdRouteImport } from './routes/launchkit.templates.$id'
 import { Route as LaunchkitTemplatesSubmitRouteImport } from './routes/launchkit.templates.submit'
+import { Route as StatsSharedTokenRouteImport } from './routes/stats.shared.$token'
 import { Route as ApiOauthProviderCallbackRouteImport } from './routes/api.oauth.$provider.callback'
 import { Route as ExplorerNetworkAddressHashRouteImport } from './routes/explorer.$network.address.$hash'
 import { Route as ExplorerNetworkBlockHeightRouteImport } from './routes/explorer.$network.block.$height'
@@ -126,6 +131,11 @@ const AnalyticsRoute = AnalyticsRouteImport.update({
 const CookiesRoute = CookiesRouteImport.update({
   id: '/cookies',
   path: '/cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CreditsRoute = CreditsRouteImport.update({
+  id: '/credits',
+  path: '/credits',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocsRoute = DocsRouteImport.update({
@@ -191,6 +201,11 @@ const ApiBuildRoute = ApiBuildRouteImport.update({
 const ApiConnectorsRoute = ApiConnectorsRouteImport.update({
   id: '/api/connectors',
   path: '/api/connectors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCreditsRoute = ApiCreditsRouteImport.update({
+  id: '/api/credits',
+  path: '/api/credits',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiGithubRoute = ApiGithubRouteImport.update({
@@ -443,6 +458,11 @@ const ApiGithubPushRoute = ApiGithubPushRouteImport.update({
   path: '/push',
   getParentRoute: () => ApiGithubRoute,
 } as any)
+const ApiModelHeartbeatRoute = ApiModelHeartbeatRouteImport.update({
+  id: '/heartbeat',
+  path: '/heartbeat',
+  getParentRoute: () => ApiModelRoute,
+} as any)
 const ApiModelTurnRoute = ApiModelTurnRouteImport.update({
   id: '/turn',
   path: '/turn',
@@ -451,6 +471,11 @@ const ApiModelTurnRoute = ApiModelTurnRouteImport.update({
 const ApiOauthProviderRoute = ApiOauthProviderRouteImport.update({
   id: '/api/oauth/$provider',
   path: '/api/oauth/$provider',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStatsSharedRoute = ApiStatsSharedRouteImport.update({
+  id: '/api/stats/shared',
+  path: '/api/stats/shared',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocsCliIndexRoute = DocsCliIndexRouteImport.update({
@@ -579,6 +604,11 @@ const LaunchkitTemplatesSubmitRoute =
     path: '/launchkit/templates/submit',
     getParentRoute: () => rootRouteImport,
   } as any)
+const StatsSharedTokenRoute = StatsSharedTokenRouteImport.update({
+  id: '/stats/shared/$token',
+  path: '/stats/shared/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiOauthProviderCallbackRoute =
   ApiOauthProviderCallbackRouteImport.update({
     id: '/callback',
@@ -614,6 +644,7 @@ export interface FileRoutesByFullPath {
   '/activity': typeof ActivityRoute
   '/analytics': typeof AnalyticsRoute
   '/cookies': typeof CookiesRoute
+  '/credits': typeof CreditsRoute
   '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRouteWithChildren
   '/leaderboard': typeof LeaderboardRoute
@@ -627,6 +658,7 @@ export interface FileRoutesByFullPath {
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
   '/api/connectors': typeof ApiConnectorsRoute
+  '/api/credits': typeof ApiCreditsRoute
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/label-relay': typeof ApiLabelRelayRoute
@@ -677,8 +709,10 @@ export interface FileRoutesByFullPath {
   '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
+  '/api/model/heartbeat': typeof ApiModelHeartbeatRoute
   '/api/model/turn': typeof ApiModelTurnRoute
   '/api/oauth/$provider': typeof ApiOauthProviderRouteWithChildren
+  '/api/stats/shared': typeof ApiStatsSharedRoute
   '/docs/cli/install': typeof DocsCliInstallRoute
   '/docs/cli/models': typeof DocsCliModelsRoute
   '/docs/cli/permissions': typeof DocsCliPermissionsRoute
@@ -698,6 +732,7 @@ export interface FileRoutesByFullPath {
   '/launchkit/marketplace/sell': typeof LaunchkitMarketplaceSellRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
+  '/stats/shared/$token': typeof StatsSharedTokenRoute
   '/docs/cli/': typeof DocsCliIndexRoute
   '/explorer/$network/': typeof ExplorerNetworkIndexRoute
   '/launchkit/apps/': typeof LaunchkitAppsIndexRoute
@@ -714,6 +749,7 @@ export interface FileRoutesByTo {
   '/activity': typeof ActivityRoute
   '/analytics': typeof AnalyticsRoute
   '/cookies': typeof CookiesRoute
+  '/credits': typeof CreditsRoute
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/settings': typeof SettingsRoute
@@ -725,6 +761,7 @@ export interface FileRoutesByTo {
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
   '/api/connectors': typeof ApiConnectorsRoute
+  '/api/credits': typeof ApiCreditsRoute
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/label-relay': typeof ApiLabelRelayRoute
@@ -773,8 +810,10 @@ export interface FileRoutesByTo {
   '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
+  '/api/model/heartbeat': typeof ApiModelHeartbeatRoute
   '/api/model/turn': typeof ApiModelTurnRoute
   '/api/oauth/$provider': typeof ApiOauthProviderRouteWithChildren
+  '/api/stats/shared': typeof ApiStatsSharedRoute
   '/docs/cli/install': typeof DocsCliInstallRoute
   '/docs/cli/models': typeof DocsCliModelsRoute
   '/docs/cli/permissions': typeof DocsCliPermissionsRoute
@@ -794,6 +833,7 @@ export interface FileRoutesByTo {
   '/launchkit/marketplace/sell': typeof LaunchkitMarketplaceSellRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
+  '/stats/shared/$token': typeof StatsSharedTokenRoute
   '/docs/cli': typeof DocsCliIndexRoute
   '/explorer/$network': typeof ExplorerNetworkIndexRoute
   '/launchkit/apps': typeof LaunchkitAppsIndexRoute
@@ -811,6 +851,7 @@ export interface FileRoutesById {
   '/activity': typeof ActivityRoute
   '/analytics': typeof AnalyticsRoute
   '/cookies': typeof CookiesRoute
+  '/credits': typeof CreditsRoute
   '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRouteWithChildren
   '/leaderboard': typeof LeaderboardRoute
@@ -824,6 +865,7 @@ export interface FileRoutesById {
   '/api/apps-deploy': typeof ApiAppsDeployRoute
   '/api/build': typeof ApiBuildRoute
   '/api/connectors': typeof ApiConnectorsRoute
+  '/api/credits': typeof ApiCreditsRoute
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/label-relay': typeof ApiLabelRelayRoute
@@ -874,8 +916,10 @@ export interface FileRoutesById {
   '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
+  '/api/model/heartbeat': typeof ApiModelHeartbeatRoute
   '/api/model/turn': typeof ApiModelTurnRoute
   '/api/oauth/$provider': typeof ApiOauthProviderRouteWithChildren
+  '/api/stats/shared': typeof ApiStatsSharedRoute
   '/docs/cli/install': typeof DocsCliInstallRoute
   '/docs/cli/models': typeof DocsCliModelsRoute
   '/docs/cli/permissions': typeof DocsCliPermissionsRoute
@@ -895,6 +939,7 @@ export interface FileRoutesById {
   '/launchkit/marketplace/sell': typeof LaunchkitMarketplaceSellRoute
   '/launchkit/templates/$id': typeof LaunchkitTemplatesIdRoute
   '/launchkit/templates/submit': typeof LaunchkitTemplatesSubmitRoute
+  '/stats/shared/$token': typeof StatsSharedTokenRoute
   '/docs/cli/': typeof DocsCliIndexRoute
   '/explorer/$network/': typeof ExplorerNetworkIndexRoute
   '/launchkit/apps/': typeof LaunchkitAppsIndexRoute
@@ -913,6 +958,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/analytics'
     | '/cookies'
+    | '/credits'
     | '/docs'
     | '/explorer'
     | '/leaderboard'
@@ -926,6 +972,7 @@ export interface FileRouteTypes {
     | '/api/apps-deploy'
     | '/api/build'
     | '/api/connectors'
+    | '/api/credits'
     | '/api/github'
     | '/api/health'
     | '/api/label-relay'
@@ -976,8 +1023,10 @@ export interface FileRouteTypes {
     | '/api/cron/sandboxes'
     | '/api/github/callback'
     | '/api/github/push'
+    | '/api/model/heartbeat'
     | '/api/model/turn'
     | '/api/oauth/$provider'
+    | '/api/stats/shared'
     | '/docs/cli/install'
     | '/docs/cli/models'
     | '/docs/cli/permissions'
@@ -997,6 +1046,7 @@ export interface FileRouteTypes {
     | '/launchkit/marketplace/sell'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
+    | '/stats/shared/$token'
     | '/docs/cli/'
     | '/explorer/$network/'
     | '/launchkit/apps/'
@@ -1013,6 +1063,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/analytics'
     | '/cookies'
+    | '/credits'
     | '/leaderboard'
     | '/overview'
     | '/settings'
@@ -1024,6 +1075,7 @@ export interface FileRouteTypes {
     | '/api/apps-deploy'
     | '/api/build'
     | '/api/connectors'
+    | '/api/credits'
     | '/api/github'
     | '/api/health'
     | '/api/label-relay'
@@ -1072,8 +1124,10 @@ export interface FileRouteTypes {
     | '/api/cron/sandboxes'
     | '/api/github/callback'
     | '/api/github/push'
+    | '/api/model/heartbeat'
     | '/api/model/turn'
     | '/api/oauth/$provider'
+    | '/api/stats/shared'
     | '/docs/cli/install'
     | '/docs/cli/models'
     | '/docs/cli/permissions'
@@ -1093,6 +1147,7 @@ export interface FileRouteTypes {
     | '/launchkit/marketplace/sell'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
+    | '/stats/shared/$token'
     | '/docs/cli'
     | '/explorer/$network'
     | '/launchkit/apps'
@@ -1109,6 +1164,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/analytics'
     | '/cookies'
+    | '/credits'
     | '/docs'
     | '/explorer'
     | '/leaderboard'
@@ -1122,6 +1178,7 @@ export interface FileRouteTypes {
     | '/api/apps-deploy'
     | '/api/build'
     | '/api/connectors'
+    | '/api/credits'
     | '/api/github'
     | '/api/health'
     | '/api/label-relay'
@@ -1172,8 +1229,10 @@ export interface FileRouteTypes {
     | '/api/cron/sandboxes'
     | '/api/github/callback'
     | '/api/github/push'
+    | '/api/model/heartbeat'
     | '/api/model/turn'
     | '/api/oauth/$provider'
+    | '/api/stats/shared'
     | '/docs/cli/install'
     | '/docs/cli/models'
     | '/docs/cli/permissions'
@@ -1193,6 +1252,7 @@ export interface FileRouteTypes {
     | '/launchkit/marketplace/sell'
     | '/launchkit/templates/$id'
     | '/launchkit/templates/submit'
+    | '/stats/shared/$token'
     | '/docs/cli/'
     | '/explorer/$network/'
     | '/launchkit/apps/'
@@ -1210,6 +1270,7 @@ export interface RootRouteChildren {
   ActivityRoute: typeof ActivityRoute
   AnalyticsRoute: typeof AnalyticsRoute
   CookiesRoute: typeof CookiesRoute
+  CreditsRoute: typeof CreditsRoute
   DocsRoute: typeof DocsRouteWithChildren
   ExplorerRoute: typeof ExplorerRouteWithChildren
   LeaderboardRoute: typeof LeaderboardRoute
@@ -1223,6 +1284,7 @@ export interface RootRouteChildren {
   ApiAppsDeployRoute: typeof ApiAppsDeployRoute
   ApiBuildRoute: typeof ApiBuildRoute
   ApiConnectorsRoute: typeof ApiConnectorsRoute
+  ApiCreditsRoute: typeof ApiCreditsRoute
   ApiGithubRoute: typeof ApiGithubRouteWithChildren
   ApiHealthRoute: typeof ApiHealthRoute
   ApiLabelRelayRoute: typeof ApiLabelRelayRoute
@@ -1249,9 +1311,11 @@ export interface RootRouteChildren {
   ApiAdminStatsRoute: typeof ApiAdminStatsRoute
   ApiCronSandboxesRoute: typeof ApiCronSandboxesRoute
   ApiOauthProviderRoute: typeof ApiOauthProviderRouteWithChildren
+  ApiStatsSharedRoute: typeof ApiStatsSharedRoute
   LaunchkitAppsIdRoute: typeof LaunchkitAppsIdRoute
   LaunchkitTemplatesIdRoute: typeof LaunchkitTemplatesIdRoute
   LaunchkitTemplatesSubmitRoute: typeof LaunchkitTemplatesSubmitRoute
+  StatsSharedTokenRoute: typeof StatsSharedTokenRoute
   LaunchkitAppsIndexRoute: typeof LaunchkitAppsIndexRoute
   LaunchkitTemplatesIndexRoute: typeof LaunchkitTemplatesIndexRoute
 }
@@ -1284,6 +1348,13 @@ declare module '@tanstack/react-router' {
       path: '/cookies'
       fullPath: '/cookies'
       preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/credits': {
+      id: '/credits'
+      path: '/credits'
+      fullPath: '/credits'
+      preLoaderRoute: typeof CreditsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/docs': {
@@ -1375,6 +1446,13 @@ declare module '@tanstack/react-router' {
       path: '/api/connectors'
       fullPath: '/api/connectors'
       preLoaderRoute: typeof ApiConnectorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/credits': {
+      id: '/api/credits'
+      path: '/api/credits'
+      fullPath: '/api/credits'
+      preLoaderRoute: typeof ApiCreditsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/github': {
@@ -1727,6 +1805,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGithubPushRouteImport
       parentRoute: typeof ApiGithubRoute
     }
+    '/api/model/heartbeat': {
+      id: '/api/model/heartbeat'
+      path: '/heartbeat'
+      fullPath: '/api/model/heartbeat'
+      preLoaderRoute: typeof ApiModelHeartbeatRouteImport
+      parentRoute: typeof ApiModelRoute
+    }
     '/api/model/turn': {
       id: '/api/model/turn'
       path: '/turn'
@@ -1739,6 +1824,13 @@ declare module '@tanstack/react-router' {
       path: '/api/oauth/$provider'
       fullPath: '/api/oauth/$provider'
       preLoaderRoute: typeof ApiOauthProviderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stats/shared': {
+      id: '/api/stats/shared'
+      path: '/api/stats/shared'
+      fullPath: '/api/stats/shared'
+      preLoaderRoute: typeof ApiStatsSharedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/docs/cli/': {
@@ -1907,6 +1999,13 @@ declare module '@tanstack/react-router' {
       path: '/launchkit/templates/submit'
       fullPath: '/launchkit/templates/submit'
       preLoaderRoute: typeof LaunchkitTemplatesSubmitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stats/shared/$token': {
+      id: '/stats/shared/$token'
+      path: '/stats/shared/$token'
+      fullPath: '/stats/shared/$token'
+      preLoaderRoute: typeof StatsSharedTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/oauth/$provider/callback': {
@@ -2082,10 +2181,12 @@ const ApiGithubRouteWithChildren = ApiGithubRoute._addFileChildren(
 )
 
 interface ApiModelRouteChildren {
+  ApiModelHeartbeatRoute: typeof ApiModelHeartbeatRoute
   ApiModelTurnRoute: typeof ApiModelTurnRoute
 }
 
 const ApiModelRouteChildren: ApiModelRouteChildren = {
+  ApiModelHeartbeatRoute: ApiModelHeartbeatRoute,
   ApiModelTurnRoute: ApiModelTurnRoute,
 }
 
@@ -2128,6 +2229,7 @@ const rootRouteChildren: RootRouteChildren = {
   ActivityRoute: ActivityRoute,
   AnalyticsRoute: AnalyticsRoute,
   CookiesRoute: CookiesRoute,
+  CreditsRoute: CreditsRoute,
   DocsRoute: DocsRouteWithChildren,
   ExplorerRoute: ExplorerRouteWithChildren,
   LeaderboardRoute: LeaderboardRoute,
@@ -2141,6 +2243,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAppsDeployRoute: ApiAppsDeployRoute,
   ApiBuildRoute: ApiBuildRoute,
   ApiConnectorsRoute: ApiConnectorsRoute,
+  ApiCreditsRoute: ApiCreditsRoute,
   ApiGithubRoute: ApiGithubRouteWithChildren,
   ApiHealthRoute: ApiHealthRoute,
   ApiLabelRelayRoute: ApiLabelRelayRoute,
@@ -2167,9 +2270,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminStatsRoute: ApiAdminStatsRoute,
   ApiCronSandboxesRoute: ApiCronSandboxesRoute,
   ApiOauthProviderRoute: ApiOauthProviderRouteWithChildren,
+  ApiStatsSharedRoute: ApiStatsSharedRoute,
   LaunchkitAppsIdRoute: LaunchkitAppsIdRoute,
   LaunchkitTemplatesIdRoute: LaunchkitTemplatesIdRoute,
   LaunchkitTemplatesSubmitRoute: LaunchkitTemplatesSubmitRoute,
+  StatsSharedTokenRoute: StatsSharedTokenRoute,
   LaunchkitAppsIndexRoute: LaunchkitAppsIndexRoute,
   LaunchkitTemplatesIndexRoute: LaunchkitTemplatesIndexRoute,
 }

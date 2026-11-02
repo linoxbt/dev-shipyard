@@ -105,7 +105,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      // resizes-content: an open keyboard shrinks the page instead of sliding it
+      // up under the browser bar, so the app's header stays where it is.
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
+      },
       { title: "DevStation: the AI agent for apps and smart contracts" },
       // PWA: installable as an app ("Add to Home Screen").
       { name: "theme-color", content: "#0a0e13" },
@@ -210,7 +216,9 @@ function RootComponent() {
     pathname === "/docs" ||
     pathname.startsWith("/docs/") ||
     pathname === "/cookies" ||
-    pathname === "/admin/stats";
+    pathname === "/admin/stats" ||
+    pathname === "/credits" ||
+    pathname.startsWith("/stats/shared/");
 
   // Re-apply the persisted theme on mount (covers client navigation / hydration).
   useEffect(() => {

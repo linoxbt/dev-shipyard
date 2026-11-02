@@ -201,6 +201,11 @@ const bodySchema = z.discriminatedUnion("action", [
     ...turnOptions,
   }),
   z.object({ action: z.literal("cancel"), id: z.string().min(1).max(80) }),
+  z.object({
+    action: z.literal("unqueue"),
+    id: z.string().min(1).max(80),
+    queueId: z.string().min(1).max(80),
+  }),
   /** Open somebody else's workspace, as a builder they added. */
   z.object({ action: z.literal("join"), id: z.string().min(1).max(80) }),
   /** Add or remove a builder. Only the owner can; the runner checks. */
@@ -575,6 +580,15 @@ export const Route = createFileRoute("/api/workspace")({
                 remove: data.remove === true,
               }),
             },
+          );
+          return Response.json(result.body, { status: result.status });
+        }
+
+        if (data.action === "unqueue") {
+          const result = await runner(
+            request,
+            `/agent/workspaces/${encodeURIComponent(data.id)}/unqueue`,
+            { method: "POST", owner, body: JSON.stringify({ queueId: data.queueId }) },
           );
           return Response.json(result.body, { status: result.status });
         }

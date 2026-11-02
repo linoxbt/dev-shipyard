@@ -18,11 +18,31 @@ export interface ProxyTarget {
 export class ProxyProvider implements ModelProvider {
   readonly name = "devstation";
 
+  private readonly target: ProxyTarget;
+
   constructor(
-    private readonly target: ProxyTarget,
+    target: ProxyTarget,
     readonly model: string,
     private readonly fetchImpl: typeof fetch = fetch,
-  ) {}
+  ) {
+    // A copy: the pass is renewed in place on each heartbeat.
+    this.target = { ...target };
+  }
+
+  /** The pass now in use (renewed by heartbeat()). */
+  get token(): string {
+    return this.target.token;
+  }
+
+  /**
+   * Check in with the site while there is work: the pass is renewed and the
+   * project's machine kept up (routes/api.model.heartbeat.ts). "expired"
+   * when the pass can no longer be renewed; "failed" when the site could not
+   * be reached this time (the next beat tries again).
+   */
+  async heartbeat(): Promise<"ok" | "expired" | "failed"> {
+    return heartbeat(this.target, this.fetchImpl);
+  }
 
   async generate(input: GenerateInput): Promise<ProviderResult> {
     const payload = fitBody({
@@ -117,6 +137,28 @@ export class ProxyProvider implements ModelProvider {
     } catch {
       // The site also records a finished turn when it next sees it.
     }
+  }
+}
+
+/** Renew a pass in place (see ProxyProvider.heartbeat). */
+export async function heartbeat(
+  target: ProxyTarget,
+  fetchImpl: typeof fetch = fetch,
+): Promise<"ok" | "expired" | "failed"> {
+  try {
+    const res = await fetchImpl(target.url.replace(/\/api\/model$/, "/api/model/heartbeat"), {
+      method: "POST",
+      headers: { authorization: `Bearer ${target.token}` },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (res.status === 401 || res.status === 403) return "expired";
+    if (!res.ok) return "failed";
+    const data = (await res.json().catch(() => null)) as { token?: unknown } | null;
+    if (typeof data?.token !== "string" || !data.token) return "failed";
+    target.token = data.token;
+    return "ok";
+  } catch {
+    return "failed";
   }
 }
 

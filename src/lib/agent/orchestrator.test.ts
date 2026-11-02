@@ -28,6 +28,47 @@ const GREET = `function greet(name) {
 `;
 
 describe("the agent loop", () => {
+  it("goes on after a reply cut off at the output limit, instead of calling it done", async () => {
+    const workspace = ws();
+    const provider = new MockProvider([
+      { text: "", stopReason: "max_tokens" },
+      {
+        text: "Writing the game in parts.",
+        toolCalls: [
+          { id: "1", name: "write_file", input: { path: "game.js", content: "let t=1;" } },
+        ],
+      },
+      { text: "The tower defense game is built." },
+    ]);
+    const events: AgentEvent[] = [];
+    const result = await new Orchestrator({
+      provider,
+      workspace,
+      autonomy: "autonomous",
+      requestApproval: async () => true,
+      onEvent: (e) => events.push(e),
+    }).run("build the game");
+    expect(provider.turnsUsed).toBe(3);
+    expect(result.filesChanged).toContain("game.js");
+    expect(result.summary).toBe("The tower defense game is built.");
+    expect(events.some((e) => e.kind === "retry")).toBe(true);
+    // The model is told why, in so many words.
+    expect(JSON.stringify(provider.calls[1].messages)).toContain("cut off at the output limit");
+  });
+
+  it("never says Done for a turn where the model produced nothing", async () => {
+    const provider = new MockProvider([{ text: "" }]);
+    const result = await new Orchestrator({
+      provider,
+      workspace: ws(),
+      autonomy: "autonomous",
+      requestApproval: async () => true,
+    }).run("build the game");
+    expect(provider.turnsUsed).toBe(3);
+    expect(result.summary).not.toBe("Done.");
+    expect(result.summary).toContain("nothing was built");
+  });
+
   it("says what it is doing between batches, and never lets the wallet key out", async () => {
     const workspace = ws();
     const provider = new MockProvider([

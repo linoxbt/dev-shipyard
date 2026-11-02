@@ -45,7 +45,7 @@ export function AccountSheet({
   onEditName,
   onClose,
   plan,
-  onUpgrade,
+  onUpgrade: _onUpgrade,
   onConnectors,
   admin,
 }: {
@@ -110,15 +110,8 @@ export function AccountSheet({
         </SheetRow>
       )}
       {account && (
-        <SheetRow
-          icon={Crown}
-          detail={plan}
-          onClick={() => {
-            onClose();
-            onUpgrade();
-          }}
-        >
-          Plan and credit
+        <SheetRow icon={Crown} detail={plan} href="/credits">
+          Credits and usage
         </SheetRow>
       )}
       {account && (

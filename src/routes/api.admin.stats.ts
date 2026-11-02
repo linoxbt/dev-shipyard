@@ -1,69 +1,36 @@
-import { createHmac } from "node:crypto";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { dbConfigured, insert, rpc, select, selectAll } from "@/lib/db/admin.server";
+import { dbConfigured, insert, select } from "@/lib/db/admin.server";
 import { fail, isAdmin, requestOwner } from "@/lib/db/request.server";
+import {
+  createShare,
+  DOWNLOADS,
+  listShares,
+  rangeDays,
+  revokeShare,
+  statsDashboard,
+  statsDownload,
+  type Download,
+} from "@/lib/db/stats.server";
 
-// DevStation's figures, for the people in ADMIN_EMAILS: totals, every agent
-// turn and the daily site figures, as JSON or as CSV to download and publish;
-// and granting Pro to an account that asked for it.
+// DevStation's figures, for the people in ADMIN_EMAILS: the dashboard for a
+// period, the downloads, granting Pro to an account that asked for it, and
+// read-only share links (made, listed and revoked here; opened through
+// api/stats/shared).
 
 type Row = Record<string, unknown>;
 
-export function csv(rows: Row[], columns: string[]): string {
-  const cell = (v: unknown) => {
-    let s = v === null || v === undefined ? "" : String(v);
-    // A cell a spreadsheet would run as a formula is kept as text.
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  return [columns.join(","), ...rows.map((r) => columns.map((c) => cell(r[c])).join(","))].join(
-    "\n",
-  );
-}
+export { csv } from "@/lib/db/stats.server";
 
-/** A stable stand-in for an account in published figures. The account id is
- *  an unkeyed hash of an email, so anyone could hash an address and find that
- *  person's rows; this is keyed with the server's secret. */
-function pseudonym(owner: unknown): string {
-  const key = process.env.SESSION_SECRET || process.env.RUNNER_TOKEN || "devstation";
-  return `acct_${createHmac("sha256", key).update(String(owner)).digest("hex").slice(0, 12)}`;
-}
-
-/** The first day of the last 90. */
-function since90(now = new Date()): string {
-  return new Date(now.getTime() - 89 * 24 * 60 * 60_000).toISOString().slice(0, 10);
-}
-
-function download(name: string, body: string, type: string): Response {
-  return new Response(body, {
-    headers: {
-      "content-type": `${type}; charset=utf-8`,
-      "content-disposition": `attachment; filename="${name}"`,
-      "cache-control": "no-store",
-    },
-  });
-}
-
-const TURN_COLUMNS = [
-  "created_at",
-  "account",
-  "workspace",
-  "turn",
-  "model",
-  "mode",
-  "phase",
-  "steps",
-  "cost_usd",
-  "files_changed",
-  "premium",
-];
-
-const setPlan = z.object({
-  action: z.literal("set_plan"),
-  owner: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
-  plan: z.enum(["free", "pro"]),
-});
+const actions = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("set_plan"),
+    owner: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
+    plan: z.enum(["free", "pro"]),
+  }),
+  z.object({ action: z.literal("create_share"), label: z.string().trim().max(80).default("") }),
+  z.object({ action: z.literal("revoke_share"), id: z.string().uuid() }),
+]);
 
 export const Route = createFileRoute("/api/admin/stats")({
   server: {
@@ -81,55 +48,24 @@ export const Route = createFileRoute("/api/admin/stats")({
         const url = new URL(request.url);
         const what = url.searchParams.get("download");
         try {
-          if (what === "turns.csv") {
-            const rows = await selectAll<Row>(
-              "agent_turns",
-              `select=${TURN_COLUMNS.map((c) => (c === "account" ? "owner" : c)).join(",")}&order=created_at.asc,id.asc`,
-            );
-            const published = rows.map(({ owner: who, ...rest }) => ({
-              account: pseudonym(who),
-              ...rest,
-            }));
-            return download("devstation-turns.csv", csv(published, TURN_COLUMNS), "text/csv");
+          if (what && (DOWNLOADS as readonly string[]).includes(what)) {
+            return await statsDownload(what as Download);
           }
-          if (what === "daily.csv") {
-            const rows = await selectAll<Row>(
-              "site_daily",
-              "select=day,metric,count&order=day.asc,metric.asc",
-            );
-            return download(
-              "devstation-daily.csv",
-              csv(rows, ["day", "metric", "count"]),
-              "text/csv",
+          if (url.searchParams.get("shares") === "1") {
+            return Response.json(
+              { ok: true, shares: await listShares() },
+              { headers: { "cache-control": "no-store" } },
             );
           }
-          const days = [7, 30, 90].includes(Number(url.searchParams.get("days")))
-            ? Number(url.searchParams.get("days"))
-            : 30;
-          const [summary, daily, dashboard] = await Promise.all([
-            rpc<Row>("devstation_stats"),
-            selectAll<Row>(
-              "site_daily",
-              `select=day,metric,count&day=gte.${since90()}&order=day.desc`,
+          const [dashboard, requests] = await Promise.all([
+            statsDashboard(rangeDays(url.searchParams.get("days")), false),
+            select<Row>(
+              "account_plans",
+              "select=owner,plan,contact,pro_requested_at&or=(pro_requested_at.not.is.null,plan.eq.pro)&order=pro_requested_at.desc.nullslast",
             ),
-            what === "summary.json"
-              ? Promise.resolve(null)
-              : rpc<Row>("devstation_dashboard", { p_days: days }),
           ]);
-          if (what === "summary.json") {
-            // For publishing: totals and daily figures, no accounts.
-            return download(
-              "devstation-stats.json",
-              JSON.stringify({ summary, daily }, null, 2),
-              "application/json",
-            );
-          }
-          const requests = await select<Row>(
-            "account_plans",
-            "select=owner,plan,contact,pro_requested_at&or=(pro_requested_at.not.is.null,plan.eq.pro)&order=pro_requested_at.desc.nullslast",
-          );
           return Response.json(
-            { ok: true, summary, dashboard, proRequests: requests },
+            { ok: true, dashboard, proRequests: requests },
             { headers: { "cache-control": "no-store" } },
           );
         } catch {
@@ -138,24 +74,30 @@ export const Route = createFileRoute("/api/admin/stats")({
       },
 
       POST: async ({ request }) => {
-        if (!isAdmin(requestOwner(request))) {
-          return fail("forbidden", "This page is for DevStation's admins.", 403);
-        }
-        const parsed = setPlan.safeParse(await request.json().catch(() => null));
+        const owner = requestOwner(request);
+        if (!isAdmin(owner)) return fail("forbidden", "This page is for DevStation's admins.", 403);
+        const parsed = actions.safeParse(await request.json().catch(() => null));
         if (!parsed.success) return fail("invalid_body", "Malformed request.", 400);
+        const data = parsed.data;
         try {
+          if (data.action === "create_share") {
+            const made = await createShare(owner!, data.label);
+            return Response.json({ ok: true, ...made });
+          }
+          if (data.action === "revoke_share") {
+            const revoked = await revokeShare(data.id);
+            return revoked
+              ? Response.json({ ok: true })
+              : fail("not_found", "That link is already revoked or does not exist.", 404);
+          }
           await insert(
             "account_plans",
-            {
-              owner: parsed.data.owner,
-              plan: parsed.data.plan,
-              updated_at: new Date().toISOString(),
-            },
+            { owner: data.owner, plan: data.plan, updated_at: new Date().toISOString() },
             { upsertOn: "owner" },
           );
           return Response.json({ ok: true });
         } catch {
-          return fail("db", "The plan could not be changed.", 502);
+          return fail("db", "That could not be saved.", 502);
         }
       },
     },

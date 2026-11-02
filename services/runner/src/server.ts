@@ -79,6 +79,7 @@ import {
   startWorkspacePreview,
   workspaceFiles,
   workspaceMembers,
+  unqueueMessage,
   workspaceRole,
   workspaceView,
 } from "./workspace-agent";
@@ -891,6 +892,18 @@ async function route(
       );
       if (!sent.ok) return json(res, sent.status, { ok: false, message: sent.message });
       return json(res, 200, { ok: true, workspace: workspaceView(sent.session) });
+    }
+
+    if (id && action === "unqueue" && req.method === "POST") {
+      const body = await readJsonBody<{ queueId?: unknown }>(req, 10_000);
+      if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
+      const queueId = typeof body.value.queueId === "string" ? body.value.queueId : "";
+      const removed = unqueueMessage(id, queueId);
+      const session = getWorkspace(id);
+      return json(res, removed ? 200 : 404, {
+        ok: removed,
+        ...(session ? { workspace: workspaceView(session) } : {}),
+      });
     }
 
     if (id && action === "cancel" && req.method === "POST") {

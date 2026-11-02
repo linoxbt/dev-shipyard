@@ -32,10 +32,12 @@ import {
   type Handoff,
 } from "../../../src/lib/agent/orchestrator";
 import type { ProviderMessage } from "../../../src/lib/agent/providers/types";
+import { compactTimeline, type SavedStep } from "../../../src/lib/coding-agent/steps";
 import { isControlPath, looksBinary, Workspace } from "../../../src/lib/agent/workspace";
 import { initLocalRepo, materialise, readWorkspace } from "../../../src/lib/agent/repo-session";
 import {
   ProxyProvider,
+  heartbeat,
   providerForModel,
   type ModelProvider,
   type ProxyTarget,
@@ -73,8 +75,19 @@ export const MAX_WORKSPACES = 60;
 /** Runs at once across everybody. Each is a container and a model loop, and
  *  this host shares its memory with the build queue. */
 export const MAX_RUNNING = 2;
-const MAX_STEPS = 60;
-const MAX_MS = 20 * 60_000;
+/** One turn's limits. In a project's own machine the agent works on with
+ *  nobody watching (its heartbeat keeps the machine up), so a turn may take
+ *  as long as building a whole app takes; on a shared host it is shorter. */
+const MAX_STEPS = (env: NodeJS.ProcessEnv = process.env) =>
+  Number(env.AGENT_MAX_STEPS) || (env.DEVSTATION_ISOLATED_HOST === "1" ? 150 : 60);
+const MAX_MS = (env: NodeJS.ProcessEnv = process.env) =>
+  (Number(env.AGENT_MAX_MINUTES) || (env.DEVSTATION_ISOLATED_HOST === "1" ? 60 : 20)) * 60_000;
+/** Messages that can wait for the turn before them. */
+export const MAX_QUEUED = 10;
+/** Finished turns kept for a browser that was away to catch up on. */
+const MAX_RECENT = 10;
+/** How often a machine with work checks in (routes/api.model.heartbeat.ts). */
+const HEARTBEAT_MS = 4 * 60_000;
 const MAX_EVENTS = 300;
 /** Conversation carried between messages. Older exchanges are dropped first,
  *  always at a user message so a tool result is never left without its call. */
@@ -135,6 +148,12 @@ export interface WorkspaceSession {
   };
   /** Other wallets the owner has added as builders, lowercased. */
   collaborators?: string[];
+  /** Messages sent while a turn ran, in the order they will run. What each
+   *  needs to run (its pass, connected accounts) is held in memory only. */
+  queue?: QueuedTurn[];
+  /** The last few finished turns, oldest first, so a browser that was away
+   *  (or closed) can show every reply it missed, not only the latest. */
+  recent?: RecentTurn[];
   /** The current or most recent turn on its own, for the site's records:
    *  `steps` and `costUsd` above are totals across turns. */
   lastTurn?: {
@@ -146,6 +165,25 @@ export interface WorkspaceSession {
     /** The account that sent the message (spend and stats are theirs). */
     by?: string;
   };
+}
+
+export interface QueuedTurn {
+  id: string;
+  prompt: string;
+  at: number;
+  by?: string;
+}
+
+export interface RecentTurn {
+  turn: number;
+  prompt: string;
+  reply: string;
+  phase: WorkspacePhase;
+  error: string | null;
+  changed: string[];
+  /** Narration and step titles, as the chat keeps them. */
+  timeline: SavedStep[];
+  at: number;
 }
 
 export type WorkspaceView = Omit<WorkspaceSession, "root" | "owner" | "collaborators">;
@@ -211,6 +249,9 @@ export function initWorkspaceStore(dir = DEFAULT_DIR): void {
       session.preview = { ...session.preview, phase: "error", message: STOPPED };
     }
     sessions.set(session.id, session);
+    // Messages that were waiting: each says it did not run (their passes
+    // were in the memory of the process that stopped).
+    if (session.queue?.length) setTimeout(() => drainQueue(session.id), 0);
   }
 }
 
@@ -561,8 +602,33 @@ export function sendWorkspaceMessage(
 ): { ok: true; session: WorkspaceSession } | { ok: false; status: number; message: string } {
   const session = sessions.get(id);
   if (!session) return { ok: false, status: 404, message: "That workspace is gone." };
-  if (running.has(id) || session.phase === "running") {
-    return { ok: false, status: 409, message: "The agent is still working on the last message." };
+  const text = prompt.trim().slice(0, 20_000);
+  if (!text) return { ok: false, status: 400, message: "Say what you want done." };
+  startHeartbeat();
+  // While a turn runs, a new message waits its turn here, not in a browser:
+  // it runs when the turn before ends, whether or not anyone is watching.
+  if (running.has(id) || session.phase === "running" || (session.queue?.length ?? 0) > 0) {
+    const queue = session.queue ?? [];
+    if (queue.length >= MAX_QUEUED) {
+      return {
+        ok: false,
+        status: 429,
+        message: `Up to ${MAX_QUEUED} messages can wait for the agent. Send this one when it has caught up.`,
+      };
+    }
+    const item: QueuedTurn = {
+      id: `q-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      prompt: text,
+      at: Date.now(),
+      ...(opts.by ? { by: opts.by } : {}),
+    };
+    queuedOpts.set(`${id}:${item.id}`, opts);
+    session.queue = [...queue, item];
+    session.updatedAt = Date.now();
+    persist(session);
+    // Nothing running (a turn just ended between checks): start it now.
+    if (!running.has(id) && session.phase !== "running") drainQueue(id);
+    return { ok: true, session };
   }
   if (running.size >= MAX_RUNNING) {
     return {
@@ -571,9 +637,13 @@ export function sendWorkspaceMessage(
       message: "The agent is busy with other people's work. Try again in a minute.",
     };
   }
-  const text = prompt.trim().slice(0, 20_000);
-  if (!text) return { ok: false, status: 400, message: "Say what you want done." };
+  startTurn(session, text, opts);
+  return { ok: true, session };
+}
 
+/** Run one message now. The caller has checked nothing else is running. */
+function startTurn(session: WorkspaceSession, text: string, opts: SendOptions): void {
+  const id = session.id;
   Object.assign(session, {
     phase: "running" as const,
     status: "Starting",
@@ -593,15 +663,110 @@ export function sendWorkspaceMessage(
   const done = runTurn(session, text, opts, controller.signal).finally(() => {
     // Only this turn's controller: a newer turn may already have started.
     if (running.get(id) === controller) running.delete(id);
+    drainQueue(id);
   });
   settled.set(id, done);
-  return { ok: true, session };
+}
+
+/** What each waiting message needs to run, by "<workspace>:<queue id>":
+ *  in memory only, like the connected accounts it may carry. */
+const queuedOpts = new Map<string, SendOptions>();
+
+/** Start the next waiting message, if nothing is running. */
+export function drainQueue(id: string): void {
+  const session = sessions.get(id);
+  if (!session || running.has(id) || session.phase === "running") return;
+  const next = session.queue?.[0];
+  if (!next) return;
+  if (running.size >= MAX_RUNNING) {
+    setTimeout(() => drainQueue(id), 5_000).unref?.();
+    return;
+  }
+  session.queue = session.queue!.slice(1);
+  const key = `${id}:${next.id}`;
+  const opts = queuedOpts.get(key);
+  queuedOpts.delete(key);
+  if (!opts) {
+    // Its pass was lost (the machine restarted while it waited): say so
+    // where the reply would be, and go on with the rest.
+    Object.assign(session, {
+      prompt: next.prompt,
+      reply: "",
+      events: [],
+      changed: [],
+      phase: "error" as const,
+      error:
+        "This message was waiting while the project's machine restarted, so it did not run. Send it again.",
+      turns: session.turns + 1,
+      updatedAt: Date.now(),
+    });
+    remember(session);
+    persist(session);
+    drainQueue(id);
+    return;
+  }
+  startTurn(session, next.prompt, opts);
+}
+
+/** Take a waiting message back out before it runs. */
+export function unqueueMessage(id: string, queueId: string): boolean {
+  const session = sessions.get(id);
+  if (!session?.queue?.some((q) => q.id === queueId)) return false;
+  session.queue = session.queue.filter((q) => q.id !== queueId);
+  queuedOpts.delete(`${id}:${queueId}`);
+  session.updatedAt = Date.now();
+  persist(session);
+  return true;
+}
+
+/** Keep a finished turn for a browser that was away to catch up on. */
+function remember(session: WorkspaceSession): void {
+  const entry: RecentTurn = {
+    turn: session.turns,
+    prompt: session.prompt,
+    reply: session.reply,
+    phase: session.phase,
+    error: session.error,
+    changed: session.changed.slice(0, 200),
+    timeline: compactTimeline(session.events),
+    at: Date.now(),
+  };
+  session.recent = [...(session.recent ?? []).filter((r) => r.turn !== entry.turn), entry].slice(
+    -MAX_RECENT,
+  );
+}
+
+// The heartbeat: while a machine has work (a turn running or messages
+// waiting), it checks in with the site every few minutes with that work's
+// passes. The passes are renewed and the machine kept up, so the work goes on
+// with every browser closed, and stops being renewed when it ends.
+const activeProxies = new Map<string, ProxyProvider>();
+let beating: ReturnType<typeof setInterval> | null = null;
+
+function startHeartbeat(): void {
+  if (beating) return;
+  beating = setInterval(() => void beat(), HEARTBEAT_MS);
+  beating.unref?.();
+}
+
+export async function beat(): Promise<void> {
+  for (const [id, session] of sessions) {
+    const live = activeProxies.get(id);
+    if (live && running.has(id)) await live.heartbeat();
+    for (const q of session.queue ?? []) {
+      const opts = queuedOpts.get(`${id}:${q.id}`);
+      if (opts?.proxy) await heartbeat(opts.proxy);
+    }
+  }
 }
 
 export function cancelWorkspace(id: string): boolean {
   const controller = running.get(id);
   const session = sessions.get(id);
   if (!controller || !session) return false;
+  // Stop means stop: what was waiting behind this turn goes too.
+  for (const q of session.queue ?? []) queuedOpts.delete(`${id}:${q.id}`);
+  session.queue = [];
   controller.abort();
   session.status = "Stopping";
   session.updatedAt = Date.now();
@@ -827,6 +992,7 @@ async function runTurn(
     }
     const provider = chosen.provider;
     proxy = provider instanceof ProxyProvider ? provider : null;
+    if (proxy) activeProxies.set(session.id, proxy);
 
     const wantSandbox = opts.sandbox ?? sandboxEnabled();
     const network = opts.network ?? workspaceNetworkEnabled();
@@ -904,8 +1070,8 @@ async function runTurn(
       provider,
       workspace: new Workspace(session.root, { allowMcpConfig: isolatedHost() }),
       signal,
-      maxSteps: MAX_STEPS,
-      maxMs: MAX_MS,
+      maxSteps: MAX_STEPS(),
+      maxMs: MAX_MS(),
       taskId: `${session.id}-${session.turns + 1}`,
       projectId: session.id,
       memory,
@@ -992,6 +1158,8 @@ async function runTurn(
       error: signal.aborted ? null : error instanceof Error ? error.message : String(error),
     });
   } finally {
+    if (activeProxies.get(session.id) === proxy) activeProxies.delete(session.id);
+    if (session.phase !== "running") remember(session);
     memory?.close();
     if (!isolatedHost()) await executor?.dispose();
     session.jobs = executor?.running?.() ?? 0;

@@ -130,6 +130,14 @@ export function UpgradeSheet({
           </div>
         </div>
       )}
+      {signedIn && (
+        <a
+          href="/credits"
+          className="mt-4 block text-center text-[12.5px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          See your credit and usage
+        </a>
+      )}
     </Modal>
   );
 }

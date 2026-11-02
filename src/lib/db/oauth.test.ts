@@ -115,4 +115,23 @@ describe("a turn's pass", () => {
     const state = new URL(startUrl(req, "github", "0xabc", "/")!).searchParams.get("state");
     expect(readTurnPass(state)).toBeNull();
   });
+
+  it("renews for the same owner, workspace and model, and stops renewing after 8 hours", async () => {
+    const { mintTurnPass, readTurnPass, renewTurnPass, MAX_RENEWED_MS } =
+      await import("./turn-token.server");
+    const start = Date.now();
+    const first = readTurnPass(
+      mintTurnPass({ owner: "0xabc", workspace: "w", model: "auto" }, start),
+    )!;
+    const later = start + 30 * 60_000;
+    const renewed = readTurnPass(renewTurnPass(first, later)!, later)!;
+    expect(renewed).toMatchObject({
+      owner: "0xabc",
+      workspace: "w",
+      model: "auto",
+      started: start,
+    });
+    expect(renewed.expires).toBeGreaterThan(first.expires);
+    expect(renewTurnPass(renewed, start + MAX_RENEWED_MS + 1)).toBeNull();
+  });
 });

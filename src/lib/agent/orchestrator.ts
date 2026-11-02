@@ -73,6 +73,8 @@ export type AgentEventKind =
   | "narration"
   | "handoff"
   | "question"
+  /** A reply was cut off or empty and the model was told to go on. */
+  | "retry"
   | "usage"
   | "task.completed"
   | "task.aborted";
@@ -425,6 +427,7 @@ export class Orchestrator {
     // every turn.
     let snapshotSkip: string | null = null;
 
+    let stalls = 0;
     for (;;) {
       const budget = this.budgetCheck(steps, started);
       if (budget) {
@@ -457,13 +460,37 @@ export class Orchestrator {
 
       if (result.text) summary = result.text;
 
-      // No tool calls means it is answering rather than working.
+      // No tool calls means it is answering rather than working, unless the
+      // reply was cut off at the output limit or came back empty. Then the
+      // work has not started, and ending the turn there reads as "Done." for
+      // something that never happened: the model is told and goes on, twice
+      // at most, before the turn ends saying so.
       if (result.toolCalls.length === 0) {
+        const cutOff = result.stopReason === "max_tokens";
+        const empty = !result.text.trim();
         messages.push({
           role: "assistant",
-          content: result.text,
+          content: result.text || (cutOff ? "[My reply was cut off.]" : "[No reply.]"),
           ...(result.raw ? { raw: result.raw } : {}),
         });
+        if ((cutOff || empty) && stalls < MAX_STALLS) {
+          stalls++;
+          this.emit(
+            "retry",
+            cutOff
+              ? "The model ran out of room before finishing its reply. Continuing in smaller steps."
+              : "The model returned an empty reply. Asking it to continue.",
+          );
+          messages.push({ role: "user", content: cutOff ? CUT_OFF_NOTE : EMPTY_NOTE });
+          continue;
+        }
+        if (cutOff || empty) {
+          stoppedBecause = "the model gave no usable reply";
+          summary =
+            summary && !empty
+              ? summary
+              : "The model did not produce an answer this time (its replies were empty or cut off), so nothing was built. Send the message again, or switch to another model.";
+        }
         this.progress(steps, summary, messages);
         break;
       }
@@ -1132,6 +1159,15 @@ export interface AgentQuestion {
   options: { label: string; description?: string }[];
   multiSelect?: boolean;
 }
+
+/** Replies cut off or empty in a row before a turn ends saying so. */
+const MAX_STALLS = 2;
+
+const CUT_OFF_NOTE =
+  "Your last reply was cut off at the output limit before it finished, so nothing in it ran. Do not plan the whole thing in one reply: think briefly, then act with one tool call at a time. Write a large file in parts: create it with the first part, then add the rest with further edits.";
+
+const EMPTY_NOTE =
+  "Your last reply was empty. Continue the task now: take the next concrete step with a tool call, or answer the person.";
 
 /** An ask_user call's arguments, checked, or null when they are unusable. */
 export function parseQuestion(input: Record<string, unknown>): AgentQuestion | null {

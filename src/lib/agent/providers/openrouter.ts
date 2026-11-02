@@ -31,6 +31,9 @@ const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
  */
 const DEFAULT_MAX_TOKENS = Number(process.env.DEVSTATION_MAX_TOKENS) || 16_000;
 
+/** Output room for Qwen on Fortytwo, which spends much of it reasoning. */
+const FORTYTWO_MAX_TOKENS = Number(process.env.FORTYTWO_MAX_TOKENS) || 32_000;
+
 /** Below this a retry would produce a reply too short to be useful; better to
  *  say the balance is the problem. */
 const MIN_RETRY_TOKENS = 1024;
@@ -171,6 +174,16 @@ export function withoutImages(messages: GenerateInput["messages"]): GenerateInpu
  *  rather than pattern-matches, and treats unparseable arguments as empty
  *  instead of throwing. The schema check downstream gives the model a usable
  *  error, where an exception here would just end the turn. */
+/** Whether a call's arguments arrived whole (they parse as an object). */
+export function completeArguments(raw: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(raw || "{}");
+    return !!parsed && typeof parsed === "object" && !Array.isArray(parsed);
+  } catch {
+    return false;
+  }
+}
+
 function parseArguments(raw: string): Record<string, unknown> {
   if (!raw.trim()) return {};
   try {
@@ -265,7 +278,11 @@ export class OpenRouterProvider implements ModelProvider {
       : fortytwo
         ? "Fortytwo"
         : `The endpoint ${this.endpoint}`;
-    const requested = input.maxTokens ?? DEFAULT_MAX_TOKENS;
+    // Qwen on Fortytwo reasons at length before it writes (9,000 tokens of
+    // thinking for a two-paragraph answer is normal), and its output is not
+    // held against a balance the way OpenRouter's is: 16,000 left it cut off
+    // before it wrote a line of code.
+    const requested = input.maxTokens ?? (fortytwo ? FORTYTWO_MAX_TOKENS : DEFAULT_MAX_TOKENS);
     let res = await send(requested);
 
     // OpenRouter holds credit for the whole max_tokens before it answers. A
@@ -362,8 +379,13 @@ export class OpenRouterProvider implements ModelProvider {
       }
     }
 
+    const cutOff = finish === "length";
     const toolCalls: ProviderToolCall[] = [...partial.entries()]
       .sort((a, b) => a[0] - b[0])
+      // A reply cut off at the output limit ends inside its last call: those
+      // arguments are half a file, and running the call with them would do
+      // something nobody asked for. Only calls that arrived whole are kept.
+      .filter(([, c]) => !cutOff || completeArguments(c.function.arguments))
       .map(([, c]) => ({
         id: c.id,
         name: c.function.name,

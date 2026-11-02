@@ -100,3 +100,29 @@ describe("the proxy provider", () => {
     expect(parsed.messages.at(-1)?.content).toBe("latest");
   });
 });
+
+describe("the heartbeat", () => {
+  it("swaps in the renewed pass, and says when the pass can no longer be renewed", async () => {
+    const seen: string[] = [];
+    const answers = [
+      Response.json({ ok: true, token: "pass-2" }),
+      Response.json({ ok: false, reason: "too_long" }, { status: 403 }),
+    ];
+    const fake = (async (url: string, init?: RequestInit) => {
+      seen.push(`${url} ${(init?.headers as Record<string, string>).authorization}`);
+      return answers.shift()!;
+    }) as unknown as typeof fetch;
+    const provider = new ProxyProvider(
+      { url: "https://site.test/api/model", token: "pass-1" },
+      "auto",
+      fake,
+    );
+    expect(await provider.heartbeat()).toBe("ok");
+    expect(provider.token).toBe("pass-2");
+    expect(await provider.heartbeat()).toBe("expired");
+    expect(seen).toEqual([
+      "https://site.test/api/model/heartbeat Bearer pass-1",
+      "https://site.test/api/model/heartbeat Bearer pass-2",
+    ]);
+  });
+});

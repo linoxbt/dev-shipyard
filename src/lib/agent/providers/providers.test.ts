@@ -334,3 +334,60 @@ describe("when OpenRouter credit is short", () => {
     expect(text).not.toContain("{");
   });
 });
+
+describe("a reply cut off at the output limit", () => {
+  const realFetch = globalThis.fetch;
+  it("drops the half-written call and says it was cut off, so nothing runs with half a file", async () => {
+    const frames = [
+      {
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                { index: 0, id: "a", function: { name: "update_plan", arguments: '{"items":[]}' } },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                {
+                  index: 1,
+                  id: "b",
+                  function: { name: "write_file", arguments: '{"path":"game.js","content":"let x' },
+                },
+              ],
+            },
+          },
+        ],
+      },
+      { choices: [{ delta: {}, finish_reason: "length" }] },
+    ];
+    globalThis.fetch = (async () =>
+      new Response(
+        frames.map((f) => `data: ${JSON.stringify(f)}\n\n`).join("") + "data: [DONE]\n\n",
+        { status: 200 },
+      )) as unknown as typeof fetch;
+    try {
+      const cut = await new OpenRouterProvider("k", "qwen/qwen3.8-27b", {
+        name: "fortytwo",
+        baseUrl: "https://x.test/v1",
+      }).generate({ system: "s", messages: [{ role: "user", content: "hi" }] });
+      expect(cut.toolCalls.map((c) => c.name)).toEqual(["update_plan"]);
+
+      frames.splice(0, 1);
+      const nothing = await new OpenRouterProvider("k", "qwen/qwen3.8-27b", {
+        name: "fortytwo",
+        baseUrl: "https://x.test/v1",
+      }).generate({ system: "s", messages: [{ role: "user", content: "hi" }] });
+      expect(nothing.toolCalls).toEqual([]);
+      expect(nothing.stopReason).toBe("max_tokens");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});

@@ -396,6 +396,26 @@ export async function sandboxRunner(
   }
 }
 
+/**
+ * Keep a project's machine up while its agent has work, whether or not anyone
+ * is watching: asked by the machine itself on its heartbeat (routes/
+ * api.model.heartbeat.ts). False when it is not one of this site's machines
+ * or is not running (a stopped machine has no work to keep).
+ */
+export async function keepSandboxAwake(workspace: string): Promise<boolean> {
+  if (!sandboxHostEnabled()) return false;
+  const ids = splitId(workspace);
+  if (!ids) return false;
+  try {
+    const sandbox = await Sandbox.get({ name: ids.name });
+    if (sandbox.status !== "running") return false;
+    await sandbox.extendTimeout(timeoutMs());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** A project untouched for this long is deleted, with its snapshots. */
 const IDLE_DELETE_MS = 60 * 24 * 60 * 60_000;
 

@@ -103,6 +103,7 @@ const SILENT = new Set([
 const NOTE_TONE: Record<string, Step["tone"]> = {
   "approval.denied": "warning",
   "task.aborted": "warning",
+  retry: "warning",
   handoff: "warning",
   checkpoint: "info",
   verification: "info",

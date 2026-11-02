@@ -6,6 +6,7 @@ import { MockProvider } from "../../../src/lib/agent/providers";
 import type { ProviderMessage } from "../../../src/lib/agent/providers/types";
 import {
   cancelWorkspace,
+  unqueueMessage,
   createWorkspace,
   getWorkspace,
   livePreview,
@@ -102,19 +103,57 @@ describe("a conversation over one workspace", () => {
     expect(userTexts).toContain("what word?");
   });
 
-  it("refuses a second message while one is running", async () => {
+  it("queues a message sent while one runs, and runs it after, with nobody watching", async () => {
     const session = await blank();
-    const first = sendWorkspaceMessage(session.id, "slow", {
+    const first = sendWorkspaceMessage(session.id, "build the game", {
       ...offline,
-      provider: new MockProvider([{ text: "done" }]),
+      provider: new MockProvider([{ text: "The game is built." }]),
     });
     expect(first.ok).toBe(true);
-    const second = sendWorkspaceMessage(session.id, "again", {
+    const second = sendWorkspaceMessage(session.id, "add a score", {
       ...offline,
-      provider: new MockProvider([{ text: "done" }]),
+      provider: new MockProvider([{ text: "The score is added." }]),
     });
-    expect(second.ok).toBe(false);
-    if (!second.ok) expect(second.status).toBe(409);
+    expect(second.ok).toBe(true);
+    expect(getWorkspace(session.id)!.queue?.map((q) => q.prompt)).toEqual(["add a score"]);
+    // What a viewer sees of a waiting message: never its pass or accounts.
+    expect(JSON.stringify(workspaceView(getWorkspace(session.id)!).queue)).not.toContain(
+      "provider",
+    );
+
+    await whenWorkspaceIdle(session.id);
+    await whenWorkspaceIdle(session.id);
+    const done = getWorkspace(session.id)!;
+    expect(done.turns).toBe(2);
+    expect(done.queue).toEqual([]);
+    // Both replies are there for a browser that was away the whole time.
+    expect(done.recent?.map((r) => [r.turn, r.prompt, r.reply])).toEqual([
+      [1, "build the game", "The game is built."],
+      [2, "add a score", "The score is added."],
+    ]);
+  });
+
+  it("lets a waiting message be taken back, and Stop clears what waits", async () => {
+    const session = await blank();
+    sendWorkspaceMessage(session.id, "one", {
+      ...offline,
+      provider: new MockProvider([{ text: "ok" }]),
+    });
+    sendWorkspaceMessage(session.id, "two", {
+      ...offline,
+      provider: new MockProvider([{ text: "ok" }]),
+    });
+    sendWorkspaceMessage(session.id, "three", {
+      ...offline,
+      provider: new MockProvider([{ text: "ok" }]),
+    });
+    const [two, three] = getWorkspace(session.id)!.queue!;
+    expect(unqueueMessage(session.id, two.id)).toBe(true);
+    expect(getWorkspace(session.id)!.queue!.map((q) => q.prompt)).toEqual(["three"]);
+    expect(unqueueMessage(session.id, "q-nope")).toBe(false);
+    cancelWorkspace(session.id);
+    expect(getWorkspace(session.id)!.queue).toEqual([]);
+    void three;
     await whenWorkspaceIdle(session.id);
   });
 

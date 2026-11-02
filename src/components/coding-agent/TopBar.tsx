@@ -99,7 +99,7 @@ export function TopBar({
 
   if (mobile) {
     return (
-      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-3">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-background px-3 pb-3 pt-[max(1rem,env(safe-area-inset-top))]">
         <RoundButton onClick={onMenu} label="Menu" icon={Menu} />
         <div className="min-w-0 flex-1 text-center">
           <p className="truncate text-[14px] font-semibold text-foreground">{project.name}</p>

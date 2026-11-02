@@ -8,7 +8,7 @@ import { AUTO_MODEL, DEFAULT_MODEL, findModel } from "../../coding-agent/models"
 export * from "./types";
 export { AnthropicProvider } from "./anthropic";
 export { OpenRouterProvider } from "./openrouter";
-export { ProxyProvider, type ProxyTarget } from "./proxy";
+export { ProxyProvider, heartbeat, type ProxyTarget } from "./proxy";
 export {
   ENGINE_BINARY,
   ENGINE_INSTALL,

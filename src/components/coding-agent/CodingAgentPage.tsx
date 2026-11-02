@@ -80,6 +80,7 @@ import {
   compactTimeline,
   pendingQuestion,
   type AgentEvent,
+  type AgentQuestion,
   type SavedStep,
 } from "@/lib/coding-agent/steps";
 import { ShotSource } from "@/lib/coding-agent/shots";
@@ -184,6 +185,19 @@ interface WorkspaceView {
     /** Refreshed mid-run (the preview follows the agent as it works). */
     live?: number;
   };
+  /** Messages waiting on the runner for the turn before them. */
+  queue?: { id: string; prompt: string; at: number }[];
+  /** The last few finished turns, for catching up after being away. */
+  recent?: {
+    turn: number;
+    prompt: string;
+    reply: string;
+    phase: "idle" | "running" | "error" | "cancelled";
+    error: string | null;
+    changed: string[];
+    timeline: SavedStep[];
+    at: number;
+  }[];
 }
 
 type Source = NonNullable<AppProject["source"]>;
@@ -545,6 +559,9 @@ export function CodingAgentPage() {
   // the project that owns the workspace (by id: the person may have opened
   // another project meanwhile). One recording per turn at a time.
   const absorbing = useRef(new Set<string>());
+  /** What the chat shows with a message waiting on the runner (its pictures,
+   *  Plan mode), by queue id, until it starts. */
+  const queuedMeta = useRef(new Map<string, { plan?: boolean; thumbs?: string[] }>());
   const absorb = useCallback(async (next: WorkspaceView) => {
     const owner = useProjects.getState().projects.find((p) => p.workspaceId === next.id);
     if (!owner) return;
@@ -552,12 +569,15 @@ export function CodingAgentPage() {
     const store = useProjects.getState();
     const isOpen = () => useProjects.getState().activeId === projectId;
 
-    const key = `${next.id}#${next.turns}`;
-    if (
-      next.phase !== "running" &&
-      next.turns > (owner.workspaceTurns ?? 0) &&
-      !absorbing.current.has(key)
-    ) {
+    // Every turn that has finished since this browser last looked, oldest
+    // first: with messages waiting on the runner, several can finish while
+    // nobody watches, and each reply belongs in the conversation. The latest
+    // finished turn, when nothing runs after it, is the one the view itself
+    // describes in full; earlier ones come from the runner's recent list.
+    const seen = owner.workspaceTurns ?? 0;
+    const finished = next.turns;
+    const key = `${next.id}#${finished}`;
+    if (finished > seen && !absorbing.current.has(key)) {
       absorbing.current.add(key);
       if (isOpen()) setAbsorbingTurn(true);
       try {
@@ -565,65 +585,132 @@ export function CodingAgentPage() {
         const body = (await res?.json().catch(() => null)) as {
           files?: Record<string, string>;
         } | null;
-        const failed = next.phase === "error";
-        const text =
-          next.phase === "cancelled"
-            ? next.reply || "Stopped."
-            : failed
-              ? next.error || "That did not work."
-              : next.reply ||
-                (next.changed.length ? `Changed ${next.changed.length} file(s).` : "Done.");
-        const steps = await withShots(next.id, compactTimeline(next.events ?? []));
-        const asking = failed ? null : pendingQuestion(next.events ?? []);
+
+        type Finished = {
+          turn: number;
+          prompt: string;
+          phase: WorkspaceView["phase"];
+          reply: string;
+          error: string | null;
+          changed: string[];
+          steps: SavedStep[];
+          question: AgentQuestion | null;
+        };
+        const records: Finished[] = [];
+        for (const r of [...(next.recent ?? [])].sort((a, b) => a.turn - b.turn)) {
+          if (r.turn <= seen || r.turn > finished) continue;
+          const whole = r.turn === finished && next.phase !== "running";
+          records.push({
+            turn: r.turn,
+            prompt: r.prompt,
+            phase: r.phase,
+            reply: r.reply,
+            error: r.error,
+            changed: r.changed,
+            steps: whole ? compactTimeline(next.events ?? []) : r.timeline,
+            question: whole && r.phase !== "error" ? pendingQuestion(next.events ?? []) : null,
+          });
+        }
+        // A runner from before the recent list: only the latest is known.
+        if (!records.length && next.phase !== "running") {
+          records.push({
+            turn: finished,
+            prompt: next.prompt,
+            phase: next.phase,
+            reply: next.reply,
+            error: next.error,
+            changed: next.changed,
+            steps: compactTimeline(next.events ?? []),
+            question: next.phase === "error" ? null : pendingQuestion(next.events ?? []),
+          });
+        }
+        if (!records.length) return;
+        const withPictures = await Promise.all(records.map((r) => withShots(next.id, r.steps)));
 
         // Read the project again just before saving: a message sent in the
         // meantime must not be overwritten by this older copy.
         const latest = useProjects.getState().projects.find((p) => p.id === projectId);
-        if (
-          !latest ||
-          latest.workspaceId !== next.id ||
-          next.turns <= (latest.workspaceTurns ?? 0)
-        ) {
+        if (!latest || latest.workspaceId !== next.id || finished <= (latest.workspaceTurns ?? 0)) {
           return;
         }
-        // The reply goes right after the message it answers; anything sent
-        // since stays after it.
-        let at = -1;
-        for (let i = latest.turns.length - 1; i >= 0; i--) {
-          if (latest.turns[i].role === "user" && latest.turns[i].text === next.prompt) {
-            at = i;
-            break;
+        let turns = latest.turns;
+        records.forEach((r, n) => {
+          if (r.turn <= (latest.workspaceTurns ?? 0)) return;
+          const failed = r.phase === "error";
+          const text =
+            r.phase === "cancelled"
+              ? r.reply || "Stopped."
+              : failed
+                ? r.error || "That did not work."
+                : r.reply ||
+                  (r.changed.length ? `Changed ${r.changed.length} file(s).` : "Finished.");
+          // The reply goes right after the message it answers (the earliest
+          // one still unanswered, as messages run in the order sent).
+          let at = -1;
+          for (let i = 0; i < turns.length; i++) {
+            if (
+              turns[i].role === "user" &&
+              turns[i].text === r.prompt &&
+              turns[i + 1]?.role !== "assistant"
+            ) {
+              at = i;
+              break;
+            }
           }
-        }
-        const asked = at >= 0 ? latest.turns[at] : null;
-        const reply: ProjectTurn = {
-          role: "assistant",
-          text,
-          changed: next.changed,
-          failed,
-          ...(steps.length ? { steps } : {}),
-          // Answering a Plan message: the reply is a plan to approve.
-          ...(asked?.plan ? { plan: true } : {}),
-          ...(asking ? { question: asking } : {}),
-        };
-        const turns =
-          at >= 0
-            ? [...latest.turns.slice(0, at + 1), reply, ...latest.turns.slice(at + 1)]
-            : // A turn another builder started arrives here without its question.
-              [
-                ...latest.turns,
-                ...(next.prompt ? [{ role: "user" as const, text: next.prompt }] : []),
-                reply,
-              ];
+          const asked = at >= 0 ? turns[at] : null;
+          const reply: ProjectTurn = {
+            role: "assistant",
+            text,
+            changed: r.changed,
+            failed,
+            ...(withPictures[n].length ? { steps: withPictures[n] } : {}),
+            // Answering a Plan message: the reply is a plan to approve.
+            ...(asked?.plan ? { plan: true } : {}),
+            ...(r.question ? { question: r.question } : {}),
+          };
+          turns =
+            at >= 0
+              ? [...turns.slice(0, at + 1), reply, ...turns.slice(at + 1)]
+              : // A turn another builder (or another device) started arrives
+                // here without its question.
+                [...turns, ...(r.prompt ? [{ role: "user" as const, text: r.prompt }] : []), reply];
+        });
         store.update(projectId, {
           ...(body?.files ? { files: body.files } : {}),
-          workspaceTurns: next.turns,
+          workspaceTurns: finished,
           turns,
         });
-        if (isOpen()) setHandoffs(next.handoffs ?? []);
+        if (isOpen() && next.phase !== "running") setHandoffs(next.handoffs ?? []);
       } finally {
         absorbing.current.delete(key);
         setAbsorbingTurn(false);
+      }
+    }
+
+    // A message that waited on the runner joins the conversation when it
+    // starts, above the work it set going (sent from here or elsewhere).
+    if (next.phase === "running" && next.prompt) {
+      const latest = useProjects.getState().projects.find((p) => p.id === projectId);
+      const shown = latest?.turns.some(
+        (t, i, all) =>
+          t.role === "user" && t.text === next.prompt && all[i + 1]?.role !== "assistant",
+      );
+      if (latest && !shown && (latest.workspaceTurns ?? 0) >= next.turns) {
+        const meta = [...queuedMeta.current.entries()].find(
+          ([qid]) => !(next.queue ?? []).some((q) => q.id === qid),
+        );
+        if (meta) queuedMeta.current.delete(meta[0]);
+        store.update(projectId, {
+          turns: [
+            ...latest.turns,
+            {
+              role: "user",
+              text: next.prompt,
+              ...(meta?.[1].plan ? { plan: true } : {}),
+              ...(meta?.[1].thumbs?.length ? { images: meta[1].thumbs } : {}),
+            },
+          ],
+        });
       }
     }
 
@@ -796,9 +883,12 @@ export function CodingAgentPage() {
         (queued?.text ?? override ?? input).trim() ||
         (pics.length ? "Here is what I attached." : "");
       if (!prompt) return false;
-      // While the agent works, a typed message waits its turn, in this
-      // project's own queue.
-      if (sending || running) {
+      // While the agent works, a message goes to the runner, which runs it
+      // when the turn before ends, with this tab open or not. Only while a
+      // send is still on its way does it wait here, in this project's queue.
+      const activeProject = useProjects.getState().projects.find((p) => p.id === activeId);
+      const toRunner = running && !sending && !!activeProject?.workspaceId;
+      if ((sending || running) && !toRunner) {
         if (typed) {
           setQueue((q) => [...q, { projectId: activeId, text: prompt, pictures: pics }]);
           setInput("");
@@ -844,6 +934,33 @@ export function CodingAgentPage() {
         const now = () => useProjects.getState().projects.find((p) => p.id === projectId);
         const first = now();
         if (!first) return false;
+        if (toRunner && first.workspaceId) {
+          // Waits on the runner; it joins the conversation when it starts.
+          const queued = await postWorkspace({
+            action: "message",
+            id: first.workspaceId,
+            prompt,
+            ...turn,
+          });
+          if (!queued.ok) {
+            toast.error(String(queued.data.message ?? "That message could not be queued."));
+            return false;
+          }
+          const w = queued.data.workspace as WorkspaceView;
+          const item = [...(w.queue ?? [])].reverse().find((q) => q.prompt === prompt);
+          if (item) {
+            queuedMeta.current.set(item.id, {
+              plan: turnMode === "plan",
+              thumbs: pics.map((p) => p.thumb),
+            });
+          }
+          if (typed) {
+            setInput("");
+            setPictures([]);
+          }
+          if (useProjects.getState().activeId === projectId) setView(w);
+          return true;
+        }
         store.update(projectId, {
           turns: [
             ...first.turns,
@@ -1309,7 +1426,26 @@ export function CodingAgentPage() {
       ? splitSuggestions(lastTurn.text).suggestions
       : [];
   // This project's queued messages.
-  const waiting = queue.filter((q) => q.projectId === activeId);
+  const waiting: { key: string; text: string; pictures: number; remove: () => void }[] = [
+    ...(view?.queue ?? []).map((q) => ({
+      key: q.id,
+      text: q.prompt,
+      pictures: queuedMeta.current.get(q.id)?.thumbs?.length ?? 0,
+      remove: () => {
+        void postWorkspace({ action: "unqueue", id: view!.id, queueId: q.id }).then((r) => {
+          if (r.ok && r.data.workspace) setView(r.data.workspace as WorkspaceView);
+        });
+      },
+    })),
+    ...queue
+      .filter((q) => q.projectId === activeId)
+      .map((q, i) => ({
+        key: `local-${i}`,
+        text: q.text,
+        pictures: q.pictures.length,
+        remove: () => setQueue((all) => all.filter((item) => item !== q)),
+      })),
+  ];
   // A decision the agent is waiting on, until it is answered or hidden.
   const asking =
     lastTurn?.role === "assistant" && lastTurn.question && !lastTurn.questionDismissed
@@ -1471,19 +1607,19 @@ export function CodingAgentPage() {
             <div className="mb-2 space-y-1 px-1">
               {waiting.map((q, i) => (
                 <div
-                  key={i}
+                  key={q.key}
                   className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1.5"
                 >
                   <Clock3 className="h-3.5 w-3.5 shrink-0 text-meta" />
                   <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/90">
-                    {q.pictures.length > 0 && `${q.pictures.length} picture(s) · `}
+                    {q.pictures > 0 && `${q.pictures} picture(s) · `}
                     {q.text}
                   </span>
                   <span className="shrink-0 text-[10.5px] text-meta">
                     {i === 0 ? "Next" : `#${i + 1}`}
                   </span>
                   <button
-                    onClick={() => setQueue((all) => all.filter((item) => item !== q))}
+                    onClick={q.remove}
                     aria-label="Remove from the queue"
                     className="text-meta hover:text-foreground"
                   >
@@ -1783,7 +1919,9 @@ export function CodingAgentPage() {
   // to the chat and back does not restart the app in it.
   if (mobile) {
     return (
-      <div className="flex h-dvh flex-col">
+      // Pinned to the screen: the page itself never scrolls, only the chat
+      // inside it, so the header cannot be carried off the top.
+      <div className="fixed inset-0 flex flex-col overscroll-none">
         {/* The preview has the whole screen; a slim bar leads back. */}
         {pane === "preview" ? (
           <BackToChatButton onClick={() => setPane("chat")} title={project.name} />

@@ -31,6 +31,9 @@ export function servedInAgentOnly(pathname: string): boolean {
     pathname === "/cookies" ||
     // The admins' figures (the page itself checks who is asking).
     pathname === "/admin/stats" ||
+    // Credit and usage, and a shared read-only copy of the figures.
+    pathname === "/credits" ||
+    /^\/stats\/shared\/[A-Za-z0-9_-]{16,80}$/.test(pathname) ||
     isPassthrough(pathname) ||
     DOCS_KEPT.some((re) => re.test(pathname))
   );
@@ -51,9 +54,11 @@ export function switchedOff(pathname: string, enabled = CODING_AGENT_ONLY): bool
  */
 const AGENT_API = [
   /^\/api\/workspace$/,
-  /^\/api\/model(\/turn)?$/,
+  /^\/api\/model(\/turn|\/heartbeat)?$/,
   /^\/api\/plan$/,
   /^\/api\/projects$/,
+  /^\/api\/credits$/,
+  /^\/api\/stats\/shared$/,
   /^\/api\/connectors$/,
   /^\/api\/oauth\/[a-z]+(\/callback)?$/,
   /^\/api\/metrics$/,
