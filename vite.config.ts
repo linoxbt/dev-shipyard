@@ -25,11 +25,9 @@ const preset =
   env.NITRO_PRESET ||
   (env.NETLIFY ? "netlify" : undefined) ||
   (env.VERCEL ? "vercel" : undefined) ||
-  // Default for manual/local production builds: Netlify, because it is the
-  // live host (netlify.toml carries the security headers, DEPLOY.md documents
-  // it). The default used to be Vercel, so a local `bun run build` produced
-  // output for a host this app is not deployed on.
-  "netlify";
+  // Default for manual/local production builds: Vercel, the live host
+  // (vercel.json; DEPLOYMENT.md documents it).
+  "vercel";
 
 // Identifies this build, so the service worker can drop caches from older ones
 // (public/sw.js is copied verbatim, so it receives this as `?v=` on its

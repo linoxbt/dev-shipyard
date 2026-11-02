@@ -8,7 +8,6 @@ import {
   backgroundTasks,
   elapsed,
   pendingQuestion,
-  stepSummary,
   stepTarget,
   stepsFromEvents,
   type AgentEvent,
@@ -97,18 +96,7 @@ describe("latestPlan", () => {
   });
 });
 
-describe("stepSummary and compactSteps", () => {
-  it("says what a turn did in one line", () => {
-    const steps = [
-      { tool: "write_file", status: "done" as const },
-      { tool: "edit_file", status: "done" as const },
-      { tool: "run_shell", status: "failed" as const },
-      { tool: null, status: "note" as const },
-    ];
-    expect(stepSummary(steps)).toBe("Edited 2 files, ran 1 command · 1 failed");
-    expect(stepSummary([])).toBe("");
-  });
-
+describe("compactSteps", () => {
   it("keeps titles only, so browser storage stays small", () => {
     const saved = compactSteps(
       stepsFromEvents([
@@ -273,5 +261,46 @@ describe("the running line", () => {
       ])[0].shot,
     ).toBe("shot-ab-1");
     expect(groupLabel("browser", steps)).toBe("Took a screenshot");
+  });
+});
+
+describe("commands as a person reads them", () => {
+  it("cleans a step's own title too, saved ones included", async () => {
+    const { readableTitle, timelineFromSaved } = await import("./steps");
+    expect(
+      readableTitle("Running cd /vercel/devstation/state/workspaces/ws-1 && npm install"),
+    ).toBe("Running npm install");
+    expect(readableTitle("Running the tests")).toBe("Running the tests");
+    expect(readableTitle("Reading src/app.ts")).toBe("Reading src/app.ts");
+    const [group] = timelineFromSaved([
+      { tool: "run_shell", title: "Running cd /vercel/devstation/state/workspaces/ws-1 && ls" },
+    ]);
+    expect(group.type === "group" && group.steps[0].title).toBe("Running ls");
+  });
+
+  it("drops the cd into the project and the machine's paths", async () => {
+    const { cleanCommand } = await import("./steps");
+    expect(
+      cleanCommand("cd /vercel/devstation/state/workspaces/ws-bc54328a && npx playwright test"),
+    ).toBe("npx playwright test");
+    expect(cleanCommand("cd /vercel/devstation/state/workspaces/ws-1/app && npm run build")).toBe(
+      "npm run build",
+    );
+    expect(cleanCommand("cat /vercel/devstation/state/workspaces/ws-1/src/app.ts")).toBe(
+      "cat src/app.ts",
+    );
+    expect(cleanCommand("ls -la")).toBe("ls -la");
+    expect(
+      groupLabel("shell", [
+        {
+          id: "1",
+          tool: "run_shell",
+          title: "x",
+          status: "done",
+          at: "",
+          input: { command: "cd /vercel/devstation/state/workspaces/ws-9 && node debug.mjs" },
+        },
+      ]),
+    ).toBe("Ran node debug.mjs");
   });
 });

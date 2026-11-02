@@ -22,7 +22,6 @@ import {
   Clock3,
 } from "lucide-react";
 import { SplitLayout } from "@/components/appbuilder/SplitLayout";
-import { PublishDialog } from "@/components/appbuilder/PublishDialog";
 import { ActivityPane } from "@/components/coding-agent/ActivityPane";
 import { CodePane } from "@/components/coding-agent/CodePane";
 import { Composer, ToolChip } from "@/components/coding-agent/Composer";
@@ -34,6 +33,8 @@ import { UpgradeSheet } from "@/components/coding-agent/UpgradeSheet";
 import { templateFiles, type AppTemplate } from "@/lib/coding-agent/app-templates";
 import {
   connectError,
+  fetchConnectors,
+  providerName,
   countVisit,
   fetchAccess,
   type Access,
@@ -83,9 +84,7 @@ import {
 } from "@/lib/coding-agent/steps";
 import { ShotSource } from "@/lib/coding-agent/shots";
 import { QuestionPanel } from "@/components/coding-agent/QuestionPanel";
-import { postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
-import { AGENT_PATH } from "@/lib/features";
-import { useActiveChain } from "@/hooks/useActiveChain";
+import { getWorkspace, postWorkspace, slugOf } from "@/lib/coding-agent/workspace-client";
 import { useAuth } from "@/hooks/useAuth";
 import { getPreference, setPreference } from "@/lib/consent";
 import {
@@ -96,7 +95,6 @@ import {
   type AgentMode,
 } from "@/lib/coding-agent/models";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { chainConfig } from "@/lib/chains";
 import { docsHref } from "@/lib/site-hosts";
 import { cn } from "@/lib/utils";
 
@@ -118,6 +116,8 @@ import { cn } from "@/lib/utils";
 
 /** Most screenshots one saved turn keeps (each a ~30 KB JPEG). */
 const MAX_SAVED_SHOTS = 4;
+/** The largest screenshot kept with a saved turn (under the stored limit). */
+const MAX_SAVED_SHOT_CHARS = 100_000;
 
 /** A finished turn's steps, with its newest screenshots fetched and kept as
  *  pictures, so the conversation still shows them once the workspace moves on. */
@@ -126,11 +126,12 @@ async function withShots(workspaceId: string, steps: SavedStep[]): Promise<Saved
   const keep = new Set(named.slice(-MAX_SAVED_SHOTS));
   const pictures = await Promise.all(
     [...keep].map(async (s) => {
-      const res = await fetch(
-        `/api/workspace?id=${encodeURIComponent(workspaceId)}&shot=${encodeURIComponent(s.shot!)}`,
-      ).catch(() => null);
+      const res = await getWorkspace(workspaceId, `shot=${encodeURIComponent(s.shot!)}`);
       const body = (await res?.json().catch(() => null)) as { data?: string } | null;
-      return [s, body?.data ? `data:image/jpeg;base64,${body.data}` : null] as const;
+      // A thumbnail is 640px wide and usually 10-40 KB; a photo-heavy page can
+      // run far larger, and browser storage is small, so those are not kept.
+      const ok = body?.data && body.data.length <= MAX_SAVED_SHOT_CHARS;
+      return [s, ok ? `data:image/jpeg;base64,${body!.data}` : null] as const;
     }),
   );
   const found = new Map(pictures);
@@ -155,8 +156,12 @@ interface Handoff {
 
 interface WorkspaceView {
   id: string;
-  /** When the current or last turn started. */
+  /** When the current or last turn started (the server's clock). */
   turnStartedAt?: number;
+  /** When the server last changed it (its clock), to correct for skew. */
+  updatedAt?: number;
+  /** Background commands still running. */
+  jobs?: number;
   phase: "idle" | "running" | "error" | "cancelled";
   status: string;
   prompt: string;
@@ -185,17 +190,6 @@ type Starter =
   | { kind: "blank" }
   | { kind: "github"; repo: string }
   | { kind: "files"; files: Record<string, string>; label: string };
-
-/** What came back from linking GitHub to this account. */
-const GITHUB_RESULT: Record<string, string> = {
-  connected: "GitHub connected. Push or open your pull request now.",
-  connect_wallet: "Connect a user first: a GitHub account is linked to one user.",
-  wallet_linked:
-    "This user is already linked to a different GitHub account. Unlink it on your dashboard first.",
-  github_linked: "That GitHub account is already linked to another user.",
-  no_account: "GitHub did not say who you are. Try connecting again.",
-  unreachable: "DevStation could not record the link. Try again shortly.",
-};
 
 const MODEL_PREF = "devstation-agent-model";
 const MODE_PREF = "devstation-agent-mode";
@@ -269,6 +263,8 @@ async function readUploads(
 
 /** A message typed while the agent was working, waiting to be sent. */
 interface QueuedMessage {
+  /** The project it was typed in: it is only ever sent there. */
+  projectId: string | null;
   text: string;
   pictures: Attachment[];
 }
@@ -278,7 +274,6 @@ export function CodingAgentPage() {
   // project owner label kept in this browser.
   const account = useAuth((s) => s.account);
   const user = account?.email;
-  const { chainId } = useActiveChain();
   const projects = useProjects((s) => s.projects);
   const activeId = useProjects((s) => s.activeId);
   const project = projects.find((p) => p.id === activeId) ?? null;
@@ -322,6 +317,10 @@ export function CodingAgentPage() {
   // the agent was working, sent one after another as each turn ends.
   const [pictures, setPictures] = useState<Attachment[]>([]);
   const [queue, setQueue] = useState<QueuedMessage[]>([]);
+  /** This device's clock minus the server's. */
+  const clockSkew = useRef(0);
+  /** A finished turn is being recorded: it still counts as busy. */
+  const [absorbingTurn, setAbsorbingTurn] = useState(false);
   const addPictures = async (files: File[]) => {
     const room = MAX_ATTACHMENTS - pictures.length;
     if (room <= 0) return toast.error(`At most ${MAX_ATTACHMENTS} pictures per message.`);
@@ -340,6 +339,13 @@ export function CodingAgentPage() {
     if (m && (m === AUTO_MODEL || MODEL_IDS.includes(m))) setModelState(m);
     if (getPreference(MODE_PREF) === "plan") setModeState("plan");
   }, []);
+  // A premium model remembered from before, now locked for this account
+  // (credit used up, Pro ended): back to the free default, rather than looking
+  // chosen and failing at send.
+  useEffect(() => {
+    if (access && isPremiumModel(model) && !access.premium) setModelState(DEFAULT_MODEL);
+  }, [access, model]);
+
   const setModel = (m: string) => {
     setModelState(m);
     setPreference(MODEL_PREF, m);
@@ -352,8 +358,6 @@ export function CodingAgentPage() {
   const [renaming, setRenaming] = useState<string | null>(null);
   /** On a phone: the one pane on screen. */
   const [pane, setPane] = useState<"chat" | View>("chat");
-  /** The turn count at which the person hid the agent's question. */
-  const [dismissedAt, setDismissedAt] = useState(-1);
   const [newsSeen, setNewsSeen] = useState(0);
   const folderInput = useRef<HTMLInputElement | null>(null);
   const pictureInput = useRef<HTMLInputElement | null>(null);
@@ -415,18 +419,6 @@ export function CodingAgentPage() {
     else window.history.pushState(null, "", next);
   }, [activeId]);
 
-  // Back from GitHub sign-in: say so, and tidy the address bar.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const gh = params.get("github");
-    if (!gh) return;
-    if (gh === "connected") toast.success(GITHUB_RESULT.connected);
-    else toast.error(GITHUB_RESULT[gh] ?? `GitHub sign-in did not finish (${gh}).`);
-    params.delete("github");
-    const qs = params.toString();
-    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
-  }, []);
-
   // Opened from a builder invite: ?join=<workspace>&name=<app>. Waits for a
   // sign-in, because joining is checked against the account the owner added.
   // Back from connecting an account (api/oauth): say how it went, show the
@@ -441,9 +433,7 @@ export function CodingAgentPage() {
     const qs = params.toString();
     window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
     if (connected) {
-      toast.success(
-        `${connected[0].toUpperCase()}${connected.slice(1)} is connected. The agent can use it now.`,
-      );
+      toast.success(`${providerName(connected)} is connected. The agent can use it now.`);
     } else {
       toast.error(connectError(failed!, provider));
     }
@@ -500,15 +490,25 @@ export function CodingAgentPage() {
     };
   }, [user, running]);
 
-  // Queued messages go out one at a time, each when the turn before ends.
+  // Queued messages go out one at a time, each when the turn before has
+  // ended and been recorded, and only in the project they were typed in. One
+  // that cannot be sent (signed out, model locked) stays in the queue.
+  const draining = useRef(false);
   useEffect(() => {
-    if (running || sending || queue.length === 0) return;
-    const [next, ...rest] = queue;
-    setQueue(rest);
-    void send(undefined, undefined, next);
+    if (running || sending || absorbingTurn || draining.current) return;
+    const next = queue.find((q) => q.projectId === activeId);
+    if (!next) return;
+    draining.current = true;
+    void send(undefined, undefined, next)
+      .then((sent) => {
+        if (sent) setQueue((all) => all.filter((q) => q !== next));
+      })
+      .finally(() => {
+        draining.current = false;
+      });
     // send is recreated every render; the queue and turn state drive this.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, sending, queue]);
+  }, [running, sending, absorbingTurn, queue, activeId]);
   const building = view?.preview.phase === "building";
   const localPlan = useMemo(() => localPreviewPlan(files), [files]);
   const shared = !!(project?.shared || project?.role === "builder");
@@ -517,6 +517,10 @@ export function CodingAgentPage() {
     setView(null);
     setHandoffs([]);
     setOpenFile(null);
+    // What was typed and attached belongs to the project it was typed in.
+    setInput("");
+    setPictures([]);
+    setAbsorbingTurn(false);
     previewSeen.current = "";
     stickToBottom.current = true;
     setDist(project?.dist ?? null);
@@ -524,70 +528,106 @@ export function CodingAgentPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
 
-  // Record a finished turn once, whether this tab saw it start or not.
+  // Record a finished turn once, whether this tab saw it start or not, into
+  // the project that owns the workspace (by id: the person may have opened
+  // another project meanwhile). One recording per turn at a time.
+  const absorbing = useRef(new Set<string>());
   const absorb = useCallback(async (next: WorkspaceView) => {
-    const state = useProjects.getState();
-    const current = state.projects.find((p) => p.id === state.activeId);
-    if (!current || current.workspaceId !== next.id) return;
+    const owner = useProjects.getState().projects.find((p) => p.workspaceId === next.id);
+    if (!owner) return;
+    const projectId = owner.id;
+    const store = useProjects.getState();
+    const isOpen = () => useProjects.getState().activeId === projectId;
 
-    if (next.phase !== "running" && next.turns > (current.workspaceTurns ?? 0)) {
-      const res = await fetch(`/api/workspace?id=${encodeURIComponent(next.id)}&files=1`).catch(
-        () => null,
-      );
-      const body = (await res?.json().catch(() => null)) as {
-        files?: Record<string, string>;
-      } | null;
-      const failed = next.phase === "error";
-      // A turn another builder started arrives here without its question.
-      const last = current.turns.at(-1);
-      const askedHere = last?.role === "user" && last.text === next.prompt;
-      const asked = askedHere ? last : null;
-      const question: ProjectTurn[] =
-        !askedHere && next.prompt ? [{ role: "user", text: next.prompt }] : [];
-      const text =
-        next.phase === "cancelled"
-          ? next.reply || "Stopped."
-          : failed
-            ? next.error || "That did not work."
-            : next.reply ||
-              (next.changed.length ? `Changed ${next.changed.length} file(s).` : "Done.");
-      const steps = await withShots(next.id, compactTimeline(next.events ?? []));
-      const asking = failed ? null : pendingQuestion(next.events ?? []);
-      state.save({
-        ...(body?.files ? { files: body.files } : {}),
-        workspaceTurns: next.turns,
-        turns: [
-          ...current.turns,
-          ...question,
-          {
-            role: "assistant",
-            text,
-            changed: next.changed,
-            failed,
-            ...(steps.length ? { steps } : {}),
-            // Answering a Plan message: the reply is a plan to approve.
-            ...(asked?.plan ? { plan: true } : {}),
-            ...(asking ? { question: asking } : {}),
-          },
-        ],
-      });
-      setHandoffs(next.handoffs ?? []);
+    const key = `${next.id}#${next.turns}`;
+    if (
+      next.phase !== "running" &&
+      next.turns > (owner.workspaceTurns ?? 0) &&
+      !absorbing.current.has(key)
+    ) {
+      absorbing.current.add(key);
+      if (isOpen()) setAbsorbingTurn(true);
+      try {
+        const res = await getWorkspace(next.id, "files=1");
+        const body = (await res?.json().catch(() => null)) as {
+          files?: Record<string, string>;
+        } | null;
+        const failed = next.phase === "error";
+        const text =
+          next.phase === "cancelled"
+            ? next.reply || "Stopped."
+            : failed
+              ? next.error || "That did not work."
+              : next.reply ||
+                (next.changed.length ? `Changed ${next.changed.length} file(s).` : "Done.");
+        const steps = await withShots(next.id, compactTimeline(next.events ?? []));
+        const asking = failed ? null : pendingQuestion(next.events ?? []);
+
+        // Read the project again just before saving: a message sent in the
+        // meantime must not be overwritten by this older copy.
+        const latest = useProjects.getState().projects.find((p) => p.id === projectId);
+        if (
+          !latest ||
+          latest.workspaceId !== next.id ||
+          next.turns <= (latest.workspaceTurns ?? 0)
+        ) {
+          return;
+        }
+        // The reply goes right after the message it answers; anything sent
+        // since stays after it.
+        let at = -1;
+        for (let i = latest.turns.length - 1; i >= 0; i--) {
+          if (latest.turns[i].role === "user" && latest.turns[i].text === next.prompt) {
+            at = i;
+            break;
+          }
+        }
+        const asked = at >= 0 ? latest.turns[at] : null;
+        const reply: ProjectTurn = {
+          role: "assistant",
+          text,
+          changed: next.changed,
+          failed,
+          ...(steps.length ? { steps } : {}),
+          // Answering a Plan message: the reply is a plan to approve.
+          ...(asked?.plan ? { plan: true } : {}),
+          ...(asking ? { question: asking } : {}),
+        };
+        const turns =
+          at >= 0
+            ? [...latest.turns.slice(0, at + 1), reply, ...latest.turns.slice(at + 1)]
+            : // A turn another builder started arrives here without its question.
+              [
+                ...latest.turns,
+                ...(next.prompt ? [{ role: "user" as const, text: next.prompt }] : []),
+                reply,
+              ];
+        store.update(projectId, {
+          ...(body?.files ? { files: body.files } : {}),
+          workspaceTurns: next.turns,
+          turns,
+        });
+        if (isOpen()) setHandoffs(next.handoffs ?? []);
+      } finally {
+        absorbing.current.delete(key);
+        setAbsorbingTurn(false);
+      }
     }
 
-    const key = `${next.id}:${next.preview.revision}:${next.preview.live ?? 0}`;
-    if (next.preview.phase === "ready" && previewSeen.current !== key) {
-      previewSeen.current = key;
-      const res = await fetch(`/api/workspace?id=${encodeURIComponent(next.id)}&preview=1`).catch(
-        () => null,
-      );
+    const previewKey = `${next.id}:${next.preview.revision}:${next.preview.live ?? 0}`;
+    if (next.preview.phase === "ready" && previewSeen.current !== previewKey && isOpen()) {
+      previewSeen.current = previewKey;
+      const res = await getWorkspace(next.id, "preview=1");
       const body = (await res?.json().catch(() => null)) as {
         dist?: Record<string, string>;
         assets?: Record<string, string>;
       } | null;
-      if (body?.dist) {
+      if (body?.dist && isOpen()) {
         setDist(body.dist);
         setAssets(body.assets ?? {});
-        state.save({ dist: body.dist });
+        // Kept with the project only once the turn is over: a live update
+        // during a run would rewrite the whole store every few seconds.
+        if (next.phase !== "running") store.update(projectId, { dist: body.dist });
       }
     }
   }, []);
@@ -600,28 +640,35 @@ export function CodingAgentPage() {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const tick = async () => {
-      const res = await fetch(`/api/workspace?id=${encodeURIComponent(workspaceId)}`).catch(
-        () => null,
-      );
+      const res = await getWorkspace(workspaceId);
       if (!alive) return;
-      if (res?.status === 404) {
-        // Swept after days idle. The files are still here, so forget the id
-        // and the project gets a fresh workspace from them.
+      if (res?.status === 404 || res?.status === 403) {
+        // Gone (swept after weeks idle), or not this account's. The files are
+        // still here, so the next message starts a fresh workspace from them.
         setView(null);
         const state = useProjects.getState();
-        if (state.active()?.workspaceId === workspaceId) {
-          state.save({ workspaceId: null, workspaceTurns: 0 });
-        }
+        const owner = state.projects.find((p) => p.workspaceId === workspaceId);
+        if (owner && res.status === 404)
+          state.update(owner.id, { workspaceId: null, workspaceTurns: 0 });
         return;
       }
-      if (res?.status === 403) {
-        setView(null);
-        return;
-      }
-      const body = (await res?.json().catch(() => null)) as { workspace?: WorkspaceView } | null;
+      const body = (await res?.json().catch(() => null)) as {
+        workspace?: WorkspaceView;
+        asleep?: boolean;
+      } | null;
+      // Asleep: its machine is snapshotted and nothing is running. Not woken
+      // just to be looked at; the next message wakes it.
+      if (body?.asleep) return;
       if (body?.workspace) {
-        setView(body.workspace);
+        // Recorded first, then shown: the turn reads as running until its
+        // reply is in the conversation, so nothing is sent in between and the
+        // chat never goes blank.
         await absorb(body.workspace);
+        if (!alive) return;
+        // The server's clock against this one, so the running timer is right
+        // on a device whose clock is off.
+        if (body.workspace.updatedAt) clockSkew.current = Date.now() - body.workspace.updatedAt;
+        setView(body.workspace);
         const busy =
           body.workspace.phase === "running" || body.workspace.preview.phase === "building";
         // Shared: keep an eye out for another builder's turns, slowly.
@@ -643,10 +690,6 @@ export function CodingAgentPage() {
     const el = scrollRef.current;
     if (el && stickToBottom.current) el.scrollTo({ top: el.scrollHeight });
   }, [turns.length, view?.reply, view?.status, view?.events?.length, sending]);
-
-  // Only for wallet prompts raised by an app running in the preview. The agent
-  // is not told a network: it uses the one the person names, or a testnet.
-  const chain = chainConfig(chainId);
 
   const sourceFor = (p: AppProject): Source =>
     p.source ?? { kind: Object.keys(p.files).length ? "files" : "blank" };
@@ -729,29 +772,34 @@ export function CodingAgentPage() {
   };
 
   const send = useCallback(
-    async (override?: string, modeOverride?: AgentMode, queued?: QueuedMessage) => {
+    async (
+      override?: string,
+      modeOverride?: AgentMode,
+      queued?: QueuedMessage,
+    ): Promise<boolean> => {
       const typed = override === undefined && !queued;
       const pics = queued ? queued.pictures : typed ? pictures : [];
       const prompt =
         (queued?.text ?? override ?? input).trim() ||
         (pics.length ? "Here is what I attached." : "");
-      if (!prompt) return;
-      // While the agent works, a typed message waits its turn.
+      if (!prompt) return false;
+      // While the agent works, a typed message waits its turn, in this
+      // project's own queue.
       if (sending || running) {
         if (typed) {
-          setQueue((q) => [...q, { text: prompt, pictures: pics }]);
+          setQueue((q) => [...q, { projectId: activeId, text: prompt, pictures: pics }]);
           setInput("");
           setPictures([]);
         }
-        return;
+        return false;
       }
       if (!user) {
         setSheet("auth");
-        return;
+        return false;
       }
       if (isPremiumModel(model) && access && !access.premium) {
         setSheet("upgrade");
-        return;
+        return false;
       }
       const turnMode = modeOverride ?? mode;
       const turn = {
@@ -762,71 +810,78 @@ export function CodingAgentPage() {
       setSending(true);
       setHandoffs([]);
       stickToBottom.current = true;
-      const store = useProjects.getState();
-
-      if (!store.activeId) {
-        store.create(nameFromPrompt(prompt) || "Untitled project", user);
-        if (starter.kind === "github") {
-          store.save({ source: { kind: "github", repo: starter.repo } });
-        } else if (starter.kind === "files") {
-          store.save({ source: { kind: "files" }, files: starter.files });
-        } else {
-          store.save({ source: { kind: "blank" } });
-        }
-      }
-      const current = useProjects.getState().active()!;
-      store.save({
-        turns: [
-          ...current.turns,
-          {
-            role: "user",
-            text: prompt,
-            ...(turnMode === "plan" ? { plan: true } : {}),
-            ...(pics.length ? { images: pics.map((p) => p.thumb) } : {}),
-          },
-        ],
-      });
-      if (typed) {
-        setInput("");
-        setPictures([]);
-      }
-
-      const result = current.workspaceId
-        ? await postWorkspace({
-            action: "message",
-            id: current.workspaceId,
-            prompt,
-            restore: restoreBody(current),
-            ...turn,
-          })
-        : await postWorkspace({
-            action: "create",
-            source: restoreBody(current),
-            prompt,
-            ...turn,
+      try {
+        const store = useProjects.getState();
+        // Everything below writes to the project this message was sent from,
+        // by its id: the person may open another project before it returns.
+        let pid = store.activeId;
+        if (!pid) {
+          pid = store.create(nameFromPrompt(prompt) || "Untitled project", user);
+          store.update(pid, {
+            source:
+              starter.kind === "github"
+                ? { kind: "github", repo: starter.repo }
+                : starter.kind === "files"
+                  ? { kind: "files" }
+                  : { kind: "blank" },
+            ...(starter.kind === "files" ? { files: starter.files } : {}),
           });
-
-      if (!result.ok && result.data.reason === "upgrade_required") {
-        toast.error(String(result.data.message));
-        setSheet("upgrade");
-      }
-      if (!result.ok) {
-        const latest = useProjects.getState().active()!;
-        useProjects.getState().save({
+        }
+        const projectId = pid;
+        const now = () => useProjects.getState().projects.find((p) => p.id === projectId);
+        const first = now();
+        if (!first) return false;
+        store.update(projectId, {
           turns: [
-            ...latest.turns,
+            ...first.turns,
             {
-              role: "assistant",
-              text: String(result.data.message ?? "That could not start."),
-              failed: true,
+              role: "user",
+              text: prompt,
+              ...(turnMode === "plan" ? { plan: true } : {}),
+              ...(pics.length ? { images: pics.map((p) => p.thumb) } : {}),
             },
           ],
         });
-      } else {
+        if (typed) {
+          setInput("");
+          setPictures([]);
+        }
+
+        const post = (p: AppProject) =>
+          p.workspaceId
+            ? postWorkspace({ action: "message", id: p.workspaceId, prompt, ...turn })
+            : postWorkspace({ action: "create", source: restoreBody(p), prompt, ...turn });
+        let result = await post(first);
+        // The workspace is gone (swept after weeks idle). The files are kept
+        // here, so the conversation carries on in a fresh one made from them.
+        if (!result.ok && first.workspaceId && result.status === 404) {
+          store.update(projectId, { workspaceId: null, workspaceTurns: 0 });
+          const fresh = now();
+          if (fresh) result = await post({ ...fresh, workspaceId: null });
+        }
+
+        if (!result.ok && result.data.reason === "upgrade_required") {
+          toast.error(String(result.data.message));
+          setSheet("upgrade");
+        }
+        const latest = now();
+        if (!latest) return false;
+        if (!result.ok) {
+          store.update(projectId, {
+            turns: [
+              ...latest.turns,
+              {
+                role: "assistant",
+                text: String(result.data.message ?? "That could not start."),
+                failed: true,
+              },
+            ],
+          });
+          return false;
+        }
         const workspace = result.data.workspace as WorkspaceView;
-        const latest = useProjects.getState().active()!;
         const fresh = latest.workspaceId !== workspace.id;
-        useProjects.getState().save({
+        store.update(projectId, {
           workspaceId: workspace.id,
           ...(fresh ? { workspaceTurns: Math.max(0, workspace.turns) } : {}),
           source:
@@ -834,14 +889,18 @@ export function CodingAgentPage() {
               ? { kind: "github", repo: workspace.source.repo, ref: workspace.source.ref }
               : (latest.source ?? workspace.source),
         });
-        setView(workspace);
-        setStarter({ kind: "blank" });
+        if (useProjects.getState().activeId === projectId) {
+          setView(workspace);
+          setStarter({ kind: "blank" });
+        }
+        return true;
+      } finally {
+        setSending(false);
       }
-      setSending(false);
     },
     // restoreBody is a plain helper recreated each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [input, sending, running, user, starter, model, mode, access, pictures],
+    [input, sending, running, user, starter, model, mode, access, pictures, activeId],
   );
 
   const stop = async () => {
@@ -872,27 +931,37 @@ export function CodingAgentPage() {
     [dist, files, localPlan],
   );
 
-  // The address is chosen in the dialog, not taken from the project's name:
-  // names repeat across people, addresses cannot.
-  const openPublish = () => {
+  // Publishing goes to the person's own hosting, connected in Connected
+  // accounts: the agent builds, deploys with that account, checks the live
+  // address with a screenshot and reports it.
+  const openPublish = async () => {
     if (!project) return;
     if (!user) return toast.error("Sign in with your email to publish.");
-    if (!publishSource) return toast.error("There is no built web page to publish yet.");
-    setDialog("publish");
+    const { connected } = await fetchConnectors();
+    const host = connected.find(
+      (c) => (c.provider === "vercel" || c.provider === "netlify") && !c.needsReconnect,
+    );
+    if (!host) {
+      toast.message("Connect Vercel or Netlify, then press Publish again.");
+      setSheet("connectors");
+      return;
+    }
+    void send(
+      `Publish this app to my ${providerName(host.provider)} account: build it, deploy it to production, open the live address with the screenshot tool to check it loads correctly, and tell me the address.`,
+    );
   };
 
+  // Pushing and pull requests use GitHub as connected in Connected accounts.
   const ensureGithub = async (): Promise<boolean> => {
-    const res = await fetch("/api/github").catch(() => null);
-    const body = (await res?.json().catch(() => null)) as {
-      configured?: boolean;
-      user?: unknown;
-    } | null;
-    if (!body?.configured) {
-      toast.error("GitHub sign-in is not configured on this deployment.");
-      return false;
-    }
-    if (body.user) return true;
-    window.location.href = `/api/github?start=1&return=${encodeURIComponent(AGENT_PATH)}`;
+    const connectors = await fetchConnectors();
+    const github = connectors.connected.find((c) => c.provider === "github");
+    if (github && !github.needsReconnect) return true;
+    toast.message(
+      github
+        ? "GitHub needs connecting again."
+        : "Connect GitHub first, then push or open a pull request.",
+    );
+    setSheet("connectors");
     return false;
   };
 
@@ -951,7 +1020,11 @@ export function CodingAgentPage() {
     const copy = made ? useProjects.getState().projects.find((p) => p.id === made) : null;
     if (copy) toast.success(`Remixed into "${copy.name}". The original is untouched.`);
   };
-  const latestUpdate = projects.reduce((m, p) => Math.max(m, p.updatedAt), 0);
+  // Updates worth a dot are other builders' work on shared projects, not
+  // what this person just did themselves.
+  const latestUpdate = projects
+    .filter((p) => p.shared || p.role === "builder")
+    .reduce((m, p) => Math.max(m, p.updatedAt), 0);
   const newsDot = latestUpdate > newsSeen;
   const openNews = () => {
     setSheet("news");
@@ -981,7 +1054,6 @@ export function CodingAgentPage() {
       {sheet === "account" && (
         <AccountSheet
           projects={projects}
-          usage={project && view ? { steps: view.steps, costUsd: view.costUsd } : null}
           onSignIn={() => setSheet("auth")}
           onEditName={() => setSheet("name")}
           onClose={() => setSheet(null)}
@@ -1223,11 +1295,21 @@ export function CodingAgentPage() {
     lastTurn?.role === "assistant" && !lastTurn.failed
       ? splitSuggestions(lastTurn.text).suggestions
       : [];
+  // This project's queued messages.
+  const waiting = queue.filter((q) => q.projectId === activeId);
   // A decision the agent is waiting on, until it is answered or hidden.
   const asking =
-    lastTurn?.role === "assistant" && lastTurn.question && dismissedAt !== turns.length
+    lastTurn?.role === "assistant" && lastTurn.question && !lastTurn.questionDismissed
       ? lastTurn.question
       : null;
+  // Hidden on the turn itself, so it stays hidden after a refresh and never
+  // hides another project's question.
+  const dismissQuestion = () => {
+    if (!project || !lastTurn) return;
+    useProjects.getState().update(project.id, {
+      turns: [...turns.slice(0, -1), { ...lastTurn, questionDismissed: true }],
+    });
+  };
 
   const chat = (
     <ShotSource.Provider value={workspaceId}>
@@ -1295,7 +1377,12 @@ export function CodingAgentPage() {
                 events={running ? (view?.events ?? []) : []}
                 reply={liveReply}
                 status={running ? (view?.status ?? "") : "Starting the workspace"}
-                startedAt={running ? view?.turnStartedAt : undefined}
+                startedAt={
+                  running && view?.turnStartedAt
+                    ? view.turnStartedAt + clockSkew.current
+                    : undefined
+                }
+                jobs={running ? view?.jobs : undefined}
               />
             )}
 
@@ -1347,10 +1434,10 @@ export function CodingAgentPage() {
               question={asking}
               onAnswer={(answer) => void send(answer)}
               onOwn={() => {
-                setDismissedAt(turns.length);
+                dismissQuestion();
                 document.querySelector<HTMLTextAreaElement>("[data-dock] textarea")?.focus();
               }}
-              onDismiss={() => setDismissedAt(turns.length)}
+              onDismiss={dismissQuestion}
             />
           )}
           {!running && !sending && !asking && nextSteps.length > 0 && (
@@ -1367,9 +1454,9 @@ export function CodingAgentPage() {
               ))}
             </div>
           )}
-          {queue.length > 0 && (
+          {waiting.length > 0 && (
             <div className="mb-2 space-y-1 px-1">
-              {queue.map((q, i) => (
+              {waiting.map((q, i) => (
                 <div
                   key={i}
                   className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1.5"
@@ -1383,7 +1470,7 @@ export function CodingAgentPage() {
                     {i === 0 ? "Next" : `#${i + 1}`}
                   </span>
                   <button
-                    onClick={() => setQueue((all) => all.filter((_, j) => j !== i))}
+                    onClick={() => setQueue((all) => all.filter((item) => item !== q))}
                     aria-label="Remove from the queue"
                     className="text-meta hover:text-foreground"
                   >
@@ -1531,7 +1618,6 @@ export function CodingAgentPage() {
           files={previewFiles}
           dir={dist ? "" : localPlan.kind === "static" ? localPlan.dir : ""}
           assets={dist ? assets : undefined}
-          chainName={chain.name}
           liveUrl={project.liveUrl}
           status={previewStatus}
           empty={previewEmpty}
@@ -1640,21 +1726,6 @@ export function CodingAgentPage() {
           </form>
         </Modal>
       )}
-      {dialog === "publish" && publishSource && (
-        <Modal
-          title={project.liveUrl ? "Update the live app" : "Publish"}
-          icon={Rocket}
-          onClose={() => setDialog(null)}
-        >
-          <div className="-mx-5 -mb-5 overflow-hidden">
-            <PublishDialog
-              project={project}
-              files={publishSource}
-              onClose={() => setDialog(null)}
-            />
-          </div>
-        </Modal>
-      )}
       {dialog === "builders" && (
         <BuildersDialog
           project={project}
@@ -1700,13 +1771,22 @@ export function CodingAgentPage() {
   if (mobile) {
     return (
       <div className="flex h-dvh flex-col">
-        {header}
+        {/* The preview has the whole screen; a slim bar leads back. */}
+        {pane === "preview" ? (
+          <BackToChatButton onClick={() => setPane("chat")} title={project.name} />
+        ) : (
+          header
+        )}
         <div className={cn("min-h-0 flex-1", pane !== "chat" && "hidden")}>{chat}</div>
         <div className={cn("min-h-0 flex-1", pane === "chat" && "hidden")}>{workbench}</div>
-        {(pane === "preview" || pane === "code") && (
-          <BackToChatButton onClick={() => setPane("chat")} />
+        {pane !== "preview" && (
+          <TabBar
+            pane={pane === "code" ? "activity" : pane}
+            onPane={setPane}
+            onMore={() => setSheet("more")}
+            running={running}
+          />
         )}
-        <TabBar pane={pane} onPane={setPane} onMore={() => setSheet("more")} running={running} />
         {dialogs}
         {picturePicker}
       </div>

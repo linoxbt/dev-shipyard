@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { allowedEnv } from "./executor";
 import { runShell, type ShellResult } from "./shell";
@@ -350,8 +350,41 @@ export interface CheckpointResult {
  * verified cleanly without touching a file is a perfectly ordinary outcome and
  * should not read as a failure in the event log.
  */
+/** What DevStation keeps in a project folder that must never be committed:
+ *  the deployer wallet and screenshots (.devstation), the agent's own state,
+ *  pictures people attached, installed packages and local env files. */
+const NEVER_COMMIT = [".devstation/", ".agent/", "attachments/", "node_modules/", ".env", ".env.*"];
+
+/**
+ * Keep DevStation's own files out of every commit, whoever made the
+ * repository. Written to .git/info/exclude (local to this clone, never pushed
+ * and never a change to the project's .gitignore), and anything of them
+ * already tracked is taken out of the index, so a checkpoint, and any push of
+ * the history after it, never carries the wallet key or screenshots.
+ */
+export async function protectControlFiles(root: string): Promise<void> {
+  if (!isRepo(root)) return;
+  const info = join(root, ".git", "info");
+  try {
+    mkdirSync(info, { recursive: true });
+    const file = join(info, "exclude");
+    const current = existsSync(file) ? readFileSync(file, "utf8") : "";
+    const missing = NEVER_COMMIT.filter((line) => !current.split("\n").includes(line));
+    if (missing.length) {
+      writeFileSync(
+        file,
+        `${current}${current && !current.endsWith("\n") ? "\n" : ""}# DevStation\n${missing.join("\n")}\n`,
+      );
+    }
+  } catch {
+    // A read-only .git is not something to fail a turn over.
+  }
+  await runGit(root, "rm -r -q --cached --ignore-unmatch .devstation .agent attachments", 30_000);
+}
+
 export async function checkpoint(root: string, description: string): Promise<CheckpointResult> {
   if (!isRepo(root)) return { ok: false, sha: null, message: "Not a git repository." };
+  await protectControlFiles(root);
 
   const changed = await changedFiles(root);
   if (changed.length === 0) return { ok: true, sha: null, message: "Nothing to check point." };

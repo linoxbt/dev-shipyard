@@ -18,6 +18,14 @@ export async function postWorkspace(body: unknown): Promise<{
   return { ok: res.ok && data.ok !== false, status: res.status, data };
 }
 
+/** Read a workspace (or its files, preview or a screenshot with `extra`),
+ *  renewing the session once if it has lapsed. Null when unreachable. */
+export async function getWorkspace(id: string, extra = ""): Promise<Response | null> {
+  return fetchWithGrant(
+    `/api/workspace?id=${encodeURIComponent(id)}${extra ? `&${extra}` : ""}`,
+  ).catch(() => null);
+}
+
 export function slugOf(name: string): string {
   return (
     name

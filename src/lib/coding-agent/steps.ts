@@ -126,7 +126,7 @@ export function stepsFromEvents(events: readonly AgentEvent[]): Step[] {
       const step: Step = {
         id,
         tool: e.tool ?? null,
-        title: e.message,
+        title: readableTitle(e.message),
         status: "running",
         input: e.detail?.input,
         at: e.at,
@@ -154,7 +154,7 @@ export function stepsFromEvents(events: readonly AgentEvent[]): Step[] {
         steps.push({
           id,
           tool: e.tool ?? null,
-          title: e.message,
+          title: readableTitle(e.message),
           status: failed ? "failed" : "done",
           input: e.detail?.input,
           output: typeof e.detail?.output === "string" ? e.detail.output : undefined,
@@ -239,7 +239,7 @@ export function timelineFromSaved(saved: readonly SavedStep[]): TimelineItem[] {
               step: {
                 id: String(i),
                 tool: s.tool ?? null,
-                title: s.title,
+                title: readableTitle(s.title),
                 status: s.failed ? ("failed" as const) : ("done" as const),
                 at: "",
                 ...(s.target ? { input: { path: s.target } } : {}),
@@ -273,7 +273,8 @@ export function groupLabel(kind: ToolKind | "note", steps: readonly Step[]): str
     case "shell": {
       if (n === 1) {
         const tool = steps[0].tool;
-        if (tool === "run_tests" || tool === "run_build") return "Ran the tests";
+        if (tool === "run_tests") return "Ran the tests";
+        if (tool === "run_build") return "Built the app";
         if (tool === "lint_and_typecheck") return "Checked lint and types";
         if (tool === "install_dependency" && paths[0]) return `Installed ${paths[0]}`;
         if (paths[0]) return `Ran ${paths[0].length > 60 ? `${paths[0].slice(0, 57)}…` : paths[0]}`;
@@ -385,30 +386,6 @@ export function latestPlan(events: readonly AgentEvent[]): PlanItem[] | null {
   return null;
 }
 
-/** "Edited 3 files, ran 2 commands" for a finished turn's collapsed steps. */
-export function stepSummary(steps: readonly Pick<Step, "tool" | "status">[]): string {
-  const count = { read: 0, write: 0, shell: 0, search: 0, git: 0, web: 0 };
-  let failed = 0;
-  for (const s of steps) {
-    if (s.status === "note") continue;
-    if (s.status === "failed") failed++;
-    const k = toolKind(s.tool);
-    if (k in count) count[k as keyof typeof count]++;
-  }
-  const parts: string[] = [];
-  const add = (n: number, one: string, many: string) => n && parts.push(n === 1 ? one : many);
-  add(count.write, "edited 1 file", `edited ${count.write} files`);
-  add(count.shell, "ran 1 command", `ran ${count.shell} commands`);
-  add(count.read, "read 1 file", `read ${count.read} files`);
-  add(count.search, "searched once", `searched ${count.search} times`);
-  add(count.git, "1 git step", `${count.git} git steps`);
-  add(count.web, "1 web lookup", `${count.web} web lookups`);
-  if (!parts.length) return failed ? `${failed} step${failed === 1 ? "" : "s"} failed` : "";
-  const text = parts.join(", ");
-  const sentence = text.charAt(0).toUpperCase() + text.slice(1);
-  return failed ? `${sentence} · ${failed} failed` : sentence;
-}
-
 /** What a finished turn keeps in browser storage: titles only, no output. */
 export interface SavedStep {
   tool?: string;
@@ -450,7 +427,44 @@ export function compactSteps(steps: readonly Step[], max = 60): SavedStep[] {
 export function stepTarget(step: Pick<Step, "tool" | "input">): string | null {
   const input = step.input ?? {};
   const pick = (k: string) => (typeof input[k] === "string" ? (input[k] as string) : null);
-  return pick("command") ?? pick("path") ?? pick("query") ?? pick("url") ?? pick("name");
+  const command = pick("command");
+  if (command) return cleanCommand(command);
+  return pick("path") ?? pick("query") ?? pick("url") ?? pick("name");
+}
+
+/** A step's title with any command in it read the way cleanCommand reads it:
+ *  "Running cd /vercel/…/ws-1 && npm install" becomes "Running npm install".
+ *  Applied on display, so turns saved before this still read cleanly. */
+export function readableTitle(title: string): string {
+  const m = /^(Running|Ran|Started|Starting)\s+(.+)$/s.exec(title);
+  if (!m || !/(^cd\s)|\/vercel\/|\/tmp\/devstation-|\/workspace\b/.test(m[2])) return title;
+  return `${m[1]} ${cleanCommand(m[2])}`;
+}
+
+/** Where projects live on the machine: noise in a label, the project is the
+ *  folder a command runs in anyway. */
+const WORKSPACE_PATH =
+  /(?:\/vercel\/devstation\/state\/workspaces\/ws-[\w-]+|\/tmp\/devstation-[\w-]+|\/workspace)(?=\/|\s|$|["'])\/?/g;
+
+/**
+ * A command as a person would read it: without the "cd <project> &&" the
+ * agent puts in front, and without the machine's long workspace paths.
+ * "cd /vercel/devstation/state/workspaces/ws-1/app && npm test" reads
+ * "npm test" (in app/).
+ */
+export function cleanCommand(command: string): string {
+  let c = command.trim();
+  for (let i = 0; i < 3; i++) {
+    const m = /^cd\s+("[^"]*"|'[^']*'|\S+)\s*(?:&&|;)\s*/.exec(c);
+    if (!m) break;
+    c = c.slice(m[0].length);
+  }
+  return (
+    c
+      .replace(WORKSPACE_PATH, "")
+      .replace(/\s{2,}/g, " ")
+      .trim() || command.trim()
+  );
 }
 
 // --- file tree ---------------------------------------------------------------

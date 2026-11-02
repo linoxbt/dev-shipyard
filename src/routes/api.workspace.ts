@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { sandboxHostEnabled, sandboxRunner, splitId } from "@/lib/orchestrator/sandbox.server";
 import { modelProblem } from "@/lib/db/access.server";
 import { connectorEnvFor } from "@/lib/db/connectors.server";
+import { mintTurnPass } from "@/lib/db/turn-token.server";
 import { recordTurn } from "@/lib/db/turns.server";
 import { bumpMetric } from "@/lib/db/admin.server";
 import { isControlPath, looksLikeSecret } from "@/lib/agent/workspace";
@@ -22,7 +23,6 @@ import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 import {
   CLAIM_COOKIE,
   claimCookieHeader,
-  holdsClaim,
   openClaims,
   ownerOf,
   readCookie,
@@ -47,6 +47,9 @@ const START_LIMIT = 30;
 const MESSAGE_LIMIT = 200;
 const POLL_LIMIT = 4000;
 const WINDOW_MS = 60 * 60 * 1000;
+/** New projects (each a sandbox) one account may start in a day. */
+const OWNER_DAILY_STARTS = 25;
+const DAY_MS = 24 * WINDOW_MS;
 
 /** What a private repository may bring in when read here, inside a serverless
  *  function's time and body limits. Public ones are fetched by the runner. */
@@ -71,7 +74,6 @@ function fail(reason: string, message: string, status: number) {
   return Response.json({ ok: false, reason, message }, { status });
 }
 
-const NOT_YOURS = ["not_yours", "That workspace was not started from this browser.", 403] as const;
 const NO_GRANT = ["no_grant", "Sign in with your email to use the agent.", 401] as const;
 
 function runnerConfig() {
@@ -214,12 +216,30 @@ const bodySchema = z.discriminatedUnion("action", [
 
 type Turn = { model?: string; mode?: "build" | "plan"; images?: string[] };
 
-/** What the runner takes: a model it resolves itself, and plan as a flag. */
-function turnBody(turn: Turn): { model?: string; plan?: boolean; images?: string[] } {
+/**
+ * What the runner takes for one turn: the model and plan flag, the pictures,
+ * who sent it, the pass its sandbox uses to reach a model through this site
+ * (no model key ever enters a sandbox: api/model), and the sender's connected
+ * accounts (the runner passes those on only when the sender owns the
+ * workspace).
+ */
+async function turnPayload(
+  request: Request,
+  owner: string,
+  workspace: string,
+  turn: Turn,
+): Promise<Record<string, unknown>> {
+  const model = turn.model && turn.model !== AUTO_MODEL ? turn.model : AUTO_MODEL;
   return {
-    ...(turn.model && turn.model !== AUTO_MODEL ? { model: turn.model } : {}),
+    ...(model !== AUTO_MODEL ? { model } : {}),
     ...(turn.mode === "plan" ? { plan: true } : {}),
     ...(turn.images?.length ? { images: turn.images } : {}),
+    by: owner,
+    proxy: {
+      url: `${new URL(request.url).origin}/api/model`,
+      token: mintTurnPass({ owner, workspace, model }),
+    },
+    env: await turnEnv(owner),
   };
 }
 
@@ -291,18 +311,11 @@ async function resolveSource(request: Request, source: Source): Promise<Source |
   }
 }
 
-/** The person's connected accounts, for the agent to act as them this turn:
- *  saved connectors, and the GitHub account linked to their session. */
-async function turnEnv(request: Request, owner: string): Promise<Record<string, string>> {
-  const env = await connectorEnvFor(owner).catch(() => ({}) as Record<string, string>);
-  if (!env.GH_TOKEN) {
-    const linked = await linkedGithub(request).catch(() => null);
-    if (linked?.ok) {
-      env.GH_TOKEN = linked.token;
-      env.GITHUB_TOKEN = linked.token;
-    }
-  }
-  return env;
+/** The person's connected accounts, for the agent to act as them this turn.
+ *  Only what they connected in Connected accounts: disconnecting one there
+ *  takes it away from the agent. */
+async function turnEnv(owner: string): Promise<Record<string, string>> {
+  return connectorEnvFor(owner).catch(() => ({}) as Record<string, string>);
 }
 
 async function create(
@@ -332,14 +345,14 @@ async function create(
         body: JSON.stringify({
           prompt,
           context,
-          ...turnBody(turn),
-          env: await turnEnv(request, owner),
+          ...(await turnPayload(request, owner, workspace.id, turn)),
         }),
       },
     );
     if (!sent.ok)
       return fail("runner", String(sent.body.message ?? "Could not send."), sent.status);
     workspace = sent.body.workspace as typeof workspace;
+    await bumpMetric("messages");
   }
   return { ok: true, workspace };
 }
@@ -356,7 +369,11 @@ export const Route = createFileRoute("/api/workspace")({
             configured: sandboxHostEnabled() || Boolean(runnerUrl && token),
           });
         }
-        if (!holdsClaim(claimsOf(request), id)) return fail(...NOT_YOURS);
+        // Who may read a workspace is decided by the runner, from the account
+        // signed in here (the owner, or a builder they added), so a project
+        // opens on any device and does not expire with a cookie.
+        const owner = ownerOf(claimsOf(request));
+        if (!owner) return fail(...NO_GRANT);
         if (
           !(await checkRateLimit(
             `workspace:poll:${clientKeyFromRequest(request)}`,
@@ -382,11 +399,14 @@ export const Route = createFileRoute("/api/workspace")({
         const result = await runner(
           request,
           `/agent/workspaces/${encodeURIComponent(id)}${suffix}`,
-          members ? { owner: ownerOf(claimsOf(request)) ?? "" } : {},
+          {
+            owner,
+          },
         );
-        // A finished turn is recorded once, for the stats and credit spend.
+        // The sandbox reports each finished turn itself; this catches one
+        // whose report was lost. Credited to its sender, not to the poller.
         if (!suffix && result.ok) {
-          await recordTurn(ownerOf(claimsOf(request)), id, result.body.workspace);
+          await recordTurn(owner, id, result.body.workspace);
         }
         return Response.json(result.body, { status: result.status });
       },
@@ -401,7 +421,10 @@ export const Route = createFileRoute("/api/workspace")({
         if (data.action === "create") {
           const owner = ownerOf(claims);
           if (!owner) return fail(...NO_GRANT);
-          if (!(await checkRateLimit(`workspace:start:${key}`, START_LIMIT, WINDOW_MS))) {
+          if (
+            !(await checkRateLimit(`workspace:start:${key}`, START_LIMIT, WINDOW_MS)) ||
+            !(await checkRateLimit(`workspace:start-owner:${owner}`, OWNER_DAILY_STARTS, DAY_MS))
+          ) {
             return fail("rate_limited", "Too many workspaces started. Try again later.", 429);
           }
           const { url, token } = runnerConfig();
@@ -412,7 +435,13 @@ export const Route = createFileRoute("/api/workspace")({
           }
           if (data.prompt?.trim()) {
             const locked = await modelProblem(owner, data.model);
-            if (locked) return fail("upgrade_required", locked, 402);
+            if (locked) {
+              return fail(
+                locked.status === 402 ? "upgrade_required" : "plans_unavailable",
+                locked.message,
+                locked.status,
+              );
+            }
           }
           const made = await create(request, owner, data.source, data.prompt, data.context, data);
           if (made instanceof Response) return made;
@@ -421,15 +450,19 @@ export const Route = createFileRoute("/api/workspace")({
         }
 
         if (data.action === "message") {
-          if (!holdsClaim(claims, data.id)) return fail(...NOT_YOURS);
           const owner = ownerOf(claims);
           if (!owner) return fail(...NO_GRANT);
           if (!(await checkRateLimit(`workspace:message:${key}`, MESSAGE_LIMIT, WINDOW_MS))) {
             return fail("rate_limited", "Too many messages. Try again later.", 429);
           }
           const locked = await modelProblem(owner, data.model);
-          if (locked) return fail("upgrade_required", locked, 402);
-          await bumpMetric("messages");
+          if (locked) {
+            return fail(
+              locked.status === 402 ? "upgrade_required" : "plans_unavailable",
+              locked.message,
+              locked.status,
+            );
+          }
           const sent = await runner(
             request,
             `/agent/workspaces/${encodeURIComponent(data.id)}/messages`,
@@ -439,12 +472,14 @@ export const Route = createFileRoute("/api/workspace")({
               body: JSON.stringify({
                 prompt: data.prompt,
                 context: data.context,
-                ...turnBody(data),
-                env: await turnEnv(request, owner),
+                ...(await turnPayload(request, owner, data.id, data)),
               }),
             },
           );
-          if (sent.ok) return Response.json(sent.body);
+          if (sent.ok) {
+            await bumpMetric("messages");
+            return Response.json(sent.body);
+          }
           if (sent.status === 404 && data.restore) {
             const made = await create(
               request,
@@ -481,13 +516,13 @@ export const Route = createFileRoute("/api/workspace")({
           if (!members.body.role) {
             return fail(
               "not_invited",
-              "This wallet has not been added to that app. Ask its owner to add it.",
+              "This account has not been added to that app. Ask its owner to add it by your email.",
               403,
             );
           }
           const [view, files] = await Promise.all([
-            runner(request, path),
-            runner(request, `${path}/files`),
+            runner(request, path, { owner }),
+            runner(request, `${path}/files`, { owner }),
           ]);
           if (!view.ok) {
             return fail(
@@ -507,11 +542,12 @@ export const Route = createFileRoute("/api/workspace")({
           );
         }
 
-        if (!holdsClaim(claims, data.id)) return fail(...NOT_YOURS);
+        // Everything below acts on one workspace; the runner checks that the
+        // signed-in account is its owner or a builder.
+        const owner = ownerOf(claims);
+        if (!owner) return fail(...NO_GRANT);
 
         if (data.action === "members") {
-          const owner = ownerOf(claims);
-          if (!owner) return fail(...NO_GRANT);
           const result = await runner(
             request,
             `/agent/workspaces/${encodeURIComponent(data.id)}/members`,
@@ -533,7 +569,7 @@ export const Route = createFileRoute("/api/workspace")({
           const result = await runner(
             request,
             `/agent/workspaces/${encodeURIComponent(data.id)}/${data.action}`,
-            { method: "POST" },
+            { method: "POST", owner },
           );
           return Response.json(result.body, { status: result.status });
         }
@@ -549,6 +585,7 @@ export const Route = createFileRoute("/api/workspace")({
         const current = await runner(
           request,
           `/agent/workspaces/${encodeURIComponent(data.id)}/files`,
+          { owner },
         );
         if (!current.ok)
           return fail("runner", String(current.body.message ?? "No files."), current.status);

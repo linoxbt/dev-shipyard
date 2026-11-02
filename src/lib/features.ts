@@ -41,3 +41,32 @@ export function servedInAgentOnly(pathname: string): boolean {
 export function switchedOff(pathname: string, enabled = CODING_AGENT_ONLY): boolean {
   return enabled && !servedInAgentOnly(pathname);
 }
+
+/**
+ * The API the Coding Agent runs on. With only the agent on, every other API
+ * route and server function (the legacy builder, marketplace, chain and
+ * explorer endpoints) answers 404: nothing the product does not use is left
+ * reachable, including routes that would spend model credit or relay chain
+ * transactions outside the agent's checks.
+ */
+const AGENT_API = [
+  /^\/api\/workspace$/,
+  /^\/api\/model(\/turn)?$/,
+  /^\/api\/plan$/,
+  /^\/api\/connectors$/,
+  /^\/api\/oauth\/[a-z]+(\/callback)?$/,
+  /^\/api\/metrics$/,
+  /^\/api\/admin\/stats$/,
+  /^\/api\/access(\/session)?$/,
+  /^\/api\/github(\/callback|\/push)?$/,
+  /^\/api\/health$/,
+  /^\/api\/cron\/sandboxes$/,
+];
+
+/** Whether an API path or server function is served in Coding-Agent-only mode. */
+export function apiServedInAgentOnly(pathname: string, enabled = CODING_AGENT_ONLY): boolean {
+  if (!enabled) return true;
+  if (pathname.startsWith("/_serverFn")) return false;
+  if (!pathname.startsWith("/api/") && pathname !== "/api") return true;
+  return AGENT_API.some((re) => re.test(pathname));
+}

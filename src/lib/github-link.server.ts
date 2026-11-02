@@ -9,18 +9,29 @@
 import { COOKIE_NAME, openSession, readCookie } from "./github-oauth.server";
 import { accountOf, githubUser, grantedOwner } from "./accounts.server";
 import { clientKeyFromRequest } from "./rateLimit.server";
+import { connectorToken } from "./db/connectors.server";
 
 export type LinkedGithub =
   | { ok: true; token: string; owner: string; login: string }
   | { ok: false; reason: string; message: string; status: number };
 
 export async function linkedGithub(request: Request, action = "do that"): Promise<LinkedGithub> {
+  // GitHub as connected in Connected accounts: the account's own grant, so it
+  // is theirs by construction and needs no second link.
+  const signedIn = grantedOwner(request);
+  if (signedIn) {
+    const connected = await connectorToken(signedIn, "github").catch(() => null);
+    if (connected) {
+      const who = await githubUser(connected);
+      if (who) return { ok: true, token: connected, owner: signedIn, login: who.login };
+    }
+  }
   const token = openSession(readCookie(request.headers.get("cookie"), COOKIE_NAME));
   if (!token) {
     return {
       ok: false,
       reason: "not_signed_in",
-      message: "Connect your GitHub account first.",
+      message: "Connect GitHub in Connected accounts (your account menu) first.",
       status: 401,
     };
   }

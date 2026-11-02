@@ -24,8 +24,10 @@ function useThumbBox() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const io = new IntersectionObserver(([entry]) => entry.isIntersecting && setVisible(true), {
-      rootMargin: "200px",
+    // Mounted while near the screen and taken down when scrolled away, so a
+    // long list never runs dozens of apps at once.
+    const io = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), {
+      rootMargin: "300px",
     });
     io.observe(el);
     const ro = new ResizeObserver(() => setScale(el.clientWidth / WIDTH));

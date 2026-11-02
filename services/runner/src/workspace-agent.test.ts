@@ -449,3 +449,31 @@ describe("connected accounts in a turn", () => {
     expect(note).not.toContain("v\n");
   });
 });
+
+describe("what the agent may do with nobody to ask", () => {
+  it("goes ahead in its own machine, but not with the person's money or records unless asked", async () => {
+    const { personApproves } = await import("./workspace-agent");
+    expect(personApproves({ operation: "shell.exec" }, "build me a todo app")).toBe(true);
+    expect(personApproves({ operation: "funds.transfer" }, "build me a todo app")).toBe(false);
+    expect(personApproves({ operation: "funds.transfer" }, "send 0.1 ETH to my friend")).toBe(true);
+    expect(personApproves({ operation: "database.drop" }, "fix the login")).toBe(false);
+    expect(personApproves({ operation: "database.drop" }, "drop the old users table")).toBe(true);
+    const testnet = {
+      operation: "chain.transact",
+      input: {
+        command:
+          "forge create T --rpc-url https://sepolia.base.org --private-key $DEPLOYER_PRIVATE_KEY",
+      },
+    };
+    const mainnet = {
+      operation: "chain.transact",
+      input: {
+        command:
+          "forge create T --rpc-url https://mainnet.base.org --private-key $DEPLOYER_PRIVATE_KEY",
+      },
+    };
+    expect(personApproves(testnet, "deploy my token")).toBe(true);
+    expect(personApproves(mainnet, "deploy my token")).toBe(false);
+    expect(personApproves(mainnet, "deploy my token to mainnet")).toBe(true);
+  });
+});

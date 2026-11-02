@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import type { Executor } from "./executor";
 
@@ -53,8 +61,14 @@ const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/ja
   if (!url) {
     const root = path.resolve(a.dir);
     server = http.createServer((req, res) => {
-      let file = path.join(root, decodeURIComponent(new URL(req.url, "http://x").pathname));
-      if (!file.startsWith(root)) { res.writeHead(403); return res.end(); }
+      const wanted = decodeURIComponent(new URL(req.url, "http://x").pathname);
+      // Never a hidden folder (.devstation holds the deployer wallet, .git
+      // the history, .env the secrets), whatever the page asks for.
+      if (wanted.split("/").some((part) => part.startsWith(".") && part !== ".well-known")) {
+        res.writeHead(404); return res.end();
+      }
+      let file = path.join(root, wanted);
+      if (file !== root && !file.startsWith(root + path.sep)) { res.writeHead(403); return res.end(); }
       if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, "index.html");
       if (!fs.existsSync(file)) file = path.join(root, "index.html");
       res.writeHead(200, { "content-type": TYPES[path.extname(file).toLowerCase()] || "application/octet-stream" });
@@ -142,6 +156,7 @@ export async function takeScreenshot(
   }
 
   mkdirSync(join(root, SHOTS_DIR), { recursive: true });
+  pruneShots(join(root, SHOTS_DIR));
   const name = `shot-${Date.now().toString(36)}-${++counter}`;
   const out = `${SHOTS_DIR}/${name}`;
   writeFileSync(join(root, ".devstation/shot.cjs"), SCRIPT);
@@ -207,6 +222,33 @@ export async function takeScreenshot(
     name,
     image: `data:image/jpeg;base64,${readFileSync(join(root, `${out}.model.jpg`)).toString("base64")}`,
   };
+}
+
+/** Screenshots kept per project: the chat keeps its own copies of the ones it
+ *  shows, so older files only fill the disk. */
+const KEEP_SHOTS = 40;
+
+function pruneShots(dir: string): void {
+  try {
+    const names = readdirSync(dir).filter(
+      (n) => n.startsWith("shot-") && n.endsWith(".jpg") && !n.endsWith(".model.jpg"),
+    );
+    if (names.length < KEEP_SHOTS) return;
+    const byAge = names
+      .map((n) => ({ n, t: statSync(join(dir, n)).mtimeMs }))
+      .sort((a, b) => a.t - b.t);
+    for (const { n } of byAge.slice(0, byAge.length - KEEP_SHOTS + 1)) {
+      for (const f of [n, n.replace(/\.jpg$/, ".model.jpg")]) {
+        try {
+          unlinkSync(join(dir, f));
+        } catch {
+          /* already gone */
+        }
+      }
+    }
+  } catch {
+    // Pruning is housekeeping; a screenshot is never refused over it.
+  }
 }
 
 function clamp(n: unknown, lo: number, hi: number, fallback: number): number {

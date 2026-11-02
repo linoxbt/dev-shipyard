@@ -3,7 +3,7 @@
 // figures and connected accounts live there (supabase/migrations/), behind
 // row level security with no policies: the public key cannot touch them.
 //
-// SUPABASE_SERVICE_ROLE_KEY is set on the Vercel project. Without it these
+// SUPABASE_SERVICE_ROLE_KEY must be set on the host (Vercel). Without it these
 // helpers answer "not configured" and the features that need them say so.
 
 const url = () =>
@@ -45,23 +45,53 @@ export function rpc<T>(name: string, args: Record<string, unknown> = {}): Promis
   return call(`rpc/${name}`, { method: "POST", body: JSON.stringify(args) }) as Promise<T>;
 }
 
-/** Insert rows; with `ignoreDuplicates`, a row whose key exists is skipped. */
+/** Insert rows; with `ignoreDuplicates`, a row whose key exists is skipped.
+ *  `onConflict` names that key (default: the primary key) and `upsertOn`
+ *  merges into an existing row instead. */
 export async function insert(
   table: string,
   rows: Record<string, unknown> | Record<string, unknown>[],
-  opts: { ignoreDuplicates?: boolean; upsertOn?: string } = {},
+  opts: { ignoreDuplicates?: boolean; upsertOn?: string; onConflict?: string } = {},
 ): Promise<void> {
   const prefer = opts.upsertOn
     ? "resolution=merge-duplicates,return=minimal"
     : opts.ignoreDuplicates
       ? "resolution=ignore-duplicates,return=minimal"
       : "return=minimal";
-  const on = opts.upsertOn ? `?on_conflict=${encodeURIComponent(opts.upsertOn)}` : "";
+  const key = opts.upsertOn ?? opts.onConflict;
+  const on = key ? `?on_conflict=${encodeURIComponent(key)}` : "";
   await call(`${table}${on}`, {
     method: "POST",
     headers: { prefer },
     body: JSON.stringify(rows),
   });
+}
+
+/** Change the rows matching a PostgREST filter; returns the rows changed. A
+ *  filter on the old value makes it a compare-and-swap. */
+export async function update<T = Record<string, unknown>>(
+  table: string,
+  filter: string,
+  patch: Record<string, unknown>,
+): Promise<T[]> {
+  const rows = await call(`${table}?${filter}`, {
+    method: "PATCH",
+    headers: { prefer: "return=representation" },
+    body: JSON.stringify(patch),
+  });
+  return Array.isArray(rows) ? (rows as T[]) : [];
+}
+
+/** Every row of a query, a page at a time (the API caps one response at the
+ *  project's max-rows, 1000 by default). */
+export async function selectAll<T>(table: string, query: string, page = 1000): Promise<T[]> {
+  const out: T[] = [];
+  for (let offset = 0; offset < 1_000_000; offset += page) {
+    const rows = (await call(`${table}?${query}&limit=${page}&offset=${offset}`)) as T[];
+    out.push(...rows);
+    if (rows.length < page) break;
+  }
+  return out;
 }
 
 /** Read rows with a PostgREST query string, e.g. "owner=eq.0x…&select=*". */

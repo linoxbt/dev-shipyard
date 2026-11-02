@@ -370,17 +370,17 @@ export const TOOLS: Record<string, ToolDefinition> = {
   run_build: {
     name: "run_build",
     usage: "run_build {}",
-    description: "Install, lint, build and test the project, returning the logs.",
+    description:
+      "Install the project's packages and run its build (npm run build, cargo build, go build), returning the logs. Run it before checking the preview.",
     operation: "build.dev",
     schema: z.object({}),
     resourcesFrom: () => ["project"],
     returnsUntrustedContent: true,
   },
-  // Outward-facing tools. The agent never performs these itself and never holds
-  // the credential for one: the GitHub token lives in an httpOnly cookie the
-  // runner cannot read, the Netlify token is the app's own server env, and only
-  // the browser has the wallet. The agent PROPOSES; the person approves; their
-  // own session carries it out. That is why the risk is on the proposal.
+  // Outward-facing tools, for a person who has not connected the account
+  // concerned: the agent proposes, the person approves, and their own session
+  // on DevStation's server carries it out. (With a connected account, its
+  // token is in the turn's environment and the agent acts directly.)
   push_to_github: {
     name: "push_to_github",
     usage: 'push_to_github {"repoName", "isPrivate?", "message?"}',

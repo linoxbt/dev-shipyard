@@ -67,3 +67,35 @@ describe("onchain commands", () => {
     expect(onchainCommandProblem("cast send --rpc-url $SECRET_RPC")).toContain("$SECRET_RPC");
   });
 });
+
+describe("the deployer key stays out of sight", () => {
+  it("is only ever passed as --private-key", async () => {
+    const { onchainCommandProblem } = await import("./wallet");
+    expect(
+      onchainCommandProblem(
+        "forge create src/T.sol:T --private-key $DEPLOYER_PRIVATE_KEY --rpc-url https://x",
+      ),
+    ).toBeNull();
+    expect(
+      onchainCommandProblem("cast send 0xabc 'f()' --private-key=$PRIVATE_KEY --rpc-url https://x"),
+    ).toBeNull();
+    expect(onchainCommandProblem("cast to-base $DEPLOYER_PRIVATE_KEY 10")).not.toBeNull();
+    expect(onchainCommandProblem("cast wallet address $DEPLOYER_PRIVATE_KEY")).not.toBeNull();
+  });
+
+  it("is hidden in decimal, upper case and base64 too", async () => {
+    const { redactWallet } = await import("./wallet");
+    const key = `0x${"ab".repeat(32)}`;
+    const wallet = { address: "0x1", privateKey: key, created: false };
+    const text = [
+      key,
+      BigInt(key).toString(),
+      key.slice(2).toUpperCase(),
+      Buffer.from(key.slice(2), "hex").toString("base64"),
+    ].join(" ");
+    const out = redactWallet(text, wallet);
+    expect(out).not.toContain("abab");
+    expect(out).not.toContain(BigInt(key).toString());
+    expect(out).not.toContain(Buffer.from(key.slice(2), "hex").toString("base64").slice(0, 20));
+  });
+});

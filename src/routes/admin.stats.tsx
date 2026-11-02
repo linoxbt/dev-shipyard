@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Download, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { LogoMark } from "@/components/shared/Logo";
+import { fetchWithGrant } from "@/lib/agent-access/grant";
+import { useAuth } from "@/hooks/useAuth";
 
 // DevStation's own figures, for the accounts in ADMIN_EMAILS: totals, daily
 // site figures, Pro requests to approve, and downloads of everything to
@@ -17,7 +19,12 @@ type Summary = Record<string, unknown> & { by_model?: Record<string, number> };
 interface Payload {
   summary: Summary;
   daily: { day: string; metric: string; count: number }[];
-  proRequests: { owner: string; plan: string; pro_requested_at: string }[];
+  proRequests: {
+    owner: string;
+    plan: string;
+    contact: string | null;
+    pro_requested_at: string | null;
+  }[];
 }
 
 const LABELS: [string, string][] = [
@@ -29,6 +36,8 @@ const LABELS: [string, string][] = [
   ["turns_finished", "Turns finished"],
   ["steps", "Agent steps"],
   ["cost_usd", "Model cost (USD)"],
+  ["premium_cost_usd", "Premium model cost (USD)"],
+  ["model_calls", "Model calls"],
   ["credits_claimed", "Launch credits claimed (of 20)"],
   ["pro_accounts", "Pro accounts"],
   ["pro_requests", "Waiting for Pro"],
@@ -38,24 +47,35 @@ function StatsPage() {
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const authReady = useAuth((s) => s.ready);
+  const signedIn = useAuth((s) => !!s.account);
+  useEffect(() => useAuth.getState().init(), []);
+
   const load = () =>
-    void fetch("/api/admin/stats")
+    void fetchWithGrant("/api/admin/stats")
       .then(async (res) => {
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.message || "The figures could not be read.");
         setData(body as Payload);
       })
       .catch((e: Error) => setError(e.message));
-  useEffect(load, []);
+  useEffect(() => {
+    if (!authReady) return;
+    if (!signedIn) {
+      setError("Sign in with an admin email on DevStation first, then open this page again.");
+      return;
+    }
+    load();
+  }, [authReady, signedIn]);
 
-  const grant = async (owner: string) => {
-    const res = await fetch("/api/admin/stats", {
+  const setPlan = async (owner: string, plan: "pro" | "free") => {
+    const res = await fetchWithGrant("/api/admin/stats", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "set_plan", owner, plan: "pro" }),
+      body: JSON.stringify({ action: "set_plan", owner, plan }),
     });
-    if (!res.ok) return toast.error("That account could not be moved to Pro.");
-    toast.success("Moved to Pro.");
+    if (!res.ok) return toast.error("That plan could not be changed.");
+    toast.success(plan === "pro" ? "Moved to Pro." : "Moved back to free.");
     load();
   };
 
@@ -108,7 +128,7 @@ function StatsPage() {
                 <div key={key} className="rounded-2xl border border-border bg-surface p-4">
                   <p className="text-[11.5px] text-muted-foreground">{label}</p>
                   <p className="mt-1 text-[22px] font-semibold tabular-nums text-foreground">
-                    {key === "cost_usd"
+                    {key.endsWith("cost_usd")
                       ? `$${Number(data.summary[key] ?? 0).toFixed(2)}`
                       : Number(data.summary[key] ?? 0).toLocaleString()}
                   </p>
@@ -141,24 +161,39 @@ function StatsPage() {
             )}
 
             <section>
-              <h2 className="text-[15px] font-semibold text-foreground">Pro requests</h2>
+              <h2 className="text-[15px] font-semibold text-foreground">
+                Pro requests and Pro accounts
+              </h2>
               {data.proRequests.length === 0 ? (
                 <p className="mt-2 text-[13px] text-muted-foreground">None yet.</p>
               ) : (
                 <div className="mt-2 divide-y divide-border rounded-2xl border border-border">
                   {data.proRequests.map((r) => (
                     <div key={r.owner} className="flex items-center gap-3 px-4 py-2.5">
-                      <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-foreground">
-                        {r.owner}
+                      <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground">
+                        {r.contact ? (
+                          <a href={`mailto:${r.contact}`} className="hover:underline">
+                            {r.contact}
+                          </a>
+                        ) : (
+                          <span className="font-mono text-[11.5px]">{r.owner}</span>
+                        )}
                       </span>
-                      <span className="text-[11.5px] text-meta">
-                        {new Date(r.pro_requested_at).toLocaleDateString()}
-                      </span>
+                      {r.pro_requested_at && (
+                        <span className="text-[11.5px] text-meta">
+                          {new Date(r.pro_requested_at).toLocaleDateString()}
+                        </span>
+                      )}
                       {r.plan === "pro" ? (
-                        <span className="text-[12px] text-success">Pro</span>
+                        <button
+                          onClick={() => void setPlan(r.owner, "free")}
+                          className="rounded-full border border-border px-3 py-1 text-[12px] text-muted-foreground hover:text-danger"
+                        >
+                          Pro · revoke
+                        </button>
                       ) : (
                         <button
-                          onClick={() => void grant(r.owner)}
+                          onClick={() => void setPlan(r.owner, "pro")}
                           className="rounded-full bg-primary px-3 py-1 text-[12px] font-medium text-primary-foreground hover:bg-primary-hover"
                         >
                           Grant Pro

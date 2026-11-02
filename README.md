@@ -2,15 +2,16 @@
 
 The terminal agent: **[docs/CLI.md](docs/CLI.md)** — install, use, debug, uninstall.
 
-**The AI Developer OS for QIE and Web3.** Describe it. Build it. Ship it.
+## The Coding Agent (what is live)
 
-DevStation is a complete, onchain developer console for **QIE**, with **BOT Chain** supported alongside it. It brings the everyday work of a smart-contract developer into one place: write and compile Solidity in the browser, deploy audited templates, generate and deploy contracts with an AI agent, decode any transaction, browse the chain with a built-in block explorer, and label contracts onchain. Everything runs against live networks, and the records that matter (your deployments and the contract label registry) live onchain, per chain, not in a private database.
+**<https://devstation-omega.vercel.app>** is DevStation's Coding Agent: you sign in with an emailed code, describe what you want, and an agent researches, builds, tests, previews and deploys it, narrating each step.
 
-- **Live app:** <https://devstation.online>
-- **Networks:** QIE Testnet and **QIE Mainnet (default)**, plus BOT Chain Testnet and Mainnet. Full chain IDs, RPCs, explorers, and registry addresses are in **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
-- **Explorer coverage:** both chains are Blockscout-backed, so wallet, deploy, registry, verification and the built-in Explorer dashboard all work natively on each: see [DEPLOYMENT.md](./DEPLOYMENT.md#explorer-availability-per-chain).
+- **Models:** Qwen 3.8 27B on Fortytwo by default (free); Claude, GPT and Gemini models for accounts with launch credit or Pro. Model keys stay on DevStation's server: each project's sandbox reaches models through `/api/model` with a pass for each turn, and spend is metered per call.
+- **Where the agent works:** one Vercel Sandbox per project, a Linux VM with the internet, where it runs commands, installs packages, takes screenshots with Playwright, and builds the live preview.
+- **Your accounts:** GitHub, Vercel, Netlify, Railway and Supabase connect over OAuth so the agent can push, deploy and manage databases as you.
+- **Setup:** the variables it needs are at the top of [`.env.example`](./.env.example); how it is deployed is in [DEPLOYMENT.md](./DEPLOYMENT.md#the-agent-vercel-sandbox-default).
 
-> Originally scaffolded on a TanStack Start template. Now fully wired to the chain: real RPC reads, real deployments, real onchain registries, no mock data on the critical paths.
+The rest of this file describes the full DevStation site (an onchain developer console for QIE and BOT Chain), which is switched off in the agent-only build (`VITE_CODING_AGENT_ONLY=1`, the default).
 
 ---
 

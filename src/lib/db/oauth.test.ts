@@ -75,6 +75,9 @@ describe("connecting an account over OAuth", () => {
   it("only returns to paths on this site", () => {
     expect(safeBack("/?p=1")).toBe("/?p=1");
     expect(safeBack("//evil.example")).toBe("/");
+    expect(safeBack("/\\evil.example")).toBe("/");
+    expect(safeBack("/\t/evil.example")).toBe("/");
+    expect(safeBack("/%09/x")).toBe("/%09/x");
     expect(safeBack("https://evil.example")).toBe("/");
     expect(safeBack(null)).toBe("/");
   });
@@ -94,5 +97,22 @@ describe("connecting an account over OAuth", () => {
     expect(expiresSoon({ a: "x" }, now)).toBe(false);
     expect(expiresSoon({ a: "x", e: now + 60 * 60_000 }, now)).toBe(false);
     expect(expiresSoon({ a: "x", e: now + 60_000 }, now)).toBe(true);
+  });
+});
+
+describe("a turn's pass", () => {
+  it("opens only on this server, for its owner and model, until it expires", async () => {
+    const { mintTurnPass, readTurnPass } = await import("./turn-token.server");
+    const pass = mintTurnPass({ owner: "0xabc", workspace: "ds-1~ws-1", model: "opus-5.5" });
+    expect(readTurnPass(pass)).toMatchObject({
+      owner: "0xabc",
+      workspace: "ds-1~ws-1",
+      model: "opus-5.5",
+    });
+    expect(readTurnPass(pass, Date.now() + 41 * 60_000)).toBeNull();
+    expect(readTurnPass("forged")).toBeNull();
+    // An OAuth state sealed with the same key is not a pass.
+    const state = new URL(startUrl(req, "github", "0xabc", "/")!).searchParams.get("state");
+    expect(readTurnPass(state)).toBeNull();
   });
 });

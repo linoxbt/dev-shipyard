@@ -13,7 +13,11 @@ const ENV = {
   SUPABASE_URL: "https://proj.supabase.test",
   SUPABASE_PUBLISHABLE_KEY: "sb_publishable_x",
 };
-const TOKEN = "t".repeat(40);
+/** A token shaped like Supabase's: its claims say it came from an emailed code. */
+const jwt = (amr: { method: string }[]) =>
+  `h.${Buffer.from(JSON.stringify({ sub: "u1", amr })).toString("base64url")}.sig`;
+const TOKEN = jwt([{ method: "otp" }]);
+const PASSWORD_TOKEN = jwt([{ method: "password" }]);
 const realFetch = globalThis.fetch;
 const saved = Object.fromEntries(Object.keys(ENV).map((k) => [k, process.env[k]]));
 
@@ -70,6 +74,12 @@ describe("verifySupabaseToken", () => {
     expect(await verifySupabaseToken(TOKEN, ENV)).toBeNull();
     supabaseSays(null);
     expect(await verifySupabaseToken(TOKEN, ENV)).toBeNull();
+  });
+
+  it("refuses a session made with a password: sign-in is by emailed code only", async () => {
+    supabaseSays({ id: "u1", email: "a@b.co", email_confirmed_at: "2026-10-30T00:00:00Z" });
+    expect(await verifySupabaseToken(PASSWORD_TOKEN, ENV)).toBeNull();
+    expect(await verifySupabaseToken("t".repeat(40), ENV)).toBeNull();
   });
 
   it("is off without a project configured", async () => {

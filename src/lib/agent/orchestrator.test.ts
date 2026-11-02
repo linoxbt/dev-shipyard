@@ -144,6 +144,32 @@ describe("the agent loop", () => {
     expect(answer.content).toContain("next message");
   });
 
+  it("runs nothing that comes after the question in the same batch", async () => {
+    const workspace = ws();
+    const provider = new MockProvider([
+      {
+        toolCalls: [
+          {
+            id: "1",
+            name: "ask_user",
+            input: { question: "Which colour?", options: [{ label: "Red" }, { label: "Blue" }] },
+          },
+          { id: "2", name: "write_file", input: { path: "a.txt", content: "x" } },
+        ],
+      },
+    ]);
+    const events: AgentEvent[] = [];
+    const result = await new Orchestrator({
+      provider,
+      workspace,
+      onEvent: (e) => events.push(e),
+    }).run("pick");
+    expect(existsSync(join(workspace.root, "a.txt"))).toBe(false);
+    expect(result.filesChanged).toEqual([]);
+    const last = events.filter((e) => e.kind !== "usage" && e.kind !== "task.completed").at(-1);
+    expect(last?.kind).toBe("question");
+  });
+
   it("hands an unusable question back to the model instead of asking it", async () => {
     const workspace = ws();
     const provider = new MockProvider([
@@ -154,6 +180,24 @@ describe("the agent loop", () => {
     await new Orchestrator({ provider, workspace, onEvent: (e) => events.push(e) }).run("go");
     expect(provider.calls).toHaveLength(2);
     expect(events.some((e) => e.kind === "question")).toBe(false);
+  });
+
+  it("hides the person's tokens from every event, by their exact values", async () => {
+    const workspace = ws({ "notes.txt": "deploy with token zzz-connector-secret-123 please\n" });
+    const provider = new MockProvider([
+      { toolCalls: [{ id: "1", name: "read_file", input: { path: "notes.txt" } }] },
+      { text: "Saw zzz-connector-secret-123 in the notes." },
+    ]);
+    const events: AgentEvent[] = [];
+    await new Orchestrator({
+      provider,
+      workspace,
+      secrets: ["zzz-connector-secret-123"],
+      onEvent: (e) => events.push(e),
+    }).run("read the notes");
+    const all = JSON.stringify(events);
+    expect(all).not.toContain("zzz-connector-secret-123");
+    expect(all).toContain("[redacted]");
   });
 
   it("feeds a tool's real output back, rather than assuming it worked", async () => {

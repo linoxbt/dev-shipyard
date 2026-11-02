@@ -112,19 +112,33 @@ function useDictation(value: string, onChange: (v: string) => void) {
     const session = () => {
       const before = current.current.trimEnd();
       base.current = before ? `${before} ` : "";
+      offset = 0;
+      written = current.current;
       started = Date.now();
       heard = false;
       r.start();
     };
+    let written = "";
     r.onresult = (e) => {
       if (!wanted.current || rec.current !== r) return;
       heard = true;
+      // Typed into the box while listening: keep what they typed and carry on
+      // after it, rather than writing over it with the session's words.
+      if (current.current !== written && current.current !== base.current.trimEnd()) {
+        const typed = current.current.trimEnd();
+        base.current = typed ? `${typed} ` : "";
+        const done: string[] = [];
+        for (let i = 0; i < e.resultIndex; i++) done.push(e.results[i][0].transcript);
+        offset = done.join("").length;
+      }
       let text = "";
       for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
-      const next = `${base.current}${text}`;
+      const next = `${base.current}${text.slice(offset)}`;
+      written = next;
       current.current = next;
       latest.current(next);
     };
+    let offset = 0;
     r.onerror = (e) => {
       const why = DICTATION_ERRORS[e.error ?? ""];
       if (!why || rec.current !== r) return;
@@ -239,6 +253,16 @@ export function Composer({
           onAttach(files);
         }
       }}
+      onDragOver={(e) => {
+        if (onAttach && e.dataTransfer?.types.includes("Files")) e.preventDefault();
+      }}
+      onDrop={(e) => {
+        const files = imagesFrom(e.dataTransfer?.files ?? null);
+        if (files.length && onAttach) {
+          e.preventDefault();
+          onAttach(files);
+        }
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
           e.preventDefault();
@@ -261,6 +285,7 @@ export function Composer({
       type="button"
       onClick={dictation.toggle}
       title={dictation.listening ? "Stop dictation" : "Dictate"}
+      aria-label={dictation.listening ? "Stop dictation" : "Dictate"}
       aria-pressed={dictation.listening}
       className={cn(
         "flex shrink-0 items-center justify-center rounded-full transition",
@@ -295,10 +320,18 @@ export function Composer({
       ))}
     </div>
   ) : null;
+  const listeningBar = dictation.listening ? (
+    <div role="status" className="flex items-center gap-2 text-[12px] text-danger">
+      <span className="h-2 w-2 animate-pulse rounded-full bg-danger" />
+      Listening. Tap the microphone to stop.
+    </div>
+  ) : null;
+
   if (hero) {
     return (
       <div className="rounded-3xl border border-border bg-surface shadow-2xl shadow-black/25 transition focus-within:border-primary/50">
         {notice && <div className="border-b border-border px-5 py-2">{notice}</div>}
+        {listeningBar && <div className="px-5 pt-3">{listeningBar}</div>}
         {pictures && <div className="px-4 pt-3">{pictures}</div>}
         {textarea}
         <div className="flex items-center gap-1.5 px-3 pb-2.5 pt-1.5">
@@ -325,11 +358,13 @@ export function Composer({
   return (
     <div>
       {notice && <div className="mb-2 px-2">{notice}</div>}
+      {listeningBar && <div className="mb-2 px-3">{listeningBar}</div>}
       {pictures && <div className="mb-2 px-2">{pictures}</div>}
       <div className="flex items-end gap-1 rounded-[28px] border border-border bg-surface-2 py-1.5 pl-1.5 pr-1.5 shadow-xl shadow-black/25 transition focus-within:border-primary/50">
         {plus}
         <div className="min-w-0 flex-1 px-1">{textarea}</div>
-        {!running && !value.trim() && mic}
+        {/* While listening the microphone stays, as the way to stop. */}
+        {(dictation.listening || (!running && !value.trim())) && mic}
         {running && (value.trim() || hasPictures) && (
           <button
             onClick={send}
@@ -374,19 +409,17 @@ export function ToolChip({
   icon: Icon,
   children,
   title,
-  as = "button",
 }: {
   active?: boolean;
   onClick?: () => void;
   icon: React.ComponentType<{ className?: string }>;
   children?: ReactNode;
   title?: string;
-  as?: "button" | "span";
 }) {
-  const Tag = as;
   return (
-    <Tag
-      {...(as === "button" ? { type: "button" as const, onClick } : {})}
+    <button
+      type="button"
+      onClick={onClick}
       title={title}
       className={cn(
         "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 text-[12px] transition",
@@ -398,6 +431,6 @@ export function ToolChip({
     >
       <Icon className="h-3.5 w-3.5" />
       {children}
-    </Tag>
+    </button>
   );
 }

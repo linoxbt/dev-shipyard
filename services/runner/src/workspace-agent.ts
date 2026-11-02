@@ -8,10 +8,11 @@
 // does and what the two older web paths did not: the App Builder could only
 // make web apps, and the repository agent took one goal and stopped.
 //
-// Nothing here needs GitHub. A public repository is downloaded without a token,
-// and pushing or opening a pull request stays the person's own action, carried
-// out by their session on DevStation's server after they have seen the work.
-// No credential of theirs ever reaches this process.
+// Nothing here needs GitHub. A public repository is downloaded without a token.
+// Accounts the person connected (GitHub, Vercel, Netlify, Railway, Supabase)
+// reach a turn as environment variables for its commands, only when they own
+// the workspace, and are scrubbed from every event; no model key ever does
+// (model calls go through DevStation's proxy with a pass for the turn).
 
 import {
   mkdirSync,
@@ -24,17 +25,27 @@ import {
 } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
-import { Orchestrator, type AgentEvent, type Handoff } from "../../../src/lib/agent/orchestrator";
+import {
+  Orchestrator,
+  type AgentEvent,
+  type ApprovalRequest,
+  type Handoff,
+} from "../../../src/lib/agent/orchestrator";
 import type { ProviderMessage } from "../../../src/lib/agent/providers/types";
 import { isControlPath, looksBinary, Workspace } from "../../../src/lib/agent/workspace";
 import { initLocalRepo, materialise, readWorkspace } from "../../../src/lib/agent/repo-session";
-import { providerForModel, type ModelProvider } from "../../../src/lib/agent/providers";
+import {
+  ProxyProvider,
+  providerForModel,
+  type ModelProvider,
+  type ProxyTarget,
+} from "../../../src/lib/agent/providers";
 import {
   PLAN_MODE_ADDENDUM,
   SANDBOX_ADDENDUM,
   SANDBOX_NETWORK_ADDENDUM,
 } from "../../../src/lib/agent/system-prompt";
-import { hostExecutor, type Executor } from "../../../src/lib/agent/executor";
+import { allowedEnv, hostExecutor, type Executor } from "../../../src/lib/agent/executor";
 import { McpHub, loadConfig } from "../../../src/lib/agent/mcp";
 import { runShell } from "../../../src/lib/agent/shell";
 import {
@@ -93,6 +104,8 @@ export interface WorkspaceSession {
   createdAt: number;
   /** When the current or last turn started, for the chat's running timer. */
   turnStartedAt?: number;
+  /** Background commands still running (a dev server the agent started). */
+  jobs?: number;
   updatedAt: number;
   phase: WorkspacePhase;
   status: string;
@@ -124,7 +137,15 @@ export interface WorkspaceSession {
   collaborators?: string[];
   /** The current or most recent turn on its own, for the site's records:
    *  `steps` and `costUsd` above are totals across turns. */
-  lastTurn?: { model: string; plan: boolean; steps: number; costUsd: number; changed: number };
+  lastTurn?: {
+    model: string;
+    plan: boolean;
+    steps: number;
+    costUsd: number;
+    changed: number;
+    /** The account that sent the message (spend and stats are theirs). */
+    by?: string;
+  };
 }
 
 export type WorkspaceView = Omit<WorkspaceSession, "root" | "owner" | "collaborators">;
@@ -518,6 +539,11 @@ export interface SendOptions {
    *  Supabase), as the environment variables their tools read. For this turn
    *  only: never written to disk. */
   env?: Record<string, string>;
+  /** Where to make model calls: DevStation's proxy and this turn's pass. A
+   *  sandbox holds no model key, so this is how a turn reaches a model. */
+  proxy?: ProxyTarget;
+  /** The account that sent the message. */
+  by?: string;
 }
 
 export function sendWorkspaceMessage(
@@ -556,7 +582,10 @@ export function sendWorkspaceMessage(
 
   const controller = new AbortController();
   running.set(id, controller);
-  const done = runTurn(session, text, opts, controller.signal).finally(() => running.delete(id));
+  const done = runTurn(session, text, opts, controller.signal).finally(() => {
+    // Only this turn's controller: a newer turn may already have started.
+    if (running.get(id) === controller) running.delete(id);
+  });
   settled.set(id, done);
   return { ok: true, session };
 }
@@ -673,6 +702,48 @@ function withEnv(executor: Executor, env: Record<string, string>): Executor {
   };
 }
 
+/** One host executor per workspace on an isolated host, kept across turns. */
+const sessionExecutors = new Map<string, Executor>();
+function sessionExecutor(id: string): Executor {
+  let executor = sessionExecutors.get(id);
+  if (!executor) {
+    executor = hostExecutor();
+    sessionExecutors.set(id, executor);
+  }
+  return executor;
+}
+
+/**
+ * Whether a gated action may go ahead with nobody there to ask. In the
+ * project's own machine almost everything may: the machine is the isolation.
+ * What reaches the person's real money or accounts may not, unless the
+ * message they sent asks for exactly that kind of thing: moving funds,
+ * deleting stored records or the project, and transactions on a mainnet.
+ * Refused, the agent is told why and asks with ask_user, and the person's
+ * answer is the next message.
+ */
+export function personApproves(
+  request: Pick<ApprovalRequest, "operation" | "input">,
+  prompt: string,
+): boolean {
+  const op = request.operation;
+  const said = (re: RegExp) => re.test(prompt);
+  if (op.startsWith("funds.transfer")) return said(/\b(send|transfer|pay|withdraw|move)\b/i);
+  if (/^database\.(delete|drop|truncate)/.test(op))
+    return said(/\b(delete|drop|truncate|wipe|erase|remove)\b/i);
+  if (op.startsWith("project.delete")) return said(/\bdelete\b/i);
+  if (op.startsWith("chain.transact")) {
+    const command = String(request.input?.command ?? "");
+    const mainnet = MAINNET.test(command);
+    return !mainnet || said(/\bmain\s?net\b/i);
+  }
+  return true;
+}
+
+/** RPC hosts and chain ids that mean real money. */
+const MAINNET =
+  /--chain(-id)?[= ](1|10|56|137|8453|42161|43114|1990)\b|mainnet|eth\.llamarpc|cloudflare-eth|rpc\.ankr\.com\/eth(\b|\/)|polygon-rpc\.com|bsc-dataseed|arb1\.arbitrum|mainnet\.base\.org|mainnet\.optimism/i;
+
 export function workspaceNetworkEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return (env.DEVSTATION_WORKSPACE_NETWORK ?? "on").toLowerCase() !== "off";
 }
@@ -687,7 +758,7 @@ You are running in DevStation's web console rather than a terminal. The person t
 - Smart contracts: write and test them locally first (forge test, or the Hardhat tests). To deploy, call create_wallet to get this workspace's deployer wallet, tell the person its address, the network and where to get test funds (the network's faucet), then check the balance with onchain (cast balance $DEPLOYER_ADDRESS --rpc-url …) and wait for them before deploying. Deploy with onchain (forge create … --private-key $DEPLOYER_PRIVATE_KEY --broadcast, forge script … --broadcast, or npx hardhat run … --network …, with the config reading process.env.DEPLOYER_PRIVATE_KEY), then report the contract address, the transaction and the explorer link. Testnets unless the person asks for a mainnet in so many words. Never print, write into a file or commit the private key.
 - When the work has a web front end, make it previewable: either a static index.html at the project root, or a package.json whose \`npm run build\` writes a static site (Vite to dist/ is the simplest; a Next.js app needs output: "export", which writes out/). DevStation builds and shows the preview after your turn; an app that only runs on a server has no static preview, so say so instead of reshaping it.
 - Verify before you finish: run the build or the tests.
-- You cannot push to GitHub, publish, or open a pull request yourself. When the person asks for one, call push_to_github, publish_app or open_pull_request; they confirm it with a button and their own account carries it out.
+- Pushing to GitHub, publishing and pull requests: when the person has connected GitHub (GH_TOKEN is set; see the connected accounts below), use git and gh with it yourself, after saying what you will push where. Without it, call push_to_github, publish_app or open_pull_request; they confirm with a button and their own account carries it out.
 - End each turn with a short, plain summary of what you did and what they can do next.`;
 
 async function runTurn(
@@ -699,6 +770,9 @@ async function runTurn(
   let executor: Executor | null = null;
   let mcp: McpHub | null = null;
   let memory: MemoryStore | null = null;
+  let proxy: ProxyProvider | null = null;
+  /** Spend so far this turn, from the usage events. */
+  let spentSoFar = 0;
   let lastWrite = 0;
   const touch = (patch: Partial<WorkspaceSession>, force = false) => {
     Object.assign(session, patch, { updatedAt: Date.now() });
@@ -727,22 +801,39 @@ async function runTurn(
   };
 
   try {
-    const chosen = opts.provider ? { provider: opts.provider } : providerForModel(opts.model);
+    // A preview build installs and builds in this same folder: wait for it,
+    // so the agent's own installs never run alongside it.
+    const building = previewBuilds.get(session.id);
+    if (building) {
+      touch({ status: "Waiting for the preview build to finish" });
+      await building.catch(() => undefined);
+    }
+    const chosen: { provider: ModelProvider } | { problem: string } = opts.provider
+      ? { provider: opts.provider }
+      : opts.proxy
+        ? { provider: new ProxyProvider(opts.proxy, opts.model ?? "auto") }
+        : providerForModel(opts.model);
     if ("problem" in chosen) {
       finish({ phase: "error", error: chosen.problem });
       return;
     }
     const provider = chosen.provider;
+    proxy = provider instanceof ProxyProvider ? provider : null;
 
     const wantSandbox = opts.sandbox ?? sandboxEnabled();
     const network = opts.network ?? workspaceNetworkEnabled();
-    executor = withEnv(hostExecutor(), connectorEnv(opts.env));
+    // On the project's own machine, background commands (a dev server the
+    // agent started) outlive the turn, so the next message can still use
+    // them; the machine itself is what ends them when it sleeps.
+    const base = isolatedHost() ? sessionExecutor(session.id) : hostExecutor();
+    executor = withEnv(base, connectorEnv(opts.env));
     session.lastTurn = {
       model: opts.model ?? "auto",
       plan: opts.plan === true,
       steps: 0,
       costUsd: 0,
       changed: 0,
+      ...(opts.by ? { by: opts.by } : {}),
     };
     if (wantSandbox) {
       touch({ status: "Preparing the sandbox" });
@@ -754,7 +845,11 @@ async function runTurn(
         });
         return;
       }
-      executor = sandboxExecutor({ workspace: session.root, network });
+      // The connected accounts go to the container's commands as well.
+      executor = withEnv(
+        sandboxExecutor({ workspace: session.root, network }),
+        connectorEnv(opts.env),
+      );
     }
 
     // MCP servers the project configures (.mcp.json at its root). Only on a
@@ -762,7 +857,7 @@ async function runTurn(
     // project's servers needs no separate trust step.
     if (isolatedHost()) {
       try {
-        const config = loadConfig(session.root, "");
+        const config = loadConfig(session.root, "", { trustProject: true });
         if (Object.keys(config.mcpServers).length > 0) {
           touch({ status: "Starting the project's MCP servers" });
           mcp = await McpHub.start(config);
@@ -799,7 +894,7 @@ async function runTurn(
     const result = await new Orchestrator({
       executor,
       provider,
-      workspace: new Workspace(session.root),
+      workspace: new Workspace(session.root, { allowMcpConfig: isolatedHost() }),
       signal,
       maxSteps: MAX_STEPS,
       maxMs: MAX_MS,
@@ -822,15 +917,32 @@ async function runTurn(
       // Without an approver every gated action is refused, which in a web
       // conversation meant no installs, no builds and no scaffolding at all.
       ...((opts.approve ?? (executor.kind === "sandbox" || isolatedHost()))
-        ? { autonomy: "autonomous" as const, requestApproval: async () => true }
+        ? {
+            autonomy: "autonomous" as const,
+            requestApproval: async (request: ApprovalRequest) => personApproves(request, prompt),
+          }
         : {}),
+      secrets: [
+        ...Object.values(connectorEnv(opts.env)),
+        ...(opts.proxy ? [opts.proxy.token] : []),
+      ],
       onDelta: (chunk) => touch({ reply: session.reply + chunk }),
       onEvent: (event) => {
         session.events.push(event);
         if (session.events.length > MAX_EVENTS) {
           session.events.splice(0, session.events.length - MAX_EVENTS);
         }
+        if (event.kind === "usage" && typeof event.detail?.costUsd === "number") {
+          spentSoFar = event.detail.costUsd;
+        }
         if (event.kind !== "usage") touch({ status: event.message.slice(0, 200) });
+        if (
+          event.tool === "run_shell" ||
+          event.tool === "stop_shell" ||
+          event.tool === "shell_output"
+        ) {
+          session.jobs = executor?.running?.() ?? session.jobs;
+        }
         if (event.kind === "step.completed" && event.tool && LIVE_TOOLS.has(event.tool)) {
           scheduleLivePreview(session);
         }
@@ -848,6 +960,7 @@ async function runTurn(
       steps: result.steps,
       costUsd: result.costUsd,
       changed: result.filesChanged.length,
+      ...(opts.by ? { by: opts.by } : {}),
     };
     finish({
       phase: signal.aborted ? "cancelled" : "idle",
@@ -860,18 +973,34 @@ async function runTurn(
     // The turn is over, so it no longer counts as running. The preview refuses
     // to start while a turn runs, and this line used to come first, which
     // meant no preview was ever built automatically.
-    running.delete(session.id);
+    if (running.get(session.id)?.signal === signal) running.delete(session.id);
     // A plan changes nothing, so there is nothing new to build.
     if (!signal.aborted && opts.preview !== false && !opts.plan) startWorkspacePreview(session.id);
   } catch (error) {
+    // What the turn spent before it failed still counts.
+    if (session.lastTurn) session.lastTurn.costUsd = spentSoFar;
     finish({
       phase: signal.aborted ? "cancelled" : "error",
       error: signal.aborted ? null : error instanceof Error ? error.message : String(error),
     });
   } finally {
     memory?.close();
-    await executor?.dispose();
+    if (!isolatedHost()) await executor?.dispose();
+    session.jobs = executor?.running?.() ?? 0;
+    persist(session);
     mcp?.stop();
+    // The site's record of the turn, whoever is or is not watching.
+    if (proxy && session.lastTurn && session.phase !== "running") {
+      void proxy.reportTurn({
+        workspace: session.id,
+        turn: session.turns,
+        phase: session.phase === "idle" || session.phase === "cancelled" ? session.phase : "error",
+        steps: session.lastTurn.steps,
+        costUsd: session.lastTurn.costUsd,
+        changed: session.lastTurn.changed,
+        plan: session.lastTurn.plan,
+      });
+    }
   }
 }
 
@@ -1014,11 +1143,28 @@ export function workspaceShot(id: string, name: string): string | null {
   }
 }
 
+/** What the preview's images and fonts may add to one response: the host
+ *  caps a response at 4.5 MB, and the text of the app comes first. */
+const MAX_ASSET_RESPONSE = 3_000_000;
+
 export function previewAssets(id: string): Record<string, string> {
   const s = sessions.get(id);
   if (!s) return {};
-  return readJson<Record<string, string>>(previewAssetsFile(s)) ?? {};
+  const all = readJson<Record<string, string>>(previewAssetsFile(s)) ?? {};
+  const out: Record<string, string> = {};
+  let size = 0;
+  // Smallest first, so one huge video does not crowd out every icon.
+  for (const [path, data] of Object.entries(all).sort((a, b) => a[1].length - b[1].length)) {
+    if (size + data.length > MAX_ASSET_RESPONSE) continue;
+    size += data.length;
+    out[path] = data;
+  }
+  return out;
 }
+
+/** Builds in progress per workspace, and those asked for again meanwhile. */
+const previewBuilds = new Map<string, Promise<void>>();
+const rebuildWanted = new Set<string>();
 
 export function startWorkspacePreview(
   id: string,
@@ -1026,7 +1172,12 @@ export function startWorkspacePreview(
 ): { ok: true; session: WorkspaceSession } | { ok: false; status: number; message: string } {
   const session = sessions.get(id);
   if (!session) return { ok: false, status: 404, message: "That workspace is gone." };
-  if (session.preview.phase === "building") return { ok: true, session };
+  if (session.preview.phase === "building") {
+    // Asked again while a build runs (a newer turn finished): build again when
+    // this one ends, so the preview never stays on older code.
+    rebuildWanted.add(id);
+    return { ok: true, session };
+  }
   if (running.has(id)) {
     return {
       ok: false,
@@ -1063,7 +1214,8 @@ export function startWorkspacePreview(
   // there.
   if (isolatedHost() && buildImpl === buildViaSelf) {
     set({ phase: "building", revision, message: "Installing and building" });
-    void buildInPlace(join(session.root, plan.dir), plan.outDir).then((outcome) => {
+    rebuildWanted.delete(id);
+    const build = buildInPlace(join(session.root, plan.dir), plan.outDir).then((outcome) => {
       if (sessions.get(id) !== session) return;
       if (outcome.ok && outcome.dist && Object.keys(outcome.dist).length > 0) {
         writeAtomic(previewFile(session), JSON.stringify(outcome.dist));
@@ -1073,6 +1225,22 @@ export function startWorkspacePreview(
         set({ phase: "error", revision, message: outcome.message });
       }
     });
+    // A turn waits for this before it starts (the build runs in the same
+    // folder), and a newer revision asked for meanwhile gets its own build.
+    previewBuilds.set(
+      id,
+      build.finally(() => {
+        previewBuilds.delete(id);
+        if (
+          sessions.get(id) === session &&
+          !running.has(id) &&
+          (rebuildWanted.has(id) || session.revision !== revision)
+        ) {
+          rebuildWanted.delete(id);
+          startWorkspacePreview(id, buildImpl);
+        }
+      }),
+    );
     return { ok: true, session };
   }
 
@@ -1130,7 +1298,10 @@ const LIVE_TOOLS = new Set([
   "run_tests",
   "install_dependency",
 ]);
-const LIVE_DELAY_MS = 1200;
+const LIVE_DELAY_MS = 2000;
+/** Above this many files, reading them all after every change costs more than
+ *  a live preview is worth; the full preview still builds when the turn ends. */
+const LIVE_MAX_FILES = 3000;
 const liveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const liveShown = new Map<string, string>();
 
@@ -1152,6 +1323,7 @@ function scheduleLivePreview(session: WorkspaceSession) {
 /** Refresh the preview from what is on disk now. True when it changed. */
 export function livePreview(session: WorkspaceSession): boolean {
   if (sessions.get(session.id) !== session || session.preview.phase === "building") return false;
+  if (session.fileCount > LIVE_MAX_FILES) return false;
   const files = workspaceFiles(session.id) ?? {};
   const plan = previewPlan(files);
   let found: { dist: Record<string, string>; distBinary: Record<string, string> } | null = null;
@@ -1173,6 +1345,7 @@ export function livePreview(session: WorkspaceSession): boolean {
   const assets = JSON.stringify(found.distBinary);
   const signature = createHash("sha1").update(dist).update(assets).digest("hex");
   if (liveShown.get(session.id) === signature) return false;
+  if (liveShown.size > 500) liveShown.clear();
   liveShown.set(session.id, signature);
   writeAtomic(previewFile(session), dist);
   writeAtomic(previewAssetsFile(session), assets);
@@ -1217,7 +1390,9 @@ export async function buildInPlace(
   message: string;
 }> {
   const step = async (name: string, command: string) => {
-    const result = await runShell(command, { cwd: dir, timeoutMs: 600_000 });
+    // The project's own scripts run here, so they get the same short list of
+    // variables as the agent's commands, never the server's (its runner token).
+    const result = await runShell(command, { cwd: dir, timeoutMs: 600_000, env: allowedEnv() });
     if (result.code === 0) return null;
     const log = `${result.stdout}\n${result.stderr}`.trim().slice(-1500);
     return `The ${name} step failed.${log ? `\n${log}` : ""}`;

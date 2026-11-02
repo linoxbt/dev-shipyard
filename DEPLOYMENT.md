@@ -119,29 +119,46 @@ Sandboxes are persistent: when one times out it is snapshotted, and the next
 message resumes it. Each sandbox's server answers only a random token kept
 inside that sandbox, so no secret needs configuring here.
 
-| Variable                  | Notes                                                                                             |
-| ------------------------- | ------------------------------------------------------------------------------------------------- |
-| `FORTYTWO_API_KEY`        | The model (Qwen 3.8 27B on Fortytwo). Set on this Vercel project; it is passed into each sandbox. |
-| `SANDBOX_TIMEOUT_MINUTES` | Optional, default 45 (the Hobby limit; up to 300 on Pro).                                         |
-| `AGENT_HOST=runner`       | Optional: use a separate runner (`RUNNER_URL`, `RUNNER_TOKEN`) instead.                           |
+| Variable                  | Notes                                                                                                                             |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `FORTYTWO_API_KEY`        | The model (Qwen 3.8 27B on Fortytwo). Set on this Vercel project; it never enters a sandbox: model calls go through `/api/model`. |
+| `SANDBOX_TIMEOUT_MINUTES` | Optional, default 45 (the Hobby limit; up to 300 on Pro).                                                                         |
+| `AGENT_HOST=runner`       | Optional: use a separate runner (`RUNNER_URL`, `RUNNER_TOKEN`) instead.                                                           |
 
 Vercel Sandbox needs the project's OIDC token, which new projects have; usage
 is billed by Vercel to the account.
+
+How a turn reaches a model: no model key is ever passed into a sandbox. Each
+message carries a sealed pass (sender, workspace, model, 40-minute expiry);
+the sandbox sends each model call to this site's `/api/model` with it, and the
+site checks the sender's plan and credit on every call, makes the call with
+its own key and records the cost in `model_usage`. Finished turns are reported
+to `/api/model/turn` for the stats.
+
+Lifecycle: a status poll never wakes a sleeping sandbox; only a message, the
+files or a screenshot does. Only the latest snapshot of each is kept, for 60
+days, and `/api/cron/sandboxes` (daily, `vercel.json` `crons`, needs
+`CRON_SECRET`) deletes sandboxes idle for 60 days. A sandbox running an older
+agent server is restarted on the current one when new work arrives and
+nothing is running on it.
+
+The full list of variables the Coding Agent needs, required and optional, is
+at the top of `.env.example`.
 
 ### Runner (services/runner)
 
 The runner is a separate long-running service on its own host. Its required
 environment:
 
-| Variable                                  | Notes                                                                                                                                                                              |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RUNNER_TOKEN`                            | Bearer token the app uses to reach the runner. **At least 32 characters** (`openssl rand -hex 32`); a shorter one is refused.                                                      |
-| `SESSION_SECRET`                          | **Required** (or `RUNNER_TOKEN` as the fallback). Signs email verification codes; the runner refuses to start without one.                                                         |
-| `RUNNER_STATE_DIR`                        | Where all runner state lives (jobs, history, accounts, listings, activity). `STATE_DIRECTORY` is read as an alias. Default `/var/lib/devstation-runner`.                           |
-| `PORT`                                    | Default `8792`.                                                                                                                                                                    |
-| `RESEND_API_KEY`, `MAIL_FROM`             | Optional. Email verification is off without them.                                                                                                                                  |
-| `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY` | The models in the Coding Agent's picker: Claude models on the Anthropic key, the rest on OpenRouter.                                                                               |
-| `FORTYTWO_API_KEY`                        | Optional. Qwen 3.8 27B in the picker, served by Fortytwo (keys at platform.fortytwo.network, paid by prepaid credits). Without it, picking Qwen says the runner has no key for it. |
+| Variable                                  | Notes                                                                                                                                                           |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RUNNER_TOKEN`                            | Bearer token the app uses to reach the runner. **At least 32 characters** (`openssl rand -hex 32`); a shorter one is refused.                                   |
+| `SESSION_SECRET`                          | **Required** (or `RUNNER_TOKEN` as the fallback). Signs email verification codes; the runner refuses to start without one.                                      |
+| `RUNNER_STATE_DIR`                        | Where all runner state lives (jobs, history, accounts, listings, activity). `STATE_DIRECTORY` is read as an alias. Default `/var/lib/devstation-runner`.        |
+| `PORT`                                    | Default `8792`.                                                                                                                                                 |
+| `RESEND_API_KEY`, `MAIL_FROM`             | Optional. Email verification is off without them.                                                                                                               |
+| `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY` | The models in the Coding Agent's picker: Claude models on the Anthropic key, the rest on OpenRouter.                                                            |
+| `FORTYTWO_API_KEY`                        | Required. Qwen 3.8 27B, the default model, served by Fortytwo (keys at platform.fortytwo.network, paid by prepaid credits). Without it the agent cannot answer. |
 
 **Netlify publishing token.** `NETLIFY_AUTH_TOKEN` (on the app, not the
 runner) lets users publish to Netlify under the operator's account. It can act

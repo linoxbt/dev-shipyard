@@ -8,6 +8,7 @@ import { AUTO_MODEL, DEFAULT_MODEL, findModel } from "../../coding-agent/models"
 export * from "./types";
 export { AnthropicProvider } from "./anthropic";
 export { OpenRouterProvider } from "./openrouter";
+export { ProxyProvider, type ProxyTarget } from "./proxy";
 export {
   ENGINE_BINARY,
   ENGINE_INSTALL,
@@ -47,9 +48,9 @@ export function providerFromEnv(
  * one; one of Fortytwo's needs a Fortytwo key; anything else needs OpenRouter.
  * "Auto" (or no choice) is Qwen on Fortytwo, the default model, and only that:
  * without a Fortytwo key it says so rather than quietly running on OpenRouter
- * or Anthropic, which bill differently and were not asked for. No choice, or "auto", is the runner's
- * default from providerFromEnv. A model this runner has no key for is an
- * answer, not a silent swap to another model: the person picked it.
+ * or Anthropic, which bill differently and were not asked for. A model this
+ * runner has no key for is an answer, not a silent swap to another model: the
+ * person picked it.
  */
 export function providerForModel(
   modelId: string | null | undefined,
@@ -63,7 +64,7 @@ export function providerForModel(
   if (model.fortytwo) {
     if (!env.FORTYTWO_API_KEY) {
       return {
-        problem: `${model.label} is not available on this runner: it needs a Fortytwo key. Pick Auto, or ask the operator to add one.`,
+        problem: `${model.label} is not available right now: DevStation's Fortytwo key is not set. Ask the operator to add FORTYTWO_API_KEY.`,
       };
     }
     return {
@@ -84,9 +85,9 @@ export function providerForModel(
     return { provider: new OpenRouterProvider(openRouter, model.openrouter) };
   }
   return {
-    problem: `${model.label} is not available on this runner: it needs ${
+    problem: `${model.label} is not available right now: it needs ${
       model.anthropic ? "an Anthropic or an OpenRouter key" : "an OpenRouter key"
-    }. Pick Auto, or ask the operator to add one.`,
+    } on DevStation. Switch to Qwen, which is free, or ask the operator to add one.`,
   };
 }
 

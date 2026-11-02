@@ -9,7 +9,7 @@ import {
   Tablet,
   WandSparkles,
 } from "lucide-react";
-import { PreviewFrame } from "@/components/appbuilder/PreviewFrame";
+import { AppFrame } from "./AppFrame";
 import type { PreviewError } from "@/lib/appgen/preview";
 import { cn } from "@/lib/utils";
 import { Segmented } from "./primitives";
@@ -25,7 +25,6 @@ export function PreviewPane({
   files,
   dir,
   assets,
-  chainName,
   liveUrl,
   status,
   empty,
@@ -35,7 +34,6 @@ export function PreviewPane({
   files: Record<string, string> | null;
   dir: string;
   assets?: Record<string, string>;
-  chainName: string;
   liveUrl?: string | null;
   /** A line above the frame: building, failed, rebuild. */
   status?: ReactNode;
@@ -149,13 +147,11 @@ export function PreviewPane({
             )}
             style={{ width: WIDTH[device], maxWidth: "100%" }}
           >
-            <PreviewFrame
+            <AppFrame
               key={reload}
               files={files}
               dir={dir}
               assets={assets}
-              chainName={chainName}
-              bare
               onError={(e) =>
                 setErrors((prev) =>
                   prev.some((p) => p.message === e.message) ? prev : [...prev, e],

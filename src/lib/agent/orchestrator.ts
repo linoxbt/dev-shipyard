@@ -11,6 +11,7 @@ import {
   lockfilesFor,
   manifestForChanges,
   testCommand,
+  buildCommand,
 } from "./project";
 import {
   preflight,
@@ -40,7 +41,7 @@ import { ensureWallet, onchainCommandProblem, readWallet, redactWallet, walletEn
 import { renderContext, retrieve } from "./memory/retrieve";
 import { webSearch, fetchPage } from "./web";
 import type { McpHub } from "./mcp";
-import { asUntrusted } from "./secrets";
+import { asUntrusted, redact, REDACTED } from "./secrets";
 import { readMemory, remember, renderMemory } from "./memory/project-memory";
 import type { MemoryStore } from "./memory/store";
 import type { EmbeddingProvider } from "./memory/embeddings";
@@ -151,6 +152,9 @@ export interface OrchestratorOptions {
   /** Appended to the system prompt, for a host with something extra to say
    *  about this particular run. */
   systemAddendum?: string;
+  /** Values to hide from every event by their exact text (the person's
+   *  connected-account tokens, this turn's pass). */
+  secrets?: string[];
   /** Plan mode: tools that read, search and look things up run; anything that
    *  would change the workspace or the world is refused before it is asked
    *  about. The host says so in the system prompt too. */
@@ -261,8 +265,11 @@ export class Orchestrator {
     OrchestratorOptions;
   private usage: ProviderUsage = { ...EMPTY_USAGE };
   private readonly changed = new Set<string>();
+  /** Spend so far, priced per call by the model that actually answered. */
+  private spentUsd = 0;
   /** Screenshots taken this turn, shown to the model after the tool results. */
   private pendingImages: string[] = [];
+  private imagesShown = 0;
   private readonly handoffs: Handoff[] = [];
   /** Built once, only when no executor was supplied. */
   private fallback: Executor | null = null;
@@ -332,11 +339,34 @@ export class Orchestrator {
 
   /** Spend so far, priced for the model actually answering. */
   private cost(): number {
-    return costOf(this.usage, this.opts.provider.model);
+    return this.spentUsd;
   }
 
   private emit(kind: AgentEventKind, message: string, extra: Partial<AgentEvent> = {}) {
-    this.opts.onEvent?.({ kind, message, at: new Date().toISOString(), ...extra });
+    // Events are stored with the workspace and sent to the browser, so nothing
+    // credential-shaped leaves in one: the person's connected-account tokens
+    // and the deployer key by their exact values, anything else by its shape.
+    if (!this.opts.onEvent) return;
+    const event: AgentEvent = { kind, message, at: new Date().toISOString(), ...extra };
+    const wallet = readWallet(this.opts.workspace.root);
+    this.opts.onEvent(this.scrub(event, wallet) as AgentEvent);
+  }
+
+  private scrub(value: unknown, wallet: ReturnType<typeof readWallet>): unknown {
+    if (typeof value === "string") {
+      let text = value;
+      for (const secret of this.secretValues()) text = text.split(secret).join(REDACTED);
+      return redactWallet(redact(text).text, wallet);
+    }
+    if (Array.isArray(value)) return value.map((v) => this.scrub(v, wallet));
+    if (value && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, this.scrub(v, wallet)]));
+    }
+    return value;
+  }
+
+  private secretValues(): string[] {
+    return (this.opts.secrets ?? []).filter((s) => typeof s === "string" && s.length >= 8);
   }
 
   private progress(steps: number, summary: string, messages: ProviderMessage[]) {
@@ -358,7 +388,13 @@ export class Orchestrator {
     // the files, which is not what an assistant does. The agent searches when a
     // request needs it, through recall, search_files or web_search.
     const messages: ProviderMessage[] = [
-      ...prior,
+      // A provider's own blocks (thinking) are only valid in the run that made
+      // them: the history a new run starts from is plain text.
+      ...prior.map((m) => {
+        if (m.role !== "assistant" || !m.raw) return m;
+        const { raw: _raw, ...plain } = m;
+        return plain;
+      }),
       { role: "user", content: goal, ...(images?.length ? { images } : {}) },
     ];
 
@@ -408,6 +444,7 @@ export class Orchestrator {
       });
 
       this.usage = addUsage(this.usage, result.usage);
+      this.spentUsd += costOf(result.usage, result.model || this.opts.provider.model);
       this.emit("usage", `${this.usage.outputTokens} output tokens so far`, {
         detail: { costUsd: Number(this.cost().toFixed(4)) },
       });
@@ -422,12 +459,21 @@ export class Orchestrator {
 
       // No tool calls means it is answering rather than working.
       if (result.toolCalls.length === 0) {
-        messages.push({ role: "assistant", content: result.text });
+        messages.push({
+          role: "assistant",
+          content: result.text,
+          ...(result.raw ? { raw: result.raw } : {}),
+        });
         this.progress(steps, summary, messages);
         break;
       }
 
-      messages.push({ role: "assistant", content: result.text, toolCalls: result.toolCalls });
+      messages.push({
+        role: "assistant",
+        content: result.text,
+        toolCalls: result.toolCalls,
+        ...(result.raw ? { raw: result.raw } : {}),
+      });
       this.progress(steps, summary, messages);
 
       // What the model said before this batch of work ("Reading the pages
@@ -494,6 +540,17 @@ export class Orchestrator {
           });
           continue;
         }
+        if (asked) {
+          // The turn ends on the question: nothing after it runs before the
+          // person has answered.
+          messages.push({
+            role: "tool",
+            toolCallId: call.id,
+            content: "Not run: you asked the person a question, and this waits for their answer.",
+            isError: true,
+          });
+          continue;
+        }
         const outcome = await this.runOne(call);
         // A plan update changes nothing in the project, so it is neither half
         // of a change nor evidence that one happened.
@@ -507,20 +564,21 @@ export class Orchestrator {
         this.progress(steps, summary, messages);
       }
 
-      // What the agent saw: its screenshots, as a picture it can look at. Only
-      // the newest few stay in the conversation, so a long run of checks does
-      // not carry every old picture along.
+      // What the agent saw: its screenshots, as a picture it can look at. The
+      // conversation is only ever appended to (editing an earlier message
+      // invalidates a model's thinking from that point), so after a few
+      // pictures in one run the rest are described in words instead.
       if (this.pendingImages.length) {
-        const images = this.pendingImages.splice(0).slice(-2);
-        for (const m of messages) {
-          if (m.role === "user" && m.images?.length && m.content.startsWith(SHOT_NOTE)) {
-            delete m.images;
-          }
-        }
+        const images = this.pendingImages.splice(0);
+        const room = Math.max(0, MAX_RUN_SCREENSHOTS - this.imagesShown);
+        const shown = room > 0 ? images.slice(-room) : [];
+        this.imagesShown += shown.length;
         messages.push({
           role: "user",
-          content: `${SHOT_NOTE} ${images.length === 1 ? "the screenshot" : `${images.length} screenshots`} you just took.`,
-          images,
+          content: shown.length
+            ? `${SHOT_NOTE} ${shown.length === 1 ? "the screenshot" : `${shown.length} screenshots`} you just took.`
+            : `${SHOT_NOTE.replace("Here is", "Not attached:")} this run has already shown you ${MAX_RUN_SCREENSHOTS} pictures. Rely on the console errors and page text above, and on the person, who sees the screenshot in the chat.`,
+          ...(shown.length ? { images: shown } : {}),
         });
       }
 
@@ -686,7 +744,7 @@ export class Orchestrator {
         this.emit("approval.denied", `${call.name} was not allowed.`, { tool: call.name });
         return {
           ok: false,
-          output: `The user did not allow ${request.operation}. Work without it, or explain what you need.`,
+          output: `The person did not allow ${request.operation} here: it needs their explicit say-so (${request.why}). Ask them with ask_user, saying exactly what will happen, and go ahead only when their reply confirms it. Otherwise work without it.`,
         };
       }
       this.emit("approval.granted", `${call.name} allowed.`, { tool: call.name });
@@ -893,8 +951,9 @@ export class Orchestrator {
       }
 
       case "run_tests":
-      case "run_build":
         return this.runProjectCommand("test");
+      case "run_build":
+        return this.runProjectCommand("build");
 
       case "lint_and_typecheck":
         return this.runProjectCommand("lint");
@@ -956,7 +1015,9 @@ export class Orchestrator {
     }
   }
 
-  private async runProjectCommand(kind: "test" | "lint"): Promise<{ ok: boolean; output: string }> {
+  private async runProjectCommand(
+    kind: "test" | "lint" | "build",
+  ): Promise<{ ok: boolean; output: string }> {
     const { workspace } = this.opts;
     const manifests = detectManifests(workspace.root);
     // In a monorepo, run what the changed files belong to rather than
@@ -968,7 +1029,12 @@ export class Orchestrator {
         output: "This project has no package manifest, so there is nothing to run.",
       };
 
-    const command = kind === "test" ? testCommand(manifest) : lintCommand(manifest);
+    const command =
+      kind === "test"
+        ? testCommand(manifest)
+        : kind === "build"
+          ? buildCommand(manifest)
+          : lintCommand(manifest);
     if (!command) {
       // A real answer, not a failure. "No tests" and "tests failed" are
       // different things.
@@ -1057,6 +1123,8 @@ export function partialTurn(turn: TurnOutcome, total: number): string | null {
 
 /** How the agent's own screenshots are introduced to it. */
 const SHOT_NOTE = "[screenshot] Here is";
+/** Pictures one run shows the model; more would grow every later request. */
+const MAX_RUN_SCREENSHOTS = 6;
 
 export interface AgentQuestion {
   question: string;
@@ -1103,8 +1171,9 @@ function describe(call: ProviderToolCall): string {
     case "git":
       return `git ${a.op}`;
     case "run_tests":
-    case "run_build":
       return "Running the tests";
+    case "run_build":
+      return "Building the project";
     case "lint_and_typecheck":
       return "Linting and type-checking";
     case "install_dependency":

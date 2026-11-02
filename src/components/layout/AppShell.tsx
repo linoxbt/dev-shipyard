@@ -29,9 +29,9 @@ export function AppShell({ children, bare = false }: { children: ReactNode; bare
   }, [hydrate, hydrateUi]);
 
   if (bare) {
+    // The Coding Agent: no wallet, so no network banner (and no wallet hooks).
     return (
       <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
-        <WrongNetworkBanner />
         <main className="min-w-0 flex-1">{children}</main>
       </div>
     );

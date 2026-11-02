@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -132,26 +132,68 @@ export function Modal({
   /** Artwork above the title, as on an invite sheet. */
   hero?: ReactNode;
 }) {
+  const panel = useRef<HTMLDivElement | null>(null);
+  const titleId = useId();
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const opener = document.activeElement as HTMLElement | null;
+    openModals.push(panel);
+    // Focus moves into the dialog, and back to what opened it on close.
+    const focusables = () =>
+      Array.from(
+        panel.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+    (focusables()[0] ?? panel.current)?.focus({ preventScroll: true });
+    const onKey = (e: KeyboardEvent) => {
+      // Only the dialog on top answers: Escape closes one at a time.
+      if (openModals[openModals.length - 1] !== panel) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeRef.current();
+        return;
+      }
+      if (e.key === "Tab") {
+        const items = focusables();
+        if (items.length === 0) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
     document.addEventListener("keydown", onKey);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = overflow;
+      const at = openModals.indexOf(panel);
+      if (at >= 0) openModals.splice(at, 1);
+      opener?.focus?.({ preventScroll: true });
     };
-  }, [onClose]);
+  }, []);
   return (
     <div
       className="fixed inset-0 z-[60] flex items-end justify-center bg-black/55 backdrop-blur-[2px] sm:items-start sm:overflow-y-auto sm:p-4 sm:pt-[10vh]"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
+        ref={panel}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : "Dialog"}
+        tabIndex={-1}
         className={cn(
-          "ds-sheet max-h-[88dvh] w-full overflow-y-auto rounded-t-[28px] border border-b-0 border-border bg-surface shadow-2xl shadow-black/50 sm:max-h-none sm:rounded-3xl sm:border-b",
+          "ds-sheet max-h-[88dvh] w-full overflow-y-auto rounded-t-[28px] border border-b-0 border-border bg-surface shadow-2xl shadow-black/50 outline-none sm:max-h-none sm:rounded-3xl sm:border-b",
           wide ? "sm:max-w-xl" : "sm:max-w-md",
         )}
       >
@@ -162,12 +204,15 @@ export function Modal({
         {title && (
           <div className="flex items-center gap-2.5 px-5 pb-1 pt-3 sm:pt-5">
             {Icon && <Icon className="h-4 w-4 text-primary" />}
-            <p className="min-w-0 flex-1 truncate text-[14px] font-semibold text-foreground">
+            <p
+              id={titleId}
+              className="min-w-0 flex-1 truncate text-[14px] font-semibold text-foreground"
+            >
               {title}
             </p>
             <button
               onClick={onClose}
-              className="hidden rounded-full p-1.5 text-meta hover:bg-surface-2 hover:text-foreground sm:block"
+              className="rounded-full p-1.5 text-meta hover:bg-surface-2 hover:text-foreground"
               aria-label="Close"
             >
               <X className="h-4 w-4" />
@@ -179,6 +224,9 @@ export function Modal({
     </div>
   );
 }
+
+/** Dialogs open now, oldest first: only the top one answers Escape. */
+const openModals: Array<{ current: HTMLDivElement | null }> = [];
 
 /** A row in a settings-style list: icon, label, optional detail, chevron. */
 export function SheetRow({
@@ -243,7 +291,12 @@ export function Drawer({ onClose, children }: { onClose: () => void; children: R
       className="fixed inset-0 z-[55] bg-black/55 backdrop-blur-[2px]"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
-      <aside className="ds-drawer flex h-full w-[min(20rem,86vw)] flex-col border-r border-border bg-surface shadow-2xl shadow-black/50">
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+        className="ds-drawer flex h-full w-[min(20rem,86vw)] flex-col border-r border-border bg-surface shadow-2xl shadow-black/50"
+      >
         {children}
       </aside>
     </div>

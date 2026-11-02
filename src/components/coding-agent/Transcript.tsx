@@ -114,12 +114,7 @@ export function UserMessage({
       {images && images.length > 0 && (
         <div className="mb-1.5 flex flex-wrap justify-end gap-1.5">
           {images.map((src, i) => (
-            <img
-              key={i}
-              src={src}
-              alt={`Attached picture ${i + 1}`}
-              className="h-20 w-20 rounded-2xl border border-border object-cover"
-            />
+            <ShotThumb key={i} shot={src} label={`Attached picture ${i + 1}`} small />
           ))}
         </div>
       )}
@@ -181,7 +176,14 @@ export function AssistantMessage({
   const timeline = useMemo(() => timelineFromSaved(turn.steps ?? []), [turn.steps]);
   // Narration that is also the reply (an answer with no work before it) is
   // shown once, as the reply.
-  const items = timeline.filter((t) => !(t.type === "say" && t.text.trim() === turn.text.trim()));
+  // Narration is saved cut to 1,200 characters, so a long reply that was
+  // also narrated matches it only by its start.
+  const reply = turn.text.trim();
+  const items = timeline.filter((t) => {
+    if (t.type !== "say") return true;
+    const said = t.text.trim();
+    return !(said === reply || (said.length >= 1000 && reply.startsWith(said.slice(0, 1000))));
+  });
   return (
     <div>
       <div className="max-w-[96%] space-y-2.5">
@@ -382,8 +384,8 @@ function FundCard({ steps }: { steps: Step[] }) {
 }
 
 /** One tool call, opened to show the command and its output. */
-export function StepRow({ step, defaultOpen }: { step: Step; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(!!defaultOpen);
+export function StepRow({ step }: { step: Step }) {
+  const [open, setOpen] = useState(false);
   if (step.status === "note") {
     return (
       <p
@@ -506,17 +508,23 @@ export function LiveTurn({
   reply,
   status,
   startedAt,
+  jobs,
 }: {
   events: AgentEvent[];
   reply: string;
   status: string;
-  /** When the turn started, for the running timer. */
+  /** When the turn started (on this device's clock), for the running timer. */
   startedAt?: number;
+  /** Background commands running, as the server counts them. */
+  jobs?: number;
 }) {
   const items = useMemo(() => timelineFromEvents(events), [events]);
   const plan = useMemo(() => latestPlan(events), [events]);
-  const background = useMemo(() => backgroundTasks(events), [events]);
-  const writing = unsaid(reply, items);
+  const counted = useMemo(() => backgroundTasks(events), [events]);
+  const background = jobs ?? counted;
+  // The closing "Suggestions:" list becomes buttons once the turn is saved;
+  // while it streams it is left out rather than shown as raw text.
+  const writing = splitSuggestions(unsaid(reply, items)).body;
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -535,7 +543,9 @@ export function LiveTurn({
         </span>
         <span className="truncate text-primary/90">{status || "Working"}</span>
         {startedAt && (
-          <span className="shrink-0 tabular-nums text-meta">· {elapsed(now - startedAt)}</span>
+          <span className="shrink-0 tabular-nums text-meta">
+            · {elapsed(Math.max(0, now - startedAt))}
+          </span>
         )}
         {background > 0 && (
           <span className="shrink-0 text-info">

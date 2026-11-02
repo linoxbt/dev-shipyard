@@ -194,7 +194,19 @@ export function readState(
 
 /** Where a path to return to is safe: on this site only. */
 export function safeBack(path: string | null): string {
-  return path && path.startsWith("/") && !path.startsWith("//") && path.length < 300 ? path : "/";
+  if (!path || path.length >= 300 || !path.startsWith("/")) return "/";
+  // Backslashes, whitespace and control characters are how "/\\evil.com" or
+  // "/<tab>/evil.com" get a browser to leave the site. Resolve what is left
+  // and keep it only if it stays on this origin.
+  const control = [...path].some((ch) => ch.charCodeAt(0) < 0x20 || ch.charCodeAt(0) === 0x7f);
+  if (control || /[\\\s]/.test(path) || path.startsWith("//")) return "/";
+  try {
+    const url = new URL(path, "https://devstation.invalid");
+    if (url.origin !== "https://devstation.invalid") return "/";
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return "/";
+  }
 }
 
 async function tokenRequest(
@@ -257,7 +269,97 @@ export function refreshGrant(id: ConnectorId, grant: OAuthGrant): Promise<OAuthG
   );
 }
 
-/** Whether a grant needs refreshing before it is handed to a turn. */
+/** Whether a grant needs refreshing before it is handed to a turn: a turn can
+ *  run for 20 minutes, so a token must outlive that. */
 export function expiresSoon(grant: OAuthGrant, now = Date.now()): boolean {
-  return !!grant.e && grant.e - now < 5 * 60_000;
+  return !!grant.e && grant.e - now < 25 * 60_000;
+}
+
+/**
+ * Tell the provider to forget a grant (on disconnect, or when a new
+ * connection replaces it). Best effort: the row is deleted either way.
+ * Netlify documents no revocation for OAuth tokens; the person can remove
+ * DevStation under Netlify's Applications settings.
+ */
+export async function revokeGrant(
+  id: ConnectorId,
+  grant: OAuthGrant,
+  meta: Record<string, unknown> = {},
+  fetchImpl: typeof fetch = fetch,
+): Promise<boolean> {
+  const { clientId, clientSecret, configured } = credentials(id);
+  const basic = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`;
+  const signal = AbortSignal.timeout(10_000);
+  try {
+    switch (id) {
+      case "github": {
+        if (!configured) return false;
+        const res = await fetchImpl(
+          `https://api.github.com/applications/${encodeURIComponent(clientId)}/grant`,
+          {
+            method: "DELETE",
+            headers: {
+              authorization: basic,
+              accept: "application/vnd.github+json",
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({ access_token: grant.a }),
+            signal,
+          },
+        );
+        return res.ok;
+      }
+      case "vercel": {
+        const config = typeof meta.configurationId === "string" ? meta.configurationId : "";
+        if (!config) return false;
+        const team = grant.team ? `?teamId=${encodeURIComponent(grant.team)}` : "";
+        const res = await fetchImpl(
+          `https://api.vercel.com/v1/integrations/configuration/${encodeURIComponent(config)}${team}`,
+          { method: "DELETE", headers: { authorization: `Bearer ${grant.a}` }, signal },
+        );
+        return res.ok;
+      }
+      case "supabase": {
+        if (!configured || !grant.r) return false;
+        const res = await fetchImpl("https://api.supabase.com/v1/oauth/revoke", {
+          method: "POST",
+          headers: { authorization: basic, "content-type": "application/json" },
+          body: JSON.stringify({
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: grant.r,
+          }),
+          signal,
+        });
+        return res.ok;
+      }
+      case "railway": {
+        if (!configured) return false;
+        // Railway is an OpenID provider: its discovery document names the
+        // revocation endpoint.
+        const discovery = (await fetchImpl(
+          "https://backboard.railway.com/oauth/.well-known/openid-configuration",
+          { signal },
+        )
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null)) as { revocation_endpoint?: string } | null;
+        const endpoint = discovery?.revocation_endpoint;
+        if (!endpoint?.startsWith("https://")) return false;
+        const res = await fetchImpl(endpoint, {
+          method: "POST",
+          headers: { authorization: basic, "content-type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            token: grant.r ?? grant.a,
+            token_type_hint: grant.r ? "refresh_token" : "access_token",
+          }),
+          signal,
+        });
+        return res.ok;
+      }
+      default:
+        return false;
+    }
+  } catch {
+    return false;
+  }
 }

@@ -1,121 +1,49 @@
-import { accessMessage } from "./request-auth";
-
-// Getting, and keeping, the access grant from the browser's side.
+// Getting, and keeping, DevStation's session from the browser's side.
 //
-// The grant is an httpOnly cookie the page cannot read, so "do I already have
-// one?" is a question only the server can answer. That is the point: a value
-// script can read is a value script can steal.
+// The session is an httpOnly cookie the page cannot read, so "do I already
+// have one?" is a question only the server can answer. That is the point: a
+// value script can read is a value script can steal.
 //
-// The signer is registered once by the wallet provider rather than passed
-// through every call site. Several of the callers -- appgen/build.ts is the
-// clearest -- are plain modules with no access to React context, and threading
-// a callback through them would put wallet plumbing in code that has no other
-// reason to know a wallet exists.
+// It comes from the email sign-in alone: the current Supabase access token is
+// traded for it (POST /api/access/session), and the server asks Supabase who
+// the token belongs to. The sign-in store registers how to read that token
+// (hooks/useAuth.ts) and asks for a fresh session whenever Supabase signs in
+// or refreshes its token, so the cookie never outlives the sign-in or lags
+// behind a switch of account.
 
-type Signer = (args: { message: string }) => Promise<string>;
-
-let signer: Signer | null = null;
-let address: string | null = null;
-let chainId = 1;
 let inFlight: Promise<boolean> | null = null;
-/** Email sign-in: the current Supabase access token, read fresh each time. */
+/** The current Supabase access token, read fresh each time. */
 let sessionToken: (() => Promise<string | null>) | null = null;
 
-/** Called by the sign-in store (hooks/useAuth.ts) when a session starts or
- *  ends. With a session, the grant comes from it and no wallet is asked. */
+/** Called by the sign-in store when a session starts or ends. */
 export function setGrantSession(next: (() => Promise<string | null>) | null) {
   sessionToken = next;
 }
 
-/** Trade the signed-in session for the grant cookie. */
-async function grantFromSession(token: () => Promise<string | null>): Promise<boolean> {
-  const accessToken = await token().catch(() => null);
-  if (!accessToken) return false;
-  const res = await fetch("/api/access/session", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ accessToken }),
-  }).catch(() => null);
-  return !!res?.ok;
-}
-
-/** Called by the wallet provider when the connection changes. */
-export function setGrantSigner(next: {
-  address: string | null;
-  sign: Signer | null;
-  chainId?: number;
-}) {
-  address = next.address;
-  signer = next.sign;
-  if (next.chainId) chainId = next.chainId;
-}
-
-/** True when a wallet is connected, so a caller can say why something is
+/** True when someone is signed in, so a caller can say why something is
  *  unavailable before the user clicks it. */
 export function canRequestGrant(): boolean {
-  return !!sessionToken || (!!address && !!signer);
+  return !!sessionToken;
 }
 
 /**
- * Make sure this browser holds a grant, asking for a signature if it does not.
- *
- * Concurrent callers share one attempt: two panels starting work at the same
- * moment would otherwise open two wallet prompts for the same signature, and
- * the second one reads as the app malfunctioning.
+ * Trade the signed-in session for DevStation's cookie. Concurrent callers
+ * share one attempt.
  */
 export async function ensureGrant(): Promise<boolean> {
   if (inFlight) return inFlight;
-  if (sessionToken) {
-    inFlight = grantFromSession(sessionToken);
-    try {
-      return await inFlight;
-    } finally {
-      inFlight = null;
-    }
-  }
-  if (!address || !signer) return false;
-
-  const current = { address, sign: signer, chainId };
+  const token = sessionToken;
+  if (!token) return false;
   inFlight = (async () => {
-    // The server issues the nonce into an httpOnly cookie on this browser and
-    // accepts it once; the message names this exact origin, so a wallet that
-    // understands EIP-4361 can warn when another site asks for it.
-    const issued = (await fetch("/api/access?nonce=1", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null)) as { nonce?: string } | null;
-    if (!issued?.nonce) return false;
-
-    const issuedAt = Date.now();
-    let signature: string;
-    try {
-      signature = await current.sign({
-        message: accessMessage({
-          domain: location.host,
-          uri: location.origin,
-          address: current.address,
-          chainId: current.chainId,
-          nonce: issued.nonce,
-          issuedAt,
-        }),
-      });
-    } catch {
-      // Declining is a normal answer, not an error to report twice.
-      return false;
-    }
-    const res = await fetch("/api/access", {
+    const accessToken = await token().catch(() => null);
+    if (!accessToken) return false;
+    const res = await fetch("/api/access/session", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        address: current.address,
-        signature,
-        issuedAt,
-        chainId: current.chainId,
-        nonce: issued.nonce,
-      }),
+      body: JSON.stringify({ accessToken }),
     }).catch(() => null);
     return !!res?.ok;
   })();
-
   try {
     return await inFlight;
   } finally {
@@ -124,18 +52,8 @@ export async function ensureGrant(): Promise<boolean> {
 }
 
 /**
- * Fetch an endpoint that needs a grant, obtaining one only if the server says
- * it is missing.
- *
- * Reactive rather than eager on purpose. Asking for a signature up front would
- * prompt people who are only reading, and the server is the only thing that
- * knows whether the cookie it issued is still valid. One retry, never a loop:
- * a second 401 means the signature was refused or is not accepted, and
- * retrying that forever is how an app ends up spamming wallet prompts.
- *
- * owner_mismatch counts too: it means the cookie belongs to the wallet that
- * was connected before the user switched accounts, and the fix is the same
- * one signature from the wallet that is connected now.
+ * Fetch an endpoint that needs the session, renewing it once if the server
+ * says it is missing or belongs to another account. One retry, never a loop.
  */
 export async function fetchWithGrant(input: string, init?: RequestInit): Promise<Response> {
   const first = await fetch(input, init);

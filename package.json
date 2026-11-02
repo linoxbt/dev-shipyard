@@ -32,6 +32,8 @@
     "@ethereumjs/common": "^4",
     "@ethereumjs/evm": "^3",
     "@ethereumjs/util": "^9",
+    "@fontsource-variable/inter": "5",
+    "@fontsource-variable/jetbrains-mono": "5",
     "@monaco-editor/react": "^4.7.0",
     "@supabase/supabase-js": "2",
     "@tailwindcss/vite": "^4.2.1",
@@ -90,6 +92,7 @@
     "tmp": "^0.2.7",
     "dompurify": "^3.4.17",
     "zod": "^4.6.7",
-    "decode-uri-component": "^0.5.1"
+    "decode-uri-component": "^0.5.1",
+    "follow-redirects": "^1.16.2"
   }
 }

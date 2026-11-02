@@ -30,10 +30,13 @@ export function QuestionPanel({
   // Number keys pick, when the person is not typing somewhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) {
         return;
       }
+      // Something else is open on top (a sheet, a menu, a picture): its keys.
+      if (document.querySelector('[aria-modal="true"], [role="menu"]')) return;
       const n = Number(e.key);
       if (n >= 1 && n <= question.options.length) {
         e.preventDefault();
@@ -46,7 +49,7 @@ export function QuestionPanel({
 
   return (
     <div
-      role="dialog"
+      role="region"
       aria-label="The agent is asking you to decide"
       className="mb-2 overflow-hidden rounded-2xl border border-primary/30 bg-surface shadow-xl shadow-black/25"
     >

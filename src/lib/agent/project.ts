@@ -140,6 +140,23 @@ export function testCommand(manifest: Manifest): string | null {
   }
 }
 
+/** How the project builds: install first (a fresh checkout has no packages),
+ *  then its own build. */
+export function buildCommand(manifest: Manifest): string | null {
+  switch (manifest.ecosystem) {
+    case "npm":
+      return manifest.scripts.build
+        ? "npm install --no-audit --no-fund --loglevel=error && npm run build"
+        : null;
+    case "cargo":
+      return "cargo build";
+    case "go":
+      return "go build ./...";
+    default:
+      return null;
+  }
+}
+
 export function lintCommand(manifest: Manifest): string | null {
   switch (manifest.ecosystem) {
     case "npm": {

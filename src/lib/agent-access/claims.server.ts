@@ -19,9 +19,10 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 // one mechanism that survives a serverless host with no state.
 
 const MAX_CLAIMS = 30;
-/** A run is minutes of work. A day is generous and bounds how long a stolen
- *  cookie is worth anything. */
-const TTL_MS = 24 * 60 * 60 * 1000;
+/** Renewed from the email sign-in at every Supabase token refresh (hourly
+ *  while the site is open), so this only bounds how long a cookie outlives
+ *  the last visit. */
+const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const CLAIM_COOKIE = "devstation_jobs";
 
@@ -58,8 +59,11 @@ function sign(value: string): string {
 interface ClaimPayload {
   /** Job ids this browser started. */
   ids: string[];
-  /** The wallet that signed for them, for attribution and for the runner. */
+  /** The account (lib/auth/account.server.ts), for attribution and the runner. */
   owner: string;
+  /** The account's email, for writing back (a Pro request) and for telling
+   *  one person's accounts apart (one launch credit per person). */
+  email?: string;
   exp: number;
 }
 
@@ -86,6 +90,7 @@ export function openClaims(raw: string | undefined): ClaimPayload | null {
     return {
       ids: parsed.ids.filter((i) => typeof i === "string"),
       owner: parsed.owner ?? "",
+      ...(typeof parsed.email === "string" && parsed.email ? { email: parsed.email } : {}),
       exp: parsed.exp,
     };
   } catch {
@@ -98,12 +103,26 @@ export function openClaims(raw: string | undefined): ClaimPayload | null {
  *  locking a user out of their own runs. */
 export function withClaim(existing: ClaimPayload | null, id: string, owner: string): ClaimPayload {
   const ids = [...(existing?.ids ?? []).filter((i) => i !== id), id].slice(-MAX_CLAIMS);
-  return { ids, owner, exp: Date.now() + TTL_MS };
+  return {
+    ids,
+    owner,
+    ...(existing?.owner === owner && existing.email ? { email: existing.email } : {}),
+    exp: Date.now() + TTL_MS,
+  };
 }
 
 /** Start or renew a grant, keeping any job ids already held. */
-export function withOwner(existing: ClaimPayload | null, owner: string): ClaimPayload {
-  return { ids: existing?.ids ?? [], owner, exp: Date.now() + TTL_MS };
+export function withOwner(
+  existing: ClaimPayload | null,
+  owner: string,
+  email?: string,
+): ClaimPayload {
+  return { ids: existing?.ids ?? [], owner, ...(email ? { email } : {}), exp: Date.now() + TTL_MS };
+}
+
+/** The signed-in account's email, when the session carries it. */
+export function emailOf(claims: ClaimPayload | null): string | null {
+  return claims?.email ? claims.email : null;
 }
 
 /** The verified wallet behind this request, or null when there is no grant. */

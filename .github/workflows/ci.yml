@@ -70,11 +70,7 @@ jobs:
       - name: Dependency audit
         # High and critical only: the lower tiers are dominated by advisories
         # in dev-only transitive packages with no exploitable path here.
-        # GHSA-vfj7-8cjw-p6xm (braces <=3.0.3) has no patched release; braces
-        # is reached only through build/dev file watchers (chokidar,
-        # fast-glob) expanding glob patterns from this repo's own config,
-        # never from user input. Drop the ignore once braces ships a fix.
-        run: bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm
+        run: bun audit --audit-level=high
 
       - name: CLI bundle smoke test
         run: |
@@ -84,11 +80,11 @@ jobs:
       - name: Build
         run: bun run build
         env:
+          # The output production serves (Vercel), not a stand-in.
+          NITRO_PRESET: vercel
           # Nitro's final bundling step exceeds Node's default ~2GB old-space
-          # heap for this app's dependency graph (wagmi, WalletConnect,
-          # Coinbase/MetaMask SDKs, Monaco): see DEPLOYMENT.md. The Netlify
-          # preset (now the default, and what production builds) aborted at
-          # 4096 and completes at 6144; a GitHub runner has the memory.
+          # heap for this app's dependency graph (the legacy builder's wallet
+          # SDKs and Monaco): see DEPLOYMENT.md. A GitHub runner has the memory.
           NODE_OPTIONS: --max-old-space-size=8192
 
   secrets:

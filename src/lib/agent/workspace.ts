@@ -113,8 +113,20 @@ export class Workspace {
    *  that has already had its own symlinks followed. */
   readonly root: string;
 
-  constructor(root: string) {
+  /** The project's own MCP config (`.mcp.json` at the root) may be written:
+   *  only on a machine that belongs to the project, where a server it names
+   *  runs with no more reach than a command the agent could run anyway. */
+  private readonly allowMcpConfig: boolean;
+
+  constructor(root: string, opts: { allowMcpConfig?: boolean } = {}) {
     this.root = realpathSync(resolve(root));
+    this.allowMcpConfig = opts.allowMcpConfig === true;
+  }
+
+  private isGuarded(relativePath: string): boolean {
+    const normal = relativePath.replace(/\\/g, "/").replace(/^\.\//, "");
+    if (this.allowMcpConfig && normal === ".mcp.json") return false;
+    return isControlPath(relativePath);
   }
 
   /** Turn a caller-supplied path into an absolute one inside the workspace, or
@@ -177,7 +189,7 @@ export class Workspace {
         reason: `${relativePath} looks like a credentials file and was not written.`,
       };
     }
-    if (isControlPath(relativePath)) {
+    if (this.isGuarded(relativePath)) {
       return {
         ok: false,
         reason: `${relativePath} is tool configuration (git, MCP or the agent's own state), not project source, and was not written.`,
@@ -186,7 +198,7 @@ export class Workspace {
     const resolved = this.resolve(relativePath);
     // A path that only reaches a control directory through a symlink is the
     // same write by another name.
-    if (resolved.ok && isControlPath(this.relative(resolved.absolute))) {
+    if (resolved.ok && this.isGuarded(this.relative(resolved.absolute))) {
       return {
         ok: false,
         reason: `${relativePath} resolves into tool configuration and was not written.`,

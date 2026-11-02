@@ -42,11 +42,27 @@ describe("what a run is charged", () => {
     );
   });
 
-  it("still lets an operator override a rate when prices change", () => {
-    const rates = ratesFor("claude-sonnet-5", { AGENT_OUTPUT_COST: "99" } as NodeJS.ProcessEnv);
+  it("lets an operator price a model the table does not list", () => {
+    const env = { AGENT_OUTPUT_COST: "99" } as NodeJS.ProcessEnv;
+    const rates = ratesFor("self-hosted-llm", env);
     expect(rates.output).toBe(99);
     // Only the one named is overridden.
-    expect(rates.input).toBe(ratesFor("claude-sonnet-5").input);
+    expect(rates.input).toBe(ratesFor("self-hosted-llm").input);
+    // A listed model keeps its list price: an override meant for one model
+    // must not under-price premium spend on every other.
+    expect(ratesFor("claude-sonnet-5", env).output).toBe(10);
+  });
+
+  it("prices the current Claude models at their list prices", () => {
+    expect(ratesFor("claude-opus-5-5")).toMatchObject({ input: 4, output: 20 });
+    expect(ratesFor("anthropic/claude-sonnet-5.5")).toMatchObject({ input: 2, output: 10 });
+    expect(ratesFor("claude-haiku-5-5")).toMatchObject({ input: 0.1, output: 0.5 });
+    expect(ratesFor("claude-fable-5-1")).toMatchObject({ input: 10, output: 50 });
+  });
+
+  it("prefers the provider's own figure for what a call cost", () => {
+    const usage = { ...EMPTY_USAGE, outputTokens: 1_000_000, costUsd: 0.42 };
+    expect(costOfUsage(usage, ratesFor("openai/gpt-6.1-sol"))).toBe(0.42);
   });
 
   it("costs nothing for nothing", () => {

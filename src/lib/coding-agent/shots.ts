@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { getWorkspace } from "./workspace-client";
 
 // Screenshots the agent took, for the chat: while the turn runs a step only
 // knows the screenshot's name, so the picture is fetched from the workspace
@@ -12,10 +13,8 @@ function fetchShot(workspaceId: string, name: string): Promise<string | null> {
   const key = `${workspaceId}:${name}`;
   let hit = cache.get(key);
   if (!hit) {
-    hit = fetch(
-      `/api/workspace?id=${encodeURIComponent(workspaceId)}&shot=${encodeURIComponent(name)}`,
-    )
-      .then((r) => (r.ok ? r.json() : null))
+    hit = getWorkspace(workspaceId, `shot=${encodeURIComponent(name)}`)
+      .then((r) => (r?.ok ? r.json() : null))
       .then((b: { data?: string } | null) => (b?.data ? `data:image/jpeg;base64,${b.data}` : null))
       .catch(() => null);
     cache.set(key, hit);
@@ -25,19 +24,31 @@ function fetchShot(workspaceId: string, name: string): Promise<string | null> {
   return hit;
 }
 
-/** The picture for a screenshot, from its data URL or by its name. */
-export function useShot(shot: string | undefined): string | null {
+/** The picture for a screenshot, from its data URL or by its name; failed
+ *  once it could not be fetched (retry tries again). */
+export function useShot(shot: string | undefined): {
+  src: string | null;
+  failed: boolean;
+  retry: () => void;
+} {
   const workspaceId = useContext(ShotSource);
   const [src, setSrc] = useState<string | null>(shot?.startsWith("data:") ? shot : null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    setFailed(false);
     if (!shot) return setSrc(null);
     if (shot.startsWith("data:")) return setSrc(shot);
-    if (!workspaceId) return;
+    if (!workspaceId) return setFailed(true);
     let alive = true;
-    void fetchShot(workspaceId, shot).then((v) => alive && setSrc(v));
+    void fetchShot(workspaceId, shot).then((v) => {
+      if (!alive) return;
+      setSrc(v);
+      setFailed(!v);
+    });
     return () => {
       alive = false;
     };
-  }, [shot, workspaceId]);
-  return src;
+  }, [shot, workspaceId, attempt]);
+  return { src, failed, retry: () => setAttempt((n) => n + 1) };
 }

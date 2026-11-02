@@ -29,7 +29,14 @@ export type ProviderMessage =
       /** Pictures the person attached, as data: URLs (JPEG or PNG). */
       images?: string[];
     }
-  | { role: "assistant"; content: string; toolCalls?: ProviderToolCall[] }
+  | {
+      role: "assistant";
+      content: string;
+      toolCalls?: ProviderToolCall[];
+      /** The provider's own content blocks for this turn (Anthropic: thinking
+       *  blocks with their signatures), passed back unchanged within a run. */
+      raw?: unknown[];
+    }
   | { role: "tool"; toolCallId: string; content: string; isError?: boolean };
 
 /** A tool as the model is told about it. */
@@ -48,6 +55,9 @@ export interface ProviderUsage {
   cacheReadTokens: number;
   /** Written to cache, billed at slightly more than the input rate. */
   cacheWriteTokens: number;
+  /** What the provider itself says this cost, when it says (OpenRouter's
+   *  usage accounting). Preferred over the rate table when present. */
+  costUsd?: number;
 }
 
 export type StopReason = "end_turn" | "tool_use" | "max_tokens" | "refusal" | "other";
@@ -61,6 +71,9 @@ export interface ProviderResult {
   /** Which model actually answered. Not always the one asked for: a refusal
    *  fallback can route the turn elsewhere. */
   model: string;
+  /** The provider's own content blocks, to send back on the next call of the
+   *  same run (see ProviderMessage.raw). */
+  raw?: unknown[];
 }
 
 export interface GenerateInput {

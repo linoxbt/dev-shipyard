@@ -32,7 +32,8 @@ const LOGOS: Record<ModelFamily, string> = {
 
 /** A model's own logo, or the Auto mark. */
 export function ModelLogo({ id, className }: { id: string; className?: string }) {
-  const family = AGENT_MODELS.find((m) => m.id === id)?.family;
+  // Auto is Qwen on Fortytwo, so it wears Qwen's mark.
+  const family = id === AUTO_MODEL ? "qwen" : AGENT_MODELS.find((m) => m.id === id)?.family;
   if (!family) return <Hexagon className={cn("shrink-0 text-muted-foreground", className)} />;
   return (
     <span

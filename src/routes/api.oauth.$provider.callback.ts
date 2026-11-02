@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { isConnectorId, saveGrant } from "@/lib/db/connectors.server";
 import { exchangeCode, readState, safeBack } from "@/lib/db/oauth.server";
+import { createHash } from "node:crypto";
 import { requestOwner } from "@/lib/db/request.server";
+import { checkRateLimit } from "@/lib/rateLimit.server";
 
 // Where a provider sends the person back after they approve (or decline)
 // access. Checks the sealed state, swaps the code for a grant, keeps it, and
@@ -23,8 +25,17 @@ export const Route = createFileRoute("/api/oauth/$provider/callback")({
           });
         if (!isConnectorId(id)) return go("/", "connect_error=unknown");
 
-        const state = readState(url.searchParams.get("state"), id, requestOwner(request));
+        const rawState = url.searchParams.get("state");
+        const state = readState(rawState, id, requestOwner(request));
         if (!state) return go("/", "connect_error=bad_state");
+        // Each state is good for one return: a replayed callback is refused.
+        const once = createHash("sha256")
+          .update(rawState ?? "")
+          .digest("hex")
+          .slice(0, 32);
+        if (!(await checkRateLimit(`oauth-state:${once}`, 1, 20 * 60_000))) {
+          return go(safeBack(state.back), `connect_error=bad_state&provider=${id}`);
+        }
         const back = safeBack(state.back);
 
         const code = url.searchParams.get("code");
@@ -34,7 +45,16 @@ export const Route = createFileRoute("/api/oauth/$provider/callback")({
         }
         const grant = await exchangeCode(request, id, code, state.v);
         if (!grant) return go(back, `connect_error=exchange_failed&provider=${id}`);
-        const saved = await saveGrant(state.o, id, grant).catch(() => null);
+        // Vercel names the installation, which is how it is revoked later.
+        const configurationId = url.searchParams.get("configurationId");
+        const saved = await saveGrant(
+          state.o,
+          id,
+          grant,
+          id === "vercel" && configurationId
+            ? { configurationId: configurationId.slice(0, 100) }
+            : {},
+        ).catch(() => null);
         if (!saved) return go(back, `connect_error=save_failed&provider=${id}`);
         // An install begun on Vercel's own marketplace finishes there, at
         // `next`; one begun here comes back here.

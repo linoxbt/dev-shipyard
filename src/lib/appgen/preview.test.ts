@@ -149,6 +149,15 @@ describe("buildPreview, built output", () => {
     expect(srcdoc).toMatch(/src="data:text\/javascript/);
   });
 
+  it("gives the app storage before any script of its own runs", () => {
+    // The frame has an opaque origin: real localStorage throws there, and an
+    // app that keeps its state in it would die before rendering.
+    const { srcdoc } = buildPreview(dist, "");
+    const shim = srcdoc.indexOf('["localStorage", "sessionStorage"]');
+    expect(shim).toBeGreaterThan(-1);
+    expect(shim).toBeLessThan(srcdoc.indexOf('src="data:text/javascript'));
+  });
+
   it("leaves nothing pointing at a path the iframe cannot resolve", () => {
     // A srcdoc iframe inherits the host's base URL, so any surviving relative
     // reference 404s against DevStation itself and the app renders blank.

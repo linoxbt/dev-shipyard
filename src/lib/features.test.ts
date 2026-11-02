@@ -40,3 +40,38 @@ describe("switchedOff", () => {
     expect(switchedOff("/launchkit/coding-agent", false)).toBe(false);
   });
 });
+
+describe("the API in Coding-Agent-only mode", () => {
+  it("serves the agent's routes and nothing else", async () => {
+    const { apiServedInAgentOnly } = await import("./features");
+    for (const path of [
+      "/api/workspace",
+      "/api/model",
+      "/api/model/turn",
+      "/api/plan",
+      "/api/connectors",
+      "/api/oauth/github",
+      "/api/oauth/railway/callback",
+      "/api/access/session",
+      "/api/admin/stats",
+      "/api/github/push",
+      "/api/health",
+      "/api/cron/sandboxes",
+      "/",
+      "/assets/app.js",
+    ]) {
+      expect(apiServedInAgentOnly(path, true)).toBe(true);
+    }
+    for (const path of [
+      "/api/agent",
+      "/api/ai",
+      "/api/sponsor-topup",
+      "/api/listings",
+      "/api/repo-agent",
+      "/_serverFn/abc",
+    ]) {
+      expect(apiServedInAgentOnly(path, true)).toBe(false);
+    }
+    expect(apiServedInAgentOnly("/api/agent", false)).toBe(true);
+  });
+});

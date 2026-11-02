@@ -33,17 +33,23 @@ export function PreviewButton({ onClick, building }: { onClick: () => void; buil
   );
 }
 
-/** Over a full-screen preview or file on a phone: back to the conversation. */
-export function BackToChatButton({ onClick }: { onClick: () => void }) {
+/** Above a full-screen preview on a phone: a slim bar back to the
+ *  conversation, so nothing floats over the app being tried. */
+export function BackToChatButton({ onClick, title }: { onClick: () => void; title?: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-foreground px-5 py-3 text-[13.5px] font-medium text-background shadow-2xl shadow-black/40 transition hover:opacity-90"
-    >
-      <MessageIcon className="h-4 w-4 [&_path]:fill-current" />
-      Edit with chat
-    </button>
+    <div className="flex shrink-0 items-center gap-2 border-b border-border bg-background px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+      <button
+        type="button"
+        onClick={onClick}
+        className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background transition hover:opacity-90"
+      >
+        <MessageIcon className="h-4 w-4 [&_path]:fill-current" />
+        Edit with chat
+      </button>
+      {title && (
+        <span className="min-w-0 truncate text-[12.5px] text-muted-foreground">{title}</span>
+      )}
+    </div>
   );
 }
 

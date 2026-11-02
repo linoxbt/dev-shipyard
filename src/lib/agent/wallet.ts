@@ -75,14 +75,31 @@ export function walletEnv(wallet: DeployerWallet | null): Record<string, string>
   };
 }
 
-/** Text with the wallet's key taken out, with or without its 0x. */
+/** Every spelling of the key worth hiding: hex either case, with or without
+ *  its 0x, as a decimal number, and base64 of its bytes or of its hex. */
+function keyForms(privateKey: string): string[] {
+  const bare = privateKey.replace(/^0x/i, "").toLowerCase();
+  const forms = new Set<string>([bare, bare.toUpperCase()]);
+  try {
+    forms.add(BigInt(`0x${bare}`).toString(10));
+    const bytes = Buffer.from(bare, "hex");
+    forms.add(bytes.toString("base64").replace(/=+$/, ""));
+    forms.add(bytes.toString("base64url"));
+    forms.add(Buffer.from(bare).toString("base64").replace(/=+$/, ""));
+    forms.add(Buffer.from(`0x${bare}`).toString("base64").replace(/=+$/, ""));
+  } catch {
+    // Not hex: only the literal forms apply.
+  }
+  return [...forms].filter((f) => f.length >= 20).sort((a, b) => b.length - a.length);
+}
+
+/** Text with the wallet's key taken out, in any of its usual spellings. */
 export function redactWallet(text: string, wallet: DeployerWallet | null): string {
   if (!wallet) return text;
-  const bare = wallet.privateKey.slice(2);
-  return text
-    .split(bare)
-    .join("[deployer key hidden]")
-    .replace(/0x\[deployer key hidden\]/g, "[deployer key hidden]");
+  let out = text;
+  for (const form of keyForms(wallet.privateKey))
+    out = out.split(form).join("[deployer key hidden]");
+  return out.replace(/0[xX]\[deployer key hidden\]/g, "[deployer key hidden]");
 }
 
 /** The programs an on-chain command may start with. They get a network and the
@@ -112,5 +129,13 @@ export function onchainCommandProblem(command: string): string | null {
   const other = vars.map((v) => v.replace(/[${}]/g, "")).find((v) => !allowed.has(v));
   if (other)
     return `onchain can only use $DEPLOYER_PRIVATE_KEY, $PRIVATE_KEY and $DEPLOYER_ADDRESS, not $${other}.`;
+  // The key is handed to a tool to sign with, never to a command that would
+  // print or transform it (cast to-base $DEPLOYER_PRIVATE_KEY prints it).
+  const keyUse = /(\S*)\s*\$\{?(DEPLOYER_PRIVATE_KEY|PRIVATE_KEY)\}?/g;
+  for (const m of c.matchAll(keyUse)) {
+    if (m[1] !== "--private-key" && m[1] !== "--private-key=") {
+      return "The deployer key can only be passed as --private-key $DEPLOYER_PRIVATE_KEY (forge create, forge script, cast send), never to another argument.";
+    }
+  }
   return null;
 }

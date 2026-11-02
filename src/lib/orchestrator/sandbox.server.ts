@@ -18,7 +18,7 @@
 // Each start writes the bundle from this deployment, so a project picks up a
 // new version of the agent the next time its server starts.
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { Sandbox } from "@vercel/sandbox";
 
 /** The bundled agent server, loaded only when a sandbox needs it (and never
@@ -28,12 +28,25 @@ async function agentServer(): Promise<string> {
   return mod.default;
 }
 
+/** Which agent server this deployment ships, so a sandbox still running an
+ *  older one is restarted on it. */
+let buildId: string | null = null;
+async function agentBuild(): Promise<string> {
+  buildId ??= createHash("sha256")
+    .update(await agentServer())
+    .digest("hex")
+    .slice(0, 16);
+  return buildId;
+}
+
 const PORT = 8792;
 // The sandbox image is Ubuntu, run as "ubuntu", which can write under /vercel.
 const DIR = "/vercel/devstation";
 const BUNDLE = `${DIR}/server.mjs`;
 const BUN = `${DIR}/bun/node_modules/.bin/bun`;
 const BUN_VERSION = "1.4.2";
+/** How long the latest snapshot of a sleeping project is kept. */
+const SNAPSHOT_MS = 60 * 24 * 60 * 60_000;
 /** Between the sandbox's name and the agent server's own workspace id. */
 const SEP = "~";
 
@@ -61,12 +74,14 @@ function timeoutMs(env: NodeJS.ProcessEnv = process.env): number {
  *  only this project can call), so no secret has to be configured. */
 const TOKEN_FILE = `${DIR}/token`;
 const tokens = new Map<string, string>();
+const MAX_TOKENS_CACHED = 500;
 
 async function tokenOf(sandbox: Sandbox, name: string): Promise<string> {
   const known = tokens.get(name);
   if (known) return known;
   const token = (await sandbox.fs.readFile(TOKEN_FILE, "utf8")).trim();
-  if (!/^[0-9a-f]{64}$/.test(token)) throw new Error("The sandbox has no agent token.");
+  if (!/^[0-9a-f]{64}$/.test(token)) throw new Error("The sandbox's agent server has no key.");
+  if (tokens.size >= MAX_TOKENS_CACHED) tokens.delete(tokens.keys().next().value as string);
   tokens.set(name, token);
   return token;
 }
@@ -86,11 +101,11 @@ const fail = (status: number, message: string): RunnerReply => ({
   body: { ok: false, message },
 });
 
-/** What the server inside the sandbox is given. Only the model keys it needs:
- *  Fortytwo is the default, the others serve a model picked by name. */
-function serverEnv(token: string, env: NodeJS.ProcessEnv = process.env): Record<string, string> {
-  const pass = ["FORTYTWO_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY", "AI_REASONING"];
-  const out: Record<string, string> = {
+/** What the server inside the sandbox is given. No model key: model calls
+ *  go through this site's proxy with a pass for each turn (api/model), so
+ *  nothing the agent or the project's own scripts run can read a key. */
+function serverEnv(token: string, build: string): Record<string, string> {
+  return {
     RUNNER_TOKEN: token,
     SESSION_SECRET: token,
     RUNNER_HOST: "0.0.0.0",
@@ -99,58 +114,87 @@ function serverEnv(token: string, env: NodeJS.ProcessEnv = process.env): Record<
     // The VM is the isolation: commands run on it directly, with the internet.
     DEVSTATION_SANDBOX: "off",
     DEVSTATION_ISOLATED_HOST: "1",
+    DEVSTATION_BUILD: build,
   };
-  for (const key of pass) if (env[key]) out[key] = env[key] as string;
-  return out;
 }
 
-async function healthy(base: string, waitMs: number): Promise<boolean> {
+/** Whether the server answers, and which build it is. */
+async function health(base: string, waitMs: number): Promise<{ build: string } | null> {
   const until = Date.now() + waitMs;
   do {
     try {
       const res = await fetch(`${base}/health`, { signal: AbortSignal.timeout(4_000) });
-      if (res.ok) return true;
+      if (res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { build?: unknown };
+        return { build: typeof body.build === "string" ? body.build : "" };
+      }
     } catch {
       // Not up yet.
     }
     if (Date.now() >= until) break;
     await new Promise((r) => setTimeout(r, 750));
   } while (Date.now() < until);
-  return false;
+  return null;
 }
 
-/** Write this deployment's agent server into the sandbox and start it. */
+/** Write this deployment's agent server into the sandbox and start it,
+ *  stopping one already running (an older build). */
 async function startServer(sandbox: Sandbox, token: string): Promise<void> {
   await sandbox.runCommand("mkdir", ["-p", `${DIR}/state`]);
+  await sandbox.runCommand("pkill", ["-f", BUNDLE]).catch(() => undefined);
   await sandbox.writeFiles([{ path: BUNDLE, content: Buffer.from(await agentServer()) }]);
+  // The image may already have Bun; otherwise it is installed once.
+  let bun = BUN;
   const hasBun = await sandbox.runCommand("test", ["-x", BUN]);
   if (hasBun.exitCode !== 0) {
-    const installed = await sandbox.runCommand({
-      cmd: "npm",
-      args: ["install", "--no-audit", "--no-fund", "--prefix", `${DIR}/bun`, `bun@${BUN_VERSION}`],
-    });
-    if (installed.exitCode !== 0) {
-      throw new Error(
-        `Could not install Bun in the sandbox: ${(await installed.stderr()).slice(-300)}`,
-      );
+    const system = await sandbox.runCommand("sh", ["-c", `bun --version | grep -q '^1\\.'`]);
+    if (system.exitCode === 0) {
+      bun = "bun";
+    } else {
+      const installed = await sandbox.runCommand({
+        cmd: "npm",
+        args: [
+          "install",
+          "--no-audit",
+          "--no-fund",
+          "--prefix",
+          `${DIR}/bun`,
+          `bun@${BUN_VERSION}`,
+        ],
+      });
+      if (installed.exitCode !== 0) {
+        throw new Error(
+          `Could not install Bun in the sandbox: ${(await installed.stderr()).slice(-300)}`,
+        );
+      }
     }
   }
   await sandbox.runCommand({
-    cmd: BUN,
+    cmd: bun,
     args: [BUNDLE],
     cwd: DIR,
-    env: serverEnv(token),
+    env: serverEnv(token, await agentBuild()),
     detached: true,
   });
 }
 
-/** The sandbox's server address, starting the server when it is not up (a
- *  new sandbox, or one resumed from a snapshot). */
-async function ready(sandbox: Sandbox, token: string, fresh = false): Promise<string> {
+/**
+ * The sandbox's server address, starting the server when it is not up (a new
+ * sandbox, or one resumed from a snapshot). A server from an older build is
+ * replaced when `mayRestart` says nothing is running on it.
+ */
+async function ready(
+  sandbox: Sandbox,
+  token: string,
+  opts: { fresh?: boolean; mayRestart?: () => Promise<boolean> } = {},
+): Promise<string> {
   const base = sandbox.domain(PORT);
-  if (!fresh && (await healthy(base, 2_500))) return base;
+  if (!opts.fresh) {
+    const up = await health(base, 2_500);
+    if (up && (up.build === (await agentBuild()) || !(await opts.mayRestart?.()))) return base;
+  }
   await startServer(sandbox, token);
-  if (await healthy(base, 45_000)) return base;
+  if (await health(base, 45_000)) return base;
   throw new Error("The agent server did not start in its sandbox.");
 }
 
@@ -196,13 +240,33 @@ function notFound(error: unknown): boolean {
 
 function sandboxProblem(error: unknown): RunnerReply {
   const why = error instanceof Error ? error.message : String(error);
-  if (/oidc|token|credential|unauthori[sz]ed|forbidden/i.test(why)) {
+  if (/oidc|credential|unauthori[sz]ed|forbidden|vercel_token|access token/i.test(why)) {
     return fail(
       503,
       "The agent's sandbox could not be reached: this deployment has no access to Vercel Sandbox. Turn on OIDC for the Vercel project (Settings, Security), or set VERCEL_TOKEN, VERCEL_TEAM_ID and VERCEL_PROJECT_ID.",
     );
   }
   return fail(502, `The agent's sandbox did not answer. ${why.slice(0, 200)}`);
+}
+
+/** A workspace path: the sandbox and inner id, the action, and for a
+ *  screenshot its name. Null for anything else. */
+export function routeOf(
+  path: string,
+): { ids: { name: string; inner: string }; action: string; tail: string } | null {
+  const match = path.match(/^\/agent\/workspaces\/([^/]+)(\/[a-z_]+)?(\/shot-[a-z0-9]+-\d+)?$/);
+  if (!match) return null;
+  let id: string;
+  try {
+    id = decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+  const ids = splitId(id);
+  const action = match[2] ?? "";
+  const tail = match[3] ?? "";
+  if (!ids || (tail && action !== "/shot")) return null;
+  return { ids, action, tail };
 }
 
 /**
@@ -224,36 +288,110 @@ export async function sandboxRunner(
         ports: [PORT],
         resources: { vcpus: 2 },
         tags: { app: "devstation" },
+        // Only the latest snapshot is kept, for 60 days: storage stays bounded
+        // and an abandoned project expires (api/cron/sandboxes deletes it).
+        keepLastSnapshots: { count: 1, expiration: SNAPSHOT_MS, deleteEvicted: true },
       });
-      const token = randomBytes(32).toString("hex");
-      await sandbox.runCommand("mkdir", ["-p", DIR]);
-      await sandbox.writeFiles([{ path: TOKEN_FILE, content: Buffer.from(token) }]);
-      await sandbox.runCommand("chmod", ["600", TOKEN_FILE]);
-      tokens.set(name, token);
-      const base = await ready(sandbox, token, true);
-      return outward(await forward(base, token, path, init, caller), name);
+      try {
+        const token = randomBytes(32).toString("hex");
+        await sandbox.runCommand("mkdir", ["-p", DIR]);
+        await sandbox.writeFiles([{ path: TOKEN_FILE, content: Buffer.from(token) }]);
+        await sandbox.runCommand("chmod", ["600", TOKEN_FILE]);
+        tokens.set(name, token);
+        const base = await ready(sandbox, token, { fresh: true });
+        return outward(await forward(base, token, path, init, caller), name);
+      } catch (error) {
+        // A sandbox that never got its server is of no use to anyone.
+        await sandbox.delete({ deleteOrphanSnapshots: true }).catch(() => undefined);
+        tokens.delete(name);
+        throw error;
+      }
     }
 
-    const match = path.match(/^\/agent\/workspaces\/([^/]+)(\/[a-z_]+)?$/);
-    const ids = match ? splitId(decodeURIComponent(match[1])) : null;
-    if (!match || !ids) return fail(404, "That workspace is gone.");
+    const route = routeOf(path);
+    if (!route) return fail(404, "That workspace is gone.");
+    const { ids, action, tail } = route;
 
     let sandbox: Sandbox;
     try {
-      sandbox = await Sandbox.get({ name: ids.name, resume: true });
+      // Looked up without waking it: a status poll from an open tab must not
+      // resume a sleeping machine (and pay for it) just to say it is idle.
+      sandbox = await Sandbox.get({ name: ids.name });
     } catch (error) {
       if (notFound(error)) return fail(404, "That workspace is gone.");
       throw error;
     }
+    const isStatus = (init.method ?? "GET") === "GET" && (action === "" || action === "/members");
+    if (isStatus && sandbox.status !== "running") {
+      return { ok: true, status: 200, body: { ok: true, asleep: true } };
+    }
+
+    if (sandbox.status !== "running") {
+      // Real work (a message, the files, a screenshot): wake it.
+      sandbox = await Sandbox.get({ name: ids.name, resume: true });
+    }
     const token = await tokenOf(sandbox, ids.name);
-    const base = await ready(sandbox, token);
+    const inner = `/agent/workspaces/${encodeURIComponent(ids.inner)}${action}${tail}`;
+    const startsWork = init.method === "POST" && (action === "/messages" || action === "/preview");
+    const base = await ready(sandbox, token, {
+      // Replace an older agent server only when new work arrives and nothing
+      // is running on it, so a turn in progress is never cut off.
+      mayRestart: startsWork
+        ? async () => {
+            const view = await forward(
+              sandbox.domain(PORT),
+              token,
+              `/agent/workspaces/${encodeURIComponent(ids.inner)}`,
+              { method: "GET", owner: init.owner },
+              caller,
+            ).catch(() => null);
+            const phase = (view?.body.workspace as { phase?: unknown } | undefined)?.phase;
+            return phase !== "running";
+          }
+        : undefined,
+    });
     // A message is work about to happen: keep the machine up for it.
-    if (match[2] === "/messages" && init.method === "POST") {
+    if (action === "/messages" && init.method === "POST") {
       await sandbox.extendTimeout(timeoutMs()).catch(() => undefined);
     }
-    const inner = `/agent/workspaces/${encodeURIComponent(ids.inner)}${match[2] ?? ""}`;
     return outward(await forward(base, token, inner, init, caller), ids.name);
   } catch (error) {
     return sandboxProblem(error);
   }
+}
+
+/** A project untouched for this long is deleted, with its snapshots. */
+const IDLE_DELETE_MS = 60 * 24 * 60 * 60_000;
+
+/**
+ * Delete DevStation's sandboxes nobody has used for 60 days (run daily by
+ * api/cron/sandboxes). Its files are still in the person's browser, so a
+ * project opened again later gets a new sandbox from them.
+ */
+export async function sweepSandboxes(
+  now = Date.now(),
+): Promise<{ checked: number; deleted: number }> {
+  let checked = 0;
+  let deleted = 0;
+  const pages = await Sandbox.list({
+    tags: { app: "devstation" },
+    sortBy: "statusUpdatedAt",
+    sortOrder: "asc",
+  });
+  for await (const page of pages.pages()) {
+    for (const item of page.sandboxes) {
+      checked++;
+      if (item.status === "running" || now - item.updatedAt < IDLE_DELETE_MS) continue;
+      try {
+        const sandbox = await Sandbox.get({ name: item.name });
+        await sandbox.delete({ deleteOrphanSnapshots: true });
+        tokens.delete(item.name);
+        deleted++;
+      } catch {
+        // Gone already, or busy: the next sweep tries again.
+      }
+    }
+    if (checked >= 5000) break;
+  }
+  return { checked, deleted };
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   BarChart3,
@@ -39,55 +39,8 @@ import { Modal, Segmented, SheetRow } from "./primitives";
 // updates panel (Base44's notifications / latest news), and the project's
 // settings list (Muse's settings sheet: one row per thing, a chevron each).
 
-/** Projects the browser keeps, from lib/appgen/projects.ts. */
-const MAX_PROJECTS = 40;
-/** What browsers give one site in localStorage, in UTF-16 characters. */
-const STORAGE_CHARS = 5 * 1024 * 1024;
-
-function storageUsed(): number {
-  try {
-    let chars = 0;
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i) ?? "";
-      chars += key.length + (localStorage.getItem(key)?.length ?? 0);
-    }
-    return chars;
-  } catch {
-    return 0;
-  }
-}
-
-function Meter({
-  label,
-  value,
-  max,
-  text,
-}: {
-  label: string;
-  value: number;
-  max: number;
-  text: string;
-}) {
-  const pct = Math.min(100, Math.round((value / max) * 100));
-  return (
-    <div className="py-3">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-[13.5px] text-foreground">{label}</span>
-        <span className="font-mono text-[11.5px] text-muted-foreground">{text}</span>
-      </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border">
-        <div
-          className={cn("h-full rounded-full", pct > 85 ? "bg-danger" : "bg-primary")}
-          style={{ width: `${Math.max(pct, value > 0 ? 3 : 0)}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 export function AccountSheet({
   projects,
-  usage,
   onSignIn,
   onEditName,
   onClose,
@@ -97,8 +50,6 @@ export function AccountSheet({
   admin,
 }: {
   projects: AppProject[];
-  /** The open project's agent work, when one is open. */
-  usage?: { steps: number; costUsd: number } | null;
   onSignIn: () => void;
   onEditName: () => void;
   onClose: () => void;
@@ -114,8 +65,6 @@ export function AccountSheet({
   const manageCookies = useConsent((s) => s.manage);
   const theme = useTheme((s) => s.theme);
   const toggleTheme = useTheme((s) => s.toggle);
-  const [used, setUsed] = useState(0);
-  useEffect(() => setUsed(storageUsed()), []);
 
   return (
     <Modal onClose={onClose}>
@@ -134,36 +83,6 @@ export function AccountSheet({
           </p>
         </div>
       </div>
-
-      <div className="mt-4 rounded-2xl bg-background px-4 py-1">
-        <Meter
-          label="Projects saved"
-          value={projects.length}
-          max={MAX_PROJECTS}
-          text={`${projects.length}/${MAX_PROJECTS}`}
-        />
-        <div className="border-t border-border" />
-        <Meter
-          label="Browser storage"
-          value={used}
-          max={STORAGE_CHARS}
-          text={`${(used / 1024 / 1024).toFixed(1)}/5 MB`}
-        />
-        {usage && usage.steps > 0 && (
-          <>
-            <div className="border-t border-border" />
-            <div className="flex items-center justify-between py-3">
-              <span className="text-[13.5px] text-foreground">This project</span>
-              <span className="font-mono text-[11.5px] text-muted-foreground">
-                {usage.steps} steps · ~${usage.costUsd.toFixed(2)}
-              </span>
-            </div>
-          </>
-        )}
-      </div>
-      <p className="mt-2 px-1 text-[11px] leading-5 text-meta">
-        Projects live in this browser. Push to GitHub or download one to keep a copy elsewhere.
-      </p>
 
       {!account && (
         <button

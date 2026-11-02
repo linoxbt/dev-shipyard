@@ -44,6 +44,10 @@ export async function verifySupabaseToken(
       user_metadata?: { full_name?: unknown; name?: unknown };
     };
     if (typeof user.id !== "string" || typeof user.email !== "string") return null;
+    // Sign-in is by emailed code only. A session made with a password (the
+    // public key can call Supabase's password endpoints if that provider is
+    // left on) is refused, whoever's email it claims.
+    if (!signedInByCode(token)) return null;
     // An unconfirmed address could be anybody's: no session until it is.
     if (!user.email_confirmed_at) return null;
     const rawName = user.user_metadata?.full_name ?? user.user_metadata?.name;
@@ -51,5 +55,26 @@ export async function verifySupabaseToken(
     return { id: user.id, email: user.email.toLowerCase(), name };
   } catch {
     return null;
+  }
+}
+
+/**
+ * Whether a Supabase access token was issued for an emailed code (or link),
+ * not a password. Read from the token's own `amr` claim; the token itself was
+ * just confirmed by Supabase, so its contents can be trusted here.
+ */
+export function signedInByCode(token: string): boolean {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString()) as {
+      amr?: Array<{ method?: unknown }>;
+    };
+    const methods = (payload.amr ?? []).map((m) => String(m.method ?? ""));
+    if (methods.length === 0) return false;
+    return (
+      !methods.includes("password") &&
+      methods.some((m) => ["otp", "magiclink", "email/signup", "invite"].includes(m))
+    );
+  } catch {
+    return false;
   }
 }

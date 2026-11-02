@@ -1,7 +1,7 @@
 {
   "name": "DevStation: the AI agent for apps and smart contracts",
   "short_name": "DevStation",
-  "description": "Ask, research or build. DevStation's agent explains, builds apps, and writes, tests and deploys smart contracts, narrating every step.",
+  "description": "Ask, research or build. DevStation's agent explains, builds, tests and deploys apps for you, narrating every step.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

@@ -3,6 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { refusal, requestProblem, withSecurityHeaders } from "./lib/http-guard.server";
+import { apiServedInAgentOnly } from "./lib/features";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -42,6 +43,11 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const problem = requestProblem(request);
     if (problem) return withSecurityHeaders(refusal(problem));
+    if (!apiServedInAgentOnly(new URL(request.url).pathname)) {
+      return withSecurityHeaders(
+        Response.json({ ok: false, reason: "not_found", message: "Not found." }, { status: 404 }),
+      );
+    }
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

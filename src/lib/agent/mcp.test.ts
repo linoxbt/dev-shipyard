@@ -209,3 +209,29 @@ describe("the hub", () => {
     await expect(hub.call("nothing__here", {})).rejects.toThrow("no MCP tool");
   }, 30_000);
 });
+
+describe("a project's own MCP servers on its own machine", () => {
+  it("load without a separate trust step, and the agent may edit the config", async () => {
+    const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { loadConfig } = await import("./mcp");
+    const { Workspace } = await import("./workspace");
+    const root = mkdtempSync(join(tmpdir(), "mcp-own-"));
+    try {
+      writeFileSync(
+        join(root, ".mcp.json"),
+        JSON.stringify({ mcpServers: { db: { command: "npx", args: ["db-mcp"] } } }),
+      );
+      expect(Object.keys(loadConfig(root, "").mcpServers)).toEqual([]);
+      expect(Object.keys(loadConfig(root, "", { trustProject: true }).mcpServers)).toEqual(["db"]);
+      expect(new Workspace(root).write(".mcp.json", "{}").ok).toBe(false);
+      const own = new Workspace(root, { allowMcpConfig: true });
+      expect(own.write(".mcp.json", '{"mcpServers":{}}').ok).toBe(true);
+      expect(own.write(".git/config", "x").ok).toBe(false);
+      expect(own.write("sub/.mcp.json", "{}").ok).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

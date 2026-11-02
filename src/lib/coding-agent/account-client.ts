@@ -1,6 +1,8 @@
 // The browser's side of plans, launch credit, connected accounts and visit
 // counting (src/routes/api.plan.ts, api.connectors.ts, api.metrics.ts).
 
+import { fetchWithGrant } from "@/lib/agent-access/grant";
+
 export interface Access {
   plan: "free" | "pro";
   proRequested: boolean;
@@ -17,6 +19,8 @@ export type ConnectorId = "github" | "vercel" | "netlify" | "railway" | "supabas
 
 export interface Connected {
   provider: ConnectorId;
+  /** The provider stopped accepting it: connect again. */
+  needsReconnect?: boolean;
   label: string | null;
   connectedAt: string;
 }
@@ -25,7 +29,10 @@ type Reply<T> = { ok: true; data: T } | { ok: false; message: string };
 
 async function call<T>(path: string, init?: RequestInit): Promise<Reply<T>> {
   try {
-    const res = await fetch(path, {
+    // Through the session helper: a missing or stale session is renewed from
+    // the email sign-in and the request retried, instead of a signed-in
+    // person being shown signed-out states.
+    const res = await fetchWithGrant(path, {
       ...init,
       headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
     });
@@ -70,9 +77,22 @@ export function connect(provider: ConnectorId) {
   window.location.assign(`/api/oauth/${provider}?back=${encodeURIComponent(back)}`);
 }
 
+/** How each provider is written. */
+export const PROVIDER_NAMES: Record<ConnectorId, string> = {
+  github: "GitHub",
+  vercel: "Vercel",
+  netlify: "Netlify",
+  railway: "Railway",
+  supabase: "Supabase",
+};
+
+export function providerName(id: string | null): string {
+  return (id && PROVIDER_NAMES[id as ConnectorId]) || "That account";
+}
+
 /** What a failed connection's reason (in the address) means, in words. */
 export function connectError(reason: string, provider: string | null): string {
-  const name = provider ? provider[0].toUpperCase() + provider.slice(1) : "That account";
+  const name = providerName(provider);
   switch (reason) {
     case "denied":
       return `${name} was not connected: access was declined.`;
@@ -81,9 +101,17 @@ export function connectError(reason: string, provider: string | null): string {
     case "not_configured":
       return `Connecting ${name} is not set up on DevStation yet.`;
     case "bad_state":
-      return "That connection link expired or was not yours. Start again from Connected accounts.";
-    case "rejected":
-      return `${name} did not accept the connection. Try again.`;
+      return "That connection link expired, was already used, or was not yours. Start again from Connected accounts.";
+    case "rate_limited":
+      return "Too many connection attempts. Wait a few minutes, then try again.";
+    case "exchange_failed":
+      return `${name} did not complete the connection. Try again; if it keeps failing, the app may need its settings checked.`;
+    case "no_code":
+      return `${name} sent no approval back. Try connecting again.`;
+    case "save_failed":
+      return `${name} approved, but the connection could not be saved. Try again in a moment.`;
+    case "unknown":
+      return "That is not an account DevStation can connect.";
     default:
       return `${name} could not be connected. Try again in a moment.`;
   }

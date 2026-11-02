@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Session } from "@supabase/supabase-js";
-import { setGrantSession } from "@/lib/agent-access/grant";
+import { ensureGrant, setGrantSession } from "@/lib/agent-access/grant";
 import { supabase, supabaseConfigured } from "@/lib/auth/supabase";
 import { useTheme } from "@/lib/theme";
 
@@ -99,6 +99,15 @@ export const useAuth = create<AuthState>((set) => ({
     void sb.auth.getSession().then(({ data }) => apply(data.session));
     sb.auth.onAuthStateChange((event, session) => {
       apply(session);
+      // DevStation's own session follows Supabase's: made at sign-in, renewed
+      // with every token refresh (so it never expires under a signed-in
+      // person), and replaced when a different account signs in.
+      if (
+        session &&
+        (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION")
+      ) {
+        void ensureGrant();
+      }
       if (event === "SIGNED_OUT") {
         // The grant cookie is DevStation's, not Supabase's: clear it too.
         void fetch("/api/access/session", { method: "DELETE" }).catch(() => undefined);

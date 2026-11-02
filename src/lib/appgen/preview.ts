@@ -40,6 +40,32 @@ export interface PreviewError {
 // act on, and "the preview is blank" as the only available bug report. This
 // forwards anything that goes wrong to the host, which surfaces it in the UI
 // and feeds it back into the next turn of the conversation.
+// The preview frame has an opaque origin, so touching localStorage or
+// sessionStorage throws a SecurityError and an app that keeps its state there
+// (most do) dies before it renders. In the live sandbox the same app works,
+// so the inline preview would show a broken app that is not broken. Each
+// frame gets an in-memory stand-in instead: state lasts until the preview
+// reloads, and nothing reaches DevStation's own storage.
+const STORAGE_SHIM = `<script>
+(function () {
+  function memory() {
+    var data = {};
+    return {
+      get length() { return Object.keys(data).length; },
+      key: function (i) { var k = Object.keys(data); return i >= 0 && i < k.length ? k[i] : null; },
+      getItem: function (k) { k = String(k); return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null; },
+      setItem: function (k, v) { data[String(k)] = String(v); },
+      removeItem: function (k) { delete data[String(k)]; },
+      clear: function () { data = {}; }
+    };
+  }
+  ["localStorage", "sessionStorage"].forEach(function (name) {
+    try { window[name].getItem("__devstation"); return; } catch (e) { /* opaque origin */ }
+    try { Object.defineProperty(window, name, { value: memory(), configurable: true }); } catch (e) { /* left as is */ }
+  });
+})();
+</script>`;
+
 const ERROR_REPORTER = `<script>
 (function () {
   var TAG = ${JSON.stringify("devstation-preview-error")};
@@ -268,10 +294,13 @@ export function buildPreview(
       );
     }
 
-    // Error reporter first, so it catches failures in the app's own modules.
-    page = page.includes("</head>")
-      ? page.replace("</head>", `${ERROR_REPORTER}\n</head>`)
-      : `${ERROR_REPORTER}\n${page}`;
+    // Storage stand-in and error reporter first, ahead of any script of the
+    // app's own, so the app finds storage and its failures are caught.
+    const shims = `${STORAGE_SHIM}\n${ERROR_REPORTER}`;
+    const head = /<head\b[^>]*>/i.exec(page);
+    page = head
+      ? `${page.slice(0, head.index + head[0].length)}\n${shims}${page.slice(head.index + head[0].length)}`
+      : `${shims}\n${page}`;
 
     return { srcdoc: page, revoke };
   }

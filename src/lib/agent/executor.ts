@@ -57,6 +57,8 @@ export interface Executor {
   jobOutput?(id: string, maxBytes?: number): Promise<BackgroundJob | null>;
   /** Stop a background command. False when there is no such command. */
   stop?(id: string): Promise<boolean>;
+  /** How many background commands are still running. */
+  running?(): number;
 }
 
 /**
@@ -275,6 +277,7 @@ export function hostExecutor(): Executor {
       return { id, command: job.command, running: job.running, exitCode: job.exitCode, output };
     },
     stop,
+    running: () => [...jobs.values()].filter((j) => j.running).length,
     async dispose() {
       // Background commands end with the session that started them.
       for (const id of jobs.keys()) await stop(id);

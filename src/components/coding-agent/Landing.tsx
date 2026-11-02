@@ -164,10 +164,20 @@ export function Landing({
         ) : (
           <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
             {APP_TEMPLATES.map((t) => (
-              <button
+              // A card, not a <button>: its picture is a live frame, which may
+              // not sit inside a button.
+              <div
                 key={t.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onTemplate(t)}
-                className="group text-left"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onTemplate(t);
+                  }
+                }}
+                className="group cursor-pointer rounded-2xl text-left outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 aria-label={`Open the ${t.name} template`}
               >
                 <div className="relative overflow-hidden rounded-2xl border border-border transition group-hover:border-primary/40">
@@ -178,7 +188,7 @@ export function Landing({
                 </div>
                 <p className="mt-3 text-[15px] font-semibold text-foreground">{t.name}</p>
                 <p className="mt-0.5 text-[12.5px] leading-5 text-muted-foreground">{t.blurb}</p>
-              </button>
+              </div>
             ))}
           </div>
         )}

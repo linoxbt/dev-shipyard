@@ -29,15 +29,15 @@ import {
 
 /** The model the build spec names. Overridable, because which model this runs
  *  on is a cost decision and therefore the operator's, not this file's. */
-const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
 
 /** Streaming is on, so this can be generous: the low ceiling exists to dodge
  *  HTTP timeouts on non-streaming calls, which is not the case here. */
 const DEFAULT_MAX_TOKENS = Number(process.env.ANTHROPIC_MAX_TOKENS ?? 64_000);
 
-/** Coding and long-horizon agent work is where effort actually pays; this is
- *  the level meant for it. */
-const EFFORT = (process.env.ANTHROPIC_EFFORT || "xhigh") as
+/** Agentic coding: `high` balances quality against spend on the current
+ *  models (Claude Opus 5.5 would otherwise default to `medium`). */
+const EFFORT = (process.env.ANTHROPIC_EFFORT || "high") as
   | "low"
   | "medium"
   | "high"
@@ -110,6 +110,13 @@ export function toAnthropicMessages(messages: ProviderMessage[]): Anthropic.Mess
       continue;
     }
 
+    // The turn exactly as the model produced it, thinking blocks included:
+    // they must come back unchanged for the model to keep its reasoning
+    // across tool calls. Only present within one run (see orchestrator).
+    if (message.raw?.length) {
+      out.push({ role: "assistant", content: message.raw as Anthropic.ContentBlockParam[] });
+      continue;
+    }
     const blocks: Anthropic.ContentBlockParam[] = [];
     if (message.content) blocks.push({ type: "text", text: message.content });
     for (const call of message.toolCalls ?? []) {
@@ -141,17 +148,24 @@ export class AnthropicProvider implements ModelProvider {
   }
 
   async generate(input: GenerateInput): Promise<ProviderResult> {
-    const stream = this.client.messages.stream(
+    // On the models that write their between-tool-call notes as thinking
+    // blocks, ask for those notes ("updates"): they are the narration the
+    // person reads while the agent works, and empty by default.
+    const updates = UPDATES_MODELS.test(this.model);
+    const stream = this.client.beta.messages.stream(
       {
         model: this.model,
         max_tokens: input.maxTokens ?? DEFAULT_MAX_TOKENS,
         // The system prompt and the tool list are byte-identical every turn,
-        // which is exactly the prefix worth caching. Volatile content lives in
-        // messages, after this breakpoint.
+        // which is exactly the prefix worth caching; the top-level breakpoint
+        // also caches the conversation so far, which a tool loop resends on
+        // every call.
         system: [{ type: "text", text: input.system, cache_control: { type: "ephemeral" } }],
-        thinking: { type: "adaptive" },
+        cache_control: { type: "ephemeral" },
+        thinking: updates ? { type: "adaptive", display: "updates" } : { type: "adaptive" },
         output_config: { effort: EFFORT },
-        messages: toAnthropicMessages(input.messages),
+        ...(updates ? { betas: ["thinking-display-updates-2026-08-18"] } : {}),
+        messages: toAnthropicMessages(input.messages) as Anthropic.Beta.BetaMessageParam[],
         ...(input.tools?.length
           ? {
               tools: input.tools.map((t) => ({
@@ -161,7 +175,7 @@ export class AnthropicProvider implements ModelProvider {
               })),
             }
           : {}),
-      },
+      } as unknown as Anthropic.Beta.Messages.MessageCreateParamsStreaming,
       { signal: input.signal },
     );
 
@@ -170,23 +184,30 @@ export class AnthropicProvider implements ModelProvider {
     const message = await stream.finalMessage();
 
     let text = "";
+    const notes: string[] = [];
     const toolCalls: ProviderToolCall[] = [];
-    for (const block of message.content) {
-      if (block.type === "text") text += block.text;
-      else if (block.type === "tool_use") {
+    for (const block of message.content as unknown as Array<
+      { type: string } & Record<string, unknown>
+    >) {
+      if (block.type === "text") text += String(block.text ?? "");
+      else if (block.type === "thinking" && typeof block.thinking === "string" && block.thinking) {
+        notes.push(block.thinking);
+      } else if (block.type === "tool_use") {
         toolCalls.push({
-          id: block.id,
-          name: block.name,
+          id: String(block.id),
+          name: String(block.name),
           input: (block.input ?? {}) as Record<string, unknown>,
         });
       }
     }
 
     return {
-      text,
+      // The progress notes stand in for prose when the turn has none.
+      text: text || notes.join("\n").trim(),
       toolCalls,
       stopReason: stopReasonOf(message.stop_reason),
       model: message.model,
+      raw: message.content as unknown[],
       usage: {
         ...EMPTY_USAGE,
         inputTokens: message.usage.input_tokens,
@@ -197,3 +218,7 @@ export class AnthropicProvider implements ModelProvider {
     };
   }
 }
+
+/** Models whose text between tool calls arrives as progress-update thinking
+ *  blocks (Claude API reference, 2026-10). */
+const UPDATES_MODELS = /claude-(opus-5-5|sonnet-5-5|fable-5(-1)?)/;

@@ -149,9 +149,16 @@ export function BuildersDialog({
           </div>
           <button
             onClick={() => {
-              void navigator.clipboard.writeText(link);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1500);
+              // The clipboard is only there on a secure page, and may refuse.
+              const done = () => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              };
+              if (!navigator.clipboard?.writeText)
+                return toast.error("Copy the link above by hand.");
+              navigator.clipboard
+                .writeText(link)
+                .then(done, () => toast.error("Copy the link above by hand."));
             }}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-[14px] font-medium text-primary-foreground transition hover:bg-primary-hover"
           >

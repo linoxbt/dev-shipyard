@@ -31,6 +31,7 @@ import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiLabelRelayRouteImport } from './routes/api.label-relay'
 import { Route as ApiListingsRouteImport } from './routes/api.listings'
 import { Route as ApiMetricsRouteImport } from './routes/api.metrics'
+import { Route as ApiModelRouteImport } from './routes/api.model'
 import { Route as ApiPlanRouteImport } from './routes/api.plan'
 import { Route as ApiPublishRouteImport } from './routes/api.publish'
 import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
@@ -71,8 +72,10 @@ import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
 import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
 import { Route as ApiAccessSessionRouteImport } from './routes/api.access.session'
 import { Route as ApiAdminStatsRouteImport } from './routes/api.admin.stats'
+import { Route as ApiCronSandboxesRouteImport } from './routes/api.cron.sandboxes'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
 import { Route as ApiGithubPushRouteImport } from './routes/api.github.push'
+import { Route as ApiModelTurnRouteImport } from './routes/api.model.turn'
 import { Route as ApiOauthProviderRouteImport } from './routes/api.oauth.$provider'
 import { Route as DocsCliIndexRouteImport } from './routes/docs.cli.index'
 import { Route as DocsCliInstallRouteImport } from './routes/docs.cli.install'
@@ -212,6 +215,11 @@ const ApiListingsRoute = ApiListingsRouteImport.update({
 const ApiMetricsRoute = ApiMetricsRouteImport.update({
   id: '/api/metrics',
   path: '/api/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiModelRoute = ApiModelRouteImport.update({
+  id: '/api/model',
+  path: '/api/model',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPlanRoute = ApiPlanRouteImport.update({
@@ -414,6 +422,11 @@ const ApiAdminStatsRoute = ApiAdminStatsRouteImport.update({
   path: '/api/admin/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronSandboxesRoute = ApiCronSandboxesRouteImport.update({
+  id: '/api/cron/sandboxes',
+  path: '/api/cron/sandboxes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGithubCallbackRoute = ApiGithubCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -423,6 +436,11 @@ const ApiGithubPushRoute = ApiGithubPushRouteImport.update({
   id: '/push',
   path: '/push',
   getParentRoute: () => ApiGithubRoute,
+} as any)
+const ApiModelTurnRoute = ApiModelTurnRouteImport.update({
+  id: '/turn',
+  path: '/turn',
+  getParentRoute: () => ApiModelRoute,
 } as any)
 const ApiOauthProviderRoute = ApiOauthProviderRouteImport.update({
   id: '/api/oauth/$provider',
@@ -608,6 +626,7 @@ export interface FileRoutesByFullPath {
   '/api/label-relay': typeof ApiLabelRelayRoute
   '/api/listings': typeof ApiListingsRoute
   '/api/metrics': typeof ApiMetricsRoute
+  '/api/model': typeof ApiModelRouteWithChildren
   '/api/plan': typeof ApiPlanRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
@@ -648,8 +667,10 @@ export interface FileRoutesByFullPath {
   '/routebook/': typeof RoutebookIndexRoute
   '/api/access/session': typeof ApiAccessSessionRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
+  '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
+  '/api/model/turn': typeof ApiModelTurnRoute
   '/api/oauth/$provider': typeof ApiOauthProviderRouteWithChildren
   '/docs/cli/install': typeof DocsCliInstallRoute
   '/docs/cli/models': typeof DocsCliModelsRoute
@@ -702,6 +723,7 @@ export interface FileRoutesByTo {
   '/api/label-relay': typeof ApiLabelRelayRoute
   '/api/listings': typeof ApiListingsRoute
   '/api/metrics': typeof ApiMetricsRoute
+  '/api/model': typeof ApiModelRouteWithChildren
   '/api/plan': typeof ApiPlanRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
@@ -740,8 +762,10 @@ export interface FileRoutesByTo {
   '/routebook': typeof RoutebookIndexRoute
   '/api/access/session': typeof ApiAccessSessionRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
+  '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
+  '/api/model/turn': typeof ApiModelTurnRoute
   '/api/oauth/$provider': typeof ApiOauthProviderRouteWithChildren
   '/docs/cli/install': typeof DocsCliInstallRoute
   '/docs/cli/models': typeof DocsCliModelsRoute
@@ -797,6 +821,7 @@ export interface FileRoutesById {
   '/api/label-relay': typeof ApiLabelRelayRoute
   '/api/listings': typeof ApiListingsRoute
   '/api/metrics': typeof ApiMetricsRoute
+  '/api/model': typeof ApiModelRouteWithChildren
   '/api/plan': typeof ApiPlanRoute
   '/api/publish': typeof ApiPublishRoute
   '/api/repo-agent': typeof ApiRepoAgentRoute
@@ -837,8 +862,10 @@ export interface FileRoutesById {
   '/routebook/': typeof RoutebookIndexRoute
   '/api/access/session': typeof ApiAccessSessionRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
+  '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
+  '/api/model/turn': typeof ApiModelTurnRoute
   '/api/oauth/$provider': typeof ApiOauthProviderRouteWithChildren
   '/docs/cli/install': typeof DocsCliInstallRoute
   '/docs/cli/models': typeof DocsCliModelsRoute
@@ -895,6 +922,7 @@ export interface FileRouteTypes {
     | '/api/label-relay'
     | '/api/listings'
     | '/api/metrics'
+    | '/api/model'
     | '/api/plan'
     | '/api/publish'
     | '/api/repo-agent'
@@ -935,8 +963,10 @@ export interface FileRouteTypes {
     | '/routebook/'
     | '/api/access/session'
     | '/api/admin/stats'
+    | '/api/cron/sandboxes'
     | '/api/github/callback'
     | '/api/github/push'
+    | '/api/model/turn'
     | '/api/oauth/$provider'
     | '/docs/cli/install'
     | '/docs/cli/models'
@@ -989,6 +1019,7 @@ export interface FileRouteTypes {
     | '/api/label-relay'
     | '/api/listings'
     | '/api/metrics'
+    | '/api/model'
     | '/api/plan'
     | '/api/publish'
     | '/api/repo-agent'
@@ -1027,8 +1058,10 @@ export interface FileRouteTypes {
     | '/routebook'
     | '/api/access/session'
     | '/api/admin/stats'
+    | '/api/cron/sandboxes'
     | '/api/github/callback'
     | '/api/github/push'
+    | '/api/model/turn'
     | '/api/oauth/$provider'
     | '/docs/cli/install'
     | '/docs/cli/models'
@@ -1083,6 +1116,7 @@ export interface FileRouteTypes {
     | '/api/label-relay'
     | '/api/listings'
     | '/api/metrics'
+    | '/api/model'
     | '/api/plan'
     | '/api/publish'
     | '/api/repo-agent'
@@ -1123,8 +1157,10 @@ export interface FileRouteTypes {
     | '/routebook/'
     | '/api/access/session'
     | '/api/admin/stats'
+    | '/api/cron/sandboxes'
     | '/api/github/callback'
     | '/api/github/push'
+    | '/api/model/turn'
     | '/api/oauth/$provider'
     | '/docs/cli/install'
     | '/docs/cli/models'
@@ -1180,6 +1216,7 @@ export interface RootRouteChildren {
   ApiLabelRelayRoute: typeof ApiLabelRelayRoute
   ApiListingsRoute: typeof ApiListingsRoute
   ApiMetricsRoute: typeof ApiMetricsRoute
+  ApiModelRoute: typeof ApiModelRouteWithChildren
   ApiPlanRoute: typeof ApiPlanRoute
   ApiPublishRoute: typeof ApiPublishRoute
   ApiRepoAgentRoute: typeof ApiRepoAgentRoute
@@ -1197,6 +1234,7 @@ export interface RootRouteChildren {
   RoutebookLabelsRoute: typeof RoutebookLabelsRoute
   RoutebookIndexRoute: typeof RoutebookIndexRoute
   ApiAdminStatsRoute: typeof ApiAdminStatsRoute
+  ApiCronSandboxesRoute: typeof ApiCronSandboxesRoute
   ApiOauthProviderRoute: typeof ApiOauthProviderRouteWithChildren
   LaunchkitAppsIdRoute: typeof LaunchkitAppsIdRoute
   LaunchkitTemplatesIdRoute: typeof LaunchkitTemplatesIdRoute
@@ -1359,6 +1397,13 @@ declare module '@tanstack/react-router' {
       path: '/api/metrics'
       fullPath: '/api/metrics'
       preLoaderRoute: typeof ApiMetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/model': {
+      id: '/api/model'
+      path: '/api/model'
+      fullPath: '/api/model'
+      preLoaderRoute: typeof ApiModelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/plan': {
@@ -1641,6 +1686,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminStatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/sandboxes': {
+      id: '/api/cron/sandboxes'
+      path: '/api/cron/sandboxes'
+      fullPath: '/api/cron/sandboxes'
+      preLoaderRoute: typeof ApiCronSandboxesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/github/callback': {
       id: '/api/github/callback'
       path: '/callback'
@@ -1654,6 +1706,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/github/push'
       preLoaderRoute: typeof ApiGithubPushRouteImport
       parentRoute: typeof ApiGithubRoute
+    }
+    '/api/model/turn': {
+      id: '/api/model/turn'
+      path: '/turn'
+      fullPath: '/api/model/turn'
+      preLoaderRoute: typeof ApiModelTurnRouteImport
+      parentRoute: typeof ApiModelRoute
     }
     '/api/oauth/$provider': {
       id: '/api/oauth/$provider'
@@ -2002,6 +2061,18 @@ const ApiGithubRouteWithChildren = ApiGithubRoute._addFileChildren(
   ApiGithubRouteChildren,
 )
 
+interface ApiModelRouteChildren {
+  ApiModelTurnRoute: typeof ApiModelTurnRoute
+}
+
+const ApiModelRouteChildren: ApiModelRouteChildren = {
+  ApiModelTurnRoute: ApiModelTurnRoute,
+}
+
+const ApiModelRouteWithChildren = ApiModelRoute._addFileChildren(
+  ApiModelRouteChildren,
+)
+
 interface LaunchkitMarketplaceRouteChildren {
   LaunchkitMarketplaceListingIdRoute: typeof LaunchkitMarketplaceListingIdRoute
   LaunchkitMarketplaceCreatorRoute: typeof LaunchkitMarketplaceCreatorRoute
@@ -2055,6 +2126,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLabelRelayRoute: ApiLabelRelayRoute,
   ApiListingsRoute: ApiListingsRoute,
   ApiMetricsRoute: ApiMetricsRoute,
+  ApiModelRoute: ApiModelRouteWithChildren,
   ApiPlanRoute: ApiPlanRoute,
   ApiPublishRoute: ApiPublishRoute,
   ApiRepoAgentRoute: ApiRepoAgentRoute,
@@ -2072,6 +2144,7 @@ const rootRouteChildren: RootRouteChildren = {
   RoutebookLabelsRoute: RoutebookLabelsRoute,
   RoutebookIndexRoute: RoutebookIndexRoute,
   ApiAdminStatsRoute: ApiAdminStatsRoute,
+  ApiCronSandboxesRoute: ApiCronSandboxesRoute,
   ApiOauthProviderRoute: ApiOauthProviderRouteWithChildren,
   LaunchkitAppsIdRoute: LaunchkitAppsIdRoute,
   LaunchkitTemplatesIdRoute: LaunchkitTemplatesIdRoute,

@@ -1,3 +1,4 @@
+# Not the live host: production runs on Vercel (vercel.json). Kept for a Netlify deploy.
 # Netlify deploy config for the DevStation SSR (TanStack Start / Nitro) app.
 #
 # The Nitro `netlify` preset (auto-selected via the NETLIFY env var in

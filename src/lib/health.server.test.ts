@@ -11,9 +11,30 @@ describe("readiness", () => {
   });
 
   it("passes with the required settings, reporting the optional ones", async () => {
-    const h = await readiness({ NODE_ENV: "production", SESSION_SECRET: "s".repeat(32) });
+    const h = await readiness({
+      NODE_ENV: "production",
+      SESSION_SECRET: "s".repeat(32),
+      FORTYTWO_API_KEY: "f",
+      SUPABASE_URL: "https://x.supabase.co",
+      SUPABASE_PUBLISHABLE_KEY: "pk",
+      SUPABASE_SERVICE_ROLE_KEY: "sk",
+      VERCEL: "1",
+    });
     expect(h.ok).toBe(true);
     expect(h.checks.find((c) => c.name === "shared_rate_limits")?.ok).toBe(false);
+  });
+
+  it("fails without the default model or the database, and names each", async () => {
+    const h = await readiness({
+      NODE_ENV: "production",
+      SESSION_SECRET: "s".repeat(32),
+      VERCEL: "1",
+    });
+    expect(h.ok).toBe(false);
+    expect(h.checks.find((c) => c.name === "model")?.detail).toContain("FORTYTWO_API_KEY");
+    expect(h.checks.find((c) => c.name === "database")?.detail).toContain(
+      "SUPABASE_SERVICE_ROLE_KEY",
+    );
   });
 
   it("never echoes a value", async () => {

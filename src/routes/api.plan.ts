@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { accessOf } from "@/lib/db/access.server";
 import { dbConfigured, insert, rpc } from "@/lib/db/admin.server";
-import { fail, isAdmin, requestOwner } from "@/lib/db/request.server";
+import { fail, isAdmin, personOf, requestEmail, requestOwner } from "@/lib/db/request.server";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 
 // The signed-in account's plan and launch credit: read it, claim the $5
@@ -33,15 +33,23 @@ export const Route = createFileRoute("/api/plan")({
           return fail("rate_limited", "Too many requests. Wait a moment.", 429);
         }
         try {
+          const email = requestEmail(request);
+          if (!email) {
+            // A session from before emails were carried: renewing it fixes this.
+            return fail("no_grant", "Sign in again to continue.", 401);
+          }
           if (parsed.data.action === "claim") {
-            const result = await rpc<{ ok: boolean; reason?: string }>("claim_launch_credit", {
+            // One per person: plus-addressed or dotted variants of the same
+            // Gmail inbox count as one.
+            const result = await rpc<{ ok: boolean; reason?: string }>("claim_launch_credit_v2", {
               p_owner: owner,
+              p_identity: personOf(email),
             });
             if (!result.ok) {
               return fail(
                 result.reason ?? "unavailable",
                 result.reason === "already_claimed"
-                  ? "You have already claimed your launch credit."
+                  ? "Launch credit has already been claimed for this email."
                   : "All 20 launch credits have been claimed.",
                 409,
               );
@@ -51,6 +59,8 @@ export const Route = createFileRoute("/api/plan")({
               "account_plans",
               {
                 owner,
+                // So the request can be answered: the admin page lists it.
+                contact: email,
                 pro_requested_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
               },

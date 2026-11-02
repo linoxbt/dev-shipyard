@@ -130,9 +130,18 @@ export function trustProjectConfigs(root: string, home = process.env.HOME ?? "")
   return trusted;
 }
 
-export function loadConfig(root: string, home = process.env.HOME ?? ""): McpConfig {
+export function loadConfig(
+  root: string,
+  home = process.env.HOME ?? "",
+  opts: { trustProject?: boolean } = {},
+): McpConfig {
   const merged: McpConfig = { mcpServers: {} };
-  const untrusted = new Set(untrustedConfigs(root, home).map((u) => u.path));
+  // On a machine that belongs to the project (a Vercel Sandbox), its own
+  // servers run with the same reach as any command the agent runs there, so
+  // they need no separate trust step.
+  const untrusted = new Set(
+    opts.trustProject ? [] : untrustedConfigs(root, home).map((u) => u.path),
+  );
   // Read furthest-first so nearer files overwrite: the project has the last
   // word about its own servers, once it is trusted.
   for (const path of configPaths(root, home).reverse()) {

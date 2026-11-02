@@ -94,23 +94,23 @@ export function refusal(problem: GuardProblem): Response {
   );
 }
 
-// script-src is report-only: wallet SDKs, the solc worker and Monaco load from
-// several hosts and a guessed enforcing policy that breaks wallet connect in
-// production is worse than none. The report shows what an enforcing one needs.
-const CSP_REPORT_ONLY = [
-  "default-src 'self'",
-  // No CDN hosts: Monaco is bundled, and solc and OpenZeppelin are fetched as
-  // data, checked against pinned hashes, and only solc runs, from a blob: URL.
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:",
-  "worker-src 'self' blob:",
+// The enforced policy. script-src, style-src and connect-src are left open on
+// purpose: the app previews run in srcdoc frames, which inherit this policy,
+// and the apps people build load scripts, fonts and APIs from anywhere. What
+// can be closed is closed: no plugins, no <base> hijack, no framing of
+// DevStation by other sites, forms only to this site or HTTPS, and plain-HTTP
+// subresources upgraded. (The report-only policy is gone: it had nowhere to
+// report to, and its rules were written for the retired wallet pages.)
+const CSP = [
   "object-src 'none'",
   "base-uri 'self'",
   "frame-ancestors 'none'",
+  "form-action 'self' https:",
+  "upgrade-insecure-requests",
 ].join("; ");
 
 export const SECURITY_HEADERS: Record<string, string> = {
-  "content-security-policy": "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
-  "content-security-policy-report-only": CSP_REPORT_ONLY,
+  "content-security-policy": CSP,
   "x-frame-options": "DENY",
   "x-content-type-options": "nosniff",
   "referrer-policy": "strict-origin-when-cross-origin",

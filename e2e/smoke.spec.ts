@@ -72,14 +72,14 @@ test("security headers are on every page", async ({ request }) => {
 test("a same-origin POST reaches its route; a cross-site one does not", async ({ page }) => {
   await page.goto("/docs/coding-agent");
   const statuses = await page.evaluate(async () => {
-    const own = await fetch("/api/ai", {
+    const own = await fetch("/api/plan", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ messages: [] }),
+      body: JSON.stringify({ action: "claim" }),
     });
     return { own: own.status, ownBody: await own.text() };
   });
-  // The route answers (no wallet grant), not the cross-site guard.
+  // The route answers (no sign-in), not the cross-site guard.
   expect(statuses.own).toBe(401);
   expect(statuses.ownBody).toContain("no_grant");
 });

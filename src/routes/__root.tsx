@@ -9,18 +9,53 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AppShell } from "@/components/layout/AppShell";
 import { CookieBanner } from "@/components/consent/CookieBanner";
 import { CODING_AGENT_ONLY, switchedOff } from "@/lib/features";
-import { Web3Provider } from "@/components/web3/Web3Provider";
 import { Toaster } from "@/components/ui/sonner";
 import { SplashScreen } from "@/components/pwa/SplashScreen";
 import { useTheme } from "@/lib/theme";
 import { crossHostTarget } from "@/lib/site-hosts";
+
+// The wallet stack (wagmi, connectors) belongs to the legacy builder pages.
+// The Coding Agent connects no wallet, so in that build it is never loaded:
+// no wallet code, no wallet SDK analytics, nothing reconnecting on its own.
+const Web3Provider = CODING_AGENT_ONLY
+  ? null
+  : lazy(() => import("@/components/web3/Web3Provider").then((m) => ({ default: m.Web3Provider })));
+
+// The full site's shell (sidebar, network banner) is loaded only when it is
+// the one served; the Coding Agent has the whole window.
+const AppShell = CODING_AGENT_ONLY
+  ? null
+  : lazy(() => import("@/components/layout/AppShell").then((m) => ({ default: m.AppShell })));
+
+function Shell({ children }: { children: ReactNode }) {
+  if (!AppShell) {
+    return (
+      <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
+    );
+  }
+  return (
+    <Suspense fallback={null}>
+      <AppShell>{children}</AppShell>
+    </Suspense>
+  );
+}
+
+function Wallets({ children }: { children: ReactNode }) {
+  if (!Web3Provider) return <>{children}</>;
+  return (
+    <Suspense fallback={null}>
+      <Web3Provider>{children}</Web3Provider>
+    </Suspense>
+  );
+}
 import { currentHost } from "@/lib/current-host";
 
 function NotFoundComponent() {
@@ -116,12 +151,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "stylesheet", href: appCss },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap",
-      },
     ],
   }),
   // A page asked for on the wrong hostname goes to the one that serves it:
@@ -207,19 +236,19 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Web3Provider>
+      <Wallets>
         {isLanding || isDocs ? (
           <Outlet />
         ) : (
-          <AppShell bare={CODING_AGENT_ONLY}>
+          <Shell>
             <Outlet />
-          </AppShell>
+          </Shell>
         )}
         <Toaster />
         <CookieBanner />
         {/* A builder opens straight into the product, no splash in front. */}
         {!CODING_AGENT_ONLY && <SplashScreen />}
-      </Web3Provider>
+      </Wallets>
     </QueryClientProvider>
   );
 }

@@ -4,8 +4,8 @@
 // runner (which turns a choice into a provider). A model runs through the
 // runner's Anthropic key when it has a native Anthropic name and that key is
 // set, through Fortytwo when it is one of Fortytwo's, and through OpenRouter
-// otherwise. "Auto" leaves the choice to the runner: Qwen when it has a
-// Fortytwo key, its own default otherwise.
+// otherwise. "Auto" is Qwen on Fortytwo, always: without a Fortytwo key it
+// says so rather than running on another provider.
 
 export type ModelFamily = "anthropic" | "openai" | "google" | "qwen";
 

@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { looksBinary, Workspace } from "./workspace";
-import { runGit } from "./git";
+import { protectControlFiles, runGit } from "./git";
 import type { RunResult } from "./orchestrator";
 
 // Running the agent against a repository somebody already has.
@@ -84,6 +84,7 @@ export async function initLocalRepo(root: string, ref: string): Promise<boolean>
   // third pick up the overrides computed from the config the first one wrote.
   const init = await runGit(root, "init -q", 60_000);
   if (!init.ok) return false;
+  await protectControlFiles(root);
   const add = await runGit(root, "add -A", 120_000);
   if (!add.ok) return false;
   const result = await runGit(

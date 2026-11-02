@@ -1,160 +1,29 @@
 import { describe, expect, it } from "bun:test";
-import { privateKeyToAccount } from "viem/accounts";
 import { Route } from "@/routes/api.access";
-import { accessMessage } from "@/lib/agent-access/request-auth";
 
-// The grant end to end: nonce, signature over a domain-bound message, cookie.
+// The wallet signature sign-in is retired: sign-in is email codes only.
 
 type Handler = (ctx: { request: Request }) => Promise<Response> | Response;
 const handlers = (Route.options as unknown as { server: { handlers: Record<string, Handler> } })
   .server.handlers;
 
-const account = privateKeyToAccount(`0x${"11".repeat(32)}`);
-const ORIGIN = "https://devstation.online";
-
-function cookieValue(res: Response, name: string): string {
-  const all = res.headers.getSetCookie?.() ?? [];
-  const hit = all.find((c) => c.startsWith(`${name}=`)) ?? "";
-  return hit.split(";")[0].slice(name.length + 1);
-}
-
-async function signIn(domain: string, opts: { reuse?: string } = {}) {
-  const nonceRes = await handlers.GET({
-    request: new Request(`${ORIGIN}/api/access?nonce=1`),
-  });
-  const { nonce } = (await nonceRes.json()) as { nonce: string };
-  const sealed = opts.reuse ?? cookieValue(nonceRes, "devstation_access_nonce");
-  const issuedAt = Date.now();
-  const signature = await account.signMessage({
-    message: accessMessage({
-      domain,
-      uri: `https://${domain}`,
-      address: account.address,
-      chainId: 1990,
-      nonce,
-      issuedAt,
-    }),
-  });
-  const res = await handlers.POST({
-    request: new Request(`${ORIGIN}/api/access`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        host: "devstation.online",
-        cookie: `devstation_access_nonce=${sealed}`,
-      },
-      body: JSON.stringify({ address: account.address, signature, issuedAt, chainId: 1990 }),
-    }),
-  });
-  return { res, sealed };
-}
-
 describe("/api/access", () => {
-  it("grants for a signature over this domain and the issued nonce", async () => {
-    const { res } = await signIn("devstation.online");
-    expect(res.status).toBe(200);
-    expect(cookieValue(res, "devstation_jobs").length).toBeGreaterThan(10);
-  });
-
-  it("refuses a signature a different site asked for", async () => {
-    const { res } = await signIn("evil.example");
-    expect(res.status).toBe(401);
-    expect(((await res.json()) as { reason: string }).reason).toBe("bad_signature");
-  });
-
-  it("refuses without a nonce cookie", async () => {
+  it("refuses a wallet sign-in, whatever it carries", async () => {
     const res = await handlers.POST({
-      request: new Request(`${ORIGIN}/api/access`, {
+      request: new Request("https://devstation.online/api/access", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          address: account.address,
-          signature: "0x00",
-          issuedAt: Date.now(),
-          chainId: 1,
-        }),
+        body: JSON.stringify({ address: "0xabc", signature: "0xsig", nonce: "n" }),
       }),
     });
-    expect(((await res.json()) as { reason: string }).reason).toBe("bad_nonce");
+    expect(res.status).toBe(410);
+    expect(res.headers.get("set-cookie")).toBeNull();
   });
 
-  it("accepts a nonce once", async () => {
-    const first = await signIn("devstation.online");
-    expect(first.res.status).toBe(200);
-    // The same sealed nonce presented again (a captured cookie + signature).
-    const nonce = first.sealed.split(".")[0];
-    const issuedAt = Date.now();
-    const signature = await account.signMessage({
-      message: accessMessage({
-        domain: "devstation.online",
-        uri: ORIGIN,
-        address: account.address,
-        chainId: 1990,
-        nonce,
-        issuedAt,
-      }),
+  it("says there is no session without the cookie", async () => {
+    const res = await handlers.GET({
+      request: new Request("https://devstation.online/api/access"),
     });
-    const again = await handlers.POST({
-      request: new Request(`${ORIGIN}/api/access`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          host: "devstation.online",
-          cookie: `devstation_access_nonce=${first.sealed}`,
-        },
-        body: JSON.stringify({ address: account.address, signature, issuedAt, chainId: 1990 }),
-      }),
-    });
-    expect(((await again.json()) as { reason: string }).reason).toBe("bad_nonce");
-  });
-
-  it("lets two tabs sign in at once: the second nonce does not void the first", async () => {
-    const get = (cookie?: string) =>
-      handlers.GET({
-        request: new Request(`${ORIGIN}/api/access?nonce=1`, {
-          headers: cookie ? { cookie: `devstation_access_nonce=${cookie}` } : {},
-        }),
-      });
-    // Tab A asks, then tab B asks before A has signed.
-    const a = await get();
-    const nonceA = ((await a.json()) as { nonce: string }).nonce;
-    const b = await get(cookieValue(a, "devstation_access_nonce"));
-    const nonceB = ((await b.json()) as { nonce: string }).nonce;
-    let jar = cookieValue(b, "devstation_access_nonce");
-
-    const post = async (nonce: string) => {
-      const issuedAt = Date.now();
-      const signature = await account.signMessage({
-        message: accessMessage({
-          domain: "devstation.online",
-          uri: ORIGIN,
-          address: account.address,
-          chainId: 1990,
-          nonce,
-          issuedAt,
-        }),
-      });
-      const res = await handlers.POST({
-        request: new Request(`${ORIGIN}/api/access`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            host: "devstation.online",
-            cookie: `devstation_access_nonce=${jar}`,
-          },
-          body: JSON.stringify({
-            address: account.address,
-            signature,
-            issuedAt,
-            chainId: 1990,
-            nonce,
-          }),
-        }),
-      });
-      jar = cookieValue(res, "devstation_access_nonce");
-      return res.status;
-    };
-    expect(await post(nonceA)).toBe(200);
-    expect(await post(nonceB)).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, granted: false, owner: null });
   });
 });

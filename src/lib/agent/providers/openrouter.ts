@@ -226,8 +226,8 @@ export class OpenRouterProvider implements ModelProvider {
           messages: toOpenAiMessages(input.system, messages),
           stream: true,
           max_tokens: maxTokens,
-          // Fortytwo may refuse a sampling setting its model does not list.
-          ...(fortytwo ? {} : { temperature: 0.2 }),
+          // No sampling settings: Fortytwo refuses ones its model does not
+          // list, and current Claude models reject them outright.
           ...(input.tools?.length
             ? {
                 tools: input.tools.map((t) => ({
@@ -245,6 +245,9 @@ export class OpenRouterProvider implements ModelProvider {
           ...(openRouter && process.env.AI_REASONING !== "on"
             ? { reasoning: { enabled: false } }
             : {}),
+          // OpenRouter's own figure for what the call cost, so premium spend
+          // is billed at the model's real price rather than a table guess.
+          ...(openRouter ? { usage: { include: true } } : {}),
           // Fortytwo's Qwen reasons before every answer by default (medium);
           // keep it brief, and ask for the token count the cost meter needs.
           ...(fortytwo
@@ -277,6 +280,17 @@ export class OpenRouterProvider implements ModelProvider {
       } else {
         throw new Error(describeFailure(label, res.status, detail));
       }
+    }
+
+    // Busy or briefly down: once more after the wait it asks for (bounded),
+    // rather than ending a long run over one overloaded moment.
+    if ([429, 500, 502, 503, 504].includes(res.status)) {
+      const after = Number(res.headers.get("retry-after"));
+      await res.text().catch(() => "");
+      await new Promise((r) =>
+        setTimeout(r, Number.isFinite(after) && after > 0 ? Math.min(after, 10) * 1000 : 2000),
+      );
+      if (!input.signal?.aborted) res = await send(requested);
     }
 
     // A model that cannot see pictures refuses a request carrying one. Once,
@@ -317,7 +331,7 @@ export class OpenRouterProvider implements ModelProvider {
               delta?: { content?: string; tool_calls?: Array<OpenAiToolCall & { index: number }> };
               finish_reason?: string | null;
             }>;
-            usage?: { prompt_tokens?: number; completion_tokens?: number };
+            usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
           };
           const choice = chunk.choices?.[0];
           const delta = choice?.delta?.content;
@@ -340,6 +354,7 @@ export class OpenRouterProvider implements ModelProvider {
           if (chunk.usage) {
             usage.inputTokens = chunk.usage.prompt_tokens ?? 0;
             usage.outputTokens = chunk.usage.completion_tokens ?? 0;
+            if (typeof chunk.usage.cost === "number") usage.costUsd = chunk.usage.cost;
           }
         } catch {
           /* keep-alive comments and partial frames are normal */

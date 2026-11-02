@@ -59,7 +59,7 @@ export const Route = createFileRoute("/api/access/session")({
           headers: {
             "content-type": "application/json",
             "set-cookie": claimCookieHeader(
-              withOwner(existing?.owner === owner ? existing : null, owner),
+              withOwner(existing?.owner === owner ? existing : null, owner, account.email),
             ),
           },
         });

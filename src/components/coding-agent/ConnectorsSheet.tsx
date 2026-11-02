@@ -10,6 +10,7 @@ import {
   connect,
   disconnect,
   fetchConnectors,
+  providerName,
   type ConnectorState,
   type ConnectorId,
 } from "@/lib/coding-agent/account-client";
@@ -67,13 +68,19 @@ const PROVIDERS: {
 export function ConnectorsSheet({ onClose }: { onClose: () => void }) {
   const [state, setState] = useState<ConnectorState | null>(null);
   const [going, setGoing] = useState<ConnectorId | null>(null);
+  const [confirming, setConfirming] = useState<ConnectorId | null>(null);
+  const [removing, setRemoving] = useState<ConnectorId | null>(null);
 
   const load = () => void fetchConnectors().then(setState);
   useEffect(load, []);
 
   const remove = async (id: ConnectorId) => {
+    setRemoving(id);
     const r = await disconnect(id);
+    setRemoving(null);
+    setConfirming(null);
     if (!r.ok) return toast.error(r.message);
+    toast.success(`${providerName(id)} is disconnected. The agent can no longer use it.`);
     load();
   };
 
@@ -106,18 +113,44 @@ export function ConnectorsSheet({ onClose }: { onClose: () => void }) {
               />
               <div className="min-w-0 flex-1">
                 <p className="text-[14px] text-foreground">{p.name}</p>
-                <p className="truncate text-[11.5px] text-meta">
+                <p
+                  className={
+                    on?.needsReconnect
+                      ? "truncate text-[11.5px] text-warning"
+                      : "truncate text-[11.5px] text-meta"
+                  }
+                >
                   {on
-                    ? `Connected: ${on.label || "yes"}`
+                    ? on.needsReconnect
+                      ? `${on.label || p.name}: no longer accepted. Connect again.`
+                      : `Connected: ${on.label || "yes"}`
                     : state && !ready
                       ? "Coming soon"
                       : p.does}
                 </p>
               </div>
-              {on ? (
+              {on && confirming === p.id ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setConfirming(null)}
+                    className="rounded-full px-2.5 py-1.5 text-[12px] text-muted-foreground hover:text-foreground"
+                  >
+                    Keep
+                  </button>
+                  <button
+                    onClick={() => void remove(p.id)}
+                    disabled={removing === p.id}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-danger px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-60"
+                  >
+                    {removing === p.id && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
+                    Disconnect
+                  </button>
+                </div>
+              ) : on && !on.needsReconnect ? (
                 <button
-                  onClick={() => void remove(p.id)}
+                  onClick={() => setConfirming(p.id)}
                   title={`Disconnect ${p.name}`}
+                  aria-label={`Disconnect ${p.name}`}
                   className="flex h-8 w-8 items-center justify-center rounded-lg text-meta hover:bg-surface-2 hover:text-danger"
                 >
                   <X className="h-4 w-4" />
@@ -136,7 +169,7 @@ export function ConnectorsSheet({ onClose }: { onClose: () => void }) {
                   ) : (
                     <Plug className="h-3.5 w-3.5" />
                   )}
-                  Connect
+                  {on?.needsReconnect ? "Reconnect" : "Connect"}
                 </button>
               )}
             </div>

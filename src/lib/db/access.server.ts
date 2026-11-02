@@ -60,15 +60,31 @@ export async function accessOf(owner: string): Promise<Access> {
   };
 }
 
-/** Null when this account may run the model, or why not. */
+/** Null when this account may run the model, or why not (with the status to
+ *  answer: 402 needs an upgrade, 503 plans could not be checked). */
 export async function modelProblem(
   owner: string,
   model: string | undefined,
-): Promise<string | null> {
+): Promise<{ status: 402 | 503; message: string } | null> {
   if (!isPremiumModel(model)) return null;
-  const access = await accessOf(owner).catch(() => LOCKED);
+  if (!dbConfigured()) {
+    return {
+      status: 402,
+      message: `${modelLabel(model)} is not available on DevStation yet. Qwen is free and ready.`,
+    };
+  }
+  let access: Access;
+  try {
+    access = await accessOf(owner);
+  } catch {
+    return { status: 503, message: "Plans could not be checked just now. Try again in a moment." };
+  }
   if (access.premium) return null;
-  return access.claimed > 0
-    ? `Your launch credit is used up. Upgrade to keep using ${modelLabel(model)}, or switch to Qwen, which is free.`
-    : `${modelLabel(model)} needs an upgrade. Claim launch credit or request Pro, or use Qwen, which is free.`;
+  return {
+    status: 402,
+    message:
+      access.claimed > 0
+        ? `Your launch credit is used up. Upgrade to keep using ${modelLabel(model)}, or switch to Qwen, which is free.`
+        : `${modelLabel(model)} needs an upgrade. Claim launch credit or request Pro, or use Qwen, which is free.`,
+  };
 }

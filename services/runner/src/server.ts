@@ -289,6 +289,8 @@ async function route(
   if (req.url === "/health") {
     return json(res, 200, {
       ok: true,
+      // Which agent server this is (set by the site that started it).
+      build: process.env.DEVSTATION_BUILD ?? "",
       docker: await dockerAvailable(),
       image: IMAGE,
       runtime: jobRuntime(),
@@ -831,17 +833,22 @@ async function route(
       return json(res, 200, { ok: true, workspace: workspaceView(created.session) });
     }
 
+    // Every workspace route answers only its owner or a builder they added,
+    // named by the site in the owner header from the signed-in account (never
+    // by the browser). Joining asks "members" first, which says the role
+    // without needing one. A missing workspace answers 404 below, which tells
+    // the site to recreate it.
+    const sender = String(req.headers["x-devstation-owner"] ?? "").slice(0, 100);
+    const role = id && getWorkspace(id) ? workspaceRole(id, sender) : null;
+    if (id && getWorkspace(id) && !role && action !== "members") {
+      return json(res, 403, {
+        ok: false,
+        reason: "not_yours",
+        message: "This project belongs to another account. Ask its owner to add you by email.",
+      });
+    }
+
     if (id && action === "messages" && req.method === "POST") {
-      // The owner or a builder they added. A missing workspace still answers
-      // 404 below, which is what tells the site to recreate it.
-      const sender = String(req.headers["x-devstation-owner"] ?? "").slice(0, 100);
-      if (getWorkspace(id) && !workspaceRole(id, sender)) {
-        return json(res, 403, {
-          ok: false,
-          message:
-            "This workspace belongs to another wallet. Switch back to it, or ask its owner to add this one.",
-        });
-      }
       if (!withinRateLimit(`workspace-message:${caller}`)) {
         return json(res, 429, { ok: false, message: "Too many messages from this client." });
       }
@@ -852,6 +859,8 @@ async function route(
         plan?: unknown;
         env?: unknown;
         images?: unknown;
+        proxy?: unknown;
+        by?: unknown;
       }>(req, 12_000_000);
       if (!body.ok) return json(res, body.status, { ok: false, message: body.message });
       const sent = sendWorkspaceMessage(
@@ -864,11 +873,15 @@ async function route(
           model: typeof body.value.model === "string" ? body.value.model.slice(0, 60) : undefined,
           plan: body.value.plan === true,
           images: cleanImages(body.value.images),
-          // Connected accounts for this turn; only known variables survive.
+          // Connected accounts for this turn; only known variables survive,
+          // and only the owner's: a builder's tokens never go into a machine
+          // somebody else controls.
           env:
-            body.value.env && typeof body.value.env === "object"
+            role === "owner" && body.value.env && typeof body.value.env === "object"
               ? connectorEnv(body.value.env as Record<string, string>)
               : undefined,
+          proxy: proxyTarget(body.value.proxy),
+          by: sender || undefined,
         },
       );
       if (!sent.ok) return json(res, sent.status, { ok: false, message: sent.message });
@@ -1208,3 +1221,12 @@ server.listen(PORT, HOST, () => {
     `[runner] listening on ${HOST}:${PORT} image=${IMAGE} auth=${TOKEN ? "on" : "MISSING"}`,
   );
 });
+
+/** Where this turn reaches a model: DevStation's proxy and the turn's pass. */
+function proxyTarget(value: unknown): { url: string; token: string } | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const { url, token } = value as { url?: unknown; token?: unknown };
+  if (typeof url !== "string" || typeof token !== "string") return undefined;
+  if (!/^https?:\/\/[^/]+\/api\/model$/.test(url) || token.length > 4000) return undefined;
+  return { url, token };
+}

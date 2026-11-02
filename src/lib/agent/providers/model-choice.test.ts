@@ -25,7 +25,7 @@ describe("providerForModel", () => {
       ANTHROPIC_API_KEY: "a",
       OPENROUTER_API_KEY: "o",
     });
-    expect("problem" in none && none.problem).toContain("needs a Fortytwo key");
+    expect("problem" in none && none.problem).toContain("Fortytwo key is not set");
   });
 
   it("makes Auto Qwen on Fortytwo, and never falls back to another provider", () => {

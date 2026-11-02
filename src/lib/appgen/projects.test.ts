@@ -79,14 +79,16 @@ describe("projects", () => {
     expect(a.files).toEqual({ a: "1" });
   });
 
-  it("picks a new active project when the active one is deleted", () => {
+  it("goes home when the open project is deleted", () => {
     // Leaving activeId pointing at a deleted project would open the builder
     // onto nothing.
     const first = useProjects.getState().create("First");
     const second = useProjects.getState().create("Second");
     useProjects.getState().open(second);
     useProjects.getState().remove(second);
-    expect(useProjects.getState().activeId).toBe(first);
+    // Home, not another project the person did not ask to open.
+    expect(useProjects.getState().activeId).toBeNull();
+    expect(useProjects.getState().projects.map((p) => p.id)).toEqual([first]);
   });
 
   it("ignores a save when nothing is open", () => {
@@ -140,8 +142,24 @@ describe("persisted data is validated, not trusted", () => {
     useProjects.setState({ projects: [], activeId: null, hydrated: false });
     useProjects.getState().hydrate();
     const s = useProjects.getState();
+    // The broken one is repaired (its unreadable conversation dropped), not
+    // lost, and nothing renders a non-array as a list.
+    expect(s.projects.map((p) => p.id)).toEqual(["bad", "good"]);
+    expect(s.projects[0].turns).toEqual([]);
+  });
+
+  it("drops a project only when even its id cannot be read", () => {
+    localStorage.setItem(
+      "devstation-apps-v1",
+      JSON.stringify({
+        activeId: "x",
+        projects: [{ name: "No id" }, { id: "good", name: "Fine", createdAt: 0, updatedAt: 0 }],
+      }),
+    );
+    useProjects.setState({ projects: [], activeId: null, hydrated: false });
+    useProjects.getState().hydrate();
+    const s = useProjects.getState();
     expect(s.projects.map((p) => p.id)).toEqual(["good"]);
-    // And it must not still point at the project that failed validation.
     expect(s.activeId).toBeNull();
   });
 
@@ -238,5 +256,47 @@ describe("authorship and by-id updates", () => {
     });
     const p = useProjects.getState().projects.find((x) => x.id === id)!;
     expect(p.repo?.url).toBe("https://github.com/linoxbt/tip-jar");
+  });
+});
+
+describe("a stored project with one bad field", () => {
+  it("keeps the project and drops only what is wrong", async () => {
+    const { repairProject } = await import("./projects");
+    const now = Date.now();
+    const repaired = repairProject({
+      id: "p1",
+      name: "Shop",
+      createdAt: now,
+      updatedAt: now,
+      files: { "index.html": "<h1>Shop</h1>" },
+      owner: "x".repeat(400),
+      turns: [
+        { role: "user", text: "build a shop" },
+        {
+          role: "assistant",
+          text: "Done.",
+          steps: [
+            {
+              tool: "screenshot",
+              title: "Took a screenshot",
+              shot: `data:image/jpeg;base64,${"A".repeat(200_000)}`,
+            },
+          ],
+        },
+        { role: "nobody", text: 1 },
+      ],
+    });
+    expect(repaired?.id).toBe("p1");
+    expect(repaired?.files["index.html"]).toBe("<h1>Shop</h1>");
+    expect(repaired?.turns).toHaveLength(2);
+    expect(repaired?.turns[1].steps?.[0].shot).toBeUndefined();
+    expect(repaired?.turns[1].steps?.[0].title).toBe("Took a screenshot");
+    expect(repaired?.owner).toBeUndefined();
+  });
+
+  it("gives up only when the project itself cannot be read", async () => {
+    const { repairProject } = await import("./projects");
+    expect(repairProject({ name: "no id" })).toBeNull();
+    expect(repairProject(null)).toBeNull();
   });
 });

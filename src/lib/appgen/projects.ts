@@ -19,9 +19,6 @@ import type { ChatMessage } from "@/lib/ai";
 import type { AgentQuestion } from "@/lib/coding-agent/steps";
 
 const STORAGE_KEY = "devstation-apps-v1";
-/** Projects retained. Each carries files and a transcript, and localStorage is
- *  a handful of megabytes, so this is generous rather than tight. */
-const MAX_PROJECTS = 40;
 
 /** A rendered chat turn. Mirrors the builder's own Turn, kept here so stored
  *  data has a real shape rather than `unknown[]`. */
@@ -39,6 +36,8 @@ export interface ProjectTurn {
   images?: string[];
   /** The decision an agent turn ended on, offered as choices to tap. */
   question?: AgentQuestion;
+  /** The person hid that question (they answer in their own words, or not). */
+  questionDismissed?: boolean;
 }
 
 /** The contract an app is wired to, if any. */
@@ -124,6 +123,7 @@ const turnSchema = z.object({
       multiSelect: z.boolean().optional(),
     })
     .optional(),
+  questionDismissed: z.boolean().optional(),
 });
 
 const messageSchema = z.object({
@@ -148,7 +148,7 @@ const projectSchema = z.object({
   turns: z.array(turnSchema).default([]),
   dist: z.record(z.string(), z.string()).nullable().optional(),
   liveUrl: z.string().max(300).nullable().optional(),
-  owner: z.string().max(100).nullable().optional(),
+  owner: z.string().max(320).nullable().optional(),
   repo: z
     .object({
       owner: z.string().max(120),
@@ -173,7 +173,7 @@ const projectSchema = z.object({
   role: z.enum(["owner", "builder"]).optional(),
   /** Emails of builders added from this browser, by account id, so the
    *  Share sheet can name them (the runner only knows the ids). */
-  builders: z.record(z.string().max(42), z.string().max(320)).optional(),
+  builders: z.record(z.string().max(100), z.string().max(320)).optional(),
 });
 
 interface ProjectsState {
@@ -219,7 +219,9 @@ export function defaultName(existing: AppProject[]): string {
  *  QIE amount input" becomes "Tip jar with a QIE amount input": far easier to
  *  find later than "Untitled app 3". */
 export function nameFromPrompt(prompt: string): string {
-  const cleaned = prompt
+  // The first line of a pasted brief, not every line run together.
+  const firstLine = prompt.trim().split(/\n/)[0] ?? "";
+  const cleaned = firstLine
     .replace(/\s+/g, " ")
     .trim()
     .replace(/^(please\s+)?(build|create|make|design|generate)\s+(me\s+)?(an?|the)?\s*/i, "");
@@ -248,6 +250,11 @@ function read(): { projects: AppProject[]; activeId: string | null } {
       for (const candidate of parsed.projects) {
         const result = projectSchema.safeParse(candidate);
         if (result.success) projects.push(result.data as AppProject);
+        else {
+          // One bad field never costs the whole project: keep what is valid.
+          const repaired = repairProject(candidate);
+          if (repaired) projects.push(repaired);
+        }
       }
     }
     const activeId = typeof parsed.activeId === "string" ? parsed.activeId : null;
@@ -259,6 +266,59 @@ function read(): { projects: AppProject[]; activeId: string | null } {
   } catch {
     return { projects: [], activeId: null };
   }
+}
+
+/**
+ * A stored project that failed validation, made valid by dropping only what
+ * is wrong: an oversized screenshot or picture, a malformed question, a turn
+ * that cannot be read, an optional field out of range. Null only when even
+ * its id, name and files cannot be read.
+ */
+export function repairProject(candidate: unknown): AppProject | null {
+  if (!candidate || typeof candidate !== "object") return null;
+  const raw = { ...(candidate as Record<string, unknown>) };
+  const turns = Array.isArray(raw.turns) ? raw.turns : [];
+  raw.turns = turns
+    .map((turn) => {
+      const ok = turnSchema.safeParse(turn);
+      if (ok.success) return ok.data;
+      if (!turn || typeof turn !== "object") return null;
+      const t = { ...(turn as Record<string, unknown>) };
+      delete t.images;
+      delete t.question;
+      if (Array.isArray(t.steps)) {
+        t.steps = t.steps.slice(-100).map((step) => {
+          if (!step || typeof step !== "object") return step;
+          const { shot: _shot, ...rest } = step as Record<string, unknown>;
+          return rest;
+        });
+      }
+      const again = turnSchema.safeParse(t);
+      if (again.success) return again.data;
+      delete t.steps;
+      const last = turnSchema.safeParse(t);
+      return last.success ? last.data : null;
+    })
+    .filter(Boolean);
+  for (const key of [
+    "owner",
+    "builders",
+    "repo",
+    "attached",
+    "source",
+    "liveUrl",
+    "dist",
+    "history",
+    "role",
+    "shared",
+  ]) {
+    const probe = projectSchema.safeParse(raw);
+    if (probe.success) return probe.data as AppProject;
+    const bad = probe.error.issues.some((issue) => issue.path[0] === key);
+    if (bad) delete raw[key];
+  }
+  const final = projectSchema.safeParse(raw);
+  return final.success ? (final.data as AppProject) : null;
 }
 
 /** Told when a save fails, so the UI can say so instead of quietly losing work. */
@@ -291,10 +351,30 @@ function write(projects: AppProject[], activeId: string | null): boolean {
       );
       return true;
     } catch {
-      onWriteError?.(
-        "Storage is full, so this could not be saved. Delete an app in My Apps to free space.",
-      );
-      return false;
+      // Then the screenshots kept in older conversations: the chat still
+      // says what was done, without the pictures.
+      const lighter = trimmed.map((p) => ({
+        ...p,
+        turns: p.turns.map((t, i) =>
+          p.id === newestId && i >= p.turns.length - 6
+            ? t
+            : {
+                ...t,
+                ...(t.steps ? { steps: t.steps.map(({ shot: _s, ...rest }) => rest) } : {}),
+                images: undefined,
+              },
+        ),
+      }));
+      try {
+        attempt(lighter);
+        onWriteError?.("Storage was full: older screenshots were cleared to make room.");
+        return true;
+      } catch {
+        onWriteError?.(
+          "Storage is full, so this could not be saved. Delete a project you no longer need (its ··· menu on the home screen) to free space.",
+        );
+        return false;
+      }
     }
   }
 }
@@ -329,7 +409,7 @@ export const useProjects = create<ProjectsState>((set, get) => ({
       // reassign authorship of work somebody else did.
       owner: owner ?? null,
     };
-    const next = [project, ...projects].slice(0, MAX_PROJECTS);
+    const next = [project, ...projects];
     set({ projects: next, activeId: id });
     write(next, id);
     return id;
@@ -351,7 +431,8 @@ export const useProjects = create<ProjectsState>((set, get) => ({
 
   remove: (id) => {
     const next = get().projects.filter((p) => p.id !== id);
-    const activeId = get().activeId === id ? (next[0]?.id ?? null) : get().activeId;
+    // Deleting the open project goes home, never into some other project.
+    const activeId = get().activeId === id ? null : get().activeId;
     set({ projects: next, activeId });
     write(next, activeId);
   },
@@ -393,7 +474,7 @@ export const useProjects = create<ProjectsState>((set, get) => ({
         ? { kind: "files", repo: from.source?.repo, ref: from.source?.ref }
         : (from.source ?? { kind: "blank" }),
     };
-    const next = [project, ...projects].slice(0, MAX_PROJECTS);
+    const next = [project, ...projects];
     set({ projects: next, activeId: project.id });
     write(next, project.id);
     return project.id;
