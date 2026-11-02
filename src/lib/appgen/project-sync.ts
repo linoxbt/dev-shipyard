@@ -77,7 +77,8 @@ async function gzip(text: string): Promise<string> {
   return btoa(binary);
 }
 
-async function gunzip(base64: string): Promise<string> {
+/** Text gzipped and base64-encoded, as the server stores it, unpacked. */
+export async function gunzip(base64: string): Promise<string> {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);

@@ -10,7 +10,8 @@ import { connectorEnvFor, listConnectors } from "@/lib/db/connectors.server";
 import { mintTurnPass } from "@/lib/db/turn-token.server";
 import { recordTurn } from "@/lib/db/turns.server";
 import { bumpMetric, dbConfigured, select } from "@/lib/db/admin.server";
-import { publishSite, siteUrl } from "@/lib/hosting/sites.server";
+import { publishSite, siteUrl, SITES_DOMAIN } from "@/lib/hosting/sites.server";
+import { waitForReach } from "@/lib/hosting/reach.server";
 import { isControlPath, looksLikeSecret } from "@/lib/agent/workspace";
 import { AUTO_MODEL, MODEL_IDS } from "@/lib/coding-agent/models";
 import { accountAddress } from "@/lib/auth/account.server";
@@ -665,10 +666,17 @@ export const Route = createFileRoute("/api/workspace")({
           });
           if (!published.ok) return fail("publish", published.message, 400);
           await bumpMetric("sites_published");
+          // Uploaded is not the same as reachable: open the address the way a
+          // visitor would and say whether it shows this deploy.
+          const reach = await waitForReach(`${published.site.slug}.${SITES_DOMAIN}`, {
+            slug: published.site.slug,
+            deploy: published.site.current_deploy,
+          }).catch(() => null);
           return Response.json({
             ok: true,
             site: published.site,
             url: siteUrl(published.site.slug),
+            reach,
           });
         }
 

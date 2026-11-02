@@ -9,7 +9,12 @@ import { CODING_AGENT_ONLY } from "@/lib/features";
 import { ago } from "@/lib/coding-agent/steps";
 import { cn } from "@/lib/utils";
 import { Dropdown, MenuItem, RoundButton } from "./primitives";
-import { ProjectThumb, TemplateThumb } from "./ProjectThumb";
+import { ProjectThumb, RemoteThumb, TemplateThumb } from "./ProjectThumb";
+import {
+  templateSnapshot,
+  useCommunityTemplates,
+  type CommunityTemplate,
+} from "@/lib/coding-agent/community-templates";
 
 // The first screen, laid out the way Base44 opens: a greeting, one big prompt,
 // and underneath it your work as large cards with a picture of each app, with
@@ -28,6 +33,7 @@ export function Landing({
   onRemix,
   onDelete,
   onTemplate,
+  onCommunityTemplate,
   onMenu,
   onNews,
   onAccount,
@@ -44,6 +50,7 @@ export function Landing({
   onRemix: (id: string) => void;
   onDelete: (id: string) => void;
   onTemplate: (t: AppTemplate) => void;
+  onCommunityTemplate: (t: CommunityTemplate) => void;
   onMenu: () => void;
   onNews: () => void;
   onAccount: () => void;
@@ -53,6 +60,7 @@ export function Landing({
 }) {
   const account = useAuth((s) => s.account);
   const recent = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
+  const community = useCommunityTemplates();
 
   return (
     <div data-agent-home className="h-full overflow-y-auto">
@@ -163,37 +171,81 @@ export function Landing({
           )
         ) : (
           <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
-            {APP_TEMPLATES.map((t) => (
-              // A card, not a <button>: its picture is a live frame, which may
-              // not sit inside a button.
-              <div
+            {community.map((t) => (
+              <TemplateCard
                 key={t.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => onTemplate(t)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onTemplate(t);
-                  }
-                }}
-                className="group cursor-pointer rounded-2xl text-left outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                aria-label={`Open the ${t.name} template`}
-              >
-                <div className="relative overflow-hidden rounded-2xl border border-border transition group-hover:border-primary/40">
-                  <TemplateThumb template={t} />
-                  <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-[11.5px] font-medium text-foreground opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100">
-                    Open <ArrowUpRight className="h-3 w-3" />
-                  </span>
-                </div>
-                <p className="mt-3 text-[15px] font-semibold text-foreground">{t.name}</p>
-                <p className="mt-0.5 text-[12.5px] leading-5 text-muted-foreground">{t.blurb}</p>
-              </div>
+                name={t.name}
+                blurb={t.blurb}
+                badge="Community"
+                onOpen={() => onCommunityTemplate(t)}
+                picture={
+                  <RemoteThumb
+                    name={t.name}
+                    cacheKey={`${t.id}:${t.version}`}
+                    load={() => templateSnapshot(t)}
+                  />
+                }
+              />
+            ))}
+            {APP_TEMPLATES.map((t) => (
+              <TemplateCard
+                key={t.id}
+                name={t.name}
+                blurb={t.blurb}
+                onOpen={() => onTemplate(t)}
+                picture={<TemplateThumb template={t} />}
+              />
             ))}
           </div>
         )}
         {footer && <div className="mt-12 flex justify-center">{footer}</div>}
       </section>
+    </div>
+  );
+}
+
+function TemplateCard({
+  name,
+  blurb,
+  badge,
+  picture,
+  onOpen,
+}: {
+  name: string;
+  blurb: string;
+  badge?: string;
+  picture: ReactNode;
+  onOpen: () => void;
+}) {
+  return (
+    // A card, not a <button>: its picture is a live frame, which may not sit
+    // inside a button.
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className="group cursor-pointer rounded-2xl text-left outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      aria-label={`Open the ${name} template`}
+    >
+      <div className="relative overflow-hidden rounded-2xl border border-border transition group-hover:border-primary/40">
+        {picture}
+        {badge && (
+          <span className="absolute left-2.5 top-2.5 rounded-full bg-background/90 px-2 py-0.5 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
+            {badge}
+          </span>
+        )}
+        <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-[11.5px] font-medium text-foreground opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100">
+          Open <ArrowUpRight className="h-3 w-3" />
+        </span>
+      </div>
+      <p className="mt-3 text-[15px] font-semibold text-foreground">{name}</p>
+      {blurb && <p className="mt-0.5 text-[12.5px] leading-5 text-muted-foreground">{blurb}</p>}
     </div>
   );
 }

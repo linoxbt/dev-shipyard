@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check,
   Copy,
@@ -79,6 +79,122 @@ async function api<T>(
   }
 }
 
+/** Whether the address opens the app (api/sites "reach"). */
+interface Reach {
+  host: string;
+  ok: boolean;
+  stage: "dns" | "elsewhere" | "tls" | "http" | "stale" | "live";
+  message: string;
+  checkedAt: string;
+}
+
+/** Stages that sort themselves out in a few minutes, worth checking again. */
+const SETTLING = new Set<Reach["stage"]>(["stale", "http", "tls"]);
+const RECHECK_MS = 10_000;
+const RECHECKS = 18;
+
+/**
+ * Whether one of a site's addresses opens it, looked at when the site loads
+ * and after each publish, and again every few seconds for a while when the
+ * answer is one that settles by itself (a new certificate, the old version
+ * still cached).
+ */
+function useReach(siteId: string | null, target: "site" | "domain", enabled: boolean) {
+  const [reach, setReach] = useState<Reach | null>(null);
+  const [checking, setChecking] = useState(false);
+  const left = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const check = useCallback(
+    async (again = RECHECKS) => {
+      if (!siteId) return null;
+      if (timer.current) clearTimeout(timer.current);
+      left.current = again;
+      setChecking(true);
+      const r = await api<{ reach: Reach }>("/api/sites", {
+        method: "POST",
+        body: JSON.stringify({ action: "reach", siteId, target }),
+      });
+      setChecking(false);
+      if (!r.ok) return null;
+      setReach(r.data.reach);
+      return r.data.reach;
+    },
+    [siteId, target],
+  );
+
+  /** Take a result found elsewhere (the publish itself checks once). */
+  const accept = useCallback((r: Reach | null) => {
+    left.current = RECHECKS;
+    setReach(r);
+  }, []);
+
+  useEffect(() => {
+    setReach(null);
+    if (enabled && siteId) void check();
+  }, [enabled, siteId, check]);
+
+  useEffect(() => {
+    if (!enabled || !reach || reach.ok || !SETTLING.has(reach.stage) || left.current <= 0) return;
+    timer.current = setTimeout(() => void check(left.current - 1), RECHECK_MS);
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, [reach, enabled, check]);
+
+  return { reach, checking, check, accept };
+}
+
+function ReachLine({
+  reach,
+  checking,
+  onCheck,
+}: {
+  reach: Reach | null;
+  checking: boolean;
+  onCheck: () => void;
+}) {
+  const settling = reach && !reach.ok && SETTLING.has(reach.stage);
+  return (
+    <div
+      className={cn(
+        "mt-2 flex items-start gap-2 rounded-lg px-3 py-2 text-[12.5px]",
+        !reach
+          ? "bg-surface-2 text-muted-foreground"
+          : reach.ok
+            ? "bg-success/10 text-success"
+            : settling
+              ? "bg-warning/10 text-warning"
+              : "bg-danger/10 text-danger",
+      )}
+      role="status"
+    >
+      {!reach || checking ? (
+        <LoaderCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" />
+      ) : reach.ok ? (
+        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      ) : (
+        <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      )}
+      <span className="min-w-0 flex-1">
+        {!reach
+          ? "Checking that the address opens your app…"
+          : reach.ok
+            ? `Reachable: ${reach.host} opens this version of your app.`
+            : reach.message}
+        {reach && settling && !checking && " Checking again shortly."}
+      </span>
+      <button
+        onClick={onCheck}
+        disabled={checking}
+        className="shrink-0 font-medium underline-offset-2 hover:underline disabled:opacity-60"
+      >
+        Check now
+      </button>
+    </div>
+  );
+}
+
 function PublishPage() {
   const ready = useAuth((s) => s.ready);
   const signedIn = useAuth((s) => !!s.account);
@@ -95,6 +211,12 @@ function PublishPage() {
   const [domain, setDomain] = useState("");
   const [status, setStatus] = useState<DomainStatus | null>(null);
   const [confirmDown, setConfirmDown] = useState(false);
+  const live = useReach(site?.id ?? null, "site", !!site);
+  const domainLive = useReach(
+    site?.id ?? null,
+    "domain",
+    !!site?.customDomain && !!site.domainVerified,
+  );
 
   useEffect(() => {
     useAuth.getState().init();
@@ -145,7 +267,7 @@ function PublishPage() {
   const publish = async () => {
     if (!workspace || !project) return;
     setBusy("publish");
-    const r = await api<{ site: SiteView; url: string }>("/api/workspace", {
+    const r = await api<{ site: SiteView; url: string; reach: Reach | null }>("/api/workspace", {
       method: "POST",
       body: JSON.stringify({
         action: "publish_site",
@@ -156,9 +278,25 @@ function PublishPage() {
     });
     setBusy(null);
     if (!r.ok) return void toast.error(r.message);
-    toast.success(site ? "Published again: the live app is up to date." : "Your app is live!");
     useProjects.getState().update(project.id, { liveUrl: r.data.url });
     await load();
+    // Uploaded is not reachable: say which it is.
+    const reach = r.data.reach;
+    live.accept(reach);
+    if (!reach) {
+      void live.check();
+      toast.success("Published. Checking that the address opens it…");
+    } else if (reach.ok) {
+      toast.success(
+        site
+          ? "Published again: the live app is up to date."
+          : `Your app is live at ${reach.host}.`,
+      );
+    } else if (SETTLING.has(reach.stage)) {
+      toast.message("Published. The address is not showing it yet; checking again shortly.");
+    } else {
+      toast.error(`Published, but ${reach.host} cannot be opened yet.`);
+    }
   };
 
   const checkDomain = async (say = true) => {
@@ -257,7 +395,19 @@ function PublishPage() {
             {site ? (
               <>
                 <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5">
-                  <span className="h-2 w-2 rounded-full bg-success" aria-hidden />
+                  <span
+                    className={cn(
+                      "h-2 w-2 rounded-full",
+                      !live.reach
+                        ? "bg-meta"
+                        : live.reach.ok
+                          ? "bg-success"
+                          : SETTLING.has(live.reach.stage)
+                            ? "bg-warning"
+                            : "bg-danger",
+                    )}
+                    aria-hidden
+                  />
                   <a
                     href={site.url}
                     target="_blank"
@@ -286,6 +436,11 @@ function PublishPage() {
                     Open <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 </div>
+                <ReachLine
+                  reach={live.reach}
+                  checking={live.checking}
+                  onCheck={() => void live.check()}
+                />
                 <p className="mt-2 text-[12px] text-meta">
                   {site.files} files · {(site.bytes / 1_000_000).toFixed(1)} MB
                   {site.deployedAt &&
@@ -384,6 +539,13 @@ function PublishPage() {
                       </span>
                     )}
                   </div>
+                  {site.domainVerified && (
+                    <ReachLine
+                      reach={domainLive.reach}
+                      checking={domainLive.checking}
+                      onCheck={() => void domainLive.check()}
+                    />
+                  )}
                   {!site.domainVerified && status && (
                     <>
                       <p className="mt-3 text-[12.5px] text-muted-foreground">

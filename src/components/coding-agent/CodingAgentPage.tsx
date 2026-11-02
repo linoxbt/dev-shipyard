@@ -30,6 +30,7 @@ import { BuildersDialog, GithubDialog } from "@/components/coding-agent/dialogs"
 import { AppDrawer } from "@/components/coding-agent/AppDrawer";
 import { AuthSheet } from "@/components/coding-agent/AuthSheet";
 import { templateFiles, type AppTemplate } from "@/lib/coding-agent/app-templates";
+import { templateSnapshot, type CommunityTemplate } from "@/lib/coding-agent/community-templates";
 import {
   connectError,
   fetchConnectors,
@@ -1172,6 +1173,23 @@ export function CodingAgentPage() {
     setPane("preview");
     toast.success(`${t.name} is now your project. Ask the agent to change anything.`);
   };
+  // One the community built, picked by an admin: its files and build are
+  // fetched, then it opens the same way.
+  const openCommunityTemplate = async (t: CommunityTemplate) => {
+    const loading = toast.loading(`Opening ${t.name}…`);
+    const snap = await templateSnapshot(t);
+    toast.dismiss(loading);
+    if (!snap || (!Object.keys(snap.files).length && !snap.dist)) {
+      toast.error(`${t.name} could not be opened just now. Try again in a moment.`);
+      return;
+    }
+    const store = useProjects.getState();
+    store.create(t.name, user);
+    store.save({ source: { kind: "files" }, files: snap.files, dist: snap.dist });
+    setTab("preview");
+    setPane("preview");
+    toast.success(`${t.name} is now your project. Ask the agent to change anything.`);
+  };
   const deleteProject = (id: string) => {
     const name = projects.find((p) => p.id === id)?.name;
     useProjects.getState().remove(id);
@@ -1297,6 +1315,7 @@ export function CodingAgentPage() {
           onRemix={remixProject}
           onDelete={deleteProject}
           onTemplate={openTemplate}
+          onCommunityTemplate={(t) => void openCommunityTemplate(t)}
           onMenu={() => setSheet("drawer")}
           onNews={openNews}
           onAccount={() => goTo("/account")}

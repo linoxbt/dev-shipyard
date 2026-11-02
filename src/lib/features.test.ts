@@ -24,6 +24,7 @@ describe("switchedOff", () => {
     for (const p of [
       "/docs/coding-agent",
       "/cookies",
+      "/admin/templates",
       "/docs/cli",
       "/docs/cli/install",
       "/api/workspace",
@@ -54,6 +55,8 @@ describe("the API in Coding-Agent-only mode", () => {
       "/api/oauth/railway/callback",
       "/api/access/session",
       "/api/admin/stats",
+      "/api/admin/templates",
+      "/api/templates",
       "/api/github/push",
       "/api/health",
       "/api/cron/sandboxes",

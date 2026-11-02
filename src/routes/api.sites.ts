@@ -15,6 +15,7 @@ import {
   unpublishSite,
   type Site,
 } from "@/lib/hosting/sites.server";
+import { checkReach } from "@/lib/hosting/reach.server";
 import { checkRateLimit } from "@/lib/rateLimit.server";
 
 // The signed-in account's published apps (publishing itself is
@@ -28,6 +29,8 @@ import { checkRateLimit } from "@/lib/rateLimit.server";
 // POST {action: "check_domain"} has its DNS been set up yet
 // POST {action: "remove_domain"}
 // POST {action: "unpublish"}    take a site down
+// POST {action: "reach"}        can the site be opened at its address (or its
+//                               own domain) right now, and if not, why
 
 const body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("check"), slug: z.string().trim().toLowerCase().max(60) }),
@@ -39,6 +42,11 @@ const body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("check_domain"), siteId: z.string().uuid() }),
   z.object({ action: z.literal("remove_domain"), siteId: z.string().uuid() }),
   z.object({ action: z.literal("unpublish"), siteId: z.string().uuid() }),
+  z.object({
+    action: z.literal("reach"),
+    siteId: z.string().uuid(),
+    target: z.enum(["site", "domain"]).default("site"),
+  }),
 ]);
 
 const view = (s: Site) => ({
@@ -117,6 +125,20 @@ export const Route = createFileRoute("/api/sites")({
           if (data.action === "unpublish") {
             await unpublishSite(site);
             return Response.json({ ok: true });
+          }
+
+          if (data.action === "reach") {
+            if (data.target === "domain" && !site.custom_domain) {
+              return fail("no_domain", "This site has no domain of its own.", 404);
+            }
+            const host =
+              data.target === "domain" ? site.custom_domain! : `${site.slug}.${SITES_DOMAIN}`;
+            const reach = await checkReach(
+              host,
+              { slug: site.slug, deploy: site.current_deploy },
+              { custom: data.target === "domain" },
+            );
+            return Response.json({ ok: true, reach }, { headers: { "cache-control": "no-store" } });
           }
 
           if (!customDomainsEnabled()) {

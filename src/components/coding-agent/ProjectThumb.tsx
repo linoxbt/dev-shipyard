@@ -5,6 +5,7 @@ import type { AppTemplate } from "@/lib/coding-agent/app-templates";
 import { localPreviewPlan } from "@/lib/appgen/local-preview";
 import { buildPreview } from "@/lib/appgen/preview";
 import { cn } from "@/lib/utils";
+import { useSnapshot, type TemplateSnapshot } from "@/lib/coding-agent/community-templates";
 
 // A project's card picture: its own app, rendered small, the way Base44's
 // cards show a screenshot of each app. Drawn only once the card scrolls into
@@ -77,14 +78,19 @@ export function TemplateThumb({
   );
 }
 
-export function ProjectThumb({ project, className }: { project: AppProject; className?: string }) {
-  const { ref, visible, scale } = useThumbBox();
-
+/** The bundle a set of files previews as, built only once `visible`. A
+ *  project's build wins; otherwise a static app's own files. */
+function usePreviewBundle(
+  files: Record<string, string> | null | undefined,
+  dist: Record<string, string> | null | undefined,
+  visible: boolean,
+) {
   const source = useMemo(() => {
-    if (project.dist && Object.keys(project.dist).length) return { files: project.dist, dir: "" };
-    const plan = localPreviewPlan(project.files);
-    return plan.kind === "static" ? { files: project.files, dir: plan.dir } : null;
-  }, [project.dist, project.files]);
+    if (dist && Object.keys(dist).length) return { files: dist, dir: "" };
+    if (!files) return null;
+    const plan = localPreviewPlan(files);
+    return plan.kind === "static" ? { files, dir: plan.dir } : null;
+  }, [dist, files]);
 
   const bundle = useMemo(() => {
     if (!visible || !source) return null;
@@ -95,7 +101,23 @@ export function ProjectThumb({ project, className }: { project: AppProject; clas
     }
   }, [visible, source]);
   useEffect(() => () => bundle?.revoke(), [bundle]);
+  return bundle;
+}
 
+function Placeholder({ icon: Icon, label }: { icon: typeof Box; label: string }) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[radial-gradient(80%_80%_at_30%_20%,color-mix(in_oklch,var(--primary)_16%,transparent),transparent)]">
+      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-surface text-muted-foreground shadow-sm">
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="font-mono text-[10px] text-meta">{label}</span>
+    </div>
+  );
+}
+
+export function ProjectThumb({ project, className }: { project: AppProject; className?: string }) {
+  const { ref, visible, scale } = useThumbBox();
+  const bundle = usePreviewBundle(project.files, project.dist, visible);
   const files = Object.keys(project.files).length;
   const Icon = project.source?.repo ? Code2 : files ? FileCode2 : Box;
 
@@ -107,15 +129,78 @@ export function ProjectThumb({ project, className }: { project: AppProject; clas
       {bundle ? (
         <ThumbFrame title={`${project.name} preview`} srcDoc={bundle.srcdoc} scale={scale} />
       ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[radial-gradient(80%_80%_at_30%_20%,color-mix(in_oklch,var(--primary)_16%,transparent),transparent)]">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-surface text-muted-foreground shadow-sm">
-            <Icon className="h-5 w-5" />
-          </span>
-          <span className="font-mono text-[10px] text-meta">
-            {project.source?.repo ?? `${files} file${files === 1 ? "" : "s"}`}
-          </span>
-        </div>
+        <Placeholder
+          icon={Icon}
+          label={project.source?.repo ?? `${files} file${files === 1 ? "" : "s"}`}
+        />
       )}
+    </div>
+  );
+}
+
+/**
+ * The picture of an app whose files are fetched when its card comes into
+ * view: a community template, or a project an admin is looking at. `load`
+ * fetches them (cached by `cacheKey`).
+ */
+export function RemoteThumb({
+  name,
+  load,
+  cacheKey,
+  className,
+}: {
+  name: string;
+  load: () => Promise<TemplateSnapshot | null>;
+  cacheKey: string;
+  className?: string;
+}) {
+  const { ref, visible, scale } = useThumbBox();
+  const snap = useSnapshot(visible ? load : null, cacheKey);
+  const bundle = usePreviewBundle(snap?.files, snap?.dist, visible && !!snap);
+
+  return (
+    <div
+      ref={ref}
+      className={cn("relative aspect-[16/10] overflow-hidden bg-surface-2", className)}
+    >
+      {bundle ? (
+        <ThumbFrame title={`${name} preview`} srcDoc={bundle.srcdoc} scale={scale} />
+      ) : snap === undefined ? (
+        <div className="ds-skeleton absolute inset-0" />
+      ) : (
+        <Placeholder
+          icon={snap && Object.keys(snap.files).length ? FileCode2 : Box}
+          label={snap ? `${Object.keys(snap.files).length} files, no preview` : "Not available"}
+        />
+      )}
+    </div>
+  );
+}
+
+/** An app running full size, for looking at it before choosing it. */
+export function SnapshotFrame({
+  name,
+  snap,
+  className,
+}: {
+  name: string;
+  snap: TemplateSnapshot;
+  className?: string;
+}) {
+  const bundle = usePreviewBundle(snap.files, snap.dist, true);
+  return bundle ? (
+    <iframe
+      title={`${name} preview`}
+      srcDoc={bundle.srcdoc}
+      sandbox="allow-scripts allow-forms allow-modals"
+      className={cn("h-full w-full border-0 bg-white", className)}
+    />
+  ) : (
+    <div className={cn("relative h-full w-full bg-surface-2", className)}>
+      <Placeholder
+        icon={FileCode2}
+        label={`${Object.keys(snap.files).length} files; this app needs a build to preview`}
+      />
     </div>
   );
 }

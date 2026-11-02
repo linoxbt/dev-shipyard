@@ -288,7 +288,9 @@ export async function publishSite(input: {
   if (!site) return { ok: false, message: "The site could not be created." };
   // Its own address on the Vercel project, so it gets a certificate of its
   // own (with a wildcard CNAME at the DNS host, no move of nameservers).
-  if (!existing) await registerSubdomain(input.slug).catch(() => undefined);
+  // Every publish, not only the first: one made before the API token was set
+  // gets its address now. Adding it again is harmless.
+  await registerSubdomain(input.slug).catch(() => undefined);
 
   const deploy = `${Date.now().toString(36)}${randomBytes(3).toString("hex")}`;
   // A few at a time: fast, without flooding storage.

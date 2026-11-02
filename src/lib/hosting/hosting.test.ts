@@ -145,6 +145,9 @@ describe("hosting", () => {
     expect(home.status).toBe(200);
     expect(home.headers.get("content-type")).toContain("text/html");
     expect(home.headers.get("cache-control")).toContain("must-revalidate");
+    // What the reachability check reads.
+    expect(home.headers.get("x-devstation-site")).toBe("warden");
+    expect(home.headers.get("x-devstation-deploy")).toBe("d1");
     expect(await home.text()).toContain("Warden");
 
     const js = await get("/assets/app-1a2b3c4d.js");

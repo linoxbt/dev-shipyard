@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  LayoutTemplate,
   BarChart3,
   BookOpen,
   ChevronRight,
@@ -145,7 +146,14 @@ function AccountPage() {
             />
             <Row icon={Plug} href={pageHref("/connections")} label="Connected accounts" />
             {access?.admin && (
-              <Row icon={BarChart3} href={pageHref("/admin/stats")} label="DevStation stats" />
+              <>
+                <Row icon={BarChart3} href={pageHref("/admin/stats")} label="DevStation stats" />
+                <Row
+                  icon={LayoutTemplate}
+                  href={pageHref("/admin/templates")}
+                  label="Community templates"
+                />
+              </>
             )}
           </section>
 

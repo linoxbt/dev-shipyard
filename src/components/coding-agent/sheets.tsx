@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
+  LayoutTemplate,
   BarChart3,
   BookOpen,
   Cookie,
@@ -126,9 +127,14 @@ export function AccountSheet({
         </SheetRow>
       )}
       {admin && (
-        <SheetRow icon={BarChart3} href="/admin/stats">
-          DevStation stats
-        </SheetRow>
+        <>
+          <SheetRow icon={BarChart3} href="/admin/stats">
+            DevStation stats
+          </SheetRow>
+          <SheetRow icon={LayoutTemplate} href="/admin/templates">
+            Community templates
+          </SheetRow>
+        </>
       )}
       <SheetRow
         icon={theme === "dark" ? Sun : Moon}

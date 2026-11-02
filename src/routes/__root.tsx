@@ -217,6 +217,7 @@ function RootComponent() {
     pathname.startsWith("/docs/") ||
     pathname === "/cookies" ||
     pathname === "/admin/stats" ||
+    pathname === "/admin/templates" ||
     pathname === "/credits" ||
     pathname === "/account" ||
     pathname === "/connections" ||

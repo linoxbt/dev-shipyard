@@ -24,6 +24,7 @@ import { Route as PublishRouteImport } from './routes/publish'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as UpdatesRouteImport } from './routes/updates'
 import { Route as AdminStatsRouteImport } from './routes/admin.stats'
+import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as ApiAccessRouteImport } from './routes/api.access'
 import { Route as ApiAccountRouteImport } from './routes/api.account'
 import { Route as ApiAgentRouteImport } from './routes/api.agent'
@@ -45,6 +46,7 @@ import { Route as ApiPublishRouteImport } from './routes/api.publish'
 import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
 import { Route as ApiSitesRouteImport } from './routes/api.sites'
 import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
+import { Route as ApiTemplatesRouteImport } from './routes/api.templates'
 import { Route as ApiWorkspaceRouteImport } from './routes/api.workspace'
 import { Route as DevAddressRouteImport } from './routes/dev.$address'
 import { Route as DocsIndexRouteImport } from './routes/docs.index'
@@ -81,6 +83,7 @@ import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
 import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
 import { Route as ApiAccessSessionRouteImport } from './routes/api.access.session'
 import { Route as ApiAdminStatsRouteImport } from './routes/api.admin.stats'
+import { Route as ApiAdminTemplatesRouteImport } from './routes/api.admin.templates'
 import { Route as ApiCronSandboxesRouteImport } from './routes/api.cron.sandboxes'
 import { Route as ApiGithubCallbackRouteImport } from './routes/api.github.callback'
 import { Route as ApiGithubPushRouteImport } from './routes/api.github.push'
@@ -196,6 +199,11 @@ const AdminStatsRoute = AdminStatsRouteImport.update({
   path: '/admin/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
+  id: '/admin/templates',
+  path: '/admin/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAccessRoute = ApiAccessRouteImport.update({
   id: '/api/access',
   path: '/api/access',
@@ -299,6 +307,11 @@ const ApiSitesRoute = ApiSitesRouteImport.update({
 const ApiSponsorTopupRoute = ApiSponsorTopupRouteImport.update({
   id: '/api/sponsor-topup',
   path: '/api/sponsor-topup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTemplatesRoute = ApiTemplatesRouteImport.update({
+  id: '/api/templates',
+  path: '/api/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWorkspaceRoute = ApiWorkspaceRouteImport.update({
@@ -479,6 +492,11 @@ const ApiAccessSessionRoute = ApiAccessSessionRouteImport.update({
 const ApiAdminStatsRoute = ApiAdminStatsRouteImport.update({
   id: '/api/admin/stats',
   path: '/api/admin/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminTemplatesRoute = ApiAdminTemplatesRouteImport.update({
+  id: '/api/admin/templates',
+  path: '/api/admin/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCronSandboxesRoute = ApiCronSandboxesRouteImport.update({
@@ -703,6 +721,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/updates': typeof UpdatesRoute
   '/admin/stats': typeof AdminStatsRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/api/access': typeof ApiAccessRouteWithChildren
   '/api/account': typeof ApiAccountRoute
   '/api/agent': typeof ApiAgentRoute
@@ -724,6 +743,7 @@ export interface FileRoutesByFullPath {
   '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sites': typeof ApiSitesRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
+  '/api/templates': typeof ApiTemplatesRoute
   '/api/workspace': typeof ApiWorkspaceRoute
   '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
@@ -760,6 +780,7 @@ export interface FileRoutesByFullPath {
   '/routebook/': typeof RoutebookIndexRoute
   '/api/access/session': typeof ApiAccessSessionRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
+  '/api/admin/templates': typeof ApiAdminTemplatesRoute
   '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
@@ -814,6 +835,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/updates': typeof UpdatesRoute
   '/admin/stats': typeof AdminStatsRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/api/access': typeof ApiAccessRouteWithChildren
   '/api/account': typeof ApiAccountRoute
   '/api/agent': typeof ApiAgentRoute
@@ -835,6 +857,7 @@ export interface FileRoutesByTo {
   '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sites': typeof ApiSitesRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
+  '/api/templates': typeof ApiTemplatesRoute
   '/api/workspace': typeof ApiWorkspaceRoute
   '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
@@ -869,6 +892,7 @@ export interface FileRoutesByTo {
   '/routebook': typeof RoutebookIndexRoute
   '/api/access/session': typeof ApiAccessSessionRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
+  '/api/admin/templates': typeof ApiAdminTemplatesRoute
   '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
@@ -926,6 +950,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/updates': typeof UpdatesRoute
   '/admin/stats': typeof AdminStatsRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/api/access': typeof ApiAccessRouteWithChildren
   '/api/account': typeof ApiAccountRoute
   '/api/agent': typeof ApiAgentRoute
@@ -947,6 +972,7 @@ export interface FileRoutesById {
   '/api/repo-agent': typeof ApiRepoAgentRoute
   '/api/sites': typeof ApiSitesRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
+  '/api/templates': typeof ApiTemplatesRoute
   '/api/workspace': typeof ApiWorkspaceRoute
   '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
@@ -983,6 +1009,7 @@ export interface FileRoutesById {
   '/routebook/': typeof RoutebookIndexRoute
   '/api/access/session': typeof ApiAccessSessionRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
+  '/api/admin/templates': typeof ApiAdminTemplatesRoute
   '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
   '/api/github/callback': typeof ApiGithubCallbackRoute
   '/api/github/push': typeof ApiGithubPushRoute
@@ -1041,6 +1068,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/updates'
     | '/admin/stats'
+    | '/admin/templates'
     | '/api/access'
     | '/api/account'
     | '/api/agent'
@@ -1062,6 +1090,7 @@ export interface FileRouteTypes {
     | '/api/repo-agent'
     | '/api/sites'
     | '/api/sponsor-topup'
+    | '/api/templates'
     | '/api/workspace'
     | '/dev/$address'
     | '/docs/ai'
@@ -1098,6 +1127,7 @@ export interface FileRouteTypes {
     | '/routebook/'
     | '/api/access/session'
     | '/api/admin/stats'
+    | '/api/admin/templates'
     | '/api/cron/sandboxes'
     | '/api/github/callback'
     | '/api/github/push'
@@ -1152,6 +1182,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/updates'
     | '/admin/stats'
+    | '/admin/templates'
     | '/api/access'
     | '/api/account'
     | '/api/agent'
@@ -1173,6 +1204,7 @@ export interface FileRouteTypes {
     | '/api/repo-agent'
     | '/api/sites'
     | '/api/sponsor-topup'
+    | '/api/templates'
     | '/api/workspace'
     | '/dev/$address'
     | '/docs/ai'
@@ -1207,6 +1239,7 @@ export interface FileRouteTypes {
     | '/routebook'
     | '/api/access/session'
     | '/api/admin/stats'
+    | '/api/admin/templates'
     | '/api/cron/sandboxes'
     | '/api/github/callback'
     | '/api/github/push'
@@ -1263,6 +1296,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/updates'
     | '/admin/stats'
+    | '/admin/templates'
     | '/api/access'
     | '/api/account'
     | '/api/agent'
@@ -1284,6 +1318,7 @@ export interface FileRouteTypes {
     | '/api/repo-agent'
     | '/api/sites'
     | '/api/sponsor-topup'
+    | '/api/templates'
     | '/api/workspace'
     | '/dev/$address'
     | '/docs/ai'
@@ -1320,6 +1355,7 @@ export interface FileRouteTypes {
     | '/routebook/'
     | '/api/access/session'
     | '/api/admin/stats'
+    | '/api/admin/templates'
     | '/api/cron/sandboxes'
     | '/api/github/callback'
     | '/api/github/push'
@@ -1377,6 +1413,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   UpdatesRoute: typeof UpdatesRoute
   AdminStatsRoute: typeof AdminStatsRoute
+  AdminTemplatesRoute: typeof AdminTemplatesRoute
   ApiAccessRoute: typeof ApiAccessRouteWithChildren
   ApiAccountRoute: typeof ApiAccountRoute
   ApiAgentRoute: typeof ApiAgentRoute
@@ -1398,6 +1435,7 @@ export interface RootRouteChildren {
   ApiRepoAgentRoute: typeof ApiRepoAgentRoute
   ApiSitesRoute: typeof ApiSitesRoute
   ApiSponsorTopupRoute: typeof ApiSponsorTopupRoute
+  ApiTemplatesRoute: typeof ApiTemplatesRoute
   ApiWorkspaceRoute: typeof ApiWorkspaceRoute
   DevAddressRoute: typeof DevAddressRoute
   LaunchkitAiRoute: typeof LaunchkitAiRoute
@@ -1411,6 +1449,7 @@ export interface RootRouteChildren {
   RoutebookLabelsRoute: typeof RoutebookLabelsRoute
   RoutebookIndexRoute: typeof RoutebookIndexRoute
   ApiAdminStatsRoute: typeof ApiAdminStatsRoute
+  ApiAdminTemplatesRoute: typeof ApiAdminTemplatesRoute
   ApiCronSandboxesRoute: typeof ApiCronSandboxesRoute
   ApiOauthProviderRoute: typeof ApiOauthProviderRouteWithChildren
   ApiPaymentsPaystackRoute: typeof ApiPaymentsPaystackRoute
@@ -1529,6 +1568,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/stats'
       fullPath: '/admin/stats'
       preLoaderRoute: typeof AdminStatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/templates': {
+      id: '/admin/templates'
+      path: '/admin/templates'
+      fullPath: '/admin/templates'
+      preLoaderRoute: typeof AdminTemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/access': {
@@ -1676,6 +1722,13 @@ declare module '@tanstack/react-router' {
       path: '/api/sponsor-topup'
       fullPath: '/api/sponsor-topup'
       preLoaderRoute: typeof ApiSponsorTopupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/templates': {
+      id: '/api/templates'
+      path: '/api/templates'
+      fullPath: '/api/templates'
+      preLoaderRoute: typeof ApiTemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/workspace': {
@@ -1928,6 +1981,13 @@ declare module '@tanstack/react-router' {
       path: '/api/admin/stats'
       fullPath: '/api/admin/stats'
       preLoaderRoute: typeof ApiAdminStatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/templates': {
+      id: '/api/admin/templates'
+      path: '/api/admin/templates'
+      fullPath: '/api/admin/templates'
+      preLoaderRoute: typeof ApiAdminTemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cron/sandboxes': {
@@ -2400,6 +2460,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   UpdatesRoute: UpdatesRoute,
   AdminStatsRoute: AdminStatsRoute,
+  AdminTemplatesRoute: AdminTemplatesRoute,
   ApiAccessRoute: ApiAccessRouteWithChildren,
   ApiAccountRoute: ApiAccountRoute,
   ApiAgentRoute: ApiAgentRoute,
@@ -2421,6 +2482,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRepoAgentRoute: ApiRepoAgentRoute,
   ApiSitesRoute: ApiSitesRoute,
   ApiSponsorTopupRoute: ApiSponsorTopupRoute,
+  ApiTemplatesRoute: ApiTemplatesRoute,
   ApiWorkspaceRoute: ApiWorkspaceRoute,
   DevAddressRoute: DevAddressRoute,
   LaunchkitAiRoute: LaunchkitAiRoute,
@@ -2434,6 +2496,7 @@ const rootRouteChildren: RootRouteChildren = {
   RoutebookLabelsRoute: RoutebookLabelsRoute,
   RoutebookIndexRoute: RoutebookIndexRoute,
   ApiAdminStatsRoute: ApiAdminStatsRoute,
+  ApiAdminTemplatesRoute: ApiAdminTemplatesRoute,
   ApiCronSandboxesRoute: ApiCronSandboxesRoute,
   ApiOauthProviderRoute: ApiOauthProviderRouteWithChildren,
   ApiPaymentsPaystackRoute: ApiPaymentsPaystackRoute,

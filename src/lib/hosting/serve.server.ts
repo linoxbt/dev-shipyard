@@ -35,7 +35,7 @@ export async function serveSite(site: Site, request: Request): Promise<Response>
   if (!site.current_deploy) {
     return new Response(NOT_PUBLISHED(escaped || site.slug), {
       status: 404,
-      headers: { "content-type": "text/html; charset=utf-8" },
+      headers: { "content-type": "text/html; charset=utf-8", "x-devstation-site": site.slug },
     });
   }
   let path = decodeURIComponent(new URL(request.url).pathname).replace(/^\/+/, "");
@@ -83,7 +83,11 @@ export async function serveSite(site: Site, request: Request): Promise<Response>
           : "public, max-age=3600",
       "x-content-type-options": "nosniff",
       "referrer-policy": "strict-origin-when-cross-origin",
+      // Which site and deploy answered: the reachability check
+      // (reach.server.ts) reads these to tell this address serves the
+      // latest publish.
       "x-devstation-site": site.slug,
+      "x-devstation-deploy": site.current_deploy ?? "",
     },
   });
 }

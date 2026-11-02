@@ -31,6 +31,7 @@ export function servedInAgentOnly(pathname: string): boolean {
     pathname === "/cookies" ||
     // The admins' figures (the page itself checks who is asking).
     pathname === "/admin/stats" ||
+    pathname === "/admin/templates" ||
     // Credit and usage, and a shared read-only copy of the figures.
     pathname === "/credits" ||
     // The account's own pages.
@@ -70,7 +71,8 @@ const AGENT_API = [
   /^\/api\/connectors$/,
   /^\/api\/oauth\/[a-z]+(\/callback)?$/,
   /^\/api\/metrics$/,
-  /^\/api\/admin\/stats$/,
+  /^\/api\/admin\/(stats|templates)$/,
+  /^\/api\/templates$/,
   /^\/api\/access(\/session)?$/,
   /^\/api\/github(\/callback|\/push)?$/,
   /^\/api\/health$/,
