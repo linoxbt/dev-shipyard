@@ -67,6 +67,19 @@ export async function insert(
   });
 }
 
+/** Insert one row and return it as stored (with its generated id). */
+export async function insertReturning<T = Record<string, unknown>>(
+  table: string,
+  row: Record<string, unknown>,
+): Promise<T | null> {
+  const rows = await call(table, {
+    method: "POST",
+    headers: { prefer: "return=representation" },
+    body: JSON.stringify(row),
+  });
+  return Array.isArray(rows) && rows.length ? (rows[0] as T) : null;
+}
+
 /** Change the rows matching a PostgREST filter; returns the rows changed. A
  *  filter on the old value makes it a compare-and-swap. */
 export async function update<T = Record<string, unknown>>(

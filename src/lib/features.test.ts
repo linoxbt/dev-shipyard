@@ -69,9 +69,17 @@ describe("the API in Coding-Agent-only mode", () => {
       "/api/listings",
       "/api/repo-agent",
       "/_serverFn/abc",
+      // The router ignores case and decodes the path: so must the list.
+      "/API/ai",
+      "/Api/Apps-Deploy",
+      "/%61pi/ai",
+      "/_SERVERFN/abc",
+      "/%5fserverFn/abc",
+      "/api/%E0%A4%A",
     ]) {
       expect(apiServedInAgentOnly(path, true)).toBe(false);
     }
+    expect(apiServedInAgentOnly("/API/workspace", true)).toBe(true);
     expect(apiServedInAgentOnly("/api/agent", false)).toBe(true);
   });
 });

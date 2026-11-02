@@ -874,10 +874,15 @@ async function route(
           plan: body.value.plan === true,
           images: cleanImages(body.value.images),
           // Connected accounts for this turn; only known variables survive,
-          // and only the owner's: a builder's tokens never go into a machine
-          // somebody else controls.
+          // only the owner's (a builder's tokens never go into a machine
+          // somebody else controls), and only while nobody else builds here:
+          // a builder's commands run as the same user in the same machine,
+          // where a process the owner's turn left running still holds them.
           env:
-            role === "owner" && body.value.env && typeof body.value.env === "object"
+            role === "owner" &&
+            !workspaceMembers(id)?.collaborators.length &&
+            body.value.env &&
+            typeof body.value.env === "object"
               ? connectorEnv(body.value.env as Record<string, string>)
               : undefined,
           proxy: proxyTarget(body.value.proxy),

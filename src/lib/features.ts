@@ -66,7 +66,25 @@ const AGENT_API = [
 /** Whether an API path or server function is served in Coding-Agent-only mode. */
 export function apiServedInAgentOnly(pathname: string, enabled = CODING_AGENT_ONLY): boolean {
   if (!enabled) return true;
-  if (pathname.startsWith("/_serverFn")) return false;
-  if (!pathname.startsWith("/api/") && pathname !== "/api") return true;
-  return AGENT_API.some((re) => re.test(pathname));
+  const path = routerPath(pathname);
+  if (path === null) return false;
+  if (path.startsWith("/_serverfn")) return false;
+  if (!path.startsWith("/api/") && path !== "/api") return true;
+  return AGENT_API.some((re) => re.test(path));
+}
+
+/**
+ * The path as the router matches it: without percent-encoding, repeated
+ * slashes or case. The router ignores case, so "/API/ai" reaches the /api/ai
+ * route; checked as sent, it would slip past a list of lower-case paths.
+ * null when it does not decode, which nothing serves.
+ */
+export function routerPath(pathname: string): string | null {
+  let path: string;
+  try {
+    path = decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
+  return path.replace(/\/{2,}/g, "/").toLowerCase();
 }

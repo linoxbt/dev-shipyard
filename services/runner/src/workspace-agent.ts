@@ -455,6 +455,14 @@ export function setCollaborator(
       };
     }
     s.collaborators = [...current, who];
+    // From now on the owner's turns carry no connected accounts (server.ts).
+    // Commands an earlier turn left running may still hold them, and the new
+    // builder's commands would run beside them: stop them all.
+    const executor = sessionExecutors.get(id);
+    if (executor) {
+      sessionExecutors.delete(id);
+      void executor.dispose().catch(() => undefined);
+    }
   } else if (!add) {
     s.collaborators = current.filter((c) => c !== who);
   }

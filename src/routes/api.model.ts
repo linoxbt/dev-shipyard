@@ -1,10 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { providerForModel, type ProviderMessage, type ProviderTool } from "@/lib/agent/providers";
+import {
+  providerForModel,
+  type ProviderMessage,
+  type ProviderTool,
+  type ProviderUsage,
+} from "@/lib/agent/providers";
 import { costOfUsage, ratesFor } from "@/lib/agent/pricing";
 import { isPremiumModel } from "@/lib/coding-agent/models";
 import { accessOf } from "@/lib/db/access.server";
-import { dbConfigured, insert } from "@/lib/db/admin.server";
+import { dbConfigured, insert, insertReturning, update } from "@/lib/db/admin.server";
 import { passFromRequest } from "@/lib/db/turn-token.server";
 import { checkRateLimit } from "@/lib/rateLimit.server";
 
@@ -36,6 +41,18 @@ const body = z.object({
 
 /** Calls one account may make in ten minutes: a turn takes at most 60 steps. */
 const CALLS_PER_WINDOW = 240;
+
+/** Premium calls one account may start in a minute. A turn makes one call at
+ *  a time, so this only bites calls fired side by side to outrun the balance. */
+const PREMIUM_CALLS_PER_MINUTE = 20;
+
+/** The longest answer a premium call may ask for. Each call is reserved
+ *  against the balance at this size before it starts. */
+const PREMIUM_MAX_TOKENS = 32_000;
+
+/** Tokens in a piece of text, roughly: for a charge when the provider's own
+ *  count never arrived (the call was cut off). */
+const tokensIn = (chars: number) => Math.ceil(chars / 4);
 
 const fail = (status: number, message: string) => Response.json({ ok: false, message }, { status });
 
@@ -70,6 +87,68 @@ export const Route = createFileRoute("/api/model")({
         const chosen = providerForModel(pass.model);
         if ("problem" in chosen) return fail(503, chosen.problem);
         const { provider } = chosen;
+        if (
+          premium &&
+          !(await checkRateLimit(`model-premium:${pass.owner}`, PREMIUM_CALLS_PER_MINUTE, 60_000))
+        ) {
+          return fail(429, "Too many premium model calls at once. Wait a moment.");
+        }
+
+        const maxTokens = premium
+          ? Math.min(parsed.data.maxTokens ?? PREMIUM_MAX_TOKENS, PREMIUM_MAX_TOKENS)
+          : parsed.data.maxTokens;
+        const rates = ratesFor(provider.model);
+        const inputTokens = tokensIn(
+          JSON.stringify([parsed.data.system, parsed.data.messages, parsed.data.tools]).length,
+        );
+        const row = (usage: ProviderUsage) => ({
+          cost_usd: Math.max(0, costOfUsage(usage, rates)),
+          input_tokens: usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens,
+          output_tokens: usage.outputTokens,
+        });
+        const usageRow = {
+          owner: pass.owner,
+          workspace: pass.workspace.slice(0, 120),
+          model: pass.model.slice(0, 60),
+          premium,
+        };
+
+        // A premium call is charged before it starts, at the most it can
+        // cost, and settled to what it did cost when it ends. Calls fired side
+        // by side each see the others' charges, and a call cut off midway
+        // keeps a charge: the provider bills it either way.
+        let reserved: number | null = null;
+        if (premium) {
+          if (!dbConfigured()) return fail(503, "Premium models need the database to be set up.");
+          try {
+            const held = await insertReturning<{ id: number }>("model_usage", {
+              ...usageRow,
+              ...row({
+                inputTokens,
+                outputTokens: maxTokens ?? PREMIUM_MAX_TOKENS,
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+              }),
+            });
+            reserved = held?.id ?? null;
+          } catch {
+            reserved = null;
+          }
+          if (reserved === null) {
+            return fail(503, "This call could not be metered just now. Try again in a moment.");
+          }
+        }
+        const settle = async (usage: ProviderUsage) => {
+          if (!dbConfigured()) return;
+          try {
+            if (reserved !== null) await update("model_usage", `id=eq.${reserved}`, row(usage));
+            else await insert("model_usage", { ...usageRow, ...row(usage) });
+          } catch (error) {
+            // A reservation that cannot be settled stays at its full size:
+            // the account is overcharged for one call, never undercharged.
+            console.error("model_usage write failed", error);
+          }
+        };
 
         const encoder = new TextEncoder();
         const abort = new AbortController();
@@ -84,32 +163,35 @@ export const Route = createFileRoute("/api/model")({
               }
             };
             const keepAlive = setInterval(() => send({ k: 1 }), 15_000);
+            let streamed = 0;
             try {
               const result = await provider.generate({
                 system: parsed.data.system,
                 messages: parsed.data.messages as unknown as ProviderMessage[],
                 tools: parsed.data.tools as ProviderTool[] | undefined,
-                maxTokens: parsed.data.maxTokens,
+                maxTokens,
                 signal: abort.signal,
-                onDelta: (chunk) => send({ d: chunk }),
+                onDelta: (chunk) => {
+                  streamed += chunk.length;
+                  send({ d: chunk });
+                },
               });
+              await settle(result.usage);
               const cost = costOfUsage(result.usage, ratesFor(result.model || provider.model));
-              if (dbConfigured()) {
-                await insert("model_usage", {
-                  owner: pass.owner,
-                  workspace: pass.workspace.slice(0, 120),
-                  model: pass.model.slice(0, 60),
-                  premium,
-                  cost_usd: Math.max(0, cost),
-                  input_tokens: result.usage.inputTokens,
-                  output_tokens: result.usage.outputTokens,
-                }).catch((error) => {
-                  // A lost row is lost revenue, never a lost answer.
-                  console.error("model_usage insert failed", error);
-                });
-              }
               send({ r: { ...result, usage: { ...result.usage, costUsd: cost } } });
             } catch (error) {
+              // Cut off by the caller, or failed after answering: charged as
+              // estimated from what was sent. A provider error before any
+              // answer (an outage, a refusal) is not billed, so costs nothing.
+              const charged = streamed > 0 || abort.signal.aborted;
+              if (charged || reserved !== null) {
+                await settle({
+                  inputTokens: charged ? inputTokens : 0,
+                  outputTokens: tokensIn(streamed),
+                  cacheReadTokens: 0,
+                  cacheWriteTokens: 0,
+                });
+              }
               send({
                 e: error instanceof Error ? error.message.slice(0, 500) : "The model call failed.",
               });

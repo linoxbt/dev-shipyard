@@ -17,6 +17,7 @@
 // 2. Security headers. Netlify's netlify.toml set them; Vercel (the default
 //    build preset) set none. Setting them here covers every host.
 
+import { routerPath } from "./features";
 import { hostKind } from "./site-hosts";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -66,7 +67,8 @@ export function requestProblem(request: Request, root?: string): GuardProblem | 
   // No Origin and no Sec-Fetch-Site is not a browser, and so carries no
   // visitor's cookies: nothing to forge.
 
-  const path = new URL(request.url).pathname;
+  // As the router reads it: "/API/x" and "/%61pi/x" reach /api/x too.
+  const path = routerPath(new URL(request.url).pathname) ?? "/api/";
   if (path.startsWith("/api/")) {
     // Decided from headers, not request.body: on the Node adapter body is a
     // stream object even when nothing was sent, which turned a bodyless POST

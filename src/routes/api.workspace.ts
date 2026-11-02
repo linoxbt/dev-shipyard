@@ -1,5 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { sandboxHostEnabled, sandboxRunner, splitId } from "@/lib/orchestrator/sandbox.server";
+import {
+  sandboxHostEnabled,
+  sandboxRunner,
+  splitId,
+  type TurnBody,
+} from "@/lib/orchestrator/sandbox.server";
 import { modelProblem } from "@/lib/db/access.server";
 import { connectorEnvFor } from "@/lib/db/connectors.server";
 import { mintTurnPass } from "@/lib/db/turn-token.server";
@@ -93,9 +98,19 @@ function runnerConfig() {
 async function runner(
   request: Request,
   path: string,
-  init: RequestInit & { owner?: string } = {},
+  init: RequestInit & { owner?: string; turn?: TurnBody } = {},
 ): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
-  if (!sandboxHostEnabled()) return httpRunner(request, path, init);
+  if (!sandboxHostEnabled()) {
+    // The separate runner is this site's own server, not a machine an agent
+    // runs in, so its record of owners and builders is trusted: it passes
+    // connected accounts on only to the owner's turns (services/runner).
+    const { turn, ...rest } = init;
+    return httpRunner(
+      request,
+      path,
+      turn ? { ...rest, body: await turn(init.owner ?? "", true) } : rest,
+    );
+  }
   const creating = path === "/agent/workspaces" && init.method === "POST";
   const id = decodeURIComponent(path.split("/")[3] ?? "");
   if (creating || splitId(id)) {
@@ -219,27 +234,34 @@ type Turn = { model?: string; mode?: "build" | "plan"; images?: string[] };
 /**
  * What the runner takes for one turn: the model and plan flag, the pictures,
  * who sent it, the pass its sandbox uses to reach a model through this site
- * (no model key ever enters a sandbox: api/model), and the sender's connected
- * accounts (the runner passes those on only when the sender owns the
- * workspace).
+ * (no model key ever enters a sandbox: api/model), and, only when the sender
+ * owns the project, their connected accounts.
+ *
+ * `payer` is the project's owner as this site recorded it. A builder's turn
+ * is paid by the owner: the machine is the owner's, so a pass in the
+ * builder's name would be one the owner's agent could take and spend.
  */
-async function turnPayload(
+function turnBody(
   request: Request,
-  owner: string,
+  sender: string,
   workspace: string,
-  turn: Turn,
-): Promise<Record<string, unknown>> {
-  const model = turn.model && turn.model !== AUTO_MODEL ? turn.model : AUTO_MODEL;
-  return {
-    ...(model !== AUTO_MODEL ? { model } : {}),
-    ...(turn.mode === "plan" ? { plan: true } : {}),
-    ...(turn.images?.length ? { images: turn.images } : {}),
-    by: owner,
-    proxy: {
-      url: `${new URL(request.url).origin}/api/model`,
-      token: mintTurnPass({ owner, workspace, model }),
-    },
-    env: await turnEnv(owner),
+  turn: Turn & { prompt?: string; context?: string },
+): TurnBody {
+  return async (payer, withAccounts) => {
+    const model = turn.model && turn.model !== AUTO_MODEL ? turn.model : AUTO_MODEL;
+    return JSON.stringify({
+      prompt: turn.prompt,
+      context: turn.context,
+      ...(model !== AUTO_MODEL ? { model } : {}),
+      ...(turn.mode === "plan" ? { plan: true } : {}),
+      ...(turn.images?.length ? { images: turn.images } : {}),
+      by: sender,
+      proxy: {
+        url: `${new URL(request.url).origin}/api/model`,
+        token: mintTurnPass({ owner: payer || sender, workspace, model }),
+      },
+      ...(withAccounts ? { env: await turnEnv(sender) } : {}),
+    });
   };
 }
 
@@ -342,11 +364,7 @@ async function create(
       {
         method: "POST",
         owner,
-        body: JSON.stringify({
-          prompt,
-          context,
-          ...(await turnPayload(request, owner, workspace.id, turn)),
-        }),
+        turn: turnBody(request, owner, workspace.id, { ...turn, prompt, context }),
       },
     );
     if (!sent.ok)
@@ -469,11 +487,7 @@ export const Route = createFileRoute("/api/workspace")({
             {
               method: "POST",
               owner,
-              body: JSON.stringify({
-                prompt: data.prompt,
-                context: data.context,
-                ...(await turnPayload(request, owner, data.id, data)),
-              }),
+              turn: turnBody(request, owner, data.id, data),
             },
           );
           if (sent.ok) {

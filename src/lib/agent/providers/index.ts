@@ -82,7 +82,12 @@ export function providerForModel(
   }
   const openRouter = env.OPENROUTER_API_KEY || env.AI_API_KEY;
   if (openRouter && model.openrouter) {
-    return { provider: new OpenRouterProvider(openRouter, model.openrouter) };
+    return {
+      provider: new OpenRouterProvider(openRouter, model.openrouter, {
+        // Overridable for tests against a stand-in server.
+        ...(env.OPENROUTER_BASE_URL ? { baseUrl: env.OPENROUTER_BASE_URL } : {}),
+      }),
+    };
   }
   return {
     problem: `${model.label} is not available right now: it needs ${

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { routeOf, sandboxHostEnabled, sandboxRunner, splitId } from "./sandbox.server";
+import {
+  ownerOfSandbox,
+  routeOf,
+  sandboxHostEnabled,
+  sandboxRunner,
+  splitId,
+} from "./sandbox.server";
 
 describe("the sandbox orchestrator", () => {
   it("is the default agent host, and AGENT_HOST=runner turns it off", () => {
@@ -39,5 +45,17 @@ describe("routeOf", () => {
     expect(routeOf(`/agent/workspaces/${id}/shot/../../etc`)).toBeNull();
     expect(routeOf(`/agent/workspaces/not-a-sandbox/files`)).toBeNull();
     expect(routeOf(`/agent/workspaces/%E0%A4%A`)).toBeNull();
+  });
+});
+
+describe("ownerOfSandbox", () => {
+  it("reads only an account id this site wrote, never anything else", () => {
+    const id = `0x${"a".repeat(40)}`;
+    expect(ownerOfSandbox({ app: "devstation", owner: id })).toBe(id);
+    // A project made before owners were recorded: nobody is the owner, so
+    // nobody's connected accounts go in.
+    expect(ownerOfSandbox({ app: "devstation" })).toBeNull();
+    expect(ownerOfSandbox(undefined)).toBeNull();
+    expect(ownerOfSandbox({ owner: "someone" })).toBeNull();
   });
 });

@@ -270,27 +270,54 @@ export function routeOf(
 }
 
 /**
+ * Writes a turn's body once the project's owner is known: `payer` is whose
+ * plan pays for its model calls, `withAccounts` whether the sender's
+ * connected accounts may go in.
+ */
+export type TurnBody = (payer: string, withAccounts: boolean) => Promise<string>;
+
+/**
+ * The project's owner as this site recorded it when it made the machine, or
+ * null for a machine made before owners were recorded. Never read from the
+ * machine: its owner's agent runs there and could answer anything.
+ */
+export function ownerOfSandbox(tags: Record<string, string> | undefined): string | null {
+  const owner = tags?.owner;
+  return owner && /^0x[0-9a-f]{40}$/.test(owner) ? owner : null;
+}
+
+/**
  * The runner contract (POST /agent/workspaces, /agent/workspaces/:id/...),
  * answered by the project's own sandbox.
  */
 export async function sandboxRunner(
   path: string,
-  init: RequestInit & { owner?: string },
+  init: RequestInit & { owner?: string; turn?: TurnBody },
   caller: string,
 ): Promise<RunnerReply> {
   try {
     if (path === "/agent/workspaces" && init.method === "POST") {
       const name = `ds-${randomBytes(8).toString("hex")}`;
-      const sandbox = await Sandbox.create({
+      const options = {
         name,
         persistent: true,
         timeout: timeoutMs(),
         ports: [PORT],
         resources: { vcpus: 2 },
-        tags: { app: "devstation" },
+        // Who owns the project, kept where only this site can write it: the
+        // machine itself belongs to that person's agent, so what its server
+        // says about ownership is not evidence (see ownerOfSandbox).
+        tags: { app: "devstation", ...(init.owner ? { owner: init.owner.toLowerCase() } : {}) },
         // Only the latest snapshot is kept, for 60 days: storage stays bounded
         // and an abandoned project expires (api/cron/sandboxes deletes it).
         keepLastSnapshots: { count: 1, expiration: SNAPSHOT_MS, deleteEvicted: true },
+      };
+      const sandbox = await Sandbox.create(options).catch((error: unknown) => {
+        // A tag the platform will not take must not cost the person their
+        // project: without it, the project simply never receives connected
+        // accounts (ownerOfSandbox answers null).
+        if (!init.owner || !/tag/i.test(String((error as Error)?.message ?? ""))) throw error;
+        return Sandbox.create({ ...options, tags: { app: "devstation" } });
       });
       try {
         const token = randomBytes(32).toString("hex");
@@ -331,6 +358,15 @@ export async function sandboxRunner(
       sandbox = await Sandbox.get({ name: ids.name, resume: true });
     }
     const token = await tokenOf(sandbox, ids.name);
+    if (init.turn) {
+      // The turn is written now, against the owner this site recorded.
+      const owner = ownerOfSandbox(sandbox.tags);
+      const sender = (init.owner ?? "").toLowerCase();
+      init = {
+        ...init,
+        body: await init.turn(owner ?? sender, owner !== null && owner === sender),
+      };
+    }
     const inner = `/agent/workspaces/${encodeURIComponent(ids.inner)}${action}${tail}`;
     const startsWork = init.method === "POST" && (action === "/messages" || action === "/preview");
     const base = await ready(sandbox, token, {
