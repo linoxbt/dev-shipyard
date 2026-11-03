@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useUpdateCheck } from "@/hooks/useUpdateCheck";
 import {
   Outlet,
   createRootRouteWithContext,
@@ -237,6 +238,9 @@ function RootComponent() {
   useEffect(() => {
     hydrateTheme();
   }, [hydrateTheme]);
+
+  // A tab open across a deploy moves onto the new code.
+  useUpdateCheck();
 
   // Register the service worker so the app is installable ("Add to Home Screen").
   useEffect(() => {

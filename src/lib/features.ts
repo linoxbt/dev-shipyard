@@ -80,6 +80,7 @@ const AGENT_API = [
   /^\/api\/access(\/session)?$/,
   /^\/api\/github(\/callback|\/push)?$/,
   /^\/api\/health$/,
+  /^\/api\/version$/,
   /^\/api\/cron\/sandboxes$/,
 ];
 

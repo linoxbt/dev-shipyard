@@ -55,7 +55,7 @@ describe("custom domain DNS", () => {
     expect(d.owned).toBe(true);
     expect(d.pointed).toBe(false);
     expect(d.problems).toHaveLength(1);
-    expect(d.problems[0]).toContain("Remove the other A record for @ (162.255.119.121)");
+    expect(d.problems[0]).toContain('Delete the "URL Redirect Record" for @ at Namecheap');
   });
 
   it("says what is missing or wrong", async () => {

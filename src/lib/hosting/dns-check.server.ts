@@ -208,8 +208,13 @@ export async function diagnose(
         pointed = others.length === 0 && six.length === 0;
       }
       if (ours.length && others.length) {
+        // 162.255.119.x is what Namecheap's own redirect and parking answer
+        // with: it does not show as an A record there, so name the real row.
+        const namecheap = others.some((ip) => /^162\.255\.119\.\d+$/.test(ip));
         problems.push(
-          `Remove the other A record for ${r.host} (${others.join(", ")}). With two, some visitors are sent there instead of your app. On Namecheap this is usually the parking page or a URL Redirect record, under Advanced DNS.`,
+          namecheap
+            ? `Delete the "URL Redirect Record" for ${r.host} at Namecheap (Domain List, Manage, Advanced DNS, Host Records). It is Namecheap's redirect, answering with ${others.join(", ")} beside your A record, so some visitors get Namecheap's page instead of your app. Keep only the A record ${r.value}.`
+            : `Remove the other A record for ${r.host} (${others.join(", ")}). With two, some visitors are sent there instead of your app.`,
         );
       }
       if (six.length) {

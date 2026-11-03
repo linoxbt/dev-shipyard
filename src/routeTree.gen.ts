@@ -51,6 +51,7 @@ import { Route as ApiRepoAgentRouteImport } from './routes/api.repo-agent'
 import { Route as ApiSitesRouteImport } from './routes/api.sites'
 import { Route as ApiSponsorTopupRouteImport } from './routes/api.sponsor-topup'
 import { Route as ApiTemplatesRouteImport } from './routes/api.templates'
+import { Route as ApiVersionRouteImport } from './routes/api.version'
 import { Route as ApiWorkspaceRouteImport } from './routes/api.workspace'
 import { Route as DevAddressRouteImport } from './routes/dev.$address'
 import { Route as DocsIndexRouteImport } from './routes/docs.index'
@@ -338,6 +339,11 @@ const ApiSponsorTopupRoute = ApiSponsorTopupRouteImport.update({
 const ApiTemplatesRoute = ApiTemplatesRouteImport.update({
   id: '/api/templates',
   path: '/api/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVersionRoute = ApiVersionRouteImport.update({
+  id: '/api/version',
+  path: '/api/version',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWorkspaceRoute = ApiWorkspaceRouteImport.update({
@@ -784,6 +790,7 @@ export interface FileRoutesByFullPath {
   '/api/sites': typeof ApiSitesRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/api/templates': typeof ApiTemplatesRoute
+  '/api/version': typeof ApiVersionRoute
   '/api/workspace': typeof ApiWorkspaceRoute
   '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
@@ -904,6 +911,7 @@ export interface FileRoutesByTo {
   '/api/sites': typeof ApiSitesRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/api/templates': typeof ApiTemplatesRoute
+  '/api/version': typeof ApiVersionRoute
   '/api/workspace': typeof ApiWorkspaceRoute
   '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
@@ -1025,6 +1033,7 @@ export interface FileRoutesById {
   '/api/sites': typeof ApiSitesRoute
   '/api/sponsor-topup': typeof ApiSponsorTopupRoute
   '/api/templates': typeof ApiTemplatesRoute
+  '/api/version': typeof ApiVersionRoute
   '/api/workspace': typeof ApiWorkspaceRoute
   '/dev/$address': typeof DevAddressRoute
   '/docs/ai': typeof DocsAiRoute
@@ -1149,6 +1158,7 @@ export interface FileRouteTypes {
     | '/api/sites'
     | '/api/sponsor-topup'
     | '/api/templates'
+    | '/api/version'
     | '/api/workspace'
     | '/dev/$address'
     | '/docs/ai'
@@ -1269,6 +1279,7 @@ export interface FileRouteTypes {
     | '/api/sites'
     | '/api/sponsor-topup'
     | '/api/templates'
+    | '/api/version'
     | '/api/workspace'
     | '/dev/$address'
     | '/docs/ai'
@@ -1389,6 +1400,7 @@ export interface FileRouteTypes {
     | '/api/sites'
     | '/api/sponsor-topup'
     | '/api/templates'
+    | '/api/version'
     | '/api/workspace'
     | '/dev/$address'
     | '/docs/ai'
@@ -1512,6 +1524,7 @@ export interface RootRouteChildren {
   ApiSitesRoute: typeof ApiSitesRoute
   ApiSponsorTopupRoute: typeof ApiSponsorTopupRoute
   ApiTemplatesRoute: typeof ApiTemplatesRoute
+  ApiVersionRoute: typeof ApiVersionRoute
   ApiWorkspaceRoute: typeof ApiWorkspaceRoute
   DevAddressRoute: typeof DevAddressRoute
   LaunchkitAiRoute: typeof LaunchkitAiRoute
@@ -1835,6 +1848,13 @@ declare module '@tanstack/react-router' {
       path: '/api/templates'
       fullPath: '/api/templates'
       preLoaderRoute: typeof ApiTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/version': {
+      id: '/api/version'
+      path: '/api/version'
+      fullPath: '/api/version'
+      preLoaderRoute: typeof ApiVersionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/workspace': {
@@ -2607,6 +2627,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSitesRoute: ApiSitesRoute,
   ApiSponsorTopupRoute: ApiSponsorTopupRoute,
   ApiTemplatesRoute: ApiTemplatesRoute,
+  ApiVersionRoute: ApiVersionRoute,
   ApiWorkspaceRoute: ApiWorkspaceRoute,
   DevAddressRoute: DevAddressRoute,
   LaunchkitAiRoute: LaunchkitAiRoute,
