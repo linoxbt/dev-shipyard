@@ -43,10 +43,17 @@ describe("routeOf", () => {
     expect(routeOf(`/agent/workspaces/${id}/preview?all=1`)?.search).toBe("?all=1");
     expect(routeOf(`/agent/workspaces/${id}/preview?x=<b>`)?.search).toBe("");
     expect(routeOf(`/agent/workspaces/${id}`)?.action).toBe("");
+    expect(routeOf(`/agent/workspaces/${id}/media/media-mvw42o5uab12`)).toMatchObject({
+      action: "/media",
+      tail: "/media-mvw42o5uab12",
+    });
   });
   it("refuses anything else", () => {
     expect(routeOf(`/agent/workspaces/${id}/messages/shot-a-1`)).toBeNull();
     expect(routeOf(`/agent/workspaces/${id}/shot/../../etc`)).toBeNull();
+    expect(routeOf(`/agent/workspaces/${id}/shot/media-mvw42o5uab12`)).toBeNull();
+    expect(routeOf(`/agent/workspaces/${id}/media/shot-a-1`)).toBeNull();
+    expect(routeOf(`/agent/workspaces/${id}/media/media-x`)).toBeNull();
     expect(routeOf(`/agent/workspaces/not-a-sandbox/files`)).toBeNull();
     expect(routeOf(`/agent/workspaces/%E0%A4%A`)).toBeNull();
   });

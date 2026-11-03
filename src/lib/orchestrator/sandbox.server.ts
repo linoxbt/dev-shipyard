@@ -54,6 +54,14 @@ export interface RunnerReply {
   ok: boolean;
   status: number;
   body: Record<string, unknown>;
+  /** The answer itself, unread, when it was asked for `raw` (a media file). */
+  response?: Response;
+}
+
+/** What a request may add for a raw answer: its byte range. */
+export interface RawInit {
+  raw?: boolean;
+  range?: string;
 }
 
 /** The agent runs in Vercel Sandbox unless AGENT_HOST=runner points it at a
@@ -224,10 +232,10 @@ async function forward(
   base: string,
   token: string,
   path: string,
-  init: RequestInit & { owner?: string },
+  init: RequestInit & { owner?: string } & RawInit,
   caller: string,
 ): Promise<RunnerReply> {
-  const { owner, ...rest } = init;
+  const { owner, raw, range, ...rest } = init;
   const res = await fetch(`${base}${path}`, {
     ...rest,
     headers: {
@@ -235,9 +243,12 @@ async function forward(
       authorization: `Bearer ${token}`,
       "x-devstation-caller": caller,
       ...(owner ? { "x-devstation-owner": owner } : {}),
+      ...(range ? { range } : {}),
     },
     signal: AbortSignal.timeout(60_000),
   });
+  // A media file is passed on as it streams, unless it is an error.
+  if (raw && res.ok) return { ok: true, status: res.status, body: {}, response: res };
   const body = ((await res.json().catch(() => null)) ?? {}) as Record<string, unknown>;
   return { ok: res.ok, status: res.status, body };
 }
@@ -272,7 +283,7 @@ function sandboxProblem(error: unknown): RunnerReply {
 }
 
 /** A workspace path: the sandbox and inner id, the action, and for a
- *  screenshot its name. Null for anything else. */
+ *  screenshot or a shared file its name. Null for anything else. */
 export function routeOf(
   path: string,
 ): { ids: { name: string; inner: string }; action: string; tail: string; search: string } | null {
@@ -280,7 +291,9 @@ export function routeOf(
   // Only a plain query (?all=1) is carried through; anything odd is dropped.
   const search = q >= 0 && /^\?[A-Za-z0-9_=&-]{1,200}$/.test(path.slice(q)) ? path.slice(q) : "";
   if (q >= 0) path = path.slice(0, q);
-  const match = path.match(/^\/agent\/workspaces\/([^/]+)(\/[a-z_]+)?(\/shot-[a-z0-9]+-\d+)?$/);
+  const match = path.match(
+    /^\/agent\/workspaces\/([^/]+)(\/[a-z_]+)?(\/shot-[a-z0-9]+-\d+|\/media-[a-z0-9]{6,40})?$/,
+  );
   if (!match) return null;
   let id: string;
   try {
@@ -291,7 +304,8 @@ export function routeOf(
   const ids = splitId(id);
   const action = match[2] ?? "";
   const tail = match[3] ?? "";
-  if (!ids || (tail && action !== "/shot")) return null;
+  if (!ids) return null;
+  if (tail && action !== (tail.startsWith("/shot-") ? "/shot" : "/media")) return null;
   return { ids, action, tail, search };
 }
 
@@ -357,12 +371,13 @@ export async function adoptLegacyOwner(
  */
 export async function sandboxRunner(
   path: string,
-  init: RequestInit & {
-    owner?: string;
-    turn?: TurnBody;
-    /** The sender's own session (signed by this site) lists this workspace. */
-    claimed?: boolean;
-  },
+  init: RequestInit &
+    RawInit & {
+      owner?: string;
+      turn?: TurnBody;
+      /** The sender's own session (signed by this site) lists this workspace. */
+      claimed?: boolean;
+    },
   caller: string,
 ): Promise<RunnerReply> {
   try {

@@ -3,8 +3,11 @@ import {
   sandboxHostEnabled,
   sandboxRunner,
   splitId,
+  type RawInit,
+  type RunnerReply,
   type TurnBody,
 } from "@/lib/orchestrator/sandbox.server";
+import { mediaRange, MEDIA_CHUNK } from "@/lib/coding-agent/media-range";
 import { modelProblem } from "@/lib/db/access.server";
 import { connectorEnvFor, listConnectors } from "@/lib/db/connectors.server";
 import { mintTurnPass } from "@/lib/db/turn-token.server";
@@ -102,8 +105,8 @@ function runnerConfig() {
 async function runner(
   request: Request,
   path: string,
-  init: RequestInit & { owner?: string; turn?: TurnBody; claimed?: boolean } = {},
-): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
+  init: RequestInit & RawInit & { owner?: string; turn?: TurnBody; claimed?: boolean } = {},
+): Promise<RunnerReply> {
   if (!sandboxHostEnabled()) {
     // The separate runner is this site's own server, not a machine an agent
     // runs in, so its record of owners and builders is trusted: it passes
@@ -126,27 +129,85 @@ async function runner(
 async function httpRunner(
   request: Request,
   path: string,
-  init: RequestInit & { owner?: string } = {},
-): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
+  init: RequestInit & RawInit & { owner?: string } = {},
+): Promise<RunnerReply> {
   const { url, token } = runnerConfig();
   if (!url || !token) {
     return { ok: false, status: 503, body: { message: "The agent service is not configured." } };
   }
   try {
+    const { raw, range, ...rest } = init;
     const res = await fetch(`${url}${path}`, {
-      ...init,
+      ...rest,
       headers: {
         "content-type": "application/json",
         authorization: `Bearer ${token}`,
         "x-devstation-caller": clientKeyFromRequest(request),
         ...(init.owner ? { "x-devstation-owner": init.owner } : {}),
+        ...(range ? { range } : {}),
       },
     });
+    if (raw && res.ok) return { ok: true, status: res.status, body: {}, response: res };
     const body = ((await res.json().catch(() => null)) ?? {}) as Record<string, unknown>;
     return { ok: res.ok, status: res.status, body };
   } catch {
     return { ok: false, status: 502, body: { message: "The agent service could not be reached." } };
   }
+}
+
+/**
+ * A file the agent shared in the chat, streamed from the project's machine.
+ * A function's answer is capped at about 4.5 MB, so each answer carries at
+ * most MEDIA_CHUNK bytes: a video or audio player asks for the next range by
+ * itself, and a download is put together from ranges in the browser.
+ */
+async function mediaResponse(
+  request: Request,
+  id: string,
+  owner: string,
+  media: string,
+): Promise<Response> {
+  if (!/^media-[a-z0-9]{6,40}$/.test(media)) {
+    return fail("not_found", "That file is no longer here.", 404);
+  }
+  const asked = request.headers.get("range");
+  const range = mediaRange(asked);
+  if (!range) return fail("bad_range", "That byte range cannot be served.", 416);
+  const result = await runner(
+    request,
+    `/agent/workspaces/${encodeURIComponent(id)}/media/${media}`,
+    { owner, raw: true, range },
+  );
+  const res = result.response;
+  if (!res?.body) return Response.json(result.body, { status: result.status });
+  const headers = new Headers({
+    "content-type": res.headers.get("content-type") ?? "application/octet-stream",
+    "accept-ranges": "bytes",
+    // A shared file never changes under its id.
+    "cache-control": "private, max-age=86400",
+    "x-content-type-options": "nosniff",
+    "x-media-name": res.headers.get("x-media-name") ?? "",
+  });
+  // Opened on its own (an SVG, say), a file runs nothing on this site. A PDF
+  // is left to the browser's viewer, which a sandbox (or the site's own
+  // object-src 'none') would turn off.
+  headers.set(
+    "content-security-policy",
+    /^application\/pdf\b/.test(headers.get("content-type") ?? "")
+      ? "frame-ancestors 'none'"
+      : "sandbox; default-src 'none'; style-src 'unsafe-inline'",
+  );
+  const length = res.headers.get("content-length");
+  if (length) headers.set("content-length", length);
+  const contentRange = res.headers.get("content-range");
+  const total = Number(contentRange?.split("/")[1]);
+  // Asked for the whole file and it fit in one answer: say so plainly, so an
+  // <img> or a plain link gets an ordinary 200.
+  if (!asked && res.status === 206 && Number.isFinite(total) && total <= MEDIA_CHUNK) {
+    return new Response(res.body, { status: 200, headers });
+  }
+  if (contentRange) headers.set("content-range", contentRange);
+  return new Response(res.body, { status: res.status, headers });
 }
 
 const filesSchema = z.record(z.string().max(400), z.string());
@@ -457,6 +518,8 @@ export const Route = createFileRoute("/api/workspace")({
         ) {
           return fail("rate_limited", "Too many requests. Wait a moment.", 429);
         }
+        const media = url.searchParams.get("media");
+        if (media) return mediaResponse(request, id, owner, media);
         const members = url.searchParams.get("members");
         const shot = url.searchParams.get("shot");
         const suffix = shot

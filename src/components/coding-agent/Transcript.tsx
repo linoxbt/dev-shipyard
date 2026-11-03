@@ -17,6 +17,7 @@ import {
   Globe,
   ListChecks,
   LoaderCircle,
+  Paperclip,
   Search,
   SquareTerminal,
   TriangleAlert,
@@ -44,6 +45,7 @@ import { splitSuggestions } from "@/lib/coding-agent/suggestions";
 import { cn } from "@/lib/utils";
 import { Markdown } from "./Markdown";
 import { ShotThumb } from "./ShotThumb";
+import { MediaCard } from "./MediaCard";
 import { Dropdown, MenuItem } from "./primitives";
 
 // The conversation, laid out the way the Claude app shows its work: what you
@@ -66,6 +68,7 @@ const ICON: Record<ToolKind, React.ComponentType<{ className?: string }>> = {
   wallet: Wallet,
   chain: Blocks,
   browser: Camera,
+  share: Paperclip,
   other: Wrench,
 };
 
@@ -335,6 +338,7 @@ function WorkRow({ groups, current }: { groups: WorkGroup[]; current?: boolean }
   const running = steps.find((s) => s.status === "running");
   const failed = steps.filter((s) => s.status === "failed").length;
   const shots = steps.filter((s) => s.shot);
+  const shared = steps.filter((s) => s.media);
   return (
     <div>
       <button
@@ -366,6 +370,13 @@ function WorkRow({ groups, current }: { groups: WorkGroup[]; current?: boolean }
         <div className="mt-2 flex flex-wrap gap-2">
           {shots.map((s) => (
             <ShotThumb key={s.id} shot={s.shot!} label={s.title} />
+          ))}
+        </div>
+      )}
+      {shared.length > 0 && (
+        <div className="mt-2.5 space-y-2.5">
+          {shared.map((s) => (
+            <MediaCard key={s.id} media={s.media!} />
           ))}
         </div>
       )}

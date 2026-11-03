@@ -7,6 +7,8 @@
 // call, plus notes (approvals, checkpoints, handoffs). Pure functions, so the
 // transcript and the activity view agree and both are tested here.
 
+import type { SharedMedia } from "../agent/media";
+
 export interface AgentEvent {
   kind: string;
   message: string;
@@ -38,6 +40,8 @@ export interface Step {
   /** A screenshot the step took: its name while the turn runs, a JPEG data
    *  URL once the turn is saved. */
   shot?: string;
+  /** A file the step shared in the chat (share_file): a video, a PDF. */
+  media?: SharedMedia;
 }
 
 export type ToolKind =
@@ -51,6 +55,7 @@ export type ToolKind =
   | "wallet"
   | "chain"
   | "browser"
+  | "share"
   | "other";
 
 const KIND: Record<string, ToolKind> = {
@@ -78,6 +83,7 @@ const KIND: Record<string, ToolKind> = {
   create_wallet: "wallet",
   onchain: "chain",
   screenshot: "browser",
+  share_file: "share",
 };
 
 export function toolKind(tool: string | null | undefined): ToolKind {
@@ -149,6 +155,8 @@ export function stepsFromEvents(events: readonly AgentEvent[]): Step[] {
         if (failed) step.title = `${step.title}: ${e.message}`;
         else if (e.message && !step.input) step.title = e.message;
         if (typeof e.detail?.shot === "string") step.shot = e.detail.shot;
+        const media = sharedMedia(e.detail?.media);
+        if (media) step.media = media;
       } else {
         // A failure refused before it started (a gate), or a stream that was
         // trimmed: still worth a line.
@@ -245,6 +253,7 @@ export function timelineFromSaved(saved: readonly SavedStep[]): TimelineItem[] {
                 at: "",
                 ...(s.target ? { input: { path: s.target } } : {}),
                 ...(s.shot ? { shot: s.shot } : {}),
+                ...(s.media ? { media: s.media } : {}),
               },
             },
           },
@@ -308,6 +317,11 @@ export function groupLabel(kind: ToolKind | "note", steps: readonly Step[]): str
       return n === 1 ? steps[0].title : `${n} git steps`;
     case "browser":
       return n === 1 ? "Took a screenshot" : `Took ${n} screenshots`;
+    case "share": {
+      const shared = steps.map((s) => s.media?.name ?? (s.input?.path as string | undefined));
+      const named = shared.filter((x): x is string => !!x).map(base);
+      return named.length ? `Shared ${names(named)}` : `Shared ${n} file${n === 1 ? "" : "s"}`;
+    }
     case "wallet":
       return "Set up a deployer wallet";
     case "chain":
@@ -424,6 +438,8 @@ export interface SavedStep {
   failed?: boolean;
   /** A screenshot, as the step's name until the page swaps in its picture. */
   shot?: string;
+  /** A shared file: kept as its reference, played from the project. */
+  media?: SharedMedia;
 }
 
 /** What a finished turn keeps: its narration and step titles, in order. */
@@ -448,6 +464,7 @@ export function compactSteps(steps: readonly Step[], max = 60): SavedStep[] {
         ...(target ? { target: target.slice(0, 300) } : {}),
         ...(s.status === "failed" ? { failed: true } : {}),
         ...(s.shot ? { shot: s.shot } : {}),
+        ...(s.media ? { media: s.media } : {}),
       };
     });
 }
@@ -645,4 +662,31 @@ export function buildPhases(
     label,
     state: i < reached ? "done" : i === reached ? (live ? "active" : "done") : "pending",
   }));
+}
+
+const MEDIA_KINDS = new Set(["video", "audio", "image", "pdf", "file"]);
+
+/** A shared file from an event or from storage, checked field by field. */
+export function sharedMedia(value: unknown): SharedMedia | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const v = value as Record<string, unknown>;
+  if (
+    typeof v.id !== "string" ||
+    !/^media-[a-z0-9]{6,40}$/.test(v.id) ||
+    typeof v.name !== "string" ||
+    typeof v.size !== "number" ||
+    typeof v.type !== "string" ||
+    typeof v.kind !== "string" ||
+    !MEDIA_KINDS.has(v.kind)
+  ) {
+    return undefined;
+  }
+  return {
+    id: v.id,
+    name: v.name.slice(0, 120),
+    size: v.size,
+    type: v.type.slice(0, 80),
+    kind: v.kind as SharedMedia["kind"],
+    ...(typeof v.caption === "string" && v.caption ? { caption: v.caption.slice(0, 300) } : {}),
+  };
 }

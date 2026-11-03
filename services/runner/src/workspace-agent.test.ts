@@ -22,6 +22,7 @@ import {
   accountsForNow,
   whenWorkspaceIdle,
   workspaceFiles,
+  workspaceMedia,
   workspaceMembers,
   workspaceMessages,
   workspaceRole,
@@ -91,6 +92,32 @@ describe("a conversation over one workspace", () => {
     expect(after.revision).toBe(1);
     expect(after.reply).toContain("Made index.html.");
     expect(workspaceFiles(session.id)).toEqual({ "index.html": "<h1>hi</h1>\n" });
+  });
+
+  it("shares a file the agent made in the chat, playable from the project", async () => {
+    const session = await blank();
+    // A stand-in for a rendered video: binary, so it is not a project file
+    // the browser keeps, only a file shared by reference.
+    writeFileSync(join(session.root, "launch.mp4"), Buffer.from([0, 0, 0, 24, 102, 116, 121, 112]));
+    const after = await say(
+      session.id,
+      "render the launch video",
+      new MockProvider([
+        {
+          toolCalls: [
+            { id: "1", name: "share_file", input: { path: "launch.mp4", caption: "Launch cut" } },
+          ],
+        },
+        { text: "Here is the video." },
+      ]),
+    );
+    const done = after.events.find((e) => e.kind === "step.completed" && e.tool === "share_file");
+    const media = done?.detail?.media as { id: string; kind: string; size: number } | undefined;
+    expect(media?.kind).toBe("video");
+    expect(media?.size).toBe(8);
+    expect(workspaceMedia(session.id, media!.id)?.media.name).toBe("launch.mp4");
+    expect(workspaceMedia(session.id, "media-nosuchfile")).toBeNull();
+    expect(workspaceMedia("ws-missing", media!.id)).toBeNull();
   });
 
   it("carries the conversation into the next message", async () => {

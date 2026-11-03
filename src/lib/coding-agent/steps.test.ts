@@ -262,6 +262,33 @@ describe("the running line", () => {
     ).toBe("shot-ab-1");
     expect(groupLabel("browser", steps)).toBe("Took a screenshot");
   });
+
+  it("keeps a shared file on its step, and drops one that is malformed", () => {
+    const media = {
+      id: "media-mvw42o5uab12cd34",
+      name: "launch.mp4",
+      size: 18_000_000,
+      type: "video/mp4",
+      kind: "video",
+      caption: "The 30 second cut",
+    };
+    const events = [
+      ev("step.started", "Sharing launch.mp4", { tool: "share_file" }),
+      ev("step.completed", "Shared launch.mp4", { tool: "share_file", detail: { media } }),
+    ];
+    const steps = stepsFromEvents(events);
+    expect(steps[0].media).toEqual(media as never);
+    expect(compactTimeline(events)[0].media).toEqual(media as never);
+    expect(groupLabel("share", steps)).toBe("Shared launch.mp4");
+    const bad = stepsFromEvents([
+      ev("step.started", "Sharing", { tool: "share_file" }),
+      ev("step.completed", "Shared", {
+        tool: "share_file",
+        detail: { media: { ...media, id: "../../etc/passwd" } },
+      }),
+    ]);
+    expect(bad[0].media).toBeUndefined();
+  });
 });
 
 describe("commands as a person reads them", () => {

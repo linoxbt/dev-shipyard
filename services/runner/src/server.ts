@@ -5,6 +5,8 @@
 // here assumes the code it is given is hostile.
 
 import { createServer } from "node:http";
+import { createReadStream } from "node:fs";
+import { byteRange, type SharedMedia } from "../../../src/lib/agent/media";
 import { sandboxEnabled } from "./repo-agent";
 import { readinessProblem, sandboxReadiness } from "../../../src/lib/agent/sandbox-exec";
 import {
@@ -73,6 +75,7 @@ import {
   parseWorkspaceSource,
   previewAssets,
   workspaceShot,
+  workspaceMedia,
   previewDist,
   sendWorkspaceMessage,
   setCollaborator,
@@ -169,6 +172,35 @@ function json(res: import("node:http").ServerResponse, status: number, body: unk
     "content-length": Buffer.byteLength(text),
   });
   res.end(text);
+}
+
+/** A shared file, whole or the byte range asked for. */
+function sendMedia(
+  req: import("node:http").IncomingMessage,
+  res: import("node:http").ServerResponse,
+  file: string,
+  media: SharedMedia,
+) {
+  const size = media.size;
+  const range = byteRange(String(req.headers.range ?? ""), size);
+  const headers: Record<string, string | number> = {
+    "content-type": media.type,
+    "accept-ranges": "bytes",
+    "x-media-name": encodeURIComponent(media.name),
+  };
+  if (range === "unsatisfiable") {
+    res.writeHead(416, { ...headers, "content-range": `bytes */${size}` });
+    return res.end();
+  }
+  const { start, end } = range ?? { start: 0, end: size - 1 };
+  res.writeHead(range ? 206 : 200, {
+    ...headers,
+    "content-length": end - start + 1,
+    ...(range ? { "content-range": `bytes ${start}-${end}/${size}` } : {}),
+  });
+  const stream = createReadStream(file, { start, end });
+  stream.on("error", () => res.destroy());
+  stream.pipe(res);
 }
 
 function html(res: import("node:http").ServerResponse, status: number, body: string) {
@@ -935,6 +967,14 @@ async function route(
       const data = workspaceShot(id, name);
       if (!data) return json(res, 404, { ok: false, message: "No such screenshot." });
       return json(res, 200, { ok: true, data });
+    }
+
+    // A file the agent shared in the chat, streamed with byte ranges so a
+    // video can be played and sought without being read whole.
+    if (id && action === "media" && req.method === "GET") {
+      const found = workspaceMedia(id, path.split("/").pop() ?? "");
+      if (!found) return json(res, 404, { ok: false, message: "That file is no longer here." });
+      return sendMedia(req, res, found.path, found.media);
     }
 
     if (id && action === "preview" && req.method === "GET") {

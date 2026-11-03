@@ -35,6 +35,7 @@ import type { ProviderMessage } from "../../../src/lib/agent/providers/types";
 import { compactTimeline, type SavedStep } from "../../../src/lib/coding-agent/steps";
 import { isControlPath, looksBinary, Workspace } from "../../../src/lib/agent/workspace";
 import { initLocalRepo, materialise, readWorkspace } from "../../../src/lib/agent/repo-session";
+import { sharedFile } from "../../../src/lib/agent/media";
 import {
   ProxyProvider,
   heartbeat,
@@ -1429,6 +1430,12 @@ export function workspaceShot(id: string, name: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** A file the agent shared in the chat (share_file), to stream. */
+export function workspaceMedia(id: string, mediaId: string): ReturnType<typeof sharedFile> {
+  const s = sessions.get(id);
+  return s ? sharedFile(s.root, mediaId) : null;
 }
 
 /** What the preview's images and fonts may add to one response: the host

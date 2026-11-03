@@ -1,5 +1,6 @@
 import { readdirSync } from "node:fs";
 import { takeScreenshot, type ShotArgs } from "./screenshot";
+import { shareFile, type SharedMedia } from "./media";
 import { costOfUsage, ratesFor } from "./pricing";
 import { discardSnapshot, takeSnapshot } from "./snapshots";
 import { checkpoint, isRepo } from "./git";
@@ -802,6 +803,8 @@ export class Orchestrator {
           : {}),
         // A screenshot's name, so the chat can show it.
         ...(executed.shot ? { shot: executed.shot } : {}),
+        // A file shared with the person, so the chat can play or offer it.
+        ...(executed.media ? { media: executed.media } : {}),
       },
     });
 
@@ -829,7 +832,7 @@ export class Orchestrator {
 
   private async execute(
     call: ProviderToolCall,
-  ): Promise<{ ok: boolean; output: string; shot?: string }> {
+  ): Promise<{ ok: boolean; output: string; shot?: string; media?: SharedMedia }> {
     const { workspace } = this.opts;
     const args = call.input;
 
@@ -952,6 +955,17 @@ export class Orchestrator {
         );
         if (shot.ok && shot.image) this.pendingImages.push(shot.image);
         return { ok: shot.ok, output: shot.output, ...(shot.name ? { shot: shot.name } : {}) };
+      }
+
+      case "share_file": {
+        const shared = shareFile(
+          workspace,
+          String(args.path ?? ""),
+          typeof args.caption === "string" ? args.caption : undefined,
+        );
+        return shared.ok
+          ? { ok: true, output: shared.output, media: shared.media }
+          : { ok: false, output: shared.output };
       }
 
       case "update_plan": {

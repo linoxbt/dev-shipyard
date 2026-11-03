@@ -107,6 +107,18 @@ const turnSchema = z.object({
         failed: z.boolean().optional(),
         // A screenshot the step took, as a small JPEG data URL.
         shot: z.string().max(150_000).optional(),
+        // A file the agent shared in the chat, by reference (played from the
+        // project's machine, never stored here).
+        media: z
+          .object({
+            id: z.string().regex(/^media-[a-z0-9]{6,40}$/),
+            name: z.string().max(120),
+            size: z.number().nonnegative(),
+            type: z.string().max(80),
+            kind: z.enum(["video", "audio", "image", "pdf", "file"]),
+            caption: z.string().max(300).optional(),
+          })
+          .optional(),
       }),
     )
     .max(100)
