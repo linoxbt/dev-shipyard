@@ -42,7 +42,7 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
 
         <div className="space-y-2">
           {external.length === 0 && (
-            <p className="rounded border border-border bg-background p-3 font-mono text-[11px] text-meta">
+            <p className="rounded border border-border bg-background p-3 font-mono text-[11.5px] text-meta">
               No browser wallet detected. Install the{" "}
               <a
                 href="https://chromewebstore.google.com/detail/qie-wallet-and-web3-domai/oljchdcgmibnjbbopolafbjncfhdacjb"
@@ -90,7 +90,7 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
               <span className="block font-mono text-xs font-medium text-foreground">
                 Generate DevStation Wallet
               </span>
-              <span className="block font-mono text-[10px] text-meta">
+              <span className="block font-mono text-[10.5px] text-meta">
                 In-app, password-encrypted. Great for testnet.
               </span>
             </span>

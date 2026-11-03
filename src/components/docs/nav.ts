@@ -79,8 +79,8 @@ export const DOC_NAV: DocGroup[] = [
       },
       {
         to: "/docs/coding-agent",
-        label: "Coding Agent",
-        description: "Build an app from a prompt, or change a GitHub repository.",
+        label: "How DevStation works",
+        description: "Build an app from a prompt, publish it, and everything in between.",
       },
       {
         to: "/docs/apps",

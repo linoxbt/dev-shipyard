@@ -71,7 +71,7 @@ export function VerifyButton({
       </button>
       {message && state !== "verified" && (
         <span
-          className={`font-mono text-[10px] ${state === "failed" ? "text-warning" : "text-meta"}`}
+          className={`font-mono text-[10.5px] ${state === "failed" ? "text-warning" : "text-meta"}`}
         >
           {message}
         </span>

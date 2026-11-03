@@ -151,7 +151,7 @@ export function GenerateWalletDialog({ onClose }: { onClose: () => void }) {
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setMode("menu")}
-                className="font-mono text-[11px] text-meta hover:text-primary"
+                className="font-mono text-[11.5px] text-meta hover:text-primary"
               >
                 Use a different wallet
               </button>
@@ -202,7 +202,7 @@ function BackupView({ mnemonic, onDone }: { mnemonic: string; onDone: () => void
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 p-2.5 font-mono text-[11px] text-warning">
+      <div className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 p-2.5 font-mono text-[11.5px] text-warning">
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
           Write this seed phrase down and store it offline. Anyone with it controls this wallet. It
@@ -235,15 +235,15 @@ function BackupView({ mnemonic, onDone }: { mnemonic: string; onDone: () => void
           setCopied(true);
           setTimeout(() => setCopied(false), 1500);
         }}
-        className="flex items-center gap-1 font-mono text-[11px] text-meta hover:text-primary"
+        className="flex items-center gap-1 font-mono text-[11.5px] text-meta hover:text-primary"
       >
         {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
         {copied ? "Copied" : "Copy to clipboard"}
       </button>
-      <p className="font-mono text-[10px] text-meta">
+      <p className="font-mono text-[10.5px] text-meta">
         Cleared from your clipboard automatically after 30s where supported.
       </p>
-      <label className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
+      <label className="flex items-center gap-2 font-mono text-[11.5px] text-muted-foreground">
         <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} />I have
         safely backed up my seed phrase
       </label>
@@ -260,7 +260,7 @@ function BackupView({ mnemonic, onDone }: { mnemonic: string; onDone: () => void
 
 function MainnetWarning() {
   return (
-    <p className="text-[10px] text-meta">
+    <p className="text-[10.5px] text-meta">
       Browser-stored keys are convenient for testnet but riskier than a hardware wallet. Avoid
       keeping large mainnet balances here.
     </p>
@@ -268,7 +268,9 @@ function MainnetWarning() {
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <div className="font-mono text-[10px] uppercase tracking-wider text-meta">{children}</div>;
+  return (
+    <div className="font-mono text-[10.5px] uppercase tracking-wider text-meta">{children}</div>
+  );
 }
 
 function PasswordInput({

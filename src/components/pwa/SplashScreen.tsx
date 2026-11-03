@@ -108,7 +108,7 @@ export function SplashScreen() {
       <div className="mt-4 font-mono text-base font-bold tracking-tight text-foreground">
         Dev<span className="text-primary">Station</span>
       </div>
-      <div className="mt-1 font-mono text-[10px] uppercase tracking-wider text-meta">
+      <div className="mt-1 font-mono text-[10.5px] uppercase tracking-wider text-meta">
         Loading console…
       </div>
     </div>

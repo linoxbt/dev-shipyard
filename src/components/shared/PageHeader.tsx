@@ -40,14 +40,14 @@ export function PageHeader({
         {canShowBack && (
           <button
             onClick={goBack}
-            className="flex items-center gap-1 rounded border border-border px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition hover:border-primary hover:text-primary"
+            className="flex items-center gap-1 rounded border border-border px-2 py-1 font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground transition hover:border-primary hover:text-primary"
             aria-label="Go back"
           >
             <ArrowLeft className="h-3 w-3" /> Back
           </button>
         )}
         {breadcrumb && breadcrumb.length > 0 && (
-          <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+          <div className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
             {breadcrumb.join(" / ")}
           </div>
         )}

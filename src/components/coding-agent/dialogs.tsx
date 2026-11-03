@@ -117,7 +117,7 @@ export function BuildersDialog({
                 key={a}
                 className={cn(
                   "flex items-center justify-center rounded-full bg-surface-2 font-semibold text-foreground/80 ring-4 ring-surface",
-                  i === 1 ? "h-[72px] w-[72px] text-[19px]" : "h-14 w-14 text-[15px]",
+                  i === 1 ? "h-[72px] w-[72px] text-[19.5px]" : "h-14 w-14 text-[15.5px]",
                 )}
               >
                 {everyone.length ? who(a).slice(0, 1).toUpperCase() : ""}
@@ -130,21 +130,21 @@ export function BuildersDialog({
         </div>
       }
     >
-      <p className="text-[17px] font-semibold text-foreground">Invite builders</p>
-      <p className="mt-1 text-[13px] leading-6 text-muted-foreground">
+      <p className="text-[17.5px] font-semibold text-foreground">Invite builders</p>
+      <p className="mt-1 text-[13.5px] leading-6 text-muted-foreground">
         Add someone by the email they sign in with, then send them the link. They talk to the same
         agent and see the same files and preview of {project.name}. The agent takes one message at a
         time.
       </p>
       {failed ? (
-        <p className="mt-4 text-[12.5px] text-warning">{failed}</p>
+        <p className="mt-4 text-[13px] text-warning">{failed}</p>
       ) : !members ? (
-        <p className="mt-4 flex items-center gap-2 text-[12.5px] text-meta">
+        <p className="mt-4 flex items-center gap-2 text-[13px] text-meta">
           <LoaderCircle className="h-4 w-4 animate-spin" /> Reading the workspace…
         </p>
       ) : (
         <div className="mt-4 space-y-3">
-          <div className="rounded-2xl bg-background px-4 py-3 text-center font-mono text-[11.5px] text-foreground break-all">
+          <div className="rounded-2xl bg-background px-4 py-3 text-center font-mono text-[12px] text-foreground break-all">
             {link}
           </div>
           <button
@@ -160,7 +160,7 @@ export function BuildersDialog({
                 .writeText(link)
                 .then(done, () => toast.error("Copy the link above by hand."));
             }}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-[14px] font-medium text-primary-foreground transition hover:bg-primary-hover"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-[14.5px] font-medium text-primary-foreground transition hover:bg-primary-hover"
           >
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             {copied ? "Copied" : "Copy invite link"}
@@ -184,24 +184,24 @@ export function BuildersDialog({
               </button>
             </div>
           ) : (
-            <p className="pt-1 text-[11.5px] text-meta">Only the owner adds builders.</p>
+            <p className="pt-1 text-[12px] text-meta">Only the owner adds builders.</p>
           )}
           <ul className="divide-y divide-border">
-            <li className="flex items-center gap-3 py-2.5 text-[13px]">
+            <li className="flex items-center gap-3 py-2.5 text-[13.5px]">
               <Avatar label={who(members.owner)} />
               <span className="min-w-0 flex-1 truncate text-foreground">{who(members.owner)}</span>
-              <span className="text-[11px] text-meta">Owner</span>
+              <span className="text-[11.5px] text-meta">Owner</span>
             </li>
             {members.collaborators.map((c) => (
-              <li key={c} className="flex items-center gap-3 py-2.5 text-[13px]">
+              <li key={c} className="flex items-center gap-3 py-2.5 text-[13.5px]">
                 <Avatar label={who(c)} />
                 <span className="min-w-0 flex-1 truncate text-foreground">{who(c)}</span>
-                <span className="text-[11px] text-meta">Builder</span>
+                <span className="text-[11.5px] text-meta">Builder</span>
                 {isOwner && (
                   <button
                     onClick={() => void change({ wallet: c }, true)}
                     disabled={busy}
-                    className="text-[10.5px] text-meta hover:text-danger disabled:opacity-40"
+                    className="text-[11px] text-meta hover:text-danger disabled:opacity-40"
                   >
                     Remove
                   </button>
@@ -217,7 +217,7 @@ export function BuildersDialog({
 
 function Avatar({ label }: { label: string }) {
   return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-[11.5px] font-semibold text-foreground/80">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-[12px] font-semibold text-foreground/80">
       {label.slice(0, 1).toUpperCase()}
     </span>
   );
@@ -317,7 +317,7 @@ export function GithubDialog({
           href={done}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 break-all font-mono text-[11px] text-primary hover:underline"
+          className="inline-flex items-center gap-1.5 break-all font-mono text-[11.5px] text-primary hover:underline"
         >
           <Check className="h-3.5 w-3.5 shrink-0" /> {done}{" "}
           <ExternalLink className="h-3.5 w-3.5 shrink-0" />
@@ -331,7 +331,7 @@ export function GithubDialog({
               className={`${inputClass} font-mono`}
             />
           </Field>
-          <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
+          <label className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
             <input
               type="checkbox"
               checked={isPrivate}
@@ -385,7 +385,7 @@ export function GithubDialog({
               {busy ? "Opening…" : "Open pull request"}
             </button>
           </div>
-          <p className="text-[11px] text-meta">A new branch against {base}. Nothing is merged.</p>
+          <p className="text-[11.5px] text-meta">A new branch against {base}. Nothing is merged.</p>
         </div>
       )}
     </Modal>

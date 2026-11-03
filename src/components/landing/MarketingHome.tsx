@@ -163,7 +163,7 @@ function Hero({ shown, tagline }: { shown: number; tagline: boolean }) {
       />
       <div className="relative mx-auto grid w-full max-w-[2000px] items-center gap-10 py-14 sm:py-20 lg:grid-cols-[1.4fr_1fr] lg:gap-12 lg:py-20 px-4 sm:px-6 lg:px-8">
         <div>
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] text-meta">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11.5px] text-meta">
             <Terminal className="h-3.5 w-3.5 text-primary" />
             <span className="text-primary">devstation</span>
             <span>~ AI Developer OS</span>
@@ -276,7 +276,7 @@ function StatsBand({ templateCount }: { templateCount: number }) {
         {items.map((s) => (
           <div key={s.label} className="px-4 py-6 text-center">
             <div className="font-mono text-2xl font-bold text-foreground">{s.value}</div>
-            <div className="mt-1 font-mono text-[10px] uppercase tracking-wider text-meta">
+            <div className="mt-1 font-mono text-[10.5px] uppercase tracking-wider text-meta">
               {s.label}
             </div>
           </div>
@@ -372,7 +372,7 @@ function TemplatesShowcase({ templates }: { templates: TemplateSummary[] }) {
                 <span className="font-mono text-sm font-bold text-foreground">{t.name}</span>
                 <ArrowRight className="h-3.5 w-3.5 text-meta transition group-hover:translate-x-0.5 group-hover:text-primary" />
               </div>
-              <div className="mt-1 font-mono text-[10px] uppercase tracking-wider text-meta">
+              <div className="mt-1 font-mono text-[10.5px] uppercase tracking-wider text-meta">
                 {t.category}
               </div>
               <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
@@ -511,7 +511,7 @@ function Footer() {
           >
             <Github className="h-4 w-4" />
           </a>
-          <span className="font-mono text-[10px] text-meta">
+          <span className="font-mono text-[10.5px] text-meta">
             DevStation: the AI agent for apps and smart contracts
           </span>
         </div>
@@ -533,7 +533,7 @@ function SectionHeading({
 }) {
   return (
     <div className="max-w-2xl">
-      <div className="font-mono text-[11px] uppercase tracking-wider text-primary">{kicker}</div>
+      <div className="font-mono text-[11.5px] uppercase tracking-wider text-primary">{kicker}</div>
       <h2 className="mt-2 font-mono text-2xl font-bold text-foreground sm:text-3xl">{title}</h2>
       {subtitle && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{subtitle}</p>}
     </div>

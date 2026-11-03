@@ -174,7 +174,7 @@ export function PreviewFrame({
   return (
     <div className={className}>
       {!bare && (
-        <div className="flex items-center justify-between gap-2 border-b border-border bg-surface px-3 py-1.5 font-mono text-[11px]">
+        <div className="flex items-center justify-between gap-2 border-b border-border bg-surface px-3 py-1.5 font-mono text-[11.5px]">
           <span className="text-meta">Live preview</span>
           <span className="flex items-center gap-2">
             {/* Transactions from here are real. Say which chain, plainly. */}
@@ -186,7 +186,7 @@ export function PreviewFrame({
         </div>
       )}
       {!bare && runtimeErrors.length > 0 && (
-        <div className="max-h-24 shrink-0 overflow-y-auto border-b border-danger/40 bg-danger/10 px-3 py-1.5 font-mono text-[10px] text-danger">
+        <div className="max-h-24 shrink-0 overflow-y-auto border-b border-danger/40 bg-danger/10 px-3 py-1.5 font-mono text-[10.5px] text-danger">
           {runtimeErrors.slice(0, 3).map((e, i) => (
             <div key={i} className="break-words">
               {e.message}

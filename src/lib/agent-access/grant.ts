@@ -12,6 +12,19 @@
 // behind a switch of account.
 
 let inFlight: Promise<boolean> | null = null;
+
+/** On the waitlist: the account signed in, but DevStation is closed or full
+ *  (api/access/session). null once it has access. */
+export interface WaitlistPlace {
+  place: number;
+  email: string;
+}
+let gateListener: ((w: WaitlistPlace | null) => void) | null = null;
+
+/** Called by the sign-in store, to show the waitlist when it applies. */
+export function setGateListener(next: ((w: WaitlistPlace | null) => void) | null) {
+  gateListener = next;
+}
 /** The current Supabase access token, read fresh each time. */
 let sessionToken: (() => Promise<string | null>) | null = null;
 
@@ -42,6 +55,17 @@ export async function ensureGrant(): Promise<boolean> {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ accessToken }),
     }).catch(() => null);
+    if (res?.ok) gateListener?.(null);
+    else if (res?.status === 403) {
+      const body = (await res.json().catch(() => null)) as {
+        reason?: string;
+        place?: number;
+        email?: string;
+      } | null;
+      if (body?.reason === "waitlisted") {
+        gateListener?.({ place: Number(body.place) || 1, email: body.email ?? "" });
+      }
+    }
     return !!res?.ok;
   })();
   try {
@@ -63,6 +87,11 @@ export async function fetchWithGrant(input: string, init?: RequestInit): Promise
     .clone()
     .json()
     .catch(() => null)) as { reason?: string } | null;
+  // Access taken away since this session began: the waitlist, not an error.
+  if (first.status === 403 && body?.reason === "waitlisted") {
+    void ensureGrant();
+    return first;
+  }
   const missing = first.status === 401 && body?.reason === "no_grant";
   const stale = first.status === 403 && body?.reason === "owner_mismatch";
   if (!missing && !stale) return first;

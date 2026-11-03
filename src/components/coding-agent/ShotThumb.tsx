@@ -26,7 +26,7 @@ export function ShotThumb({
     return failed ? (
       <button
         onClick={retry}
-        className="flex h-36 w-48 items-center justify-center rounded-xl border border-dashed border-border text-[11.5px] text-meta hover:text-foreground"
+        className="flex h-36 w-48 items-center justify-center rounded-xl border border-dashed border-border text-[12px] text-meta hover:text-foreground"
       >
         Screenshot unavailable. Retry
       </button>

@@ -114,7 +114,7 @@ function VerifyPage() {
               className="w-full rounded border border-border bg-background px-2 py-1.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none disabled:opacity-60"
             />
             {address && !addrValid && (
-              <span className="text-[10px] text-danger">Enter a valid 0x address.</span>
+              <span className="text-[10.5px] text-danger">Enter a valid 0x address.</span>
             )}
           </Field>
 
@@ -163,7 +163,7 @@ function VerifyPage() {
                   </option>
                 ))}
               </select>
-              <span className="text-[10px] text-meta">
+              <span className="text-[10.5px] text-meta">
                 Must match what the source was compiled with. Contracts built in DevStation use
                 shanghai; Hardhat and Foundry default to cancun.
               </span>
@@ -213,9 +213,9 @@ function VerifyPage() {
               rows={14}
               placeholder="// SPDX-License-Identifier: MIT&#10;pragma solidity ^0.8.20;&#10;&#10;contract MyContract { ... }"
               disabled={busy}
-              className="w-full resize-y rounded border border-border bg-background px-2 py-2 font-mono text-[11px] leading-relaxed text-foreground focus:border-primary focus:outline-none disabled:opacity-60"
+              className="w-full resize-y rounded border border-border bg-background px-2 py-2 font-mono text-[11.5px] leading-relaxed text-foreground focus:border-primary focus:outline-none disabled:opacity-60"
             />
-            <span className="text-[10px] text-meta">
+            <span className="text-[10.5px] text-meta">
               Must include all imports inline. Use the Contract Editor&apos;s flatten output for
               contracts with OpenZeppelin imports.
             </span>
@@ -295,7 +295,7 @@ function Field({
 }) {
   return (
     <label className="block space-y-1">
-      <span className="font-mono text-[11px] text-muted-foreground">
+      <span className="font-mono text-[11.5px] text-muted-foreground">
         {label} {required && <span className="text-danger">*</span>}
       </span>
       {children}

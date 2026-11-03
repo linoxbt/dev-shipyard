@@ -130,7 +130,7 @@ function DocsHeader({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => 
           <span className="font-mono text-sm font-bold tracking-tight">
             Dev<span className="text-primary">Station</span>
           </span>
-          <span className="rounded border border-border px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-meta">
+          <span className="rounded border border-border px-1.5 py-px font-mono text-[10.5px] uppercase tracking-wider text-meta">
             Docs
           </span>
         </Link>
@@ -142,7 +142,7 @@ function DocsHeader({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => 
         >
           <Search className="h-4 w-4" />
           <span className="hidden flex-1 sm:inline">Search docs…</span>
-          <kbd className="hidden rounded border border-border bg-background px-1.5 font-mono text-[10px] sm:inline">
+          <kbd className="hidden rounded border border-border bg-background px-1.5 font-mono text-[10.5px] sm:inline">
             ⌘K
           </kbd>
         </button>
@@ -187,7 +187,7 @@ function DocNavList({ path }: { path: string }) {
     <nav className="space-y-7">
       {DOC_NAV.map((group) => (
         <div key={group.group}>
-          <div className="mb-2 px-3 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground">
+          <div className="mb-2 px-3 font-mono text-[11.5px] font-semibold uppercase tracking-[0.12em] text-foreground">
             {group.group}
           </div>
           <div className="space-y-px">
@@ -198,7 +198,7 @@ function DocNavList({ path }: { path: string }) {
                   key={item.to}
                   to={item.to}
                   className={
-                    "block rounded-md px-3 py-1.5 text-[13.5px] transition " +
+                    "block rounded-md px-3 py-1.5 text-[14px] transition " +
                     (active
                       ? "bg-primary/10 font-medium text-primary"
                       : "text-muted-foreground hover:bg-surface-2 hover:text-foreground")
@@ -255,7 +255,7 @@ function OnThisPage({ path }: { path: string }) {
   if (headings.length === 0) return null;
   return (
     <div>
-      <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground">
+      <p className="mb-3 font-mono text-[11.5px] font-semibold uppercase tracking-[0.12em] text-foreground">
         On this page
       </p>
       <ul className="space-y-2 border-l border-border">
@@ -264,7 +264,7 @@ function OnThisPage({ path }: { path: string }) {
             <a
               href={`#${h.id}`}
               className={
-                "-ml-px block border-l py-0.5 text-[13px] leading-5 transition " +
+                "-ml-px block border-l py-0.5 text-[13.5px] leading-5 transition " +
                 (h.level === 3 ? "pl-6 " : "pl-3 ") +
                 (active === h.id
                   ? "border-primary text-primary"
@@ -345,7 +345,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
             placeholder={`Search ${DOC_ORDER.length} pages…`}
             className="h-12 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-meta"
           />
-          <kbd className="rounded border border-border px-1.5 font-mono text-[10px] text-meta">
+          <kbd className="rounded border border-border px-1.5 font-mono text-[10.5px] text-meta">
             esc
           </kbd>
         </div>
@@ -372,7 +372,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
                     >
                       {r.label}
                     </span>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-meta">
+                    <span className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
                       {r.group}
                     </span>
                   </div>
@@ -420,11 +420,11 @@ function DocsFooter() {
 function DocsNotFound() {
   return (
     <div className="py-16">
-      <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-primary">404</p>
+      <p className="font-mono text-[11.5px] uppercase tracking-[0.14em] text-primary">404</p>
       <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground">
         This page is not in the docs
       </h1>
-      <p className="mt-3 max-w-xl text-[15px] leading-7 text-muted-foreground">
+      <p className="mt-3 max-w-xl text-[15.5px] leading-7 text-muted-foreground">
         It may have moved. Search the docs, start from the introduction, or open the console if you
         were looking for a tool rather than its documentation.
       </p>

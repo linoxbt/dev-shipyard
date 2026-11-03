@@ -28,7 +28,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
           <div className="font-mono text-sm font-bold tracking-tight text-foreground">
             Dev<span className="text-primary">Station</span>
           </div>
-          <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+          <div className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
             AI Developer OS
           </div>
         </div>

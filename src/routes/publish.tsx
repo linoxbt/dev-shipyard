@@ -12,7 +12,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageShell } from "@/components/coding-agent/PageShell";
+import { PageShell, pageHref } from "@/components/coding-agent/PageShell";
 import { fetchWithGrant } from "@/lib/agent-access/grant";
 import { useAuth } from "@/hooks/useAuth";
 import { useProjects } from "@/lib/appgen/projects";
@@ -158,7 +158,7 @@ function ReachLine({
   return (
     <div
       className={cn(
-        "mt-2 flex items-start gap-2 rounded-lg px-3 py-2 text-[12.5px]",
+        "mt-2 flex items-start gap-2 rounded-lg px-3 py-2 text-[13px]",
         !reach
           ? "bg-surface-2 text-muted-foreground"
           : reach.ok
@@ -373,7 +373,7 @@ function PublishPage() {
       }
     >
       {!ready || !hydrated || (workspace && !loaded) ? (
-        <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        <p className="flex items-center gap-2 text-[13.5px] text-muted-foreground">
           <LoaderCircle className="h-4 w-4 animate-spin" /> Loading
         </p>
       ) : !signedIn ? (
@@ -387,8 +387,8 @@ function PublishPage() {
           <section className="rounded-2xl border border-border bg-surface p-5">
             <div className="flex items-center gap-2">
               <Rocket className="h-4 w-4 text-primary" />
-              <p className="text-[14.5px] font-semibold">DevStation hosting</p>
-              <span className="rounded-md bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success">
+              <p className="text-[15px] font-semibold">DevStation hosting</p>
+              <span className="rounded-md bg-success/10 px-1.5 py-0.5 text-[11.5px] font-medium text-success">
                 Free
               </span>
             </div>
@@ -412,7 +412,7 @@ function PublishPage() {
                     href={site.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="min-w-0 flex-1 truncate text-[14px] font-medium text-foreground hover:underline"
+                    className="min-w-0 flex-1 truncate text-[14.5px] font-medium text-foreground hover:underline"
                   >
                     {site.url.replace(/^https:\/\//, "")}
                   </a>
@@ -431,7 +431,7 @@ function PublishPage() {
                     href={site.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12.5px] font-medium text-primary-foreground hover:bg-primary-hover"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[13px] font-medium text-primary-foreground hover:bg-primary-hover"
                   >
                     Open <ExternalLink className="h-3.5 w-3.5" />
                   </a>
@@ -441,7 +441,18 @@ function PublishPage() {
                   checking={live.checking}
                   onCheck={() => void live.check()}
                 />
-                <p className="mt-2 text-[12px] text-meta">
+                {live.reach?.ok && project && (
+                  <p className="mt-2 text-[13px] text-muted-foreground">
+                    How did publishing go?{" "}
+                    <a
+                      href={pageHref(`/feedback?project=${encodeURIComponent(project.id)}`)}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      Tell us
+                    </a>
+                  </p>
+                )}
+                <p className="mt-2 text-[12.5px] text-meta">
                   {site.files} files · {(site.bytes / 1_000_000).toFixed(1)} MB
                   {site.deployedAt &&
                     ` · published ${new Date(site.deployedAt).toLocaleString("en-US", {
@@ -454,7 +465,7 @@ function PublishPage() {
                 <button
                   onClick={() => void publish()}
                   disabled={!!busy}
-                  className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg border border-border px-4 text-[13px] font-medium transition hover:bg-surface-2 disabled:opacity-60"
+                  className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg border border-border px-4 text-[13.5px] font-medium transition hover:bg-surface-2 disabled:opacity-60"
                 >
                   {busy === "publish" ? (
                     <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -466,7 +477,7 @@ function PublishPage() {
               </>
             ) : (
               <>
-                <p className="mt-1 text-[12.5px] text-muted-foreground">
+                <p className="mt-1 text-[13px] text-muted-foreground">
                   Choose its address. You can add a domain of your own after.
                 </p>
                 <label className="mt-4 flex h-11 items-center rounded-xl border border-border bg-background pl-3 focus-within:border-primary/60">
@@ -481,15 +492,15 @@ function PublishPage() {
                       )
                     }
                     aria-label="Address"
-                    className="min-w-0 flex-1 bg-transparent text-[14px] font-medium text-foreground outline-none"
+                    className="min-w-0 flex-1 bg-transparent text-[14.5px] font-medium text-foreground outline-none"
                   />
-                  <span className="shrink-0 pr-3 text-[14px] text-muted-foreground">
+                  <span className="shrink-0 pr-3 text-[14.5px] text-muted-foreground">
                     .{sitesDomain}
                   </span>
                 </label>
                 <p
                   className={cn(
-                    "mt-1.5 min-h-[18px] text-[12px]",
+                    "mt-1.5 min-h-[18px] text-[12.5px]",
                     slugState?.ok === false ? "text-danger" : "text-success",
                   )}
                 >
@@ -502,7 +513,7 @@ function PublishPage() {
                 <button
                   onClick={() => void publish()}
                   disabled={!!busy || !slugState?.ok}
-                  className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-5 text-[13.5px] font-semibold text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
+                  className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-5 text-[14px] font-semibold text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
                 >
                   {busy === "publish" ? (
                     <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -519,22 +530,22 @@ function PublishPage() {
             <section className="rounded-2xl border border-border bg-surface p-5">
               <div className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-muted-foreground" />
-                <p className="text-[14.5px] font-semibold">Your own domain</p>
+                <p className="text-[15px] font-semibold">Your own domain</p>
               </div>
               {!customDomains ? (
-                <p className="mt-2 text-[12.5px] text-muted-foreground">
+                <p className="mt-2 text-[13px] text-muted-foreground">
                   Custom domains open soon on DevStation.
                 </p>
               ) : site.customDomain ? (
                 <div className="mt-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[14px] font-medium">{site.customDomain}</span>
+                    <span className="text-[14.5px] font-medium">{site.customDomain}</span>
                     {site.domainVerified ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-1.5 py-0.5 text-[11px] font-medium text-success">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-1.5 py-0.5 text-[11.5px] font-medium text-success">
                         <Check className="h-3 w-3" /> Live
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-warning/10 px-1.5 py-0.5 text-[11.5px] font-medium text-warning">
                         <TriangleAlert className="h-3 w-3" /> Waiting for DNS
                       </span>
                     )}
@@ -548,14 +559,14 @@ function PublishPage() {
                   )}
                   {!site.domainVerified && status && (
                     <>
-                      <p className="mt-3 text-[12.5px] text-muted-foreground">
+                      <p className="mt-3 text-[13px] text-muted-foreground">
                         Add these records where your domain is managed (your registrar or DNS host),
                         then check again:
                       </p>
                       <div className="mt-2 overflow-x-auto rounded-xl border border-border">
-                        <table className="w-full text-[12.5px]">
+                        <table className="w-full text-[13px]">
                           <thead>
-                            <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-meta">
+                            <tr className="border-b border-border text-left text-[11.5px] uppercase tracking-wide text-meta">
                               <th className="px-3 py-2 font-medium">Type</th>
                               <th className="px-3 py-2 font-medium">Name</th>
                               <th className="px-3 py-2 font-medium">Value</th>
@@ -579,7 +590,7 @@ function PublishPage() {
                       <button
                         onClick={() => void checkDomain()}
                         disabled={!!busy}
-                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-[13px] font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-[13.5px] font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
                       >
                         {busy === "check" && <LoaderCircle className="h-4 w-4 animate-spin" />}
                         Check again
@@ -588,7 +599,7 @@ function PublishPage() {
                     <button
                       onClick={() => void removeDomain()}
                       disabled={!!busy}
-                      className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-[13px] text-muted-foreground hover:text-danger disabled:opacity-60"
+                      className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-[13.5px] text-muted-foreground hover:text-danger disabled:opacity-60"
                     >
                       Remove domain
                     </button>
@@ -607,12 +618,12 @@ function PublishPage() {
                     onChange={(e) => setDomain(e.target.value.trim().toLowerCase())}
                     placeholder="app.yourdomain.com"
                     aria-label="Your domain"
-                    className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-[13.5px] outline-none focus:border-primary/60"
+                    className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-[14px] outline-none focus:border-primary/60"
                   />
                   <button
                     type="submit"
                     disabled={!!busy || domain.length < 4}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-[13px] font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-[13.5px] font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
                   >
                     {busy === "domain" && <LoaderCircle className="h-4 w-4 animate-spin" />}
                     Add domain
@@ -624,14 +635,14 @@ function PublishPage() {
 
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-5">
             <div>
-              <p className="text-[14px] font-medium">Deploy to your own hosting</p>
-              <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+              <p className="text-[14.5px] font-medium">Deploy to your own hosting</p>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
                 The agent deploys to the Netlify or Vercel account you connected.
               </p>
             </div>
             <button
               onClick={deployElsewhere}
-              className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-[13px] font-medium hover:bg-surface-2"
+              className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-[13.5px] font-medium hover:bg-surface-2"
             >
               Ask the agent
             </button>
@@ -641,20 +652,20 @@ function PublishPage() {
             <div className="pt-2">
               {confirmDown ? (
                 <div className="flex flex-wrap items-center gap-2 rounded-xl border border-danger/40 bg-danger/5 p-3">
-                  <p className="flex-1 text-[12.5px]">
+                  <p className="flex-1 text-[13px]">
                     Take {site.url.replace(/^https:\/\//, "")} down? The address stops showing the
                     app{site.customDomain ? `, and ${site.customDomain} is released` : ""}.
                   </p>
                   <button
                     onClick={() => setConfirmDown(false)}
-                    className="rounded-lg px-3 py-1.5 text-[12.5px] text-muted-foreground"
+                    className="rounded-lg px-3 py-1.5 text-[13px] text-muted-foreground"
                   >
                     Keep it
                   </button>
                   <button
                     onClick={() => void unpublish()}
                     disabled={!!busy}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-danger px-3 py-1.5 text-[12.5px] font-medium text-white disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-danger px-3 py-1.5 text-[13px] font-medium text-white disabled:opacity-60"
                   >
                     {busy === "down" && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
                     Unpublish
@@ -663,7 +674,7 @@ function PublishPage() {
               ) : (
                 <button
                   onClick={() => setConfirmDown(true)}
-                  className="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground hover:text-danger"
+                  className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-danger"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Unpublish this app
                 </button>
@@ -678,7 +689,7 @@ function PublishPage() {
 
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <p className="rounded-2xl border border-border bg-surface px-5 py-6 text-center text-[13.5px] text-muted-foreground">
+    <p className="rounded-2xl border border-border bg-surface px-5 py-6 text-center text-[14px] text-muted-foreground">
       {children}
     </p>
   );

@@ -29,7 +29,7 @@ export function GettingStarted({
       <ol className="space-y-4 p-4">
         {all.map((step, index) => (
           <li key={`${index}-${step.title}`} className="flex gap-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 font-mono text-[11px] font-bold text-primary">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 font-mono text-[11.5px] font-bold text-primary">
               {index + 1}
             </span>
             <div className="min-w-0 flex-1">

@@ -94,9 +94,9 @@ export function TxFeed({ txs, symbol = "QIE" }: { txs: ExTx[]; symbol?: string }
           </div>
           <div className="min-w-0 flex-1">
             <TxLink hash={t.hash} />
-            <div className="font-mono text-[10px] text-meta">{timeAgo(t.timestamp)}</div>
+            <div className="font-mono text-[10.5px] text-meta">{timeAgo(t.timestamp)}</div>
           </div>
-          <div className="min-w-0 text-right font-mono text-[10px] text-muted-foreground">
+          <div className="min-w-0 text-right font-mono text-[10.5px] text-muted-foreground">
             <div className="truncate">
               From {t.from ? <AddrLink hash={t.from.hash} name={t.from.name} /> : "-"}
             </div>
@@ -111,7 +111,7 @@ export function TxFeed({ txs, symbol = "QIE" }: { txs: ExTx[]; symbol?: string }
               )}
             </div>
           </div>
-          <div className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+          <div className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[10.5px] text-foreground">
             {formatQie(t.value)} {symbol}
           </div>
         </li>
@@ -132,9 +132,9 @@ export function BlockFeed({ blocks }: { blocks: ExBlock[] }) {
           </div>
           <div className="min-w-0 flex-1">
             <BlockLink height={b.height} />
-            <div className="font-mono text-[10px] text-meta">{timeAgo(b.timestamp)}</div>
+            <div className="font-mono text-[10.5px] text-meta">{timeAgo(b.timestamp)}</div>
           </div>
-          <div className="min-w-0 text-right font-mono text-[10px] text-muted-foreground">
+          <div className="min-w-0 text-right font-mono text-[10.5px] text-muted-foreground">
             <div className="truncate">
               Miner {b.miner ? <AddrLink hash={b.miner.hash} name={b.miner.name} /> : "-"}
             </div>
@@ -173,7 +173,7 @@ export function BlockTable({ blocks }: { blocks: ExBlock[] }) {
               <Td className="text-right text-muted-foreground">
                 {withCommas(b.gas_used)}
                 {b.gas_used_percentage != null && (
-                  <span className="ml-1 text-[10px] text-meta">
+                  <span className="ml-1 text-[10.5px] text-meta">
                     ({b.gas_used_percentage.toFixed(1)}%)
                   </span>
                 )}
@@ -211,14 +211,14 @@ export function Pager({
       <button
         onClick={onPrev}
         disabled={!hasPrev}
-        className="rounded border border-border px-2 py-1 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-40"
+        className="rounded border border-border px-2 py-1 font-mono text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-40"
       >
         Prev
       </button>
       <button
         onClick={onNext}
         disabled={!hasNext}
-        className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-40"
+        className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 font-mono text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-40"
       >
         Next <ArrowRight className="h-3 w-3" />
       </button>
@@ -230,7 +230,7 @@ export function Pager({
 function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
   return (
     <th
-      className={`px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px] ${className ?? ""}`}
+      className={`px-3 py-2 text-left font-normal uppercase tracking-wider text-[10.5px] ${className ?? ""}`}
     >
       {children}
     </th>
@@ -253,7 +253,7 @@ export function ViewAll({
     <Link
       to={to}
       params={{ network }}
-      className="font-mono text-[11px] text-primary hover:underline"
+      className="font-mono text-[11.5px] text-primary hover:underline"
     >
       {label}
     </Link>

@@ -10,6 +10,7 @@ import { ago } from "@/lib/coding-agent/steps";
 import { cn } from "@/lib/utils";
 import { Dropdown, MenuItem, RoundButton } from "./primitives";
 import { ProjectThumb, RemoteThumb, TemplateThumb } from "./ProjectThumb";
+import { FeedbackPrompt } from "./FeedbackPrompt";
 import {
   templateSnapshot,
   useCommunityTemplates,
@@ -70,7 +71,7 @@ export function Landing({
         </div>
         <a href="/" className="flex items-center gap-2" aria-label="DevStation">
           <LogoMark className="h-7 w-7 sm:h-8 sm:w-8" />
-          <span className="text-[18px] font-semibold tracking-tight text-foreground sm:text-[21px]">
+          <span className="text-[18.5px] font-semibold tracking-tight text-foreground sm:text-[21.5px]">
             Dev<span className="text-primary">Station</span>
           </span>
         </a>
@@ -86,14 +87,14 @@ export function Landing({
             <button
               onClick={onAccount}
               aria-label="Your account"
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-2 text-[13px] font-semibold text-foreground/85"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-2 text-[13.5px] font-semibold text-foreground/85"
             >
               {initials(account)}
             </button>
           ) : (
             <button
               onClick={onSignIn}
-              className="h-9 whitespace-nowrap rounded-full bg-foreground px-3.5 text-[12.5px] font-medium text-background hover:opacity-85"
+              className="h-9 whitespace-nowrap rounded-full bg-foreground px-3.5 text-[13px] font-medium text-background hover:opacity-85"
             >
               Sign in
             </button>
@@ -102,7 +103,7 @@ export function Landing({
       </header>
 
       <section className="mx-auto w-full max-w-3xl px-4 pb-10 pt-[6vh] sm:px-6">
-        <h1 className="text-center text-[33px] font-semibold leading-[1.1] tracking-tight text-foreground sm:text-[47px]">
+        <h1 className="text-center text-[33.5px] font-semibold leading-[1.1] tracking-tight text-foreground sm:text-[47.5px]">
           Hi {firstName(account) ?? "there"}
           <span className="text-primary">.</span>
           <br />
@@ -124,7 +125,7 @@ export function Landing({
             <>
               <Link
                 to="/launchkit/marketplace"
-                className="px-3 py-3.5 text-[14px] text-muted-foreground transition hover:text-foreground sm:px-4"
+                className="px-3 py-3.5 text-[14.5px] text-muted-foreground transition hover:text-foreground sm:px-4"
               >
                 Marketplace
               </Link>
@@ -141,17 +142,18 @@ export function Landing({
       </div>
 
       <section className="mx-auto w-full max-w-6xl px-4 pb-16 pt-6 sm:px-6">
+        <FeedbackPrompt projects={projects} />
         {tab === "recent" ? (
           recent.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border px-6 py-14 text-center">
-              <p className="text-[15px] font-medium text-foreground">Nothing here yet</p>
-              <p className="mx-auto mt-1 max-w-sm text-[13px] leading-6 text-muted-foreground">
+              <p className="text-[15.5px] font-medium text-foreground">Nothing here yet</p>
+              <p className="mx-auto mt-1 max-w-sm text-[13.5px] leading-6 text-muted-foreground">
                 Describe something above, or start from a template. Every project you start shows up
                 here with a picture of the app.
               </p>
               <button
                 onClick={() => onTab("templates")}
-                className="mt-4 rounded-full border border-border px-4 py-2 text-[13px] text-foreground hover:border-primary/50"
+                className="mt-4 rounded-full border border-border px-4 py-2 text-[13.5px] text-foreground hover:border-primary/50"
               >
                 Browse templates
               </button>
@@ -236,16 +238,16 @@ function TemplateCard({
       <div className="relative overflow-hidden rounded-2xl border border-border transition group-hover:border-primary/40">
         {picture}
         {badge && (
-          <span className="absolute left-2.5 top-2.5 rounded-full bg-background/90 px-2 py-0.5 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
+          <span className="absolute left-2.5 top-2.5 rounded-full bg-background/90 px-2 py-0.5 text-[11.5px] font-medium text-foreground shadow-sm backdrop-blur">
             {badge}
           </span>
         )}
-        <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-[11.5px] font-medium text-foreground opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100">
+        <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-[12px] font-medium text-foreground opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100">
           Open <ArrowUpRight className="h-3 w-3" />
         </span>
       </div>
-      <p className="mt-3 text-[15px] font-semibold text-foreground">{name}</p>
-      {blurb && <p className="mt-0.5 text-[12.5px] leading-5 text-muted-foreground">{blurb}</p>}
+      <p className="mt-3 text-[15.5px] font-semibold text-foreground">{name}</p>
+      {blurb && <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">{blurb}</p>}
     </div>
   );
 }
@@ -263,7 +265,7 @@ function TabButton({
     <button
       onClick={onClick}
       className={cn(
-        "relative px-3 py-3.5 text-[14px] transition sm:px-4",
+        "relative px-3 py-3.5 text-[14.5px] transition sm:px-4",
         active ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
       )}
     >
@@ -295,11 +297,11 @@ function ProjectCard({
       </button>
       <div className="mt-3 flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2 text-[17px] font-semibold text-foreground">
+          <p className="flex items-center gap-2 text-[17.5px] font-semibold text-foreground">
             <span className="truncate">{project.name}</span>
             {project.liveUrl && <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />}
           </p>
-          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+          <p className="mt-0.5 truncate text-[13.5px] text-muted-foreground">
             {project.role === "builder" || project.shared
               ? "Shared with you"
               : project.source?.repo
@@ -346,7 +348,7 @@ function ProjectCard({
         </Dropdown>
       </div>
       <div className="mt-2 flex items-center justify-between">
-        <p className="text-[12px] text-meta">{ago(project.updatedAt)}</p>
+        <p className="text-[12.5px] text-meta">{ago(project.updatedAt)}</p>
         <button
           onClick={onOpen}
           aria-label={`Open ${project.name}`}

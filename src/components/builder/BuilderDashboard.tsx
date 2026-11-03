@@ -159,17 +159,17 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 {tier && (
-                  <span className="rounded border border-primary/50 bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-primary">
+                  <span className="rounded border border-primary/50 bg-primary/10 px-2 py-0.5 font-mono text-[11.5px] font-bold uppercase tracking-wider text-primary">
                     {tier.label}
                   </span>
                 )}
                 {owner && (
-                  <span className="rounded border border-border px-2 py-0.5 font-mono text-[10px] uppercase text-meta">
+                  <span className="rounded border border-border px-2 py-0.5 font-mono text-[10.5px] uppercase text-meta">
                     You
                   </span>
                 )}
                 {model?.bestRank && (
-                  <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-2 py-0.5 font-mono text-[10px] text-warning">
+                  <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-2 py-0.5 font-mono text-[10.5px] text-warning">
                     <Trophy className="h-3 w-3" /> #{model.bestRank.rank} on {model.bestRank.chain}
                   </span>
                 )}
@@ -182,7 +182,7 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
                   <BadgeCheck className="h-5 w-5 shrink-0 text-info" aria-label="QIE ID" />
                 )}
               </h1>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-muted-foreground">
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11.5px] text-muted-foreground">
                 <CopyAddress address={address} />
                 <a
                   href={`${devstationExplorerBase(slugForChainId(mainnet?.chainId ?? 1990))}/address/${address}`}
@@ -200,20 +200,20 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
                   {names.slice(1, 6).map((n) => (
                     <span
                       key={n.tokenId}
-                      className="rounded bg-info/10 px-1.5 py-0.5 font-mono text-[10px] text-info"
+                      className="rounded bg-info/10 px-1.5 py-0.5 font-mono text-[10.5px] text-info"
                     >
                       {n.full}
                     </span>
                   ))}
                   {names.length > 6 && (
-                    <span className="font-mono text-[10px] text-meta">
+                    <span className="font-mono text-[10.5px] text-meta">
                       +{names.length - 6} more
                     </span>
                   )}
                 </div>
               )}
 
-              <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 font-mono text-[11px] sm:grid-cols-4">
+              <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 font-mono text-[11.5px] sm:grid-cols-4">
                 <HeroFact
                   label="Wallet age"
                   value={
@@ -246,7 +246,7 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
 
               {tier && (
                 <div className="mt-4 max-w-md">
-                  <div className="flex items-center justify-between font-mono text-[10px] text-meta">
+                  <div className="flex items-center justify-between font-mono text-[10.5px] text-meta">
                     <span>{tier.label}</span>
                     <span>
                       {tier.next
@@ -268,7 +268,7 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
                   href={QIE_ID_REGISTER_URL}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-4 inline-flex items-center gap-1.5 rounded border border-info/40 bg-info/10 px-3 py-1.5 font-mono text-[11px] text-info hover:bg-info/20"
+                  className="mt-4 inline-flex items-center gap-1.5 rounded border border-info/40 bg-info/10 px-3 py-1.5 font-mono text-[11.5px] text-info hover:bg-info/20"
                 >
                   <BadgeCheck className="h-3.5 w-3.5" /> Get a .qie name so people find you by name
                 </a>
@@ -283,24 +283,24 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
                   key={c.chainId}
                   className="rounded-lg border border-border bg-background/60 px-3 py-2"
                 >
-                  <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-meta">
+                  <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-wider text-meta">
                     <span>{c.name}</span>
                     {c.testnet && (
-                      <span className="rounded bg-surface-2 px-1 text-[9px]">test</span>
+                      <span className="rounded bg-surface-2 px-1 text-[9.5px]">test</span>
                     )}
                   </div>
                   <div className="mt-0.5 font-mono text-sm font-bold text-foreground">
                     {c.wallet.balance !== null
                       ? formatAmount(BigInt(c.wallet.balance), "QIE")
                       : "-"}{" "}
-                    <span className="text-[10px] font-normal text-meta">
+                    <span className="text-[10.5px] font-normal text-meta">
                       {nativeSymbol(c.chainId)}
                     </span>
                   </div>
                   {c.wallet.qusdc !== null && (
                     <div className="font-mono text-xs text-muted-foreground">
                       {formatAmount(BigInt(c.wallet.qusdc), "QUSDC")}{" "}
-                      <span className="text-[10px] text-meta">QUSDC</span>
+                      <span className="text-[10.5px] text-meta">QUSDC</span>
                     </div>
                   )}
                 </div>
@@ -379,7 +379,7 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
           <Card
             title="Activity"
             icon={Flame}
-            action={<span className="font-mono text-[10px] text-meta">last 12 months</span>}
+            action={<span className="font-mono text-[10.5px] text-meta">last 12 months</span>}
           >
             {model ? <ActivityHeatmap timestamps={heatmapStamps} /> : <Skeleton className="h-32" />}
           </Card>
@@ -406,7 +406,7 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
             title="Achievements"
             icon={Award}
             action={
-              <span className="font-mono text-[10px] text-meta">
+              <span className="font-mono text-[10.5px] text-meta">
                 {earnedCount} of {achievements.length}
               </span>
             }
@@ -415,7 +415,7 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
           </Card>
 
           <Card title="How standing is earned" icon={Trophy}>
-            <ul className="space-y-2 font-mono text-[11px] text-muted-foreground">
+            <ul className="space-y-2 font-mono text-[11.5px] text-muted-foreground">
               <li>
                 <span className="text-foreground">Tier</span> comes from contracts deployed plus
                 times other people deployed or bought your work: Builder at 3, Regular at 10,
@@ -470,7 +470,7 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
                     >
                       {site.slug}.devstation.online <ExternalLink className="h-3 w-3 shrink-0" />
                     </a>
-                    <div className="font-mono text-[10px] text-meta">
+                    <div className="font-mono text-[10.5px] text-meta">
                       {site.fileCount} files · {Math.ceil(site.bytes / 1024)} KB · updated{" "}
                       {timeAgo(new Date(site.updatedAt).toISOString())}
                     </div>
@@ -488,7 +488,7 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
             action={
               <Link
                 to="/launchkit/apps"
-                className="font-mono text-[10px] text-primary hover:underline"
+                className="font-mono text-[10.5px] text-primary hover:underline"
               >
                 All apps →
               </Link>
@@ -514,12 +514,12 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
                       >
                         {app.name}
                       </Link>
-                      <div className="font-mono text-[10px] text-meta">
+                      <div className="font-mono text-[10.5px] text-meta">
                         {fileCount(app)} files · {app.history.length} messages ·{" "}
                         {timeAgo(new Date(app.updatedAt).toISOString())}
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2 font-mono text-[10px]">
+                    <div className="flex shrink-0 items-center gap-2 font-mono text-[10.5px]">
                       {app.liveUrl && (
                         <a
                           href={app.liveUrl}
@@ -566,7 +566,7 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left font-mono text-xs">
-              <thead className="text-[10px] uppercase tracking-wider text-meta">
+              <thead className="text-[10.5px] uppercase tracking-wider text-meta">
                 <tr className="border-b border-border">
                   <th className="py-2 pr-3 font-normal">Network</th>
                   <th className="py-2 pr-3 text-right font-normal">Contracts</th>
@@ -583,7 +583,7 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
                     <td className="py-2 pr-3 text-foreground">
                       {c.name}
                       {c.testnet && (
-                        <span className="ml-2 rounded bg-surface-2 px-1 text-[9px] text-meta">
+                        <span className="ml-2 rounded bg-surface-2 px-1 text-[9.5px] text-meta">
                           test
                         </span>
                       )}
@@ -606,7 +606,7 @@ export function BuilderDashboard({ address, owner }: { address: string; owner: b
         )}
       </Card>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-meta">
+      <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10.5px] text-meta">
         <span>
           Read from QIE Mainnet{data && data.chains.some((c) => c.testnet) ? ", QIE Testnet" : ""}{" "}
           and their explorers
@@ -831,7 +831,7 @@ function ContractsSection({ model, loading }: { model: Model | null; loading: bo
                 key={n}
                 onClick={() => setNetwork(n)}
                 className={cn(
-                  "rounded border px-2 py-0.5 font-mono text-[10px]",
+                  "rounded border px-2 py-0.5 font-mono text-[10.5px]",
                   network === n
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border text-meta hover:text-foreground",
@@ -861,7 +861,7 @@ function ContractsSection({ model, loading }: { model: Model | null; loading: bo
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-left font-mono text-xs">
-            <thead className="text-[10px] uppercase tracking-wider text-meta">
+            <thead className="text-[10.5px] uppercase tracking-wider text-meta">
               <tr className="border-b border-border">
                 <th className="py-2 pr-3 font-normal">Project</th>
                 <th className="py-2 pr-3 font-normal">Template</th>
@@ -910,7 +910,7 @@ function ContractsSection({ model, loading }: { model: Model | null; loading: bo
             </tbody>
           </table>
           {rows.length > 50 && (
-            <p className="mt-2 font-mono text-[10px] text-meta">
+            <p className="mt-2 font-mono text-[10.5px] text-meta">
               Showing the latest 50 of {rows.length}.
             </p>
           )}
@@ -944,13 +944,13 @@ function MarketplaceSection({
           <div className="flex gap-2">
             <Link
               to="/launchkit/marketplace/sell"
-              className="font-mono text-[10px] text-primary hover:underline"
+              className="font-mono text-[10.5px] text-primary hover:underline"
             >
               New listing →
             </Link>
             <Link
               to="/launchkit/marketplace/creator"
-              className="font-mono text-[10px] text-primary hover:underline"
+              className="font-mono text-[10.5px] text-primary hover:underline"
             >
               Earnings →
             </Link>
@@ -972,13 +972,13 @@ function MarketplaceSection({
                   key={c.chainId}
                   className="rounded-lg border border-border bg-background/50 p-3"
                 >
-                  <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-meta">
+                  <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-wider text-meta">
                     <span>{c.name}</span>
                     {c.testnet && (
-                      <span className="rounded bg-surface-2 px-1 text-[9px]">test</span>
+                      <span className="rounded bg-surface-2 px-1 text-[9.5px]">test</span>
                     )}
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[11px]">
+                  <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[11.5px]">
                     <Mini label="Earned" value={amounts(m.earned)} />
                     <Mini label="Tips" value={amounts(m.tips)} />
                     <Mini label="To withdraw" value={amounts(m.pending)} highlight={owner} />
@@ -1015,7 +1015,7 @@ function MarketplaceSection({
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[620px] text-left font-mono text-xs">
-                <thead className="text-[10px] uppercase tracking-wider text-meta">
+                <thead className="text-[10.5px] uppercase tracking-wider text-meta">
                   <tr className="border-b border-border">
                     <th className="py-2 pr-3 font-normal">Listing</th>
                     <th className="py-2 pr-3 font-normal">Kind</th>
@@ -1093,11 +1093,11 @@ function LabelsList({ model }: { model: Model | null }) {
         >
           <div className="min-w-0">
             <div className="truncate font-mono text-xs text-foreground">{l.name}</div>
-            <div className="font-mono text-[10px] text-meta">
+            <div className="font-mono text-[10.5px] text-meta">
               {l.category} · {shortAddr(l.address)}
             </div>
           </div>
-          <span className="shrink-0 font-mono text-[10px] text-meta">
+          <span className="shrink-0 font-mono text-[10.5px] text-meta">
             {l.at ? timeAgo(new Date(l.at).toISOString()) : ""}
           </span>
         </li>
@@ -1156,13 +1156,15 @@ function Achievements({ list }: { list: Achievement[] }) {
               <div className="min-w-0">
                 <div
                   className={cn(
-                    "font-mono text-[11px] font-bold leading-tight",
+                    "font-mono text-[11.5px] font-bold leading-tight",
                     a.earned ? "text-foreground" : "text-muted-foreground",
                   )}
                 >
                   {a.title}
                 </div>
-                <div className="line-clamp-2 font-mono text-[10px] text-meta">{a.description}</div>
+                <div className="line-clamp-2 font-mono text-[10.5px] text-meta">
+                  {a.description}
+                </div>
               </div>
             </div>
             {!a.earned && (
@@ -1170,7 +1172,7 @@ function Achievements({ list }: { list: Achievement[] }) {
                 <div className="h-1 overflow-hidden rounded-full bg-surface-2">
                   <div className="h-full bg-primary/60" style={{ width: `${pct}%` }} />
                 </div>
-                <div className="mt-0.5 text-right font-mono text-[9px] text-meta">
+                <div className="mt-0.5 text-right font-mono text-[9.5px] text-meta">
                   {Math.min(a.current, a.target)} / {a.target}
                 </div>
               </div>
@@ -1222,12 +1224,12 @@ function TimelineItem({ event }: { event: ActivityEvent }) {
       </span>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
         <span className="font-mono text-xs text-foreground">{title}</span>
-        <span className="font-mono text-[10px] text-meta">
+        <span className="font-mono text-[10.5px] text-meta">
           {timeAgo(new Date(event.at).toISOString())}
         </span>
       </div>
       {event.detail && (
-        <div className="font-mono text-[10px] text-muted-foreground">{event.detail}</div>
+        <div className="font-mono text-[10.5px] text-muted-foreground">{event.detail}</div>
       )}
     </li>
   );
@@ -1270,12 +1272,12 @@ function Kpi({
 }) {
   return (
     <div className="rounded-xl border border-border bg-surface p-3">
-      <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-meta">
+      <div className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-meta">
         <Icon className="h-3 w-3 shrink-0 text-primary/80" />
         <span className="truncate">{label}</span>
       </div>
       <div className="mt-1.5 truncate font-mono text-lg font-bold text-foreground">{value}</div>
-      {sub && <div className="truncate font-mono text-[10px] text-muted-foreground">{sub}</div>}
+      {sub && <div className="truncate font-mono text-[10.5px] text-muted-foreground">{sub}</div>}
     </div>
   );
 }
@@ -1283,7 +1285,7 @@ function Kpi({
 function Mini({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div className="min-w-0">
-      <div className="text-[9px] uppercase tracking-wider text-meta">{label}</div>
+      <div className="text-[9.5px] uppercase tracking-wider text-meta">{label}</div>
       <div
         className={cn("truncate", highlight && value !== "0" ? "text-primary" : "text-foreground")}
       >
@@ -1296,7 +1298,7 @@ function Mini({ label, value, highlight }: { label: string; value: string; highl
 function HeroFact({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[9px] uppercase tracking-wider text-meta">{label}</dt>
+      <dt className="text-[9.5px] uppercase tracking-wider text-meta">{label}</dt>
       <dd className="truncate text-foreground">{value}</dd>
     </div>
   );

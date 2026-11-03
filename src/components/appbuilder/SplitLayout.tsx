@@ -151,7 +151,7 @@ export function SplitLayout({ chat, preview, className = DEFAULT_HEIGHT, chatCol
     // unmounting it, so the preview iframe is never torn down and rebuilt and
     // the chat keeps its scroll position.
     const tab = (active: boolean) =>
-      `flex flex-1 items-center justify-center gap-1.5 rounded py-1.5 font-mono text-[10px] transition ${
+      `flex flex-1 items-center justify-center gap-1.5 rounded py-1.5 font-mono text-[10.5px] transition ${
         active ? "bg-surface-2 text-foreground" : "text-meta"
       }`;
 

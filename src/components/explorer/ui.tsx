@@ -124,7 +124,7 @@ export function StatusPill({ ok }: { ok: boolean }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px]",
+        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10.5px]",
         ok
           ? "border-success/40 bg-success/10 text-success"
           : "border-danger/40 bg-danger/10 text-danger",
@@ -139,7 +139,7 @@ export function StatusPill({ ok }: { ok: boolean }) {
 export function MethodPill({ method }: { method?: string | null }) {
   if (!method) return <span className="text-meta">-</span>;
   return (
-    <span className="inline-block max-w-[140px] truncate rounded border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+    <span className="inline-block max-w-[140px] truncate rounded border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground">
       {method}
     </span>
   );
@@ -162,7 +162,7 @@ export function Card({
     <div className={cn("overflow-hidden rounded border border-border bg-surface", className)}>
       {(title || action) && (
         <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <h2 className="font-mono text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">
             {title}
           </h2>
           {action}
@@ -204,10 +204,10 @@ export function StatCard({
 }) {
   return (
     <div className="rounded border border-border bg-surface p-4">
-      <div className="font-mono text-[10px] uppercase tracking-wider text-meta">{label}</div>
+      <div className="font-mono text-[10.5px] uppercase tracking-wider text-meta">{label}</div>
       <div className="mt-1 font-mono text-lg font-bold text-foreground">{value}</div>
       {sub != null && (
-        <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">{sub}</div>
+        <div className="mt-0.5 font-mono text-[11.5px] text-muted-foreground">{sub}</div>
       )}
     </div>
   );
@@ -238,7 +238,7 @@ export function Tabs({
           )}
         >
           {t.label}
-          {t.count != null && <span className="ml-1 text-[10px] text-meta">({t.count})</span>}
+          {t.count != null && <span className="ml-1 text-[10.5px] text-meta">({t.count})</span>}
         </button>
       ))}
     </div>
@@ -267,7 +267,7 @@ export function ErrorState({ message, onRetry }: { message?: string; onRetry?: (
       {onRetry && (
         <button
           onClick={onRetry}
-          className="rounded border border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
+          className="rounded border border-border px-2.5 py-1 text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary"
         >
           Retry
         </button>

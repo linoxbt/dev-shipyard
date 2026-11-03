@@ -61,7 +61,7 @@ const STEPS = ["What", "Files", "Details", "Price"] as const;
 
 const field =
   "w-full rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground placeholder:text-meta focus:border-primary focus:outline-none";
-const labelCls = "mb-1 block font-mono text-[11px] uppercase tracking-wider text-meta";
+const labelCls = "mb-1 block font-mono text-[11.5px] uppercase tracking-wider text-meta";
 
 function SellPage() {
   const navigate = useNavigate();
@@ -250,7 +250,7 @@ function SellPage() {
               <button
                 onClick={() => index < step && setStep(index)}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded border px-2 py-2 font-mono text-[11px] transition",
+                  "flex w-full items-center gap-2 rounded border px-2 py-2 font-mono text-[11.5px] transition",
                   index === step
                     ? "border-primary bg-primary/10 text-primary"
                     : index < step
@@ -258,7 +258,7 @@ function SellPage() {
                       : "border-border text-meta",
                 )}
               >
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current text-[10px]">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current text-[10.5px]">
                   {index < step ? <Check className="h-3 w-3" /> : index + 1}
                 </span>
                 <span className="truncate">{label}</span>
@@ -351,13 +351,13 @@ function SellPage() {
                   it
                 </button>
                 {paths.length > 0 && (
-                  <span className="inline-flex items-center gap-1 font-mono text-[11px] text-success">
+                  <span className="inline-flex items-center gap-1 font-mono text-[11.5px] text-success">
                     <Check className="h-3 w-3" /> {paths.join(", ")}
                   </span>
                 )}
               </div>
               {compileErrors.length > 0 && (
-                <div className="space-y-1 rounded border border-danger/40 bg-danger/10 p-3 font-mono text-[10px] text-danger">
+                <div className="space-y-1 rounded border border-danger/40 bg-danger/10 p-3 font-mono text-[10.5px] text-danger">
                   {compileErrors.map((error, i) => (
                     <p key={i} className="whitespace-pre-wrap break-words">
                       {error}
@@ -409,7 +409,7 @@ function SellPage() {
                           <span className="block truncate font-mono text-sm font-bold text-foreground">
                             {project.name}
                           </span>
-                          <span className="mt-1 block font-mono text-[11px] text-meta">
+                          <span className="mt-1 block font-mono text-[11.5px] text-meta">
                             {count} files{project.liveUrl ? " · published" : ""}
                           </span>
                         </button>
@@ -432,7 +432,7 @@ function SellPage() {
                 rows={18}
                 className={`${field} leading-relaxed`}
               />
-              <p className="font-mono text-[10px] text-meta">
+              <p className="font-mono text-[10.5px] text-meta">
                 Works with the Coding Agent and the DevStation CLI, and with Claude Code skills.
               </p>
             </div>
@@ -443,7 +443,7 @@ function SellPage() {
               <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background px-4 py-10 text-center transition hover:border-primary">
                 <Upload className="h-6 w-6 text-meta" />
                 <span className="font-mono text-xs text-foreground">Add component files</span>
-                <span className="font-mono text-[10px] text-meta">
+                <span className="font-mono text-[10.5px] text-meta">
                   .tsx, .ts, .css, .json, .md. Text files only.
                 </span>
                 <input
@@ -545,7 +545,7 @@ function SellPage() {
                       )}
                     >
                       <span className="block font-mono text-sm font-bold text-foreground">{c}</span>
-                      <span className="mt-1 block text-[11px] text-muted-foreground">
+                      <span className="mt-1 block text-[11.5px] text-muted-foreground">
                         {c === "QUSDC" ? "A dollar price that stays put." : "QIE's native coin."}
                       </span>
                     </button>
@@ -576,7 +576,9 @@ function SellPage() {
                         <span className="block font-mono text-sm font-bold text-foreground">
                           {title}
                         </span>
-                        <span className="mt-1 block text-[11px] text-muted-foreground">{body}</span>
+                        <span className="mt-1 block text-[11.5px] text-muted-foreground">
+                          {body}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -594,7 +596,7 @@ function SellPage() {
                   />
                   <span className="px-3 font-mono text-xs text-meta">{currency}</span>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px]">
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11.5px]">
                   {price === null ? (
                     <span className="text-danger">Enter a price, or 0 for free.</span>
                   ) : price === 0n ? (
@@ -617,7 +619,7 @@ function SellPage() {
                 </div>
               </div>
 
-              <div className="rounded border border-border bg-background p-3 font-mono text-[11px] text-muted-foreground">
+              <div className="rounded border border-border bg-background p-3 font-mono text-[11.5px] text-muted-foreground">
                 Publishing records the listing on QIE Mainnet (one transaction), then uploads{" "}
                 {Object.keys(kind === "skill" ? { "SKILL.md": skill } : files).length} file(s),{" "}
                 {Math.ceil(bundleBytes(kind === "skill" ? { "SKILL.md": skill } : files) / 1024)}{" "}
@@ -677,7 +679,7 @@ function FileSummary({
   if (paths.length === 0) return null;
   return (
     <div className="rounded border border-border bg-background">
-      <div className="flex items-center justify-between border-b border-border px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-meta">
+      <div className="flex items-center justify-between border-b border-border px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-wider text-meta">
         <span>{paths.length} files</span>
         <span>{Math.ceil(bundleBytes(files) / 1024)} KB</span>
       </div>
@@ -685,7 +687,7 @@ function FileSummary({
         {paths.map((path) => (
           <li
             key={path}
-            className="flex items-center justify-between gap-2 py-0.5 font-mono text-[11px] text-muted-foreground"
+            className="flex items-center justify-between gap-2 py-0.5 font-mono text-[11.5px] text-muted-foreground"
           >
             <span className="truncate">{path}</span>
             {onRemove && (
@@ -701,7 +703,7 @@ function FileSummary({
         ))}
       </ul>
       {problem && (
-        <p className="border-t border-border px-3 py-1.5 font-mono text-[10px] text-danger">
+        <p className="border-t border-border px-3 py-1.5 font-mono text-[10.5px] text-danger">
           {problem}
         </p>
       )}

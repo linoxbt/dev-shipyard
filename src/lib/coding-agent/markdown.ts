@@ -1,6 +1,6 @@
 // The small part of Markdown the agent's replies use: paragraphs, headings,
-// bullet and numbered lists, fenced code, inline code, bold, italics and
-// links. Parsed into plain data and rendered as React elements (never as
+// bullet and numbered lists, tables, fenced code, inline code, bold, italics
+// and links. Parsed into plain data and rendered as React elements (never as
 // HTML), because the reply is model output that may have read hostile input.
 
 export type Inline =
@@ -15,7 +15,21 @@ export type Block =
   | { kind: "heading"; level: 1 | 2 | 3; inline: Inline[] }
   | { kind: "list"; ordered: boolean; items: Inline[][] }
   | { kind: "code"; lang: string; text: string }
-  | { kind: "quote"; inline: Inline[] };
+  | { kind: "quote"; inline: Inline[] }
+  | { kind: "table"; head: Inline[][]; rows: Inline[][][] };
+
+/**
+ * DevStation's replies use no em dashes: an aside set off by one ("A — B")
+ * reads as a comma ("A, B"), as does a spaced en dash; one before a full
+ * stop or other closing mark is dropped. Only prose: code is left as written.
+ */
+export function plainDashes(text: string): string {
+  return text
+    .replace(/\s*\u2014\s*([.;:!?)\]])/g, "$1")
+    .replace(/\s*\u2014\s*/g, ", ")
+    .replace(/\s+\u2013\s+/g, ", ")
+    .replace(/,\s*,/g, ",");
+}
 
 /** Only web links: a `javascript:` or `data:` href would run in DevStation. */
 export function safeHref(href: string): string | null {
@@ -69,12 +83,29 @@ export function parseInline(text: string): Inline[] {
     rest = rest.slice(m.index + token.length);
   }
   // Merge neighbouring text so the renderer emits fewer nodes.
-  return out.reduce<Inline[]>((acc, node) => {
+  const merged = out.reduce<Inline[]>((acc, node) => {
     const last = acc[acc.length - 1];
     if (node.kind === "text" && last?.kind === "text") last.text += node.text;
     else acc.push(node);
     return acc;
   }, []);
+  for (const node of merged) if (node.kind === "text") node.text = plainDashes(node.text);
+  // A dash that opened the line leaves no comma behind.
+  if (merged[0]?.kind === "text") merged[0].text = merged[0].text.replace(/^,\s*/, "");
+  return merged;
+}
+
+const TABLE_ROW = /^\s*\|.*\|\s*$/;
+const TABLE_RULE = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+
+/** A table row's cells, without the outer pipes. */
+function cells(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((c) => c.trim());
 }
 
 const BULLET = /^\s*[-*+]\s+(.*)$/;
@@ -104,12 +135,23 @@ export function parseMarkdown(source: string): Block[] {
       flush();
       continue;
     }
-    const heading = /^(#{1,3})\s+(.*)$/.exec(line);
+    if (TABLE_ROW.test(line) && TABLE_RULE.test(lines[i + 1] ?? "")) {
+      flush();
+      const head = cells(line).map(parseInline);
+      const rows: Inline[][][] = [];
+      i += 2;
+      while (i < lines.length && TABLE_ROW.test(lines[i]))
+        rows.push(cells(lines[i++]).map(parseInline));
+      i--;
+      blocks.push({ kind: "table", head, rows });
+      continue;
+    }
+    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
     if (heading) {
       flush();
       blocks.push({
         kind: "heading",
-        level: heading[1].length as 1 | 2 | 3,
+        level: Math.min(heading[1].length, 3) as 1 | 2 | 3,
         inline: parseInline(heading[2]),
       });
       continue;

@@ -81,7 +81,7 @@ function LabelRegistry() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`rounded border px-2.5 py-1 font-mono text-[11px] transition ${
+              className={`rounded border px-2.5 py-1 font-mono text-[11.5px] transition ${
                 filter === f
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
@@ -103,22 +103,22 @@ function LabelRegistry() {
           <table className="w-full font-mono text-xs">
             <thead className="bg-surface-2 text-meta">
               <tr>
-                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-[10.5px] font-normal uppercase tracking-wider">
                   Contract
                 </th>
-                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-[10.5px] font-normal uppercase tracking-wider">
                   Label
                 </th>
-                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-[10.5px] font-normal uppercase tracking-wider">
                   Category
                 </th>
-                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-[10.5px] font-normal uppercase tracking-wider">
                   Source
                 </th>
-                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-[10.5px] font-normal uppercase tracking-wider">
                   Submitter
                 </th>
-                <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-[10.5px] font-normal uppercase tracking-wider">
                   Date
                 </th>
               </tr>
@@ -173,7 +173,7 @@ function Stat({ value, label }: { value: number; label: string }) {
   return (
     <div className="rounded border border-border bg-surface p-4">
       <div className="font-mono text-2xl font-bold text-foreground">{value}</div>
-      <div className="mt-1 font-mono text-[10px] uppercase tracking-wider text-meta">{label}</div>
+      <div className="mt-1 font-mono text-[10.5px] uppercase tracking-wider text-meta">{label}</div>
     </div>
   );
 }
@@ -270,7 +270,7 @@ function SubmitLabelModal({ onClose }: { onClose: () => void }) {
               rows={2}
               className="w-full rounded border border-border bg-background px-3 py-2 text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
             />
-            <div className="text-right text-[10px] text-meta">{desc.length}/200</div>
+            <div className="text-right text-[10.5px] text-meta">{desc.length}/200</div>
           </Field>
         </div>
 
@@ -297,7 +297,7 @@ function SubmitLabelModal({ onClose }: { onClose: () => void }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[10px] uppercase tracking-wider text-meta">{label}</span>
+      <span className="mb-1 block text-[10.5px] uppercase tracking-wider text-meta">{label}</span>
       {children}
     </label>
   );

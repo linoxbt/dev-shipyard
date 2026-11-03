@@ -101,7 +101,7 @@ function SettingsPage() {
                 <button
                   key={v}
                   onClick={() => setAddressFormat(v)}
-                  className={`rounded border px-2 py-1 font-mono text-[11px] ${
+                  className={`rounded border px-2 py-1 font-mono text-[11.5px] ${
                     addressFormat === v
                       ? "border-primary text-primary"
                       : "border-border text-muted-foreground"
@@ -177,7 +177,7 @@ function UnlockWindow() {
           ))}
         </select>
       </Row>
-      <p className="mt-1 font-mono text-[10px] text-meta">
+      <p className="mt-1 font-mono text-[10.5px] text-meta">
         By default the DevStation wallet locks itself 30 minutes after your last action, in every
         tab of this site. Choose a longer window, or &quot;until I clear my browser data&quot;, to
         stay unlocked through restarts, at the cost that anyone at this browser can use an unlocked
@@ -196,7 +196,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div className="rounded border border-border bg-surface">
       <div className="border-b border-border px-4 py-2.5">
-        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <h2 className="font-mono text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">
           {title}
         </h2>
       </div>
@@ -208,7 +208,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-meta">{label}</div>
+      <div className="mb-1 font-mono text-[10.5px] uppercase tracking-wider text-meta">{label}</div>
       <div className="font-mono text-xs">{children}</div>
     </div>
   );

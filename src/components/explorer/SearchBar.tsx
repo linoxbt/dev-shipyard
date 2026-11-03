@@ -156,7 +156,7 @@ export function SearchBar() {
       {open && networkRecent.length > 0 && (
         <div className="absolute z-20 mt-1 w-full overflow-hidden rounded border border-border bg-surface shadow-lg">
           <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
-            <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-meta">
+            <span className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-meta">
               <Clock className="h-3 w-3" /> Recent searches
             </span>
             <button
@@ -166,7 +166,7 @@ export function SearchBar() {
                 refreshRecent();
                 setOpen(false);
               }}
-              className="flex items-center gap-1 font-mono text-[10px] text-meta hover:text-danger"
+              className="flex items-center gap-1 font-mono text-[10.5px] text-meta hover:text-danger"
             >
               <X className="h-3 w-3" /> Clear
             </button>
@@ -189,12 +189,12 @@ export function SearchBar() {
                       {s.name || displayQuery(s)}
                     </span>
                     {s.name && (
-                      <span className="block truncate font-mono text-[10px] text-meta">
+                      <span className="block truncate font-mono text-[10.5px] text-meta">
                         {displayQuery(s)}
                       </span>
                     )}
                   </span>
-                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-meta">
+                  <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-wider text-meta">
                     {s.kind}
                   </span>
                 </button>

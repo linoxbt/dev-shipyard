@@ -70,7 +70,7 @@ export function AgentChat({ className }: { className?: string }) {
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <Bot className="h-4 w-4 text-primary" />
         <span className="font-mono text-xs font-semibold text-foreground">Autonomous Agent</span>
-        <span className="font-mono text-[9px] uppercase tracking-wider text-meta">
+        <span className="font-mono text-[9.5px] uppercase tracking-wider text-meta">
           {settings.proxy
             ? "server proxy"
             : `${AI_PROVIDERS[settings.provider].label} · ${settings.model}`}
@@ -91,7 +91,7 @@ export function AgentChat({ className }: { className?: string }) {
       {/* Target / warning banner */}
       <div
         className={cn(
-          "flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border bg-background/40 px-3 py-1.5 font-mono text-[10px] text-meta",
+          "flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border bg-background/40 px-3 py-1.5 font-mono text-[10.5px] text-meta",
         )}
       >
         {/* Which chain a deploy lands on, stated plainly. Deliberately not a
@@ -107,7 +107,7 @@ export function AgentChat({ className }: { className?: string }) {
       {/* Timeline */}
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-3">
         {timeline.length === 0 && (
-          <div className="space-y-2 font-mono text-[11px] text-meta">
+          <div className="space-y-2 font-mono text-[11.5px] text-meta">
             {configured ? (
               <>
                 <p>Describe a contract and I&apos;ll build it end to end:</p>
@@ -120,7 +120,7 @@ export function AgentChat({ className }: { className?: string }) {
                     &quot;Here&apos;s my contract source: compile, fix any errors, and deploy.&quot;
                   </li>
                 </ul>
-                <p className="text-[10px]">
+                <p className="text-[10.5px]">
                   I generate the Solidity, compile it, auto-fix errors (up to 5 tries), then deploy
                   with your wallet, without leaving this page.
                 </p>
@@ -147,7 +147,7 @@ export function AgentChat({ className }: { className?: string }) {
         ))}
 
         {running && (
-          <div className="flex items-center gap-2 font-mono text-[11px] text-meta">
+          <div className="flex items-center gap-2 font-mono text-[11.5px] text-meta">
             <Loader2 className="h-3 w-3 animate-spin text-primary" /> working…
           </div>
         )}
@@ -228,9 +228,12 @@ function TimelineRow({
   const isUser = item.type === "user";
   return (
     <div
-      className={cn("font-mono text-[11px]", isUser ? "text-foreground" : "text-muted-foreground")}
+      className={cn(
+        "font-mono text-[11.5px]",
+        isUser ? "text-foreground" : "text-muted-foreground",
+      )}
     >
-      <div className="mb-0.5 text-[9px] uppercase tracking-wider text-meta">
+      <div className="mb-0.5 text-[9.5px] uppercase tracking-wider text-meta">
         {isUser ? "You" : "Agent"}
       </div>
       <div
@@ -282,11 +285,11 @@ function CodeChunk({ code }: { code: string }) {
   return (
     <div className="my-1.5 overflow-hidden rounded border border-border bg-background">
       <div className="flex items-center justify-between border-b border-border px-2 py-1">
-        <span className="font-mono text-[9px] uppercase tracking-wider text-meta">solidity</span>
+        <span className="font-mono text-[9.5px] uppercase tracking-wider text-meta">solidity</span>
         <div className="flex items-center gap-2">
           <button
             onClick={openInEditor}
-            className="flex items-center gap-1 text-[9px] text-primary hover:underline"
+            className="flex items-center gap-1 text-[9.5px] text-primary hover:underline"
             title="Open in Contract Editor"
           >
             <FileCode2 className="h-3 w-3" /> editor
@@ -297,13 +300,13 @@ function CodeChunk({ code }: { code: string }) {
               setCopied(true);
               setTimeout(() => setCopied(false), 1200);
             }}
-            className="flex items-center gap-1 text-[9px] text-meta hover:text-foreground"
+            className="flex items-center gap-1 text-[9.5px] text-meta hover:text-foreground"
           >
             {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
           </button>
         </div>
       </div>
-      <pre className="max-h-72 overflow-auto p-2 text-[10px] leading-relaxed text-foreground">
+      <pre className="max-h-72 overflow-auto p-2 text-[10.5px] leading-relaxed text-foreground">
         {code}
       </pre>
     </div>
@@ -331,7 +334,7 @@ function DeployForm({
   return (
     <div
       className={cn(
-        "rounded border bg-background p-3 font-mono text-[11px]",
+        "rounded border bg-background p-3 font-mono text-[11.5px]",
         done ? "border-border opacity-70" : "border-primary/40",
       )}
     >
@@ -344,7 +347,7 @@ function DeployForm({
       <div className="mt-2 space-y-2">
         {item.inputs.map((inp) => (
           <label key={inp.name} className="block">
-            <span className="text-[10px] text-meta">
+            <span className="text-[10.5px] text-meta">
               {inp.name} <span className="text-muted-foreground">({inp.type})</span>
             </span>
             <input
@@ -352,7 +355,7 @@ function DeployForm({
               onChange={(e) => setValues((v) => ({ ...v, [inp.name]: e.target.value }))}
               disabled={done}
               placeholder={inp.type}
-              className="mt-0.5 w-full rounded border border-border bg-surface px-2 py-1 text-[11px] text-foreground focus:border-primary focus:outline-none disabled:opacity-60"
+              className="mt-0.5 w-full rounded border border-border bg-surface px-2 py-1 text-[11.5px] text-foreground focus:border-primary focus:outline-none disabled:opacity-60"
             />
           </label>
         ))}
@@ -363,23 +366,23 @@ function DeployForm({
           <button
             onClick={() => onSubmit(item.id, values)}
             disabled={running || !isConnected}
-            className="inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-[11.5px] font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
           >
             <Rocket className="h-3.5 w-3.5" /> Deploy &amp; sign
           </button>
           <button
             onClick={() => onCancel(item.id)}
             disabled={running}
-            className="rounded border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-40"
+            className="rounded border border-border px-3 py-1.5 text-[11.5px] text-muted-foreground hover:text-foreground disabled:opacity-40"
           >
             Cancel
           </button>
           {!isConnected && (
-            <span className="text-[10px] text-warning">Connect a wallet first.</span>
+            <span className="text-[10.5px] text-warning">Connect a wallet first.</span>
           )}
         </div>
       ) : (
-        <div className="mt-2 text-[10px] text-meta">
+        <div className="mt-2 text-[10.5px] text-meta">
           {item.status === "submitted" ? "Submitted." : "Cancelled."}
         </div>
       )}
@@ -411,7 +414,7 @@ function StepCard({ step, explorerSlug }: { step: ToolStep; explorerSlug: string
   return (
     <div
       className={cn(
-        "rounded border bg-background p-2 font-mono text-[11px]",
+        "rounded border bg-background p-2 font-mono text-[11.5px]",
         step.status === "error" ? "border-danger/40" : "border-border",
       )}
     >
@@ -421,12 +424,12 @@ function StepCard({ step, explorerSlug }: { step: ToolStep; explorerSlug: string
         <span className="ml-auto">{statusIcon}</span>
       </div>
       {step.detail && (
-        <pre className="mt-1 whitespace-pre-wrap break-words text-[10px] leading-relaxed text-muted-foreground">
+        <pre className="mt-1 whitespace-pre-wrap break-words text-[10.5px] leading-relaxed text-muted-foreground">
           {step.detail}
         </pre>
       )}
       {step.address && (
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px]">
           <CopyInline label="Address" value={step.address} />
           <Link
             to="/explorer/$network/address/$hash"
@@ -438,7 +441,7 @@ function StepCard({ step, explorerSlug }: { step: ToolStep; explorerSlug: string
         </div>
       )}
       {step.txHash && !step.address && (
-        <div className="mt-1.5 text-[10px]">
+        <div className="mt-1.5 text-[10.5px]">
           <CopyInline label="Tx" value={step.txHash} />
         </div>
       )}

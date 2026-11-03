@@ -59,7 +59,7 @@ function EvmExplorerLayout() {
           {/* Prominent network label so users always know which chain they are on */}
           <span
             className={cn(
-              "inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider",
+              "inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-wider",
               isMainnet
                 ? "border-info/50 bg-info/10 text-info"
                 : "border-warning/50 bg-warning/10 text-warning",
@@ -75,7 +75,7 @@ function EvmExplorerLayout() {
             <Link
               to="/explorer/$network/verify"
               params={{ network: slug }}
-              className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-primary"
+              className="inline-flex items-center gap-1 font-mono text-[11.5px] text-muted-foreground hover:text-primary"
             >
               <ShieldCheck className="h-3.5 w-3.5" /> Verify Contract
             </Link>
@@ -84,7 +84,7 @@ function EvmExplorerLayout() {
               href={cfg.explorerUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 font-mono text-[11px] text-meta hover:text-primary"
+              className="inline-flex items-center gap-1 font-mono text-[11.5px] text-meta hover:text-primary"
               title={`The official ${family.label} explorer this data is sourced from`}
             >
               Data source <ExternalLink className="h-3 w-3" />
@@ -128,7 +128,7 @@ function NetworkDropdown({ slug }: { slug: string }) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 rounded border border-border bg-surface px-2.5 py-1.5 font-mono text-[11px] text-foreground transition hover:border-primary/50"
+        className="flex items-center gap-1.5 rounded border border-border bg-surface px-2.5 py-1.5 font-mono text-[11.5px] text-foreground transition hover:border-primary/50"
       >
         {current && <ChainLogo family={current.label} size={13} />}
         {current?.label ?? "Select network"}
@@ -145,7 +145,7 @@ function NetworkDropdown({ slug }: { slug: string }) {
                 setOpen(false);
               }}
               className={cn(
-                "flex w-full items-center gap-2 px-2.5 py-2 text-left font-mono text-[11px] transition hover:bg-surface-2",
+                "flex w-full items-center gap-2 px-2.5 py-2 text-left font-mono text-[11.5px] transition hover:bg-surface-2",
                 o.slug === slug ? "text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >

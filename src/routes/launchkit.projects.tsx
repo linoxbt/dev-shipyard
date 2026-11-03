@@ -145,7 +145,7 @@ function ProjectsPage() {
 
       <div className="py-6 px-5 sm:px-8 lg:px-12">
         {onChain && (
-          <div className="mb-3 flex items-center gap-1.5 font-mono text-[10px] text-success">
+          <div className="mb-3 flex items-center gap-1.5 font-mono text-[10.5px] text-success">
             <span className="h-1.5 w-1.5 rounded-full bg-success" /> Reading your deployments from
             the onchain ProjectRegistry
           </div>
@@ -153,20 +153,20 @@ function ProjectsPage() {
         {isConnected && projects.length > 0 && (
           <div className="mb-4 rounded border border-border bg-surface p-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded border border-primary/50 bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-medium text-primary">
+              <span className="rounded border border-primary/50 bg-primary/10 px-2 py-0.5 font-mono text-[10.5px] font-medium text-primary">
                 {TIER_LABEL[reputation.tier]}
               </span>
-              <span className="font-mono text-[11px] text-muted-foreground">
+              <span className="font-mono text-[11.5px] text-muted-foreground">
                 {reputationSummary(reputation)}
               </span>
             </div>
-            <p className="mt-1.5 font-mono text-[10px] text-meta">
+            <p className="mt-1.5 font-mono text-[10.5px] text-meta">
               Derived from the onchain ProjectRegistry, every deployment here cost gas, so nothing
               in this summary can be self-awarded.
             </p>
             <button
               onClick={copySubmission}
-              className="mt-2.5 inline-flex items-center gap-1.5 rounded border border-primary px-2 py-1 font-mono text-[10px] text-primary hover:bg-primary/10"
+              className="mt-2.5 inline-flex items-center gap-1.5 rounded border border-primary px-2 py-1 font-mono text-[10.5px] text-primary hover:bg-primary/10"
             >
               <Trophy className="h-3 w-3" /> Copy hackathon submission
             </button>
@@ -178,7 +178,7 @@ function ProjectsPage() {
             <p className="font-mono text-xs text-meta">
               Connect your wallet to see the contracts you have deployed.
             </p>
-            <p className="mt-1 font-mono text-[10px] text-meta">
+            <p className="mt-1 font-mono text-[10.5px] text-meta">
               Projects are scoped to the connected wallet.
             </p>
           </div>
@@ -197,19 +197,19 @@ function ProjectsPage() {
             <table className="w-full font-mono text-xs">
               <thead>
                 <tr className="border-b border-border bg-surface-2 text-meta">
-                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">
+                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10.5px]">
                     Name
                   </th>
-                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">
+                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10.5px]">
                     Template
                   </th>
-                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">
+                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10.5px]">
                     Address
                   </th>
-                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">
+                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10.5px]">
                     Deployed
                   </th>
-                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px]">
+                  <th className="px-3 py-2 text-left font-normal uppercase tracking-wider text-[10.5px]">
                     Status
                   </th>
                   <th className="px-3 py-2"></th>
@@ -285,7 +285,7 @@ function ProjectsPage() {
           >
             <div className="mb-4 flex items-start justify-between">
               <div>
-                <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+                <div className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
                   Project
                 </div>
                 <h2
@@ -320,7 +320,7 @@ function ProjectsPage() {
             </dl>
 
             <div className="mt-6">
-              <h3 className="mb-2 font-mono text-[10px] uppercase tracking-wider text-meta">
+              <h3 className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-meta">
                 Constructor Arguments
               </h3>
               <div className="rounded border border-border bg-background p-3 font-mono text-xs">
@@ -429,7 +429,7 @@ function ProjectsPage() {
           >
             <div className="mb-4 flex items-start justify-between">
               <div>
-                <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+                <div className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
                   Interact
                 </div>
                 <h2
@@ -470,7 +470,7 @@ function ProjectsPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-[10px] uppercase tracking-wider text-meta">{label}</dt>
+      <dt className="text-[10.5px] uppercase tracking-wider text-meta">{label}</dt>
       <dd className="mt-0.5 text-foreground">{children}</dd>
     </div>
   );
@@ -482,7 +482,7 @@ function NetworkBadge({ chainId }: { chainId?: number }) {
   const mainnet = chainId === qieMainnet.id;
   return (
     <span
-      className={`rounded px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider ${
+      className={`rounded px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider ${
         mainnet ? "bg-info/15 text-info" : "bg-warning/15 text-warning"
       }`}
     >

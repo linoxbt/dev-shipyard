@@ -41,8 +41,8 @@ export const Route = createFileRoute("/launchkit/apps/$id")({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-b border-border py-2 last:border-0">
-      <span className="font-mono text-[10px] uppercase tracking-wide text-meta">{label}</span>
-      <span className="min-w-0 text-right font-mono text-[11px] text-foreground">{children}</span>
+      <span className="font-mono text-[10.5px] uppercase tracking-wide text-meta">{label}</span>
+      <span className="min-w-0 text-right font-mono text-[11.5px] text-foreground">{children}</span>
     </div>
   );
 }
@@ -50,7 +50,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded border border-border">
-      <p className="border-b border-border px-3 py-2 font-mono text-[11px] text-muted-foreground">
+      <p className="border-b border-border px-3 py-2 font-mono text-[11.5px] text-muted-foreground">
         {title}
       </p>
       <div className="px-3 py-2">{children}</div>
@@ -120,7 +120,7 @@ function AppDetail() {
               Back to My Apps
             </Link>
           </p>
-          <p className="mt-1 font-mono text-[10px] text-meta">
+          <p className="mt-1 font-mono text-[10.5px] text-meta">
             Apps are stored locally, so one built in another browser will not appear here.
           </p>
         </div>
@@ -196,7 +196,7 @@ function AppDetail() {
                     }
                     if (e.key === "Escape") setEditing(false);
                   }}
-                  className="rounded border border-primary bg-background px-2 py-0.5 font-mono text-[11px] text-foreground focus:outline-none"
+                  className="rounded border border-primary bg-background px-2 py-0.5 font-mono text-[11.5px] text-foreground focus:outline-none"
                 />
                 <button
                   onClick={() => {
@@ -247,7 +247,7 @@ function AppDetail() {
               </Link>
             </Row>
           ) : (
-            <p className="py-1 font-mono text-[11px] text-meta">
+            <p className="py-1 font-mono text-[11.5px] text-meta">
               Not recorded: this app predates authorship tracking.
             </p>
           )}
@@ -286,12 +286,12 @@ function AppDetail() {
           </Row>
           <div className="mt-2 max-h-40 overflow-auto rounded border border-border bg-surface-2 p-2">
             {Object.keys(project.files ?? {}).length === 0 ? (
-              <p className="font-mono text-[10px] text-meta">No files yet.</p>
+              <p className="font-mono text-[10.5px] text-meta">No files yet.</p>
             ) : (
               Object.keys(project.files)
                 .sort()
                 .map((f) => (
-                  <p key={f} className="truncate font-mono text-[10px] text-muted-foreground">
+                  <p key={f} className="truncate font-mono text-[10.5px] text-muted-foreground">
                     <FileCode2 className="mr-1 inline h-2.5 w-2.5" />
                     {f.replace(/^app\//, "")}
                   </p>
@@ -326,13 +326,13 @@ function AppDetail() {
               <div className="mt-2 flex gap-2">
                 <button
                   onClick={() => setPublishOpen(true)}
-                  className="flex-1 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
+                  className="flex-1 rounded border border-border px-2 py-1.5 font-mono text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary"
                 >
                   Republish
                 </button>
                 <button
                   onClick={() => void unpublish(project)}
-                  className="rounded border border-border px-2 py-1.5 font-mono text-[11px] text-meta hover:border-danger hover:text-danger"
+                  className="rounded border border-border px-2 py-1.5 font-mono text-[11.5px] text-meta hover:border-danger hover:text-danger"
                 >
                   Unpublish
                 </button>
@@ -340,7 +340,7 @@ function AppDetail() {
             </>
           ) : (
             <>
-              <p className="py-1 font-mono text-[11px] text-meta">
+              <p className="py-1 font-mono text-[11.5px] text-meta">
                 Not published. Publishing puts the built app on its own subdomain.
               </p>
               <button
@@ -351,7 +351,7 @@ function AppDetail() {
                     ? undefined
                     : "Connect a wallet: publishing is rate limited per wallet"
                 }
-                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
               >
                 <Globe className="h-3 w-3" />
                 {isConnected ? "Publish" : "Connect a wallet to publish"}
@@ -362,20 +362,20 @@ function AppDetail() {
 
         <Section title="GitHub">
           {gh === null ? (
-            <p className="py-1 font-mono text-[11px] text-meta">Checking GitHub…</p>
+            <p className="py-1 font-mono text-[11.5px] text-meta">Checking GitHub…</p>
           ) : !gh.configured ? (
-            <p className="py-1 font-mono text-[11px] text-meta">
+            <p className="py-1 font-mono text-[11.5px] text-meta">
               GitHub sign-in is not configured on this deployment. Set GITHUB_CLIENT_ID and
               GITHUB_CLIENT_SECRET to enable it.
             </p>
           ) : !gh.user ? (
             <>
-              <p className="py-1 font-mono text-[11px] text-meta">
+              <p className="py-1 font-mono text-[11.5px] text-meta">
                 Connect your GitHub account once, then push this app to a repository.
               </p>
               <a
                 href={`/api/github?start=1&return=${encodeURIComponent(`/launchkit/apps/${id}`)}`}
-                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary"
               >
                 <Github className="h-3 w-3" /> Connect GitHub
               </a>
@@ -416,9 +416,9 @@ function AppDetail() {
                     value={repoName}
                     onChange={(e) => setRepoName(e.target.value)}
                     placeholder="repo-name"
-                    className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
+                    className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 font-mono text-[11.5px] text-foreground focus:border-primary focus:outline-none"
                   />
-                  <label className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
+                  <label className="flex items-center gap-1 font-mono text-[10.5px] text-muted-foreground">
                     <input
                       type="checkbox"
                       checked={isPrivate}
@@ -432,7 +432,7 @@ function AppDetail() {
               <button
                 onClick={() => void doPush()}
                 disabled={pushing}
-                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded border border-border px-2 py-1.5 font-mono text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
               >
                 {pushing ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -453,7 +453,7 @@ function AppDetail() {
                     })
                     .catch(() => toast.error("Could not disconnect GitHub. Try again."));
                 }}
-                className="mt-1 w-full font-mono text-[10px] text-meta hover:text-foreground"
+                className="mt-1 w-full font-mono text-[10.5px] text-meta hover:text-foreground"
               >
                 Disconnect
               </button>
@@ -464,19 +464,19 @@ function AppDetail() {
         <Section title="Danger">
           {confirming ? (
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[11px] text-danger">Delete this app?</span>
+              <span className="font-mono text-[11.5px] text-danger">Delete this app?</span>
               <button
                 onClick={() => {
                   remove(project.id);
                   void navigate({ to: "/launchkit/apps" });
                 }}
-                className="rounded border border-danger px-2 py-1 font-mono text-[10px] text-danger hover:bg-danger/10"
+                className="rounded border border-danger px-2 py-1 font-mono text-[10.5px] text-danger hover:bg-danger/10"
               >
                 Yes, delete
               </button>
               <button
                 onClick={() => setConfirming(false)}
-                className="font-mono text-[10px] text-meta hover:text-foreground"
+                className="font-mono text-[10.5px] text-meta hover:text-foreground"
               >
                 Cancel
               </button>
@@ -484,7 +484,7 @@ function AppDetail() {
           ) : (
             <button
               onClick={() => setConfirming(true)}
-              className="flex items-center gap-1.5 font-mono text-[11px] text-meta hover:text-danger"
+              className="flex items-center gap-1.5 font-mono text-[11.5px] text-meta hover:text-danger"
             >
               <Trash2 className="h-3 w-3" /> Delete this app
             </button>

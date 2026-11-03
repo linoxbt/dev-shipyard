@@ -22,7 +22,7 @@ export function PreviewButton({ onClick, building }: { onClick: () => void; buil
       type="button"
       onClick={onClick}
       title="Open the preview"
-      className="relative ml-auto inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-[11.5px] text-foreground/90 transition hover:border-primary/40 hover:text-foreground"
+      className="relative ml-auto inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-[12px] text-foreground/90 transition hover:border-primary/40 hover:text-foreground"
     >
       <Eye className="h-3.5 w-3.5" />
       Preview
@@ -41,14 +41,12 @@ export function BackToChatButton({ onClick, title }: { onClick: () => void; titl
       <button
         type="button"
         onClick={onClick}
-        className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-[13px] font-medium text-background transition hover:opacity-90"
+        className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-[13.5px] font-medium text-background transition hover:opacity-90"
       >
         <MessageIcon className="h-4 w-4 [&_path]:fill-current" />
         Edit with chat
       </button>
-      {title && (
-        <span className="min-w-0 truncate text-[12.5px] text-muted-foreground">{title}</span>
-      )}
+      {title && <span className="min-w-0 truncate text-[13px] text-muted-foreground">{title}</span>}
     </div>
   );
 }
@@ -102,10 +100,10 @@ export function TopBar({
       <div className="flex shrink-0 items-center gap-2 border-b border-border bg-background px-3 pb-3 pt-[max(1rem,env(safe-area-inset-top))]">
         <RoundButton onClick={onMenu} label="Menu" icon={Menu} />
         <div className="min-w-0 flex-1 text-center">
-          <p className="truncate text-[14px] font-semibold text-foreground">{project.name}</p>
+          <p className="truncate text-[14.5px] font-semibold text-foreground">{project.name}</p>
           <p
             className={cn(
-              "truncate text-[10.5px]",
+              "truncate text-[11px]",
               running ? "text-primary" : "text-muted-foreground",
             )}
           >
@@ -136,8 +134,8 @@ export function TopBar({
         {chatOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
       </button>
       <div className="min-w-0 max-w-[18rem]">
-        <p className="truncate text-[13.5px] font-semibold text-foreground">{project.name}</p>
-        <p className={cn("truncate text-[10.5px]", running ? "text-primary" : "text-meta")}>
+        <p className="truncate text-[14px] font-semibold text-foreground">{project.name}</p>
+        <p className={cn("truncate text-[11px]", running ? "text-primary" : "text-meta")}>
           {subtitle}
         </p>
       </div>
@@ -221,7 +219,7 @@ export function TabBar({
             <Icon
               className={cn("h-6 w-6", active && it.id === "chat" && "[&_path]:fill-current")}
             />
-            <span className="text-[9px]">{it.label}</span>
+            <span className="text-[9.5px]">{it.label}</span>
             {busy && <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />}
           </button>
         );
@@ -232,7 +230,7 @@ export function TabBar({
         className="flex h-11 w-14 flex-col items-center justify-center gap-0.5 rounded-2xl text-meta hover:text-muted-foreground"
       >
         <Menu className="h-6 w-6" />
-        <span className="text-[9px]">More</span>
+        <span className="text-[9.5px]">More</span>
       </button>
     </nav>
   );

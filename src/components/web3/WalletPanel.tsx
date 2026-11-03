@@ -69,7 +69,7 @@ export function WalletPanel() {
         )}
       </button>
 
-      <div className="mt-2 space-y-1 font-mono text-[10px]">
+      <div className="mt-2 space-y-1 font-mono text-[10.5px]">
         <div className="flex items-center justify-between">
           <span className="text-meta">{balance?.symbol ?? "-"}</span>
           <span className="text-muted-foreground">
@@ -89,7 +89,7 @@ export function WalletPanel() {
           href={gas.url}
           target="_blank"
           rel="noreferrer"
-          className="mt-2 flex items-center justify-center gap-1 rounded border border-warning/40 bg-warning/10 px-2 py-1 font-mono text-[10px] text-warning hover:bg-warning/20"
+          className="mt-2 flex items-center justify-center gap-1 rounded border border-warning/40 bg-warning/10 px-2 py-1 font-mono text-[10.5px] text-warning hover:bg-warning/20"
         >
           <Fuel className="h-3 w-3" /> {gas.label}
         </a>
@@ -98,7 +98,7 @@ export function WalletPanel() {
       <div className="mt-2 flex items-center justify-end">
         <button
           onClick={() => disconnect()}
-          className="flex items-center gap-1 font-mono text-[10px] text-meta hover:text-danger"
+          className="flex items-center gap-1 font-mono text-[10.5px] text-meta hover:text-danger"
         >
           <LogOut className="h-3 w-3" /> Disconnect
         </button>

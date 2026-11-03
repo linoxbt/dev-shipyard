@@ -115,14 +115,14 @@ export function AccountPanel({ returnTo = "/activity" }: { returnTo?: string }) 
       </h2>
 
       {loading ? (
-        <p className="flex items-center gap-1.5 font-mono text-[11px] text-meta">
+        <p className="flex items-center gap-1.5 font-mono text-[11.5px] text-meta">
           <Loader2 className="h-3 w-3 animate-spin" /> Reading your links…
         </p>
       ) : (
         <div className="space-y-4">
           {/* GitHub */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="flex w-24 shrink-0 items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-meta">
+            <span className="flex w-24 shrink-0 items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-meta">
               <Github className="h-3 w-3" /> GitHub
             </span>
             {linkedLogin ? (
@@ -138,26 +138,26 @@ export function AccountPanel({ returnTo = "/activity" }: { returnTo?: string }) 
                 <button
                   onClick={() => void unlinkGithub()}
                   disabled={busy === "github"}
-                  className="ml-auto inline-flex items-center gap-1 rounded border border-border px-2 py-1 font-mono text-[10px] text-muted-foreground hover:border-danger hover:text-danger disabled:opacity-40"
+                  className="ml-auto inline-flex items-center gap-1 rounded border border-border px-2 py-1 font-mono text-[10.5px] text-muted-foreground hover:border-danger hover:text-danger disabled:opacity-40"
                 >
                   <Unlink className="h-3 w-3" /> Unlink
                 </button>
               </>
             ) : github?.configured === false ? (
-              <span className="font-mono text-[11px] text-meta">
+              <span className="font-mono text-[11.5px] text-meta">
                 GitHub sign-in is not set up on this deployment.
               </span>
             ) : (
               <a
                 href={`/api/github?start=1&return=${encodeURIComponent(returnTo)}`}
-                className="rounded border border-border px-2 py-1 font-mono text-[10px] text-muted-foreground hover:border-primary hover:text-primary"
+                className="rounded border border-border px-2 py-1 font-mono text-[10.5px] text-muted-foreground hover:border-primary hover:text-primary"
               >
                 Connect GitHub
               </a>
             )}
           </div>
           {signedInAs && signedInAs !== linkedLogin && (
-            <p className="font-mono text-[10px] text-warning">
+            <p className="font-mono text-[10.5px] text-warning">
               This browser is signed in to @{signedInAs}, which is not linked to this wallet.
               {linkedLogin
                 ? ` Pushes use @${linkedLogin}.`
@@ -167,7 +167,7 @@ export function AccountPanel({ returnTo = "/activity" }: { returnTo?: string }) 
 
           {/* Email */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="flex w-24 shrink-0 items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-meta">
+            <span className="flex w-24 shrink-0 items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-meta">
               <Mail className="h-3 w-3" /> Email
             </span>
             {account?.email ? (
@@ -178,18 +178,18 @@ export function AccountPanel({ returnTo = "/activity" }: { returnTo?: string }) 
                 <button
                   onClick={() => void act("email", { action: "unlink_email" })}
                   disabled={busy === "email"}
-                  className="ml-auto inline-flex items-center gap-1 rounded border border-border px-2 py-1 font-mono text-[10px] text-muted-foreground hover:border-danger hover:text-danger disabled:opacity-40"
+                  className="ml-auto inline-flex items-center gap-1 rounded border border-border px-2 py-1 font-mono text-[10.5px] text-muted-foreground hover:border-danger hover:text-danger disabled:opacity-40"
                 >
                   <Unlink className="h-3 w-3" /> Remove
                 </button>
               </>
             ) : !mailReady ? (
-              <span className="font-mono text-[11px] text-meta">
+              <span className="font-mono text-[11.5px] text-meta">
                 Email verification is not set up on this deployment yet.
               </span>
             ) : account?.pendingEmail ? (
               <>
-                <span className="font-mono text-[11px] text-muted-foreground">
+                <span className="font-mono text-[11.5px] text-muted-foreground">
                   Code sent to {account.pendingEmail}
                 </span>
                 <input
@@ -203,7 +203,7 @@ export function AccountPanel({ returnTo = "/activity" }: { returnTo?: string }) 
                 <button
                   onClick={() => void verify()}
                   disabled={busy !== null || code.length < 6}
-                  className="rounded bg-primary px-2.5 py-1 font-mono text-[10px] font-semibold text-primary-foreground disabled:opacity-40"
+                  className="rounded bg-primary px-2.5 py-1 font-mono text-[10.5px] font-semibold text-primary-foreground disabled:opacity-40"
                 >
                   {busy === "verify" ? "Checking…" : "Verify"}
                 </button>
@@ -212,7 +212,7 @@ export function AccountPanel({ returnTo = "/activity" }: { returnTo?: string }) 
                     void act("send", { action: "email_start", email: account.pendingEmail ?? "" })
                   }
                   disabled={busy !== null}
-                  className="font-mono text-[10px] text-meta hover:text-foreground disabled:opacity-40"
+                  className="font-mono text-[10.5px] text-meta hover:text-foreground disabled:opacity-40"
                 >
                   Resend
                 </button>
@@ -230,7 +230,7 @@ export function AccountPanel({ returnTo = "/activity" }: { returnTo?: string }) 
                 <button
                   onClick={() => void sendCode()}
                   disabled={busy !== null || !email.includes("@")}
-                  className="rounded border border-border px-2 py-1 font-mono text-[10px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-40"
+                  className="rounded border border-border px-2 py-1 font-mono text-[10.5px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-40"
                 >
                   {busy === "send" ? "Sending…" : "Send code"}
                 </button>
@@ -238,7 +238,7 @@ export function AccountPanel({ returnTo = "/activity" }: { returnTo?: string }) 
             )}
           </div>
 
-          <p className="font-mono text-[10px] leading-4 text-meta">
+          <p className="font-mono text-[10.5px] leading-4 text-meta">
             One GitHub account per wallet, and one wallet per GitHub account. Your email is only
             ever shown to you.
           </p>

@@ -142,7 +142,7 @@ export function DevStationAnalytics() {
               void deploysQ.refetch();
               void statsQ.refetch();
             }}
-            className="mt-3 rounded border border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
+            className="mt-3 rounded border border-border px-2.5 py-1 text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary"
           >
             Retry
           </button>
@@ -286,7 +286,7 @@ export function DevStationAnalytics() {
 
       {/* Recent deployments */}
       <Card title="Recent deployments" subtitle={`${deployments.length} total on ${chain.name}`}>
-        <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-meta">
+        <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-4 py-1.5 font-mono text-[10.5px] uppercase tracking-wider text-meta">
           <span>Project / Template</span>
           <span className="hidden text-right sm:block">Deployer</span>
           <span className="text-right">When</span>
@@ -314,7 +314,7 @@ export function DevStationAnalytics() {
         {deployments.length === 0 && <Empty>No deployments recorded yet</Empty>}
       </Card>
 
-      <p className="flex items-center gap-1.5 font-mono text-[10px] text-meta">
+      <p className="flex items-center gap-1.5 font-mono text-[10.5px] text-meta">
         <Info className="h-3 w-3" /> Sourced live from DevStation&apos;s on-chain ProjectRegistry on{" "}
         {chain.name}.
       </p>
@@ -333,7 +333,7 @@ const tooltipStyle = {
 function Kpi({ icon: Icon, label, value }: { icon: typeof Package; label: string; value: string }) {
   return (
     <div className="rounded border border-border bg-surface p-3">
-      <div className="mb-1 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-meta">
+      <div className="mb-1 flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-meta">
         <Icon className="h-3 w-3" /> {label}
       </div>
       <div className="font-mono text-xl font-bold text-foreground">{value}</div>
@@ -354,7 +354,7 @@ function Card({
     <div className="rounded border border-border bg-surface">
       <div className="flex items-baseline justify-between border-b border-border px-4 py-2">
         <span className="font-mono text-xs font-bold text-foreground">{title}</span>
-        {subtitle && <span className="font-mono text-[10px] text-meta">{subtitle}</span>}
+        {subtitle && <span className="font-mono text-[10.5px] text-meta">{subtitle}</span>}
       </div>
       <div className="p-3">{children}</div>
     </div>

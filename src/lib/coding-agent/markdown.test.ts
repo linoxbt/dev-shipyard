@@ -65,3 +65,38 @@ describe("parseInline", () => {
     ]);
   });
 });
+
+describe("the house style", () => {
+  it("writes no em dashes in prose, and leaves code alone", async () => {
+    const { parseInline } = await import("./markdown");
+    const text = (s: string) =>
+      parseInline(s)
+        .map((n) => ("text" in n ? n.text : n.kind))
+        .join("|");
+    expect(text("a real polish pass — not a rebuild — the systems are the same.")).toBe(
+      "a real polish pass, not a rebuild, the systems are the same.",
+    );
+    expect(text("**Done** — next step")).toBe("bold|, next step");
+    expect(text("— a dash that opens the line")).toBe("a dash that opens the line");
+    expect(text("it ends here —.")).toBe("it ends here.");
+    expect(text("pages 3 – 5")).toBe("pages 3, 5");
+    expect(text("keep `a — b` as written")).toBe("keep |a — b| as written");
+  });
+
+  it("reads a table", async () => {
+    const { parseMarkdown } = await import("./markdown");
+    const blocks = parseMarkdown(
+      "Where things stand:\n\n| Step | Status |\n|---|:---:|\n| Build | 8 files |\n| Deploy | live |\n\nDone.",
+    );
+    expect(blocks.map((b) => b.kind)).toEqual(["paragraph", "table", "paragraph"]);
+    const table = blocks[1];
+    if (table.kind !== "table") throw new Error("not a table");
+    expect(table.head.map((c) => c.map((n) => ("text" in n ? n.text : "")).join(""))).toEqual([
+      "Step",
+      "Status",
+    ]);
+    expect(table.rows).toHaveLength(2);
+    // A lone line with pipes is not a table.
+    expect(parseMarkdown("| just | pipes |").map((b) => b.kind)).toEqual(["paragraph"]);
+  });
+});

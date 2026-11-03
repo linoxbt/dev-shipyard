@@ -39,7 +39,7 @@ function ConnectionsPage() {
       description="Connect an account and the agent can work on it for you: push to your repositories, deploy, manage databases. You approve access on the provider's own page and can remove it here at any time. DevStation never sees your password."
     >
       <ConnectorsList />
-      <p className="mt-6 text-[12px] leading-5 text-meta">
+      <p className="mt-6 text-[12.5px] leading-5 text-meta">
         In a project you share with other builders, the agent does not use your connected accounts:
         their access never goes into a machine someone else can work in.
       </p>

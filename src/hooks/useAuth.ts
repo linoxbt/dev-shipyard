@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import type { Session } from "@supabase/supabase-js";
-import { ensureGrant, setGrantSession } from "@/lib/agent-access/grant";
+import {
+  ensureGrant,
+  setGateListener,
+  setGrantSession,
+  type WaitlistPlace,
+} from "@/lib/agent-access/grant";
 import { supabase, supabaseConfigured } from "@/lib/auth/supabase";
 import { useTheme } from "@/lib/theme";
 
@@ -25,6 +30,8 @@ interface AuthState {
   ready: boolean;
   configured: boolean;
   account: Account | null;
+  /** Signed in, but on the waitlist: DevStation is closed or full. */
+  waitlist: WaitlistPlace | null;
   init: () => void;
   /** Email a one-time code. Makes the account if the email is new. */
   sendCode: (email: string) => Promise<string | null>;
@@ -74,10 +81,12 @@ export const useAuth = create<AuthState>((set) => ({
   ready: false,
   configured: supabaseConfigured,
   account: null,
+  waitlist: null,
 
   init: () => {
     if (started) return;
     started = true;
+    setGateListener((waitlist) => set({ waitlist }));
     const sb = supabase();
     if (!sb) {
       set({ ready: true });
@@ -176,6 +185,6 @@ export const useAuth = create<AuthState>((set) => ({
   signOut: async () => {
     const sb = supabase();
     await sb?.auth.signOut();
-    set({ account: null });
+    set({ account: null, waitlist: null });
   },
 }));

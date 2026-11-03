@@ -61,7 +61,7 @@ export function KindBadge({ kind, className }: { kind: ListingKind; className?: 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider",
+        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10.5px] uppercase tracking-wider",
         style.ring,
         style.tone,
         className,
@@ -91,7 +91,7 @@ export function PriceTag({
     >
       {formatPrice(item.price, item.currency)}
       {!free && item.model === "per-deploy" && (
-        <span className="text-[10px] font-normal opacity-80">/ deploy</span>
+        <span className="text-[10.5px] font-normal opacity-80">/ deploy</span>
       )}
     </span>
   );
@@ -136,13 +136,13 @@ export function ListingCard({ item }: { item: CatalogItem }) {
         <KindBadge kind={item.kind} />
         <div className="flex items-center gap-1.5">
           {item.featured && (
-            <span className="inline-flex items-center gap-1 rounded bg-primary px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase text-primary-foreground">
+            <span className="inline-flex items-center gap-1 rounded bg-primary px-1.5 py-0.5 font-mono text-[10.5px] font-bold uppercase text-primary-foreground">
               <Star className="h-3 w-3" /> Featured
             </span>
           )}
           {item.official && (
             <span
-              className="inline-flex items-center gap-1 font-mono text-[10px] uppercase text-success"
+              className="inline-flex items-center gap-1 font-mono text-[10.5px] uppercase text-success"
               title="Ships with DevStation. Not a third-party audit."
             >
               <BadgeCheck className="h-3 w-3" /> Official
@@ -154,7 +154,7 @@ export function ListingCard({ item }: { item: CatalogItem }) {
       <h3 className="relative mt-2 line-clamp-1 font-mono text-sm font-bold text-foreground">
         {item.name}
       </h3>
-      <p className="relative mt-1 line-clamp-2 min-h-[2rem] text-[11px] leading-relaxed text-muted-foreground">
+      <p className="relative mt-1 line-clamp-2 min-h-[2rem] text-[11.5px] leading-relaxed text-muted-foreground">
         {description}
       </p>
 
@@ -163,7 +163,7 @@ export function ListingCard({ item }: { item: CatalogItem }) {
           {item.tags.slice(0, 3).map((tag) => (
             <span
               key={tag}
-              className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+              className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground"
             >
               {tag}
             </span>
@@ -171,7 +171,7 @@ export function ListingCard({ item }: { item: CatalogItem }) {
         </div>
       )}
 
-      <div className="relative mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-border pt-2 font-mono text-[10px] text-meta">
+      <div className="relative mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-border pt-2 font-mono text-[10.5px] text-meta">
         <span className="min-w-0 truncate">
           {item.official ? (
             "by DevStation"
@@ -232,9 +232,9 @@ export function StatTile({
 }) {
   return (
     <div className="rounded-lg border border-border bg-surface/70 px-4 py-3 backdrop-blur">
-      <div className="font-mono text-[10px] uppercase tracking-wider text-meta">{label}</div>
+      <div className="font-mono text-[10.5px] uppercase tracking-wider text-meta">{label}</div>
       <div className="mt-1 font-mono text-xl font-bold text-foreground">{value}</div>
-      {hint && <div className="mt-0.5 font-mono text-[10px] text-meta">{hint}</div>}
+      {hint && <div className="mt-0.5 font-mono text-[10.5px] text-meta">{hint}</div>}
     </div>
   );
 }

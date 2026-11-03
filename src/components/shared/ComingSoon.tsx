@@ -30,14 +30,16 @@ export function ComingSoon({ path }: { path: string }) {
           </div>
 
           <div className="space-y-2">
-            <p className="font-mono text-[11px] uppercase tracking-wider text-meta">Coming soon</p>
+            <p className="font-mono text-[11.5px] uppercase tracking-wider text-meta">
+              Coming soon
+            </p>
             <p className="text-sm leading-relaxed text-muted-foreground">{page.statement}</p>
           </div>
 
           <div className="border-t border-border pt-4">
             <Link
               to={page.instead.to}
-              className="inline-flex items-center gap-1.5 font-mono text-[11px] text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-primary hover:underline"
             >
               {page.instead.label}
               <ArrowRight className="h-3 w-3" />

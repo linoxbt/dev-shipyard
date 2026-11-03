@@ -36,7 +36,7 @@ function DashboardPage() {
             <p className="mt-3 font-mono text-sm text-foreground">
               Connect a wallet to see your dashboard
             </p>
-            <p className="mx-auto mt-1 max-w-md font-mono text-[11px] text-meta">
+            <p className="mx-auto mt-1 max-w-md font-mono text-[11.5px] text-meta">
               Everything here belongs to one wallet and is read from chain: what you deployed, sold
               and published, and the .qie names you hold.
             </p>

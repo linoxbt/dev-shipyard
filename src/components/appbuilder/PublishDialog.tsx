@@ -115,7 +115,7 @@ export function PublishDialog({
     return (
       <Panel title="Live" onClose={onClose}>
         {done.renamedFrom && (
-          <p className="mb-2 font-mono text-[11px] text-warning">
+          <p className="mb-2 font-mono text-[11.5px] text-warning">
             {done.renamedFrom}
             {SUFFIX} was claimed while you were publishing, so this went live at the address below.
           </p>
@@ -124,7 +124,7 @@ export function PublishDialog({
           href={done.url}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 font-mono text-[11px] text-success hover:underline"
+          className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-success hover:underline"
         >
           <Check className="h-3.5 w-3.5" /> {done.url.replace(/^https?:\/\//, "")}
           <ExternalLink className="h-3 w-3" />
@@ -145,19 +145,19 @@ export function PublishDialog({
           }}
           spellCheck={false}
           aria-label="Address"
-          className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
+          className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 font-mono text-[11.5px] text-foreground focus:border-primary focus:outline-none"
         />
-        <span className="font-mono text-[11px] text-meta">{SUFFIX}</span>
+        <span className="font-mono text-[11.5px] text-meta">{SUFFIX}</span>
         <button
           onClick={() => void go()}
           disabled={!ready}
-          className="rounded bg-primary px-3 py-1 font-mono text-[10px] font-semibold text-primary-foreground disabled:opacity-40"
+          className="rounded bg-primary px-3 py-1 font-mono text-[10.5px] font-semibold text-primary-foreground disabled:opacity-40"
         >
           {publishing ? "Publishing…" : current ? "Republish" : "Publish"}
         </button>
       </div>
 
-      <p className="mt-2 flex items-center gap-1.5 font-mono text-[10px]">
+      <p className="mt-2 flex items-center gap-1.5 font-mono text-[10.5px]">
         {checking ? (
           <span className="flex items-center gap-1.5 text-meta">
             <Loader2 className="h-3 w-3 animate-spin" /> Checking that address…
@@ -182,12 +182,12 @@ export function PublishDialog({
 
       {availability && availability.suggestions.length > 0 && availability.state !== "yours" && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="font-mono text-[10px] text-meta">Free:</span>
+          <span className="font-mono text-[10.5px] text-meta">Free:</span>
           {availability.suggestions.map((s) => (
             <button
               key={s}
               onClick={() => setAddress(s)}
-              className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:border-primary hover:text-primary"
+              className="rounded border border-border px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground hover:border-primary hover:text-primary"
             >
               {s}
             </button>
@@ -195,7 +195,7 @@ export function PublishDialog({
         </div>
       )}
 
-      <p className="mt-2 font-mono text-[10px] leading-4 text-meta">
+      <p className="mt-2 font-mono text-[10.5px] leading-4 text-meta">
         {fileCount > 0
           ? `${fileCount} file${fileCount === 1 ? "" : "s"} go live at this address. Only your wallet can replace it.`
           : "There is nothing built to publish yet."}

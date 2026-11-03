@@ -117,20 +117,20 @@ function AddressPage({ hash }: { hash: string }) {
           {trustedLabel || explorerName || (isContract ? "Contract" : "Address")}
         </h1>
         {(trustedLabel || explorerName) && (
-          <span className="font-mono text-[10px] uppercase tracking-wider text-meta">
+          <span className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
             {isContract ? "Contract" : "Address"}
           </span>
         )}
         {label && !label.trusted && (
           <span
-            className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 font-mono text-[10px] text-warning"
+            className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 font-mono text-[10.5px] text-warning"
             title="Anyone can submit a label for any address. This one has not been verified."
           >
             Community label · unverified: {label.name}
           </span>
         )}
         {addr.is_verified && (
-          <span className="inline-flex items-center gap-1 rounded border border-success/40 bg-success/10 px-1.5 py-0.5 font-mono text-[10px] text-success">
+          <span className="inline-flex items-center gap-1 rounded border border-success/40 bg-success/10 px-1.5 py-0.5 font-mono text-[10.5px] text-success">
             <CheckCircle2 className="h-3 w-3" /> Verified
           </span>
         )}
@@ -433,7 +433,7 @@ function AddrLogs({ hash }: { hash: string }) {
     <Card title="Event Logs">
       <div className="divide-y divide-border">
         {data.items.map((log, i) => (
-          <div key={i} className="space-y-1 px-4 py-3 font-mono text-[11px]">
+          <div key={i} className="space-y-1 px-4 py-3 font-mono text-[11.5px]">
             {log.transaction_hash && (
               <div className="flex items-center gap-2">
                 <span className="text-meta">Txn</span>
@@ -522,7 +522,7 @@ function ContractTab({ addr }: { addr: ExAddress }) {
               to="/explorer/$network/verify"
               params={{ network }}
               search={{ address: addr.hash }}
-              className="inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground hover:bg-primary-hover"
+              className="inline-flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-[11.5px] font-bold text-primary-foreground hover:bg-primary-hover"
             >
               <CheckCircle2 className="h-3.5 w-3.5" /> Verify &amp; Publish source
             </Link>
@@ -549,7 +549,7 @@ function ContractTab({ addr }: { addr: ExAddress }) {
           <button
             key={t.id}
             onClick={() => setSub(t.id)}
-            className={`-mb-px border-b-2 px-3 py-2 font-mono text-[11px] transition ${
+            className={`-mb-px border-b-2 px-3 py-2 font-mono text-[11.5px] transition ${
               sub === t.id
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -602,7 +602,7 @@ function CodeSubTab({ data }: { data: SmartContract }) {
       </Card>
       {data.source_code && (
         <Card title="Source Code" action={<CopyBtn value={data.source_code} />}>
-          <pre className="max-h-[600px] overflow-auto p-4 font-mono text-[11px] leading-relaxed text-muted-foreground">
+          <pre className="max-h-[600px] overflow-auto p-4 font-mono text-[11.5px] leading-relaxed text-muted-foreground">
             {data.source_code}
           </pre>
         </Card>
@@ -618,7 +618,7 @@ function AbiCard({ abi }: { abi: unknown[] }) {
       {abi.length === 0 ? (
         <Empty>No ABI available.</Empty>
       ) : (
-        <pre className="max-h-[600px] overflow-auto p-4 font-mono text-[11px] leading-relaxed text-muted-foreground">
+        <pre className="max-h-[600px] overflow-auto p-4 font-mono text-[11.5px] leading-relaxed text-muted-foreground">
           {json}
         </pre>
       )}
@@ -637,14 +637,14 @@ function ByteCodeCard({ data }: { data: SmartContract }) {
     <div className="space-y-4">
       {data.deployed_bytecode && (
         <Card title="Deployed ByteCode" action={<CopyBtn value={data.deployed_bytecode} />}>
-          <pre className="max-h-72 overflow-auto p-4 font-mono text-[10px] leading-relaxed break-all text-muted-foreground">
+          <pre className="max-h-72 overflow-auto p-4 font-mono text-[10.5px] leading-relaxed break-all text-muted-foreground">
             {data.deployed_bytecode}
           </pre>
         </Card>
       )}
       {data.creation_bytecode && (
         <Card title="Creation ByteCode" action={<CopyBtn value={data.creation_bytecode} />}>
-          <pre className="max-h-72 overflow-auto p-4 font-mono text-[10px] leading-relaxed break-all text-muted-foreground">
+          <pre className="max-h-72 overflow-auto p-4 font-mono text-[10.5px] leading-relaxed break-all text-muted-foreground">
             {data.creation_bytecode}
           </pre>
         </Card>
@@ -656,7 +656,7 @@ function ByteCodeCard({ data }: { data: SmartContract }) {
 function Field({ label, value }: { label: string; value?: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wider text-meta">{label}</div>
+      <div className="text-[10.5px] uppercase tracking-wider text-meta">{label}</div>
       <div className="text-foreground break-all">{value || "-"}</div>
     </div>
   );
@@ -666,7 +666,7 @@ function Field({ label, value }: { label: string; value?: string }) {
 function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
   return (
     <th
-      className={`px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px] ${className ?? ""}`}
+      className={`px-3 py-2 text-left font-normal uppercase tracking-wider text-[10.5px] ${className ?? ""}`}
     >
       {children}
     </th>

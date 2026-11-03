@@ -21,7 +21,7 @@ export function WrongNetworkBanner() {
       className={
         walletOnWrongNetwork
           ? "flex flex-wrap items-center gap-2 border-b border-warning/40 bg-warning/10 px-4 py-2 font-mono text-xs text-warning"
-          : "flex flex-wrap items-center gap-2 border-b border-border bg-surface px-4 py-1.5 font-mono text-[11px] text-muted-foreground"
+          : "flex flex-wrap items-center gap-2 border-b border-border bg-surface px-4 py-1.5 font-mono text-[11.5px] text-muted-foreground"
       }
     >
       <AlertTriangle className="h-3.5 w-3.5 shrink-0" />

@@ -134,8 +134,10 @@ export function ContractInteractor({ contractAddress, abi, chainId, only = "all"
                 key={`${ev.name}-${i}`}
                 className="rounded border border-border bg-background p-2"
               >
-                <div className="font-mono text-[11px] font-semibold text-foreground">{ev.name}</div>
-                <div className="mt-0.5 font-mono text-[10px] text-meta">
+                <div className="font-mono text-[11.5px] font-semibold text-foreground">
+                  {ev.name}
+                </div>
+                <div className="mt-0.5 font-mono text-[10.5px] text-meta">
                   (
                   {ev.inputs
                     .map((p) => `${p.type}${p.indexed ? " indexed" : ""} ${p.name}`)
@@ -147,12 +149,12 @@ export function ContractInteractor({ contractAddress, abi, chainId, only = "all"
           )}
           {events.length > 0 && (
             <div className="space-y-1.5 pt-1">
-              <p className="font-mono text-[9px] text-meta">
+              <p className="font-mono text-[9.5px] text-meta">
                 Use Routebook to inspect events emitted in past transactions for this contract.
               </p>
               <Link
                 to="/routebook"
-                className="inline-flex items-center gap-1 font-mono text-[10px] text-primary hover:underline"
+                className="inline-flex items-center gap-1 font-mono text-[10.5px] text-primary hover:underline"
               >
                 View in Routebook <ExternalLink className="h-3 w-3" />
               </Link>
@@ -193,8 +195,8 @@ function Section({
           <ChevronRight className="h-3 w-3 text-meta" />
         )}
         {icon}
-        <span className="font-mono text-[11px] font-semibold text-foreground">{title}</span>
-        <span className="ml-auto font-mono text-[9px] text-meta">{count}</span>
+        <span className="font-mono text-[11.5px] font-semibold text-foreground">{title}</span>
+        <span className="ml-auto font-mono text-[9.5px] text-meta">{count}</span>
       </button>
       {open && <div className="space-y-2 px-2.5 pb-2.5">{children}</div>}
     </div>
@@ -202,7 +204,7 @@ function Section({
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="font-mono text-[10px] text-meta">{children}</p>;
+  return <p className="font-mono text-[10.5px] text-meta">{children}</p>;
 }
 
 /* ── Read function ── */
@@ -249,8 +251,8 @@ function ReadFunctionRow({
   return (
     <div className="rounded border border-border bg-background p-2">
       <div className="mb-1 flex items-center gap-2">
-        <span className="font-mono text-[11px] font-bold text-code">{fn.name}</span>
-        <span className="rounded bg-info/15 px-1.5 py-0.5 font-mono text-[8px] uppercase text-info">
+        <span className="font-mono text-[11.5px] font-bold text-code">{fn.name}</span>
+        <span className="rounded bg-info/15 px-1.5 py-0.5 font-mono text-[8.5px] uppercase text-info">
           view
         </span>
       </div>
@@ -266,12 +268,12 @@ function ReadFunctionRow({
       <button
         onClick={query}
         disabled={isFetching}
-        className="mt-1 flex items-center gap-1 rounded border border-info/50 px-2.5 py-1 font-mono text-[10px] text-info hover:bg-info/10 disabled:opacity-50"
+        className="mt-1 flex items-center gap-1 rounded border border-info/50 px-2.5 py-1 font-mono text-[10.5px] text-info hover:bg-info/10 disabled:opacity-50"
       >
         {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Query
       </button>
       {(argError || error) && (
-        <p className="mt-1 break-all font-mono text-[10px] text-danger">
+        <p className="mt-1 break-all font-mono text-[10.5px] text-danger">
           {argError ?? (error instanceof Error ? error.message : "Call failed")}
         </p>
       )}
@@ -366,12 +368,12 @@ function WriteFunctionRow({
   return (
     <div className="rounded border border-border bg-background p-2">
       <div className="mb-1 flex items-center gap-2">
-        <span className="font-mono text-[11px] font-bold text-warning">{fn.name}</span>
-        <span className="rounded bg-warning/15 px-1.5 py-0.5 font-mono text-[8px] uppercase text-warning">
+        <span className="font-mono text-[11.5px] font-bold text-warning">{fn.name}</span>
+        <span className="rounded bg-warning/15 px-1.5 py-0.5 font-mono text-[8.5px] uppercase text-warning">
           write
         </span>
         {payable && (
-          <span className="rounded bg-warning/25 px-1.5 py-0.5 font-mono text-[8px] uppercase text-warning">
+          <span className="rounded bg-warning/25 px-1.5 py-0.5 font-mono text-[8.5px] uppercase text-warning">
             payable
           </span>
         )}
@@ -387,27 +389,27 @@ function WriteFunctionRow({
       ))}
       {payable && (
         <div className="mb-1">
-          <div className="font-mono text-[9px] text-meta">QIE to send with this call</div>
+          <div className="font-mono text-[9.5px] text-meta">QIE to send with this call</div>
           <input
             value={ethValue}
             onChange={(e) => setEthValue(e.target.value)}
             inputMode="decimal"
             placeholder="0.0"
-            className="w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground placeholder:text-meta focus:border-warning focus:outline-none"
+            className="w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11.5px] text-foreground placeholder:text-meta focus:border-warning focus:outline-none"
           />
         </div>
       )}
       <button
         onClick={send}
         disabled={isPending || isConfirming}
-        className="mt-1 flex w-full items-center justify-center gap-1 rounded bg-warning px-2.5 py-1 font-mono text-[10px] font-bold text-black hover:opacity-90 disabled:opacity-50"
+        className="mt-1 flex w-full items-center justify-center gap-1 rounded bg-warning px-2.5 py-1 font-mono text-[10.5px] font-bold text-black hover:opacity-90 disabled:opacity-50"
       >
         {(isPending || isConfirming) && <Loader2 className="h-3 w-3 animate-spin" />}
         Send Transaction
       </button>
 
       {/* Status */}
-      <div className="mt-1 font-mono text-[10px]">
+      <div className="mt-1 font-mono text-[10.5px]">
         {isPending && <span className="text-meta">Waiting for wallet signature…</span>}
         {txHash && isConfirming && (
           <span className="flex items-center gap-1 break-all text-meta">
@@ -459,7 +461,7 @@ function ParamField({
 }) {
   return (
     <div className="mb-1.5">
-      <div className="flex items-baseline justify-between font-mono text-[9px]">
+      <div className="flex items-baseline justify-between font-mono text-[9.5px]">
         <span className="text-foreground">{param.name || `arg${index}`}</span>
         <span className="text-meta">{param.type}</span>
       </div>
@@ -484,7 +486,7 @@ function ResultView({
       <div className="space-y-1 rounded border border-border bg-surface p-2">
         {outputs.map((o, i) => (
           <div key={i} className="flex flex-col">
-            <span className="font-mono text-[9px] text-meta">
+            <span className="font-mono text-[9.5px] text-meta">
               {o.name || `output ${i}`} ({o.type})
             </span>
             <FormattedValue value={(data as unknown[])[i]} type={o.type} chainId={chainId} />
@@ -511,7 +513,7 @@ function FormattedValue({
 }) {
   if (typeof value === "boolean") {
     return (
-      <span className={cn("font-mono text-[11px]", value ? "text-success" : "text-danger")}>
+      <span className={cn("font-mono text-[11.5px]", value ? "text-success" : "text-danger")}>
         {value ? "true" : "false"}
       </span>
     );
@@ -519,7 +521,7 @@ function FormattedValue({
 
   if (type === "address" && typeof value === "string") {
     return (
-      <span className="flex items-center gap-1.5 break-all font-mono text-[11px] text-code">
+      <span className="flex items-center gap-1.5 break-all font-mono text-[11.5px] text-code">
         {value}
         <CopyBtn text={value} />
         <Link
@@ -537,9 +539,11 @@ function FormattedValue({
     const bi = typeof value === "bigint" ? value : BigInt(Math.trunc(value));
     const big = bi > 10n ** 15n;
     return (
-      <div className="font-mono text-[11px] text-foreground">
+      <div className="font-mono text-[11.5px] text-foreground">
         {bi.toString()}
-        {big && <div className="text-[9px] text-meta">≈ {formatUnitsApprox(bi)} (18 decimals)</div>}
+        {big && (
+          <div className="text-[9.5px] text-meta">≈ {formatUnitsApprox(bi)} (18 decimals)</div>
+        )}
       </div>
     );
   }
@@ -548,17 +552,17 @@ function FormattedValue({
     const isHex = value.startsWith("0x");
     if (isHex && (type.startsWith("bytes") || type === "")) {
       return (
-        <span className="flex items-center gap-1.5 break-all font-mono text-[11px] text-code">
+        <span className="flex items-center gap-1.5 break-all font-mono text-[11.5px] text-code">
           {value} <CopyBtn text={value} />
         </span>
       );
     }
-    return <span className="font-mono text-[11px] text-foreground">&quot;{value}&quot;</span>;
+    return <span className="font-mono text-[11.5px] text-foreground">&quot;{value}&quot;</span>;
   }
 
   // tuple / array / object
   return (
-    <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-[10px] text-foreground">
+    <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-[10.5px] text-foreground">
       {safeStringify(value)}
     </pre>
   );

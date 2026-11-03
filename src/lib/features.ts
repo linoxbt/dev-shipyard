@@ -32,6 +32,9 @@ export function servedInAgentOnly(pathname: string): boolean {
     // The admins' figures (the page itself checks who is asking).
     pathname === "/admin/stats" ||
     pathname === "/admin/templates" ||
+    pathname === "/admin/access" ||
+    pathname === "/admin/feedback" ||
+    pathname === "/feedback" ||
     // Credit and usage, and a shared read-only copy of the figures.
     pathname === "/credits" ||
     // The account's own pages.
@@ -71,7 +74,8 @@ const AGENT_API = [
   /^\/api\/connectors$/,
   /^\/api\/oauth\/[a-z]+(\/callback)?$/,
   /^\/api\/metrics$/,
-  /^\/api\/admin\/(stats|templates)$/,
+  /^\/api\/admin\/(stats|templates|access|feedback)$/,
+  /^\/api\/feedback$/,
   /^\/api\/templates$/,
   /^\/api\/access(\/session)?$/,
   /^\/api\/github(\/callback|\/push)?$/,

@@ -67,7 +67,7 @@ function ExplorerHome() {
       />
 
       {/* Quick links */}
-      <div className="flex flex-wrap gap-2 font-mono text-[11px]">
+      <div className="flex flex-wrap gap-2 font-mono text-[11.5px]">
         <QuickLink
           to="/explorer/$network/txns"
           network={slug}
@@ -111,7 +111,7 @@ function ExplorerHome() {
         </Card>
       </div>
 
-      <p className="flex items-center gap-1.5 font-mono text-[10px] text-meta">
+      <p className="flex items-center gap-1.5 font-mono text-[10.5px] text-meta">
         <DollarSign className="h-3 w-3" /> Live {family.label} {networkLabel(slug)} data. Prices and
         stats update automatically.
       </p>
@@ -124,7 +124,7 @@ function ExplorerHome() {
 // isn't necessarily live right now, instead of freezing silently.
 function StaleBanner() {
   return (
-    <div className="mb-2 flex items-center gap-1.5 rounded border border-warning/30 bg-warning/10 px-2.5 py-1.5 font-mono text-[10px] text-warning">
+    <div className="mb-2 flex items-center gap-1.5 rounded border border-warning/30 bg-warning/10 px-2.5 py-1.5 font-mono text-[10.5px] text-warning">
       <AlertTriangle className="h-3 w-3 shrink-0" />
       Showing last-known data: live updates are currently failing.
     </div>

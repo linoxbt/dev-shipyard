@@ -25,8 +25,8 @@ import {
 } from "lucide-react";
 import type { ProjectTurn } from "@/lib/appgen/projects";
 import {
-  groupLabel,
   latestPlan,
+  workLabel,
   stepTarget,
   liveStatus,
   timelineFromEvents,
@@ -46,11 +46,14 @@ import { Markdown } from "./Markdown";
 import { ShotThumb } from "./ShotThumb";
 import { Dropdown, MenuItem } from "./primitives";
 
-// The conversation, laid out the way Base44 shows its agent at work: what you
-// asked, then the agent narrating as it goes ("Reading the pages first so the
-// new ones match.") with each batch of work folded into one line you can open
-// ("Read 4 files", "Edited App.tsx and 2 more"), its checklist while it works,
-// and its reply.
+// The conversation, laid out the way the Claude app shows its work: what you
+// asked in a quiet bubble, then the agent's prose at reading size, with all
+// the work between two things it said folded into one muted line you can open
+// ("Ran 5 commands, read 3 files, edited App.tsx ›"), its checklist while it
+// works, and its reply.
+
+/** The reading size of the agent's prose, the Claude app's. */
+const PROSE = "text-[16px] leading-[1.7]";
 
 const ICON: Record<ToolKind, React.ComponentType<{ className?: string }>> = {
   read: FileText,
@@ -111,7 +114,7 @@ export function UserMessage({
   const [open, setOpen] = useState(false);
   return (
     <div>
-      {plan && <p className="mb-1 pr-2 text-right text-[10.5px] text-primary">Plan first</p>}
+      {plan && <p className="mb-1 pr-2 text-right text-[12px] text-primary">Plan first</p>}
       {images && images.length > 0 && (
         <div className="mb-1.5 flex flex-wrap justify-end gap-1.5">
           {images.map((src, i) => (
@@ -120,14 +123,14 @@ export function UserMessage({
         </div>
       )}
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-[24px] bg-primary px-4 py-2.5 text-[14px] leading-6 text-primary-foreground">
+        <div className="max-w-[85%] rounded-[20px] bg-surface-2 px-4 py-2.5 text-[16px] leading-[1.6] text-foreground">
           <p className={cn("whitespace-pre-wrap break-words", long && !open && "line-clamp-6")}>
             {text}
           </p>
           {long && (
             <button
               onClick={() => setOpen((v) => !v)}
-              className="mt-1 text-[12.5px] font-medium text-primary-foreground/85 underline-offset-2 hover:underline"
+              className="mt-1 text-[13.5px] font-medium text-muted-foreground underline-offset-2 hover:underline"
             >
               {open ? "Show less" : "Show more"}
             </button>
@@ -187,14 +190,14 @@ export function AssistantMessage({
   });
   return (
     <div>
-      <div className="max-w-[96%] space-y-2.5">
+      <div className="space-y-4">
         {items.length > 0 && <Timeline items={items} />}
         {turn.failed && (
-          <p className="mb-1 flex items-center gap-1.5 text-[11.5px] text-warning">
+          <p className="mb-1 flex items-center gap-1.5 text-[13px] text-warning">
             <TriangleAlert className="h-3.5 w-3.5" /> Did not finish
           </p>
         )}
-        <Markdown text={splitSuggestions(turn.text).body} className="text-[14px] leading-[1.65]" />
+        <Markdown text={splitSuggestions(turn.text).body} className={PROSE} />
         {turn.changed && turn.changed.length > 0 && (
           <div>
             <ChangedFiles paths={turn.changed} onOpenFile={onOpenFile} />
@@ -204,11 +207,11 @@ export function AssistantMessage({
           <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
             <button
               onClick={onBuildPlan}
-              className="rounded-full bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground hover:bg-primary-hover"
+              className="rounded-full bg-primary px-4 py-2 text-[14px] font-medium text-primary-foreground hover:bg-primary-hover"
             >
               Build this plan
             </button>
-            <span className="text-[11.5px] text-muted-foreground">
+            <span className="text-[13px] text-muted-foreground">
               Or reply with what to change first.
             </span>
           </div>
@@ -260,7 +263,7 @@ export function ChangedFiles({
           key={p}
           onClick={() => onOpenFile(p)}
           title={p}
-          className="inline-flex max-w-[14rem] items-center gap-1 rounded-md border border-border bg-surface px-2 py-0.5 font-mono text-[10px] text-muted-foreground transition hover:border-primary/50 hover:text-foreground"
+          className="inline-flex max-w-[14rem] items-center gap-1 rounded-md border border-border bg-surface px-2 py-0.5 font-mono text-[11.5px] text-muted-foreground transition hover:border-primary/50 hover:text-foreground"
         >
           <FileCode2 className="h-3 w-3 shrink-0 text-success" />
           <span className="truncate">{p.split("/").pop()}</span>
@@ -269,7 +272,7 @@ export function ChangedFiles({
       {paths.length > shown.length && (
         <button
           onClick={() => setAll(true)}
-          className="rounded-md px-1.5 py-0.5 font-mono text-[10px] text-meta hover:text-foreground"
+          className="rounded-md px-1.5 py-0.5 font-mono text-[11.5px] text-meta hover:text-foreground"
         >
           +{paths.length - shown.length} more
         </button>
@@ -278,22 +281,45 @@ export function ChangedFiles({
   );
 }
 
-/** The narration and the folded groups of work, in order. */
+type WorkGroup = Extract<TimelineItem, { type: "group" }>;
+
+/** The timeline as it reads: prose, then every batch of work up to the next
+ *  thing said folded together, with warnings standing on their own. */
+type Shown =
+  | { type: "say"; id: string; text: string }
+  | { type: "note"; id: string; step: Step }
+  | { type: "work"; id: string; groups: WorkGroup[] };
+
+function foldWork(items: TimelineItem[]): Shown[] {
+  const out: Shown[] = [];
+  for (const item of items) {
+    if (item.type === "say") out.push(item);
+    else if (item.kind === "note") out.push({ type: "note", id: item.id, step: item.steps[0] });
+    else {
+      const last = out[out.length - 1];
+      if (last?.type === "work") last.groups.push(item);
+      else out.push({ type: "work", id: item.id, groups: [item] });
+    }
+  }
+  return out;
+}
+
+/** The narration and the folded work, in order. */
 export function Timeline({ items, live }: { items: TimelineItem[]; live?: boolean }) {
+  const shown = useMemo(() => foldWork(items), [items]);
   return (
-    <div className="space-y-2">
-      {items.map((item, i) =>
+    <div className="space-y-4">
+      {shown.map((item, i) =>
         item.type === "say" ? (
-          <Markdown key={item.id} text={item.text} className="text-[14px] leading-[1.65]" />
-        ) : item.kind === "note" ? (
-          <StepRow key={item.id} step={item.steps[0]} />
+          <Markdown key={item.id} text={item.text} className={PROSE} />
+        ) : item.type === "note" ? (
+          <StepRow key={item.id} step={item.step} />
         ) : (
-          <GroupRow
+          <WorkRow
             key={item.id}
-            kind={item.kind}
-            steps={item.steps}
+            groups={item.groups}
             // The batch the agent is in the middle of shows what it is doing.
-            current={live && i === items.length - 1}
+            current={live && i === shown.length - 1}
           />
         ),
       )}
@@ -301,48 +327,46 @@ export function Timeline({ items, live }: { items: TimelineItem[]; live?: boolea
   );
 }
 
-/** One batch of work, folded into a line: "Read 4 files ›". */
-function GroupRow({ kind, steps, current }: { kind: ToolKind; steps: Step[]; current?: boolean }) {
+/** All the work between two things said, folded into one line:
+ *  "Ran 5 commands, read 3 files ›". Opened, every step with its output. */
+function WorkRow({ groups, current }: { groups: WorkGroup[]; current?: boolean }) {
   const [open, setOpen] = useState(false);
-  const running = steps.some((s) => s.status === "running");
+  const steps = groups.flatMap((g) => g.steps);
+  const running = steps.find((s) => s.status === "running");
   const failed = steps.filter((s) => s.status === "failed").length;
-  const Icon = ICON[kind];
-  const now = running ? steps.find((s) => s.status === "running") : null;
+  const shots = steps.filter((s) => s.shot);
   return (
     <div>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="group flex max-w-full items-center gap-1.5 text-left text-[12.5px] text-muted-foreground transition hover:text-foreground"
+        aria-expanded={open}
+        className="group flex max-w-full items-center gap-1.5 text-left text-[14.5px] text-muted-foreground transition hover:text-foreground"
       >
-        {running ? (
-          <LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
-        ) : (
-          <Icon className={cn("h-3.5 w-3.5 shrink-0", failed ? "text-danger" : "text-meta")} />
-        )}
-        <span className="truncate">{groupLabel(kind, steps)}</span>
+        {running && <LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />}
+        <span className="truncate">{workLabel(groups)}</span>
         {failed > 0 && <span className="shrink-0 text-danger">· {failed} failed</span>}
         <ChevronRight
-          className={cn("h-3.5 w-3.5 shrink-0 text-meta transition", open && "rotate-90")}
+          className={cn("h-4 w-4 shrink-0 text-meta transition", open && "rotate-90")}
         />
       </button>
-      {current && now && !open && (
-        <p className="ml-5 mt-0.5 truncate text-[11.5px] text-meta">{now.title}</p>
+      {current && running && !open && (
+        <p className="mt-0.5 truncate text-[13px] text-meta">{running.title}</p>
       )}
       {open && (
-        <div className="-mx-1.5 mt-1 space-y-0.5 border-l border-border pl-2">
+        <div className="mt-1.5 space-y-0.5 border-l-2 border-border pl-2.5">
           {steps.map((s) => (
             <StepRow key={s.id} step={s} />
           ))}
         </div>
       )}
-      {kind === "wallet" && <FundCard steps={steps} />}
-      {steps.some((s) => s.shot) && (
+      {groups.some((g) => g.kind === "wallet") && (
+        <FundCard steps={groups.filter((g) => g.kind === "wallet").flatMap((g) => g.steps)} />
+      )}
+      {shots.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
-          {steps
-            .filter((s) => s.shot)
-            .map((s) => (
-              <ShotThumb key={s.id} shot={s.shot!} label={s.title} />
-            ))}
+          {shots.map((s) => (
+            <ShotThumb key={s.id} shot={s.shot!} label={s.title} />
+          ))}
         </div>
       )}
     </div>
@@ -391,7 +415,7 @@ export function StepRow({ step }: { step: Step }) {
     return (
       <p
         className={cn(
-          "flex items-start gap-2 py-1 text-[11px]",
+          "flex items-start gap-2 py-1 text-[13px]",
           step.tone === "warning" ? "text-warning" : "text-meta",
         )}
       >
@@ -409,7 +433,7 @@ export function StepRow({ step }: { step: Step }) {
       <button
         onClick={() => expandable && setOpen((v) => !v)}
         className={cn(
-          "flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[11.5px] transition",
+          "flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[13px] transition",
           expandable ? "hover:bg-surface-2" : "cursor-default",
         )}
       >
@@ -436,17 +460,17 @@ export function StepRow({ step }: { step: Step }) {
       {open && expandable && (
         <div className="mb-1 ml-6 mt-0.5 overflow-hidden rounded-md border border-border bg-background">
           {kind === "shell" && target && (
-            <p className="border-b border-border px-2.5 py-1 font-mono text-[10px] text-code">
+            <p className="border-b border-border px-2.5 py-1 font-mono text-[11.5px] text-code">
               <span className="text-meta">$ </span>
               {target}
             </p>
           )}
           {step.output ? (
-            <pre className="max-h-64 overflow-auto px-2.5 py-1.5 font-mono text-[10px] leading-[1.55] text-muted-foreground">
+            <pre className="max-h-64 overflow-auto px-2.5 py-1.5 font-mono text-[11.5px] leading-[1.55] text-muted-foreground">
               {step.output}
             </pre>
           ) : (
-            <p className="px-2.5 py-1.5 font-mono text-[10px] text-meta">
+            <p className="px-2.5 py-1.5 font-mono text-[11.5px] text-meta">
               {step.status === "running" ? "Running…" : "No output."}
             </p>
           )}
@@ -460,12 +484,12 @@ export function PlanCard({ plan }: { plan: PlanItem[] }) {
   const done = plan.filter((p) => p.status === "completed").length;
   return (
     <div className="rounded-2xl border border-border bg-surface px-3.5 py-2.5">
-      <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-meta">
+      <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wider text-meta">
         <ListChecks className="h-3 w-3" /> Plan · {done}/{plan.length}
       </p>
       <ul className="space-y-1">
         {plan.map((p, i) => (
-          <li key={i} className="flex items-start gap-2 text-[11.5px] leading-5">
+          <li key={i} className="flex items-start gap-2 text-[14px] leading-6">
             {p.status === "completed" ? (
               <CircleCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
             ) : p.status === "in_progress" ? (
@@ -535,11 +559,11 @@ export function LiveTurn({
     return () => clearInterval(t);
   }, []);
   return (
-    <div className="max-w-[96%] space-y-2.5">
+    <div className="space-y-4">
       {plan && <PlanCard plan={plan} />}
       {items.length > 0 && <Timeline items={items} live />}
-      {writing && <Markdown text={writing} className="text-[14px] leading-[1.65]" />}
-      <div className="flex items-center gap-2.5 text-[12px] text-muted-foreground">
+      {writing && <Markdown text={writing} className={PROSE} />}
+      <div className="flex items-center gap-2.5 text-[14px] text-muted-foreground">
         <span className="ds-typing flex gap-1">
           <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
           <span className="h-1.5 w-1.5 rounded-full bg-foreground" />

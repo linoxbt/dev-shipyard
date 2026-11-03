@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export function Markdown({ text, className }: { text: string; className?: string }) {
   const blocks = useMemo(() => parseMarkdown(text), [text]);
   return (
-    <div className={cn("space-y-2.5 text-[12.5px] leading-6 text-foreground", className)}>
+    <div className={cn("space-y-[0.85em] text-[13px] leading-6 text-foreground", className)}>
       {blocks.map((b, i) => {
         switch (b.kind) {
           case "heading":
@@ -15,8 +15,8 @@ export function Markdown({ text, className }: { text: string; className?: string
               <p
                 key={i}
                 className={cn(
-                  "font-semibold text-foreground",
-                  b.level === 1 ? "text-[15px]" : "text-[13px]",
+                  "pt-[0.35em] font-semibold leading-snug text-foreground",
+                  b.level === 1 ? "text-[1.2em]" : b.level === 2 ? "text-[1.1em]" : "text-[1em]",
                 )}
               >
                 <Inlines nodes={b.inline} />
@@ -28,7 +28,7 @@ export function Markdown({ text, className }: { text: string; className?: string
               <Tag
                 key={i}
                 className={cn(
-                  "space-y-1 pl-5 marker:text-meta",
+                  "space-y-[0.4em] pl-[1.4em] marker:text-meta",
                   b.ordered ? "list-decimal" : "list-disc",
                 )}
               >
@@ -42,6 +42,33 @@ export function Markdown({ text, className }: { text: string; className?: string
           }
           case "code":
             return <CodeBlock key={i} lang={b.lang} text={b.text} />;
+          case "table":
+            return (
+              <div key={i} className="overflow-x-auto rounded-xl border border-border">
+                <table className="w-full border-collapse text-left text-[0.9em] leading-snug">
+                  <thead className="bg-surface-2/60">
+                    <tr>
+                      {b.head.map((c, j) => (
+                        <th key={j} className="px-3 py-2 font-semibold text-foreground">
+                          <Inlines nodes={c} />
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border border-t border-border">
+                    {b.rows.map((row, r) => (
+                      <tr key={r}>
+                        {b.head.map((_, j) => (
+                          <td key={j} className="px-3 py-2 align-top text-foreground/90">
+                            {row[j] ? <Inlines nodes={row[j]} /> : null}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
           case "quote":
             return (
               <p key={i} className="border-l-2 border-border pl-3 text-muted-foreground">
@@ -69,7 +96,7 @@ function Inlines({ nodes }: { nodes: Inline[] }) {
             return (
               <code
                 key={i}
-                className="rounded bg-surface-2 px-1 py-px font-mono text-[11px] text-code"
+                className="rounded-md bg-surface-2 px-[0.35em] py-[0.1em] font-mono text-[0.85em] text-code"
               >
                 {n.text}
               </code>
@@ -111,20 +138,20 @@ export function CodeBlock({ lang, text }: { lang?: string; text: string }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-background">
       <div className="flex items-center justify-between border-b border-border px-3 py-1">
-        <span className="font-mono text-[9px] text-meta">{lang || "text"}</span>
+        <span className="font-mono text-[10.5px] text-meta">{lang || "text"}</span>
         <button
           onClick={() => {
             void navigator.clipboard?.writeText(text);
             setCopied(true);
             setTimeout(() => setCopied(false), 1200);
           }}
-          className="inline-flex items-center gap-1 font-mono text-[9px] text-meta hover:text-foreground"
+          className="inline-flex items-center gap-1 font-mono text-[10.5px] text-meta hover:text-foreground"
         >
           {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <pre className="max-h-80 overflow-auto p-3 font-mono text-[11px] leading-5 text-foreground">
+      <pre className="max-h-80 overflow-auto p-3 font-mono text-[12.5px] leading-5 text-foreground">
         {text}
       </pre>
     </div>

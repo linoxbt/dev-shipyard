@@ -354,3 +354,38 @@ describe("the stages of a build", () => {
     expect(buildPhases([], { building: true })[3].state).toBe("active");
   });
 });
+
+describe("work folded into one line", () => {
+  it("counts every kind between two things said, the way the Claude app does", async () => {
+    const { workLabel } = await import("./steps");
+    const step = (tool: string, input: Record<string, unknown> = {}, i = 0) => ({
+      id: `${tool}-${i}`,
+      tool,
+      title: tool,
+      status: "done" as const,
+      at: "",
+      input,
+    });
+    const shells = [0, 1, 2].map((i) => step("run_shell", { command: `ls ${i}` }, i));
+    const reads = [0, 1].map((i) => step("read_file", { path: `src/f${i}.ts` }, i));
+    expect(
+      workLabel([
+        { kind: "shell", steps: shells.slice(0, 2) },
+        { kind: "read", steps: reads },
+        { kind: "shell", steps: shells.slice(2) },
+      ]),
+    ).toBe("Ran 3 commands, read 2 files");
+    expect(
+      workLabel([{ kind: "shell", steps: [step("run_shell", { command: "npm test" })] }]),
+    ).toBe("Ran npm test");
+    // A script reads as noise: it is "a command".
+    expect(
+      workLabel([
+        {
+          kind: "shell",
+          steps: [step("run_shell", { command: 'T="$NETLIFY_AUTH_TOKEN" echo "=== list sites"' })],
+        },
+      ]),
+    ).toBe("Ran a command");
+  });
+});

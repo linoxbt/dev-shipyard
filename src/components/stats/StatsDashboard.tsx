@@ -155,7 +155,7 @@ export function RangePicker({ value, onChange }: { value: Range; onChange: (r: R
           aria-checked={value === r}
           onClick={() => onChange(r)}
           className={cn(
-            "rounded-md px-2.5 py-1 text-[12px] font-medium tabular-nums transition",
+            "rounded-md px-2.5 py-1 text-[12.5px] font-medium tabular-nums transition",
             value === r
               ? "bg-surface-2 text-foreground"
               : "text-muted-foreground hover:text-foreground",
@@ -194,7 +194,7 @@ export function ExportMenu({ hrefFor }: { hrefFor: (file: string) => string }) {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-[12.5px] font-medium text-foreground transition hover:bg-surface-2"
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-[13px] font-medium text-foreground transition hover:bg-surface-2"
       >
         <Download className="h-3.5 w-3.5" /> Export
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -208,8 +208,8 @@ export function ExportMenu({ hrefFor }: { hrefFor: (file: string) => string }) {
               onClick={() => setOpen(false)}
               className="block px-3.5 py-2.5 transition hover:bg-surface-2"
             >
-              <span className="block text-[12.5px] font-medium text-foreground">{label}</span>
-              <span className="block text-[11.5px] text-muted-foreground">{hint}</span>
+              <span className="block text-[13px] font-medium text-foreground">{label}</span>
+              <span className="block text-[12px] text-muted-foreground">{hint}</span>
             </a>
           ))}
         </div>
@@ -284,8 +284,8 @@ function Kpis({ d }: { d: Dashboard }) {
           title={t.hint}
           className="flex flex-col rounded-2xl border border-border bg-surface p-4"
         >
-          <p className="text-[12px] font-medium text-muted-foreground">{t.label}</p>
-          <p className="mt-1.5 text-[24px] font-semibold leading-none tracking-tight tabular-nums">
+          <p className="text-[12.5px] font-medium text-muted-foreground">{t.label}</p>
+          <p className="mt-1.5 text-[24.5px] font-semibold leading-none tracking-tight tabular-nums">
             {t.value}
           </p>
           <div className="mt-2 flex items-end justify-between gap-2">
@@ -308,7 +308,7 @@ export function Delta({
   points?: boolean;
 }) {
   if (value === null || !Number.isFinite(value)) {
-    return <span className="text-[11.5px] text-meta">no earlier data</span>;
+    return <span className="text-[12px] text-meta">no earlier data</span>;
   }
   const flat = Math.abs(value) < 0.005;
   const up = value > 0;
@@ -320,7 +320,7 @@ export function Delta({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-0.5 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11.5px] font-medium tabular-nums",
+        "inline-flex items-center gap-0.5 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[12px] font-medium tabular-nums",
         good === null
           ? "bg-surface-2 text-muted-foreground"
           : good
@@ -379,8 +379,8 @@ function PlatformStrip({ d, pending }: { d: Dashboard; pending: number }) {
           key={label}
           className="border-border px-4 py-3 [&:not(:last-child)]:border-b lg:border-b-0"
         >
-          <p className="text-[11.5px] text-muted-foreground">{label}</p>
-          <p className="mt-0.5 text-[15px] font-semibold tabular-nums">{value}</p>
+          <p className="text-[12px] text-muted-foreground">{label}</p>
+          <p className="mt-0.5 text-[15.5px] font-semibold tabular-nums">{value}</p>
           {extra}
         </div>
       ))}
@@ -408,7 +408,7 @@ export function Card({
   children,
 }: {
   title: string;
-  note?: string;
+  note?: React.ReactNode;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -416,8 +416,8 @@ export function Card({
     <section
       className={cn("min-w-0 rounded-2xl border border-border bg-surface p-4 sm:p-5", className)}
     >
-      <h2 className="text-[14px] font-semibold">{title}</h2>
-      {note && <p className="mt-0.5 text-[12px] text-muted-foreground">{note}</p>}
+      <h2 className="text-[14.5px] font-semibold">{title}</h2>
+      {note && <p className="mt-0.5 text-[12.5px] text-muted-foreground">{note}</p>}
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -435,7 +435,7 @@ export function Legend({ items }: { items: [string, string][] }) {
       {items.map(([label, color]) => (
         <span
           key={label}
-          className="inline-flex items-center gap-1.5 text-[11.5px] text-muted-foreground"
+          className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground"
         >
           <span className="h-2.5 w-2.5 rounded-sm" style={{ background: color }} aria-hidden />
           {label}
@@ -458,11 +458,11 @@ export function Tip({ active, label, payload, format = num, total }: TipProps) {
   const sum = payload.reduce((a, p) => a + (Number(p.value) || 0), 0);
   return (
     <div className="min-w-[150px] rounded-lg border border-border bg-surface px-3 py-2 shadow-lg">
-      <p className="text-[11.5px] font-medium text-muted-foreground">
+      <p className="text-[12px] font-medium text-muted-foreground">
         {label ? shortDay(label) : ""}
       </p>
       {payload.map((p) => (
-        <p key={p.dataKey} className="mt-1 flex items-center gap-2 text-[12px]">
+        <p key={p.dataKey} className="mt-1 flex items-center gap-2 text-[12.5px]">
           <span className="h-2 w-2 rounded-sm" style={{ background: p.color }} aria-hidden />
           <span className="text-muted-foreground">{p.name}</span>
           <span className="ml-auto font-medium tabular-nums text-foreground">
@@ -471,7 +471,7 @@ export function Tip({ active, label, payload, format = num, total }: TipProps) {
         </p>
       ))}
       {total && payload.length > 1 && (
-        <p className="mt-1.5 flex border-t border-border pt-1.5 text-[12px]">
+        <p className="mt-1.5 flex border-t border-border pt-1.5 text-[12.5px]">
           <span className="text-muted-foreground">Total</span>
           <span className="ml-auto font-medium tabular-nums text-foreground">{format(sum)}</span>
         </p>
@@ -489,7 +489,7 @@ export const tickDays = (series: readonly { day: string }[]) => {
 export function Empty() {
   return (
     <div
-      className="grid place-items-center rounded-xl bg-surface-2/50 text-[12.5px] text-muted-foreground"
+      className="grid place-items-center rounded-xl bg-surface-2/50 text-[13px] text-muted-foreground"
       style={{ height: CHART_H }}
     >
       Nothing in this period yet
@@ -667,7 +667,7 @@ function Funnel({ f }: { f: Dashboard["funnel"] }) {
     <ol className="space-y-3">
       {steps.map(([label, n], i) => (
         <li key={label}>
-          <div className="flex items-baseline justify-between gap-2 text-[12.5px]">
+          <div className="flex items-baseline justify-between gap-2 text-[13px]">
             <span className="text-foreground">{label}</span>
             <span className="tabular-nums">
               <span className="font-medium">{num(n)}</span>
@@ -695,13 +695,12 @@ export function Table({
   children: React.ReactNode;
   empty?: boolean;
 }) {
-  if (empty)
-    return <p className="py-6 text-center text-[12.5px] text-muted-foreground">None yet</p>;
+  if (empty) return <p className="py-6 text-center text-[13px] text-muted-foreground">None yet</p>;
   return (
     <div className="-mx-4 overflow-x-auto sm:-mx-5">
-      <table className="w-full min-w-[520px] text-[12.5px]">
+      <table className="w-full min-w-[520px] text-[13px]">
         <thead>
-          <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-meta">
+          <tr className="border-b border-border text-left text-[11.5px] uppercase tracking-wide text-meta">
             {head.map((h) => (
               <th
                 key={h.label}
@@ -725,11 +724,11 @@ export function Table({
 
 export function PlanBadge({ plan }: { plan: string }) {
   return plan === "pro" ? (
-    <span className="rounded-md bg-primary/12 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+    <span className="rounded-md bg-primary/12 px-1.5 py-0.5 text-[11.5px] font-medium text-primary">
       Pro
     </span>
   ) : (
-    <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+    <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11.5px] text-muted-foreground">
       Free
     </span>
   );
@@ -738,7 +737,7 @@ export function PlanBadge({ plan }: { plan: string }) {
 export function Account({ name }: { name: string }) {
   return (
     <span className="flex min-w-0 items-center gap-2">
-      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-surface-2 text-[10.5px] font-semibold uppercase text-muted-foreground">
+      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-surface-2 text-[11px] font-semibold uppercase text-muted-foreground">
         {name.replace(/^0x/, "").slice(0, 2)}
       </span>
       <span className="truncate text-foreground" title={name}>
@@ -839,7 +838,7 @@ function RecentAccounts({ rows }: { rows: Dashboard["recent_accounts"] }) {
             {r.confirmed ? (
               <PlanBadge plan={r.plan} />
             ) : (
-              <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+              <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11.5px] text-muted-foreground">
                 Unconfirmed
               </span>
             )}
@@ -891,7 +890,7 @@ export function ProTable({
                 {r.contact}
               </a>
             ) : (
-              <span className="font-mono text-[11.5px] text-muted-foreground">{r.owner}</span>
+              <span className="font-mono text-[12px] text-muted-foreground">{r.owner}</span>
             )}
           </td>
           <td>
@@ -905,7 +904,7 @@ export function ProTable({
               <button
                 onClick={() => void act(r.owner, "free")}
                 disabled={busy === r.owner}
-                className="rounded-lg border border-border px-2.5 py-1 text-[12px] text-muted-foreground transition hover:border-danger/50 hover:text-danger disabled:opacity-60"
+                className="rounded-lg border border-border px-2.5 py-1 text-[12.5px] text-muted-foreground transition hover:border-danger/50 hover:text-danger disabled:opacity-60"
               >
                 Revoke
               </button>
@@ -913,7 +912,7 @@ export function ProTable({
               <button
                 onClick={() => void act(r.owner, "pro")}
                 disabled={busy === r.owner}
-                className="rounded-lg bg-primary px-2.5 py-1 text-[12px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-60"
+                className="rounded-lg bg-primary px-2.5 py-1 text-[12.5px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-60"
               >
                 Grant Pro
               </button>
@@ -928,7 +927,7 @@ export function ProTable({
 export function Skeleton() {
   return (
     <div className="space-y-6" aria-busy>
-      <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+      <div className="flex items-center gap-2 text-[13.5px] text-muted-foreground">
         <LoaderCircle className="h-4 w-4 animate-spin" /> Loading the figures
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -964,8 +963,8 @@ export function Shell({
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
           <a href="/" className="flex items-center gap-2.5">
             <LogoMark className="h-7 w-7" />
-            <span className="text-[14px] font-semibold">DevStation</span>
-            <span className="rounded-md border border-border px-1.5 py-0.5 text-[10.5px] font-medium uppercase tracking-wide text-muted-foreground">
+            <span className="text-[14.5px] font-semibold">DevStation</span>
+            <span className="rounded-md border border-border px-1.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               {label}
             </span>
           </a>
@@ -974,7 +973,7 @@ export function Shell({
             {back && (
               <a
                 href="/"
-                className="hidden items-center gap-1.5 rounded-lg px-2 py-1.5 text-[12.5px] text-muted-foreground hover:text-foreground sm:inline-flex"
+                className="hidden items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] text-muted-foreground hover:text-foreground sm:inline-flex"
               >
                 <ArrowLeft className="h-4 w-4" /> App
               </a>
@@ -991,8 +990,8 @@ export function Shell({
 export function Unavailable({ title, message }: { title: string; message: string }) {
   return (
     <div className="mx-auto mt-16 max-w-md rounded-2xl border border-border bg-surface px-6 py-8 text-center">
-      <p className="text-[14px] font-medium">{title}</p>
-      <p className="mt-1.5 text-[13px] text-muted-foreground">{message}</p>
+      <p className="text-[14.5px] font-medium">{title}</p>
+      <p className="mt-1.5 text-[13.5px] text-muted-foreground">{message}</p>
     </div>
   );
 }
@@ -1016,13 +1015,13 @@ export function Overview({
     <div className={cn("space-y-6 transition-opacity", loading && "opacity-60")}>
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-[20px] font-semibold tracking-tight">Overview</h1>
-          <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+          <h1 className="text-[20.5px] font-semibold tracking-tight">Overview</h1>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
             {shortDay(d.range.start)} – {shortDay(d.range.end)} (UTC), compared with the{" "}
             {d.range.days} days before
           </p>
         </div>
-        <p className="text-[11.5px] text-meta">{note ?? <>Updated {when(d.generated_at)}</>}</p>
+        <p className="text-[12px] text-meta">{note ?? <>Updated {when(d.generated_at)}</>}</p>
       </div>
 
       <Kpis d={d} />
@@ -1122,13 +1121,13 @@ function Revenue({ d }: { d: Dashboard }) {
             key={t.label}
             className="flex flex-col rounded-2xl border border-border bg-surface p-4"
           >
-            <p className="text-[12px] font-medium text-muted-foreground">{t.label}</p>
-            <p className="mt-1.5 text-[22px] font-semibold leading-none tracking-tight tabular-nums">
+            <p className="text-[12.5px] font-medium text-muted-foreground">{t.label}</p>
+            <p className="mt-1.5 text-[22.5px] font-semibold leading-none tracking-tight tabular-nums">
               {t.value}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {t.compare && <Delta value={t.delta} />}
-              <span className="text-[11px] text-meta">{t.hint}</span>
+              <span className="text-[11.5px] text-meta">{t.hint}</span>
             </div>
           </div>
         ))}
@@ -1177,7 +1176,7 @@ function Revenue({ d }: { d: Dashboard }) {
           </>
         ) : (
           <div
-            className="grid place-items-center rounded-xl bg-surface-2/50 text-center text-[12.5px] text-muted-foreground"
+            className="grid place-items-center rounded-xl bg-surface-2/50 text-center text-[13px] text-muted-foreground"
             style={{ height: CHART_H - 20 }}
           >
             No payments in this period yet

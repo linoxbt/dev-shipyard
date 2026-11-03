@@ -208,7 +208,7 @@ function BuiltinListing({ slug }: { slug: string }) {
             <div className="flex flex-wrap items-center gap-2">
               <KindBadge kind="template" />
               <span
-                className="inline-flex items-center gap-1 font-mono text-[10px] uppercase text-success"
+                className="inline-flex items-center gap-1 font-mono text-[10.5px] uppercase text-success"
                 title="Ships with DevStation. Not a third-party audit."
               >
                 <BadgeCheck className="h-3 w-3" /> Official
@@ -321,12 +321,12 @@ function OfficialListingView({ item }: { item: OfficialListing }) {
             <div className="flex flex-wrap items-center gap-2">
               <KindBadge kind={item.kind} />
               <span
-                className="inline-flex items-center gap-1 font-mono text-[10px] uppercase text-success"
+                className="inline-flex items-center gap-1 font-mono text-[10.5px] uppercase text-success"
                 title="Ships with DevStation. Not a third-party audit."
               >
                 <BadgeCheck className="h-3 w-3" /> Official
               </span>
-              <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+              <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] uppercase text-muted-foreground">
                 {item.category}
               </span>
             </div>
@@ -337,7 +337,7 @@ function OfficialListingView({ item }: { item: OfficialListing }) {
               {item.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                  className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground"
                 >
                   {tag}
                 </span>
@@ -352,7 +352,7 @@ function OfficialListingView({ item }: { item: OfficialListing }) {
               <span className="font-mono text-xs font-bold uppercase tracking-wider text-foreground">
                 What you get
               </span>
-              <span className="font-mono text-[11px] text-meta">
+              <span className="font-mono text-[11.5px] text-meta">
                 {files ? `${paths.length} files` : ""}
               </span>
             </div>
@@ -365,7 +365,7 @@ function OfficialListingView({ item }: { item: OfficialListing }) {
                     <li key={path}>
                       <button
                         onClick={() => setOpenFile(path)}
-                        className={`w-full truncate rounded px-2 py-1 text-left font-mono text-[11px] ${shown === path ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                        className={`w-full truncate rounded px-2 py-1 text-left font-mono text-[11.5px] ${shown === path ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
                       >
                         {path}
                       </button>
@@ -376,7 +376,7 @@ function OfficialListingView({ item }: { item: OfficialListing }) {
                   {shown && (
                     <>
                       <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className="truncate font-mono text-[11px] text-foreground">
+                        <span className="truncate font-mono text-[11.5px] text-foreground">
                           {shown}
                         </span>
                         <button
@@ -384,7 +384,7 @@ function OfficialListingView({ item }: { item: OfficialListing }) {
                             downloadText(shown, files[shown]);
                             record(statId, "download");
                           }}
-                          className="inline-flex shrink-0 items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-primary"
+                          className="inline-flex shrink-0 items-center gap-1 font-mono text-[11.5px] text-muted-foreground hover:text-primary"
                         >
                           <Download className="h-3 w-3" /> Download
                         </button>
@@ -706,12 +706,12 @@ function MarketListingView({
             <div className="flex flex-wrap items-center gap-2">
               <KindBadge kind={listing.kind} />
               {listing.metadata.category && (
-                <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
+                <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] uppercase text-muted-foreground">
                   {listing.metadata.category}
                 </span>
               )}
               {listing.featuredUntil > Date.now() && (
-                <span className="rounded bg-primary px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase text-primary-foreground">
+                <span className="rounded bg-primary px-1.5 py-0.5 font-mono text-[10.5px] font-bold uppercase text-primary-foreground">
                   Featured
                 </span>
               )}
@@ -728,7 +728,7 @@ function MarketListingView({
                 {listing.metadata.tags!.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                    className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground"
                   >
                     {tag}
                   </span>
@@ -770,7 +770,7 @@ function MarketListingView({
                       `${skillNameFromPaths(Object.keys(files)) ?? (listing.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "listing")}.zip`,
                     );
                   }}
-                  className="inline-flex items-center gap-1.5 font-mono text-[11px] text-primary hover:underline"
+                  className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-primary hover:underline"
                 >
                   <Download className="h-3 w-3" /> Download all
                 </button>
@@ -779,7 +779,7 @@ function MarketListingView({
                 <button
                   onClick={() => void run("files", loadFiles)}
                   disabled={busy === "files"}
-                  className="inline-flex items-center gap-1.5 font-mono text-[11px] text-primary hover:underline disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 font-mono text-[11.5px] text-primary hover:underline disabled:opacity-50"
                 >
                   {busy === "files" ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -797,7 +797,7 @@ function MarketListingView({
                     <li key={path}>
                       <button
                         onClick={() => setOpenFile(path)}
-                        className={`w-full truncate rounded px-2 py-1 text-left font-mono text-[11px] ${openFile === path ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                        className={`w-full truncate rounded px-2 py-1 text-left font-mono text-[11.5px] ${openFile === path ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
                       >
                         {path}
                       </button>
@@ -808,7 +808,7 @@ function MarketListingView({
                   {openFile && (
                     <>
                       <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className="truncate font-mono text-[11px] text-foreground">
+                        <span className="truncate font-mono text-[11.5px] text-foreground">
                           {openFile}
                         </span>
                         <button
@@ -816,7 +816,7 @@ function MarketListingView({
                             downloadText(openFile, files[openFile]);
                             record(statId, "download");
                           }}
-                          className="inline-flex shrink-0 items-center gap-1 font-mono text-[11px] text-muted-foreground hover:text-primary"
+                          className="inline-flex shrink-0 items-center gap-1 font-mono text-[11.5px] text-muted-foreground hover:text-primary"
                         >
                           <Download className="h-3 w-3" /> Download
                         </button>
@@ -837,7 +837,7 @@ function MarketListingView({
                     {previewPaths.map((path) => (
                       <li
                         key={path}
-                        className="flex items-center gap-1.5 truncate font-mono text-[11px] text-muted-foreground"
+                        className="flex items-center gap-1.5 truncate font-mono text-[11.5px] text-muted-foreground"
                       >
                         {unlocked ? (
                           <FileText className="h-3 w-3 shrink-0" />
@@ -849,7 +849,7 @@ function MarketListingView({
                     ))}
                   </ul>
                 ) : (
-                  <p className="font-mono text-[11px] text-meta">
+                  <p className="font-mono text-[11.5px] text-meta">
                     {unlocked
                       ? "Open the files to see what is inside."
                       : "The files unlock when you buy."}
@@ -883,7 +883,7 @@ function MarketListingView({
               )}
 
               {!market.address ? (
-                <p className="rounded border border-border bg-surface-2 p-2 text-center font-mono text-[11px] text-muted-foreground">
+                <p className="rounded border border-border bg-surface-2 p-2 text-center font-mono text-[11.5px] text-muted-foreground">
                   Connect a wallet to {listing.price === 0n ? "open" : "buy"} this.
                 </p>
               ) : perDeploy && !isCreator ? (
@@ -915,7 +915,7 @@ function MarketListingView({
 
               {unlocked && !listing.price && null}
               {bought && !isCreator && (
-                <p className="flex items-center justify-center gap-1 font-mono text-[11px] text-success">
+                <p className="flex items-center justify-center gap-1 font-mono text-[11.5px] text-success">
                   <Check className="h-3 w-3" /> In your library
                 </p>
               )}
@@ -945,7 +945,7 @@ function MarketListingView({
               <div className="flex items-center gap-2 font-mono text-xs font-bold text-foreground">
                 <Gift className="h-3.5 w-3.5 text-primary" /> Tip the creator
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-[11.5px] text-muted-foreground">
                 Tips go to them in full. No platform fee.
               </p>
               <div className="mt-3 flex gap-2">

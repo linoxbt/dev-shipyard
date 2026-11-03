@@ -25,7 +25,7 @@ export function DocPage({
   return (
     <article className="min-w-0">
       {group && (
-        <p className="mb-3 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-primary">
+        <p className="mb-3 font-mono text-[11.5px] font-medium uppercase tracking-[0.14em] text-primary">
           {group}
         </p>
       )}
@@ -38,7 +38,7 @@ export function DocPage({
         {title}
       </h1>
       {intro && (
-        <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground sm:text-[17px]">
+        <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground sm:text-[17.5px]">
           {intro}
         </p>
       )}
@@ -96,7 +96,7 @@ export function H3({ children, id }: { children: React.ReactNode; id?: string })
 }
 
 export function P({ children }: { children: React.ReactNode }) {
-  return <p className="text-[15px] leading-7 text-muted-foreground">{children}</p>;
+  return <p className="text-[15.5px] leading-7 text-muted-foreground">{children}</p>;
 }
 
 /** Inline code. */
@@ -119,7 +119,7 @@ export function Bullets({ items }: { items: React.ReactNode[] }) {
   return (
     <ul className="space-y-2">
       {items.map((it, i) => (
-        <li key={i} className="flex gap-3 text-[15px] leading-7 text-muted-foreground">
+        <li key={i} className="flex gap-3 text-[15.5px] leading-7 text-muted-foreground">
           <span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
           <span className="min-w-0">{it}</span>
         </li>
@@ -136,8 +136,10 @@ export function Steps({ steps }: { steps: { title: string; body: React.ReactNode
           <span className="absolute -left-[45px] flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background font-mono text-xs font-bold text-primary">
             {i + 1}
           </span>
-          <div className="text-[15px] font-semibold text-foreground">{s.title}</div>
-          <div className="mt-1 space-y-3 text-[15px] leading-7 text-muted-foreground">{s.body}</div>
+          <div className="text-[15.5px] font-semibold text-foreground">{s.title}</div>
+          <div className="mt-1 space-y-3 text-[15.5px] leading-7 text-muted-foreground">
+            {s.body}
+          </div>
         </li>
       ))}
     </ol>
@@ -172,7 +174,7 @@ export function FeatureCard({
         <span className="text-sm font-semibold text-foreground">{title}</span>
         <ArrowRight className="ml-auto h-4 w-4 text-meta transition group-hover:translate-x-0.5 group-hover:text-primary" />
       </div>
-      <p className="mt-3 text-[13px] leading-6 text-muted-foreground">{body}</p>
+      <p className="mt-3 text-[13.5px] leading-6 text-muted-foreground">{body}</p>
     </>
   );
   const cls =
@@ -257,7 +259,7 @@ export function Callout({
   return (
     <div className={`flex gap-3 rounded-lg border ${c.cls} p-4`}>
       <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${c.iconCls}`} />
-      <div className="min-w-0 text-[14px] leading-6 text-muted-foreground">
+      <div className="min-w-0 text-[14.5px] leading-6 text-muted-foreground">
         <p className="mb-0.5 font-semibold text-foreground">{title ?? c.label}</p>
         <div className="space-y-2">{children}</div>
       </div>
@@ -274,7 +276,7 @@ export function Table({ head, rows }: { head: string[]; rows: React.ReactNode[][
             {head.map((h) => (
               <th
                 key={h}
-                className="whitespace-nowrap px-4 py-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-meta"
+                className="whitespace-nowrap px-4 py-2.5 font-mono text-[10.5px] font-medium uppercase tracking-wider text-meta"
               >
                 {h}
               </th>
@@ -290,8 +292,8 @@ export function Table({ head, rows }: { head: string[]; rows: React.ReactNode[][
                   className={
                     "px-4 py-2.5 align-top leading-6 " +
                     (j === 0
-                      ? "whitespace-nowrap font-mono text-[13px] text-foreground"
-                      : "text-[13px] text-muted-foreground")
+                      ? "whitespace-nowrap font-mono text-[13.5px] text-foreground"
+                      : "text-[13.5px] text-muted-foreground")
                   }
                 >
                   {cell}
@@ -308,13 +310,13 @@ export function Table({ head, rows }: { head: string[]; rows: React.ReactNode[][
 export function FaqItem({ q, a }: { q: string; a: React.ReactNode }) {
   return (
     <details className="group rounded-lg border border-border bg-surface px-4 py-3 open:bg-surface-2">
-      <summary className="cursor-pointer list-none text-[15px] font-semibold text-foreground marker:hidden">
+      <summary className="cursor-pointer list-none text-[15.5px] font-semibold text-foreground marker:hidden">
         <span className="flex items-center justify-between gap-4">
           {q}
           <ArrowRight className="h-4 w-4 shrink-0 text-meta transition group-open:rotate-90" />
         </span>
       </summary>
-      <div className="mt-2 text-[14px] leading-6 text-muted-foreground">{a}</div>
+      <div className="mt-2 text-[14.5px] leading-6 text-muted-foreground">{a}</div>
     </details>
   );
 }
@@ -335,7 +337,7 @@ export function PageNav({
           to={prev.to}
           className="group rounded-lg border border-border p-4 transition hover:border-primary/50"
         >
-          <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-meta">
+          <span className="flex items-center gap-1.5 font-mono text-[11.5px] uppercase tracking-wider text-meta">
             <ArrowLeft className="h-3 w-3" /> Previous
           </span>
           <span className="mt-1 block text-sm font-semibold text-foreground group-hover:text-primary">
@@ -350,7 +352,7 @@ export function PageNav({
           to={next.to}
           className="group rounded-lg border border-border p-4 text-right transition hover:border-primary/50"
         >
-          <span className="flex items-center justify-end gap-1.5 font-mono text-[11px] uppercase tracking-wider text-meta">
+          <span className="flex items-center justify-end gap-1.5 font-mono text-[11.5px] uppercase tracking-wider text-meta">
             Next <ArrowRight className="h-3 w-3" />
           </span>
           <span className="mt-1 block text-sm font-semibold text-foreground group-hover:text-primary">

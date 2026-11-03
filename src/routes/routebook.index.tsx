@@ -70,7 +70,7 @@ function RoutebookHome() {
         <div className="mx-auto max-w-3xl">
           <div className="rounded border border-border bg-surface p-6">
             <label className="block">
-              <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+              <span className="font-mono text-[11.5px] uppercase tracking-wider text-muted-foreground">
                 Transaction Hash
               </span>
               <div className="relative mt-2">
@@ -95,7 +95,7 @@ function RoutebookHome() {
 
             {recent.length > 0 && (
               <div className="mt-6">
-                <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+                <div className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
                   Recent inspections
                 </div>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -116,7 +116,7 @@ function RoutebookHome() {
 
           {/* Try a demo: two real mainnet txs that decode into a named route */}
           <div className="mt-6">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-meta">
+            <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-meta">
               Try a demo transaction
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -134,7 +134,7 @@ function RoutebookHome() {
                     <ArrowRight className="ml-auto h-3.5 w-3.5 text-meta transition group-hover:translate-x-0.5 group-hover:text-primary" />
                   </div>
                   <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{d.blurb}</p>
-                  <span className="mt-1 block font-mono text-[10px] text-meta">QIE Mainnet</span>
+                  <span className="mt-1 block font-mono text-[10.5px] text-meta">QIE Mainnet</span>
                 </button>
               ))}
             </div>

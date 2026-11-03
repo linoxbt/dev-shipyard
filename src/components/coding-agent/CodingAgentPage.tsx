@@ -1152,7 +1152,7 @@ export function CodingAgentPage() {
   const signInNotice = !user ? (
     <button
       onClick={() => setSheet("auth")}
-      className="flex items-center gap-1.5 text-left text-[11.5px] text-muted-foreground hover:text-foreground"
+      className="flex items-center gap-1.5 text-left text-[12px] text-muted-foreground hover:text-foreground"
     >
       <LogIn className="h-3.5 w-3.5 shrink-0 text-primary" /> Sign in with your email to start
       building. It is free.
@@ -1405,15 +1405,15 @@ export function CodingAgentPage() {
                     setStarter({ kind: "github", repo: e.target.value });
                   }}
                   placeholder="owner/name or https://github.com/owner/name"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-[12px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-[12.5px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
                 />
-                <p className="mt-2 text-[11px] text-meta">
+                <p className="mt-2 text-[11.5px] text-meta">
                   Public repositories need no sign-in. For a private one, connect GitHub from Push
                   first.
                 </p>
               </div>
             ) : starter.kind === "files" ? (
-              <p className="px-2 text-[11.5px] text-meta">
+              <p className="px-2 text-[12px] text-meta">
                 {starter.label} will be copied into the workspace.
               </p>
             ) : null
@@ -1421,7 +1421,7 @@ export function CodingAgentPage() {
           footer={
             <a
               href={docsHref("/docs/cli/install")}
-              className="inline-flex items-center gap-1.5 text-[11.5px] text-meta hover:text-muted-foreground"
+              className="inline-flex items-center gap-1.5 text-[12px] text-meta hover:text-muted-foreground"
             >
               <Terminal className="h-3.5 w-3.5" /> The same agent runs in your terminal
             </a>
@@ -1491,10 +1491,10 @@ export function CodingAgentPage() {
           }}
           className="min-h-0 flex-1 overflow-y-auto"
         >
-          <div className="mx-auto max-w-2xl space-y-4 px-3 pb-6 pt-4 sm:px-5">
+          <div className="mx-auto max-w-2xl space-y-6 px-4 pb-6 pt-5 sm:px-5">
             {empty && (
               <div className="space-y-4">
-                <div className="max-w-[88%] rounded-[24px] bg-surface-2 px-4 py-3 text-[14px] leading-[1.65] text-foreground">
+                <div className="text-[16px] leading-[1.7] text-foreground">
                   {hasFiles
                     ? `Hi! I have the ${Object.keys(files).length} files of ${project.name} open. Ask me for a change, a fix or a test, and I will work on them in a sandbox.`
                     : `Hi! Tell me what to build for ${project.name} and I will start.`}
@@ -1506,7 +1506,7 @@ export function CodingAgentPage() {
                         key={a.label}
                         onClick={() => void send(a.prompt)}
                         disabled={!user}
-                        className="inline-flex items-center gap-2 rounded-full border border-border px-3.5 py-2 text-[12.5px] text-foreground/85 transition hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                        className="inline-flex items-center gap-2 rounded-full border border-border px-3.5 py-2 text-[13px] text-foreground/85 transition hover:border-primary/40 hover:text-foreground disabled:opacity-50"
                       >
                         <a.icon className="h-4 w-4 text-primary" /> {a.label}
                       </button>
@@ -1570,7 +1570,7 @@ export function CodingAgentPage() {
                     ) : (
                       <GitPullRequest className="h-4 w-4 shrink-0 text-primary" />
                     )}
-                    <span className="flex-1 text-[13px] text-foreground">
+                    <span className="flex-1 text-[13.5px] text-foreground">
                       {h.tool === "push_to_github"
                         ? "The agent suggests pushing this to GitHub."
                         : h.tool === "publish_app"
@@ -1583,7 +1583,7 @@ export function CodingAgentPage() {
                           ? openPublish()
                           : void openDialog(h.tool === "push_to_github" ? "push" : "pr")
                       }
-                      className="rounded-full bg-primary px-3.5 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary-hover"
+                      className="rounded-full bg-primary px-3.5 py-1.5 text-[12.5px] font-medium text-primary-foreground hover:bg-primary-hover"
                     >
                       {h.tool === "publish_app"
                         ? "Publish"
@@ -1617,7 +1617,7 @@ export function CodingAgentPage() {
                 <button
                   key={sgt}
                   onClick={() => setInput(sgt)}
-                  className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-[12px] text-foreground/90 transition hover:border-primary/50"
+                  className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-[12.5px] text-foreground/90 transition hover:border-primary/50"
                 >
                   {sgt}
                 </button>
@@ -1632,11 +1632,11 @@ export function CodingAgentPage() {
                   className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1.5"
                 >
                   <Clock3 className="h-3.5 w-3.5 shrink-0 text-meta" />
-                  <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/90">
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-foreground/90">
                     {q.pictures > 0 && `${q.pictures} picture(s) · `}
                     {q.text}
                   </span>
-                  <span className="shrink-0 text-[10.5px] text-meta">
+                  <span className="shrink-0 text-[11px] text-meta">
                     {i === 0 ? "Next" : `#${i + 1}`}
                   </span>
                   <button
@@ -1783,7 +1783,7 @@ export function CodingAgentPage() {
         ) : (
           <Eye className="mx-auto h-6 w-6 text-meta" />
         )}
-        <p className="mt-3 whitespace-pre-wrap text-[12px] leading-5 text-muted-foreground">
+        <p className="mt-3 whitespace-pre-wrap text-[12.5px] leading-5 text-muted-foreground">
           {prepareNote ??
             (running ? "The preview appears when the agent finishes this turn." : null) ??
             (localPlan.kind === "build" && !view?.preview.message
@@ -1824,7 +1824,7 @@ export function CodingAgentPage() {
                 }}
                 aria-pressed={shownTab === v}
                 className={cn(
-                  "rounded-full px-3.5 py-1.5 text-[12.5px] transition",
+                  "rounded-full px-3.5 py-1.5 text-[13px] transition",
                   shownTab === v
                     ? "bg-surface-2 font-medium text-foreground"
                     : "text-muted-foreground hover:text-foreground",
@@ -1900,7 +1900,7 @@ export function CodingAgentPage() {
               autoFocus
               value={renaming}
               onChange={(e) => setRenaming(e.target.value)}
-              className={`${inputClass} rounded-xl px-3 py-2.5 text-[14px]`}
+              className={`${inputClass} rounded-xl px-3 py-2.5 text-[14.5px]`}
             />
             <button
               type="submit"

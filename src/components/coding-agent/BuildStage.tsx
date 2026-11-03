@@ -64,17 +64,17 @@ export function BuildStage({
       {/* Where it has got to */}
       <div className="mt-5 px-1">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="truncate text-[14px] font-semibold text-foreground">Building {title}</p>
+          <p className="truncate text-[14.5px] font-semibold text-foreground">Building {title}</p>
           {elapsed && (
-            <span className="shrink-0 text-[11.5px] tabular-nums text-meta">{elapsed}</span>
+            <span className="shrink-0 text-[12px] tabular-nums text-meta">{elapsed}</span>
           )}
         </div>
         {detail && (
-          <p className="ds-shimmer mt-0.5 truncate text-[12.5px] text-muted-foreground">{detail}</p>
+          <p className="ds-shimmer mt-0.5 truncate text-[13px] text-muted-foreground">{detail}</p>
         )}
         <ol className="mt-4 space-y-2.5">
           {phases.map((p) => (
-            <li key={p.label} className="flex items-center gap-2.5 text-[12.5px]">
+            <li key={p.label} className="flex items-center gap-2.5 text-[13px]">
               <span
                 className={cn(
                   "grid h-5 w-5 shrink-0 place-items-center rounded-full border",

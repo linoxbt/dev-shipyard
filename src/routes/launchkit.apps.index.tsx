@@ -62,7 +62,7 @@ function AppsPage() {
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
           <h1 className="font-mono text-sm font-bold text-foreground">Apps</h1>
-          <p className="mt-0.5 font-mono text-[11px] text-meta">
+          <p className="mt-0.5 font-mono text-[11.5px] text-meta">
             Everything you have built here. Files and the conversation are kept together.
           </p>
         </div>
@@ -78,12 +78,12 @@ function AppsPage() {
         <div className="rounded border border-dashed border-border p-10 text-center">
           <Wand2 className="mx-auto h-5 w-5 text-meta" />
           <p className="mt-3 font-mono text-xs text-muted-foreground">No apps yet.</p>
-          <p className="mt-1 font-mono text-[11px] text-meta">
+          <p className="mt-1 font-mono text-[11.5px] text-meta">
             Describe what you want and DevStation builds it, then keep talking to change it.
           </p>
           <button
             onClick={startNew}
-            className="mt-4 inline-flex items-center gap-1.5 rounded border border-primary px-3 py-1.5 font-mono text-[11px] text-primary hover:bg-primary/10"
+            className="mt-4 inline-flex items-center gap-1.5 rounded border border-primary px-3 py-1.5 font-mono text-[11.5px] text-primary hover:bg-primary/10"
           >
             <Plus className="h-3 w-3" /> Start one
           </button>
@@ -136,26 +136,26 @@ function AppsPage() {
                     <div className="truncate font-mono text-xs font-medium text-foreground">
                       {p.name}
                     </div>
-                    <div className="mt-0.5 font-mono text-[10px] text-meta">
+                    <div className="mt-0.5 font-mono text-[10.5px] text-meta">
                       {fileCount(p)} files · {p.history.length} messages · {when(p.updatedAt)}
                     </div>
                   </Link>
 
                   {confirming === p.id ? (
                     <>
-                      <span className="font-mono text-[10px] text-danger">Delete?</span>
+                      <span className="font-mono text-[10.5px] text-danger">Delete?</span>
                       <button
                         onClick={() => {
                           remove(p.id);
                           setConfirming(null);
                         }}
-                        className="rounded border border-danger px-2 py-0.5 font-mono text-[10px] text-danger hover:bg-danger/10"
+                        className="rounded border border-danger px-2 py-0.5 font-mono text-[10.5px] text-danger hover:bg-danger/10"
                       >
                         Yes
                       </button>
                       <button
                         onClick={() => setConfirming(null)}
-                        className="font-mono text-[10px] text-meta hover:text-foreground"
+                        className="font-mono text-[10.5px] text-meta hover:text-foreground"
                       >
                         No
                       </button>
@@ -206,7 +206,7 @@ function AppsPage() {
         </ul>
       )}
 
-      <p className="mt-5 font-mono text-[10px] text-meta">
+      <p className="mt-5 font-mono text-[10.5px] text-meta">
         Stored in this browser.{" "}
         <Link to="/launchkit/coding-agent" className="text-primary hover:underline">
           Open the builder

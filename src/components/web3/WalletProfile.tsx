@@ -105,11 +105,11 @@ export function WalletProfile() {
       {burner.exists && (
         <div className="rounded border border-border bg-background p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="font-mono text-[11px] uppercase tracking-wider text-meta">
+            <span className="font-mono text-[11.5px] uppercase tracking-wider text-meta">
               DevStation Generated Wallet
             </span>
             {isBurner && burner.unlocked && (
-              <span className="font-mono text-[10px] text-success">unlocked</span>
+              <span className="font-mono text-[10.5px] text-success">unlocked</span>
             )}
           </div>
           <BurnerControls />
@@ -175,14 +175,14 @@ function BurnerControls() {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               }}
-              className="flex items-center gap-1 font-mono text-[11px] text-meta hover:text-primary"
+              className="flex items-center gap-1 font-mono text-[11.5px] text-meta hover:text-primary"
             >
               {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
               {copied ? "Copied" : "Copy seed"}
             </button>
             <button
               onClick={() => setSeed(null)}
-              className="flex items-center gap-1 font-mono text-[11px] text-meta hover:text-foreground"
+              className="flex items-center gap-1 font-mono text-[11.5px] text-meta hover:text-foreground"
             >
               <EyeOff className="h-3 w-3" /> Hide
             </button>
@@ -215,14 +215,14 @@ function BurnerControls() {
               burner.lock();
               toast.success("Wallet locked");
             }}
-            className="flex items-center gap-1 rounded border border-border px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
+            className="flex items-center gap-1 rounded border border-border px-2.5 py-1.5 font-mono text-[11.5px] text-muted-foreground hover:border-primary hover:text-primary"
           >
             <Lock className="h-3 w-3" /> Lock
           </button>
         )}
         <button
           onClick={remove}
-          className="flex items-center gap-1 rounded border border-border px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-danger hover:text-danger"
+          className="flex items-center gap-1 rounded border border-border px-2.5 py-1.5 font-mono text-[11.5px] text-muted-foreground hover:border-danger hover:text-danger"
         >
           <Trash2 className="h-3 w-3" /> Remove Wallet
         </button>
@@ -234,7 +234,7 @@ function BurnerControls() {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-meta">{label}</div>
+      <div className="mb-1 font-mono text-[10.5px] uppercase tracking-wider text-meta">{label}</div>
       <div className="font-mono text-xs">{children}</div>
     </div>
   );

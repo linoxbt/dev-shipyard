@@ -74,7 +74,7 @@ export function HeroVisual({ className }: { className?: string }) {
         <div className="pointer-events-none absolute inset-0 bg-background/15" />
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-background/90 to-transparent px-3 pb-2.5 pt-8">
-          <span className="font-mono text-[10px] lowercase tracking-wide text-meta">
+          <span className="font-mono text-[10.5px] lowercase tracking-wide text-meta">
             {slides[active].label}
           </span>
           <span className="ml-auto flex gap-1">

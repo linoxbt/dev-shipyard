@@ -162,14 +162,14 @@ function TxView() {
             </div>
             <div className="space-y-3 font-mono text-xs">
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-meta">Reason</div>
+                <div className="text-[10.5px] uppercase tracking-wider text-meta">Reason</div>
                 <code className="mt-1 block rounded bg-background px-2 py-1.5 text-danger">
                   {tx.revertReason}
                 </code>
               </div>
               {tx.revertExplain && (
                 <div>
-                  <div className="text-[10px] uppercase tracking-wider text-meta">
+                  <div className="text-[10.5px] uppercase tracking-wider text-meta">
                     What this means
                   </div>
                   <p className="mt-1 text-muted-foreground">{tx.revertExplain}</p>
@@ -177,7 +177,7 @@ function TxView() {
               )}
               {tx.revertFix && (
                 <div>
-                  <div className="text-[10px] uppercase tracking-wider text-meta">
+                  <div className="text-[10.5px] uppercase tracking-wider text-meta">
                     Suggested fix
                   </div>
                   <p className="mt-1 text-foreground">{tx.revertFix}</p>
@@ -245,7 +245,7 @@ function TxView() {
                             </div>
                             <div
                               className={cn(
-                                "mt-1 text-[10px] uppercase",
+                                "mt-1 text-[10.5px] uppercase",
                                 a.risk === "High"
                                   ? "text-danger"
                                   : a.risk === "Medium"
@@ -341,16 +341,16 @@ function RouteNode({ call, depth, chainId }: { call: RouteCall; depth: number; c
               )}
               <span className="font-mono text-xs text-code break-all">.{call.fn}</span>
               {call.type === "view" && (
-                <span className="font-mono text-[9px] uppercase tracking-wider text-meta">
+                <span className="font-mono text-[9.5px] uppercase tracking-wider text-meta">
                   view
                 </span>
               )}
               {call.type === "failed" && (
-                <span className="font-mono text-[9px] uppercase tracking-wider text-danger">
+                <span className="font-mono text-[9.5px] uppercase tracking-wider text-danger">
                   reverted
                 </span>
               )}
-              <span className="ml-auto font-mono text-[10px] text-meta">
+              <span className="ml-auto font-mono text-[10.5px] text-meta">
                 {call.gasUsed.toLocaleString()} gas
               </span>
             </div>
@@ -363,7 +363,7 @@ function RouteNode({ call, depth, chainId }: { call: RouteCall; depth: number; c
             )}
             {open && call.returns && call.returns.length > 0 && (
               <div className="mt-1.5 border-t border-border pt-1.5">
-                <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+                <div className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
                   returns
                 </div>
                 {call.returns.map((a, i) => (
@@ -415,9 +415,9 @@ function RouteNode({ call, depth, chainId }: { call: RouteCall; depth: number; c
 function ArgLine({ arg }: { arg: DecodedArg }) {
   const isAddress = arg.type === "address" && /^0x[a-fA-F0-9]{40}$/.test(arg.value);
   return (
-    <div className="font-mono text-[11px]">
+    <div className="font-mono text-[11.5px]">
       <span className="text-meta">{arg.name}:</span>{" "}
-      <span className="text-[10px] text-meta">({arg.type})</span>{" "}
+      <span className="text-[10.5px] text-meta">({arg.type})</span>{" "}
       {isAddress ? (
         <AddressChip address={arg.value} />
       ) : (
@@ -457,7 +457,7 @@ function GasBreakdown({
           const pct = (c.gasUsed / totalGas) * 100;
           return (
             <div key={c.id} className="mb-2">
-              <div className="flex items-center justify-between font-mono text-[11px]">
+              <div className="flex items-center justify-between font-mono text-[11.5px]">
                 <span className="text-muted-foreground">
                   {c.contractName ?? c.contractAddress.slice(0, 10)}.{c.fn.split("(")[0]}
                 </span>
@@ -477,19 +477,19 @@ function GasBreakdown({
         <table className="w-full font-mono text-xs">
           <thead className="bg-surface-2 text-meta">
             <tr>
-              <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-[10.5px] font-normal uppercase tracking-wider">
                 Contract
               </th>
-              <th className="px-3 py-2 text-left text-[10px] font-normal uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-[10.5px] font-normal uppercase tracking-wider">
                 Function
               </th>
-              <th className="px-3 py-2 text-right text-[10px] font-normal uppercase tracking-wider">
+              <th className="px-3 py-2 text-right text-[10.5px] font-normal uppercase tracking-wider">
                 Gas
               </th>
-              <th className="px-3 py-2 text-right text-[10px] font-normal uppercase tracking-wider">
+              <th className="px-3 py-2 text-right text-[10.5px] font-normal uppercase tracking-wider">
                 %
               </th>
-              <th className="px-3 py-2 text-right text-[10px] font-normal uppercase tracking-wider">
+              <th className="px-3 py-2 text-right text-[10.5px] font-normal uppercase tracking-wider">
                 {symbol}
               </th>
             </tr>
@@ -560,7 +560,7 @@ function Panel({ title, children }: { title: React.ReactNode; children: React.Re
   return (
     <div className="overflow-hidden rounded border border-border bg-surface">
       <div className="border-b border-border px-4 py-2">
-        <h3 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <h3 className="font-mono text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">
           {title}
         </h3>
       </div>
@@ -572,7 +572,7 @@ function Panel({ title, children }: { title: React.ReactNode; children: React.Re
 function OverviewField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-[10px] uppercase tracking-wider text-meta">{label}</dt>
+      <dt className="text-[10.5px] uppercase tracking-wider text-meta">{label}</dt>
       <dd className="mt-0.5 text-foreground">{children}</dd>
     </div>
   );

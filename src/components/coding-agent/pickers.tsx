@@ -69,8 +69,8 @@ export function ModeSheet({
               className="flex w-full items-center gap-4 rounded-xl px-2 py-3.5 text-left hover:bg-surface-2"
             >
               <span className="min-w-0 flex-1">
-                <span className="block text-[16px] text-foreground">{m.label}</span>
-                <span className="block text-[13.5px] text-muted-foreground">{m.blurb}</span>
+                <span className="block text-[16.5px] text-foreground">{m.label}</span>
+                <span className="block text-[14px] text-muted-foreground">{m.blurb}</span>
               </span>
               {value === m.id && <Check className="h-5 w-5 shrink-0 text-foreground" />}
             </button>
@@ -117,7 +117,7 @@ export function ModelSheet({
           <ModelLogo id={id} className={cn("h-5 w-5", locked && "opacity-50")} />
           <span
             className={cn(
-              "min-w-0 flex-1 text-[15px]",
+              "min-w-0 flex-1 text-[15.5px]",
               locked ? "text-muted-foreground" : "text-foreground",
             )}
           >
@@ -147,13 +147,13 @@ export function ModelSheet({
         <button
           onClick={() => setMore((v) => !v)}
           aria-expanded={more}
-          className="flex w-full items-center justify-between rounded-xl bg-surface-2 px-3 py-2.5 text-[15px] text-foreground"
+          className="flex w-full items-center justify-between rounded-xl bg-surface-2 px-3 py-2.5 text-[15.5px] text-foreground"
         >
           More models
           <ChevronDown className={cn("h-4 w-4 transition", more && "rotate-180")} />
         </button>
         {more && AGENT_MODELS.filter((m) => m.more).map((m) => row(m.id, m.label, true))}
-        <p className="mt-3 px-2 text-[11px] leading-5 text-meta">
+        <p className="mt-3 px-2 text-[11.5px] leading-5 text-meta">
           Auto and Qwen 3.8 27B are free. The others need Pro or launch credit: tap the crown.
         </p>
       </div>
@@ -178,7 +178,7 @@ export function ModelButton({
       title="Select model"
       className={cn(
         "inline-flex shrink-0 items-center gap-2 border border-border text-foreground/90 transition hover:border-primary/40 hover:text-foreground",
-        compact ? "h-8 rounded-full px-3 text-[11.5px]" : "h-8 rounded-lg px-2.5 text-[12px]",
+        compact ? "h-8 rounded-full px-3 text-[12px]" : "h-8 rounded-lg px-2.5 text-[12.5px]",
       )}
     >
       <ModelLogo id={value} className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
@@ -204,7 +204,7 @@ export function ModeButton({
       title="Build or plan first"
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 border border-border text-foreground/90 transition hover:border-primary/40 hover:text-foreground",
-        compact ? "h-8 rounded-full px-3 text-[11.5px]" : "h-8 rounded-lg px-2.5 text-[12px]",
+        compact ? "h-8 rounded-full px-3 text-[12px]" : "h-8 rounded-lg px-2.5 text-[12.5px]",
         value === "plan" && "border-primary/50 text-primary",
       )}
     >

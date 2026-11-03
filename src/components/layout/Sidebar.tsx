@@ -98,7 +98,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           if ("section" in entry && entry.section && entry.items) {
             return (
               <div key={entry.section} className="mt-3 first:mt-0">
-                <div className="px-2 pb-1 font-mono text-[10px] uppercase tracking-wider text-meta">
+                <div className="px-2 pb-1 font-mono text-[10.5px] uppercase tracking-wider text-meta">
                   {entry.section}
                 </div>
                 {entry.items.map((item) => (
@@ -129,10 +129,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="border-t border-border px-4 py-3">
-        <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-meta">Network</div>
+        <div className="mb-1 font-mono text-[10.5px] uppercase tracking-wider text-meta">
+          Network
+        </div>
         <NetworkSelector />
         <div className="mt-2 flex items-center justify-between">
-          <span className="font-mono text-[10px] text-meta">DevStation v1.0</span>
+          <span className="font-mono text-[10.5px] text-meta">DevStation v1.0</span>
           <ThemeButton />
         </div>
       </div>
@@ -218,7 +220,7 @@ function SidebarLink({
       {/* Read from the same map the route gate reads, so the badge cannot
           promise something different from what the page does. */}
       {isComingSoon(to) && (
-        <span className="ml-auto shrink-0 rounded border border-border px-1 py-px font-mono text-[9px] uppercase tracking-wide text-meta">
+        <span className="ml-auto shrink-0 rounded border border-border px-1 py-px font-mono text-[9.5px] uppercase tracking-wide text-meta">
           Soon
         </span>
       )}
@@ -233,7 +235,7 @@ function ThemeButton() {
   return (
     <button
       onClick={toggle}
-      className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 font-mono text-[10px] text-meta hover:border-primary hover:text-primary"
+      className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-1 font-mono text-[10.5px] text-meta hover:border-primary hover:text-primary"
       title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
       aria-label="Toggle theme"
     >

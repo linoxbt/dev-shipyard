@@ -14,6 +14,7 @@ import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CookieBanner } from "@/components/consent/CookieBanner";
+import { WaitlistGate } from "@/components/access/WaitlistGate";
 import { CODING_AGENT_ONLY, switchedOff } from "@/lib/features";
 import { Toaster } from "@/components/ui/sonner";
 import { SplashScreen } from "@/components/pwa/SplashScreen";
@@ -218,6 +219,9 @@ function RootComponent() {
     pathname === "/cookies" ||
     pathname === "/admin/stats" ||
     pathname === "/admin/templates" ||
+    pathname === "/admin/access" ||
+    pathname === "/admin/feedback" ||
+    pathname === "/feedback" ||
     pathname === "/credits" ||
     pathname === "/account" ||
     pathname === "/connections" ||
@@ -257,6 +261,7 @@ function RootComponent() {
             <Outlet />
           </Shell>
         )}
+        <WaitlistGate />
         <Toaster />
         <CookieBanner />
         {/* A builder opens straight into the product, no splash in front. */}

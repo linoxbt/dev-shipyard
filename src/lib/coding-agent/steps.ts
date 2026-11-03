@@ -278,7 +278,9 @@ export function groupLabel(kind: ToolKind | "note", steps: readonly Step[]): str
         if (tool === "run_build") return "Built the app";
         if (tool === "lint_and_typecheck") return "Checked lint and types";
         if (tool === "install_dependency" && paths[0]) return `Installed ${paths[0]}`;
-        if (paths[0]) return `Ran ${paths[0].length > 60 ? `${paths[0].slice(0, 57)}…` : paths[0]}`;
+        // A short, plain command reads well as it is; a long one or a
+        // script (variables, pipes, quoting) reads as noise.
+        if (paths[0] && readableCommand(paths[0])) return `Ran ${paths[0]}`;
         return "Ran a command";
       }
       return `Ran ${n} commands`;
@@ -320,6 +322,32 @@ export function groupLabel(kind: ToolKind | "note", steps: readonly Step[]): str
     default:
       return n === 1 ? steps[0].title : `${n} steps`;
   }
+}
+
+/** Whether a command is short and plain enough to show as a label. */
+function readableCommand(command: string): boolean {
+  return command.length <= 48 && !/[$|;"'`=\\<>]|&&|\n/.test(command);
+}
+
+/** Lower-case the verb a label starts with, to follow a comma. */
+const continued = (label: string) =>
+  /^(Read|Edited|Ran|Searched|Researched|Took|Set up|Made|Built|Checked|Installed)\b/.test(label)
+    ? label[0].toLowerCase() + label.slice(1)
+    : label;
+
+/**
+ * One line for all the work between two things the agent said, the way the
+ * Claude app folds it: "Ran 5 commands, read 3 files, edited App.tsx". The
+ * steps are counted by kind, in the order each kind first came up.
+ */
+export function workLabel(groups: readonly { kind: ToolKind | "note"; steps: Step[] }[]): string {
+  const byKind = new Map<ToolKind | "note", Step[]>();
+  for (const g of groups) byKind.set(g.kind, [...(byKind.get(g.kind) ?? []), ...g.steps]);
+  const labels = [...byKind].map(([kind, steps]) => groupLabel(kind, steps));
+  const shown = labels.slice(0, 3);
+  const rest = [...byKind.values()].slice(3).reduce((n, steps) => n + steps.length, 0);
+  const text = shown.map((l, i) => (i ? continued(l) : l)).join(", ");
+  return rest ? `${text} and ${rest} more step${rest === 1 ? "" : "s"}` : text;
 }
 
 /** A decision the agent handed to the person: a question with a few choices. */

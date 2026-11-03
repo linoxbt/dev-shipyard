@@ -98,7 +98,7 @@ function TokensPage() {
 function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
   return (
     <th
-      className={`px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px] ${className ?? ""}`}
+      className={`px-3 py-2 text-left font-normal uppercase tracking-wider text-[10.5px] ${className ?? ""}`}
     >
       {children}
     </th>

@@ -332,7 +332,7 @@ export function DeployPanel({
         <div className="flex-1 overflow-y-auto space-y-4 p-4">
           {/* Contract selector */}
           <div>
-            <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-meta">
+            <div className="mb-1 font-mono text-[10.5px] uppercase tracking-wider text-meta">
               Contract
             </div>
             <select
@@ -354,14 +354,14 @@ export function DeployPanel({
           {/* Constructor args */}
           {constructorArgs.length > 0 ? (
             <div>
-              <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-meta">
+              <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-meta">
                 Constructor Arguments
               </div>
               {constructorArgs.map((a, i) => {
                 const key = argKey(a, i);
                 return (
                   <div key={key} className="mb-2">
-                    <div className="flex items-baseline justify-between font-mono text-[10px]">
+                    <div className="flex items-baseline justify-between font-mono text-[10.5px]">
                       <span className="text-foreground">{a.name || `(unnamed ${i + 1})`}</span>
                       <span className="text-meta">{a.type}</span>
                     </div>
@@ -384,7 +384,7 @@ export function DeployPanel({
                         value={args[key] ?? ""}
                         onChange={(e) => setArgs((p) => ({ ...p, [key]: e.target.value }))}
                         placeholder={a.type === "address" ? "0x..." : ""}
-                        className={`mt-0.5 w-full rounded border bg-background px-2 py-1 font-mono text-[11px] text-foreground placeholder:text-meta ${
+                        className={`mt-0.5 w-full rounded border bg-background px-2 py-1 font-mono text-[11.5px] text-foreground placeholder:text-meta ${
                           a.type === "address" &&
                           (args[key] ?? "").length > 0 &&
                           !/^0x[a-fA-F0-9]{40}$/.test((args[key] ?? "").trim())
@@ -398,7 +398,7 @@ export function DeployPanel({
               })}
             </div>
           ) : (
-            <p className="font-mono text-[11px] text-meta">No constructor arguments</p>
+            <p className="font-mono text-[11.5px] text-meta">No constructor arguments</p>
           )}
 
           {/* Gas sponsorship (sponsor-eligible mainnets only): inert once
@@ -407,7 +407,7 @@ export function DeployPanel({
               confusing at worst. */}
           {sponsorEligible ? (
             needsTopup === false ? (
-              <label className="flex cursor-not-allowed items-center gap-1.5 font-mono text-[11px] text-meta opacity-60">
+              <label className="flex cursor-not-allowed items-center gap-1.5 font-mono text-[11.5px] text-meta opacity-60">
                 <input
                   type="checkbox"
                   checked={false}
@@ -417,7 +417,7 @@ export function DeployPanel({
                 Gas-free deploy, not needed, your wallet already has enough {nativeSymbol(chainId)}
               </label>
             ) : (
-              <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+              <label className="flex items-center gap-1.5 font-mono text-[11.5px] text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={useSponsor}
@@ -432,7 +432,7 @@ export function DeployPanel({
             )
           ) : (
             onSponsorChain && (
-              <p className="font-mono text-[10px] text-meta">
+              <p className="font-mono text-[10.5px] text-meta">
                 {sponsorChecking
                   ? "Checking gas sponsorship…"
                   : "Gas-free deploy isn't available right now: you'll pay gas from your own wallet."}
@@ -450,12 +450,12 @@ export function DeployPanel({
             {deploying ? "Deploying…" : pending ? "Waiting for confirmation…" : "Deploy Contract"}
           </button>
           {deployError && (
-            <p role="alert" className="font-mono text-[10px] text-danger">
+            <p role="alert" className="font-mono text-[10.5px] text-danger">
               {deployError}
             </p>
           )}
           {!address && (
-            <p className="text-center font-mono text-[10px] text-meta">
+            <p className="text-center font-mono text-[10.5px] text-meta">
               Connect a wallet to deploy
             </p>
           )}
@@ -463,10 +463,12 @@ export function DeployPanel({
           {/* Post-deploy */}
           {deployed && (
             <div className="space-y-2 rounded border border-success/40 bg-success/5 p-3">
-              <div className="font-mono text-[10px] uppercase tracking-wider text-success">
+              <div className="font-mono text-[10.5px] uppercase tracking-wider text-success">
                 Deployed
               </div>
-              <div className="break-all font-mono text-[11px] text-foreground">{deployed.addr}</div>
+              <div className="break-all font-mono text-[11.5px] text-foreground">
+                {deployed.addr}
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => {
@@ -474,7 +476,7 @@ export function DeployPanel({
                     setCopied(true);
                     setTimeout(() => setCopied(false), 1500);
                   }}
-                  className="flex items-center gap-1 font-mono text-[10px] text-meta hover:text-foreground"
+                  className="flex items-center gap-1 font-mono text-[10.5px] text-meta hover:text-foreground"
                 >
                   {copied ? (
                     <Check className="h-3 w-3 text-success" />
@@ -486,7 +488,7 @@ export function DeployPanel({
                 <Link
                   to="/explorer/$network/address/$hash"
                   params={{ network: slugForChainId(chainId), hash: deployed.addr }}
-                  className="flex items-center gap-1 font-mono text-[10px] text-primary hover:underline"
+                  className="flex items-center gap-1 font-mono text-[10.5px] text-primary hover:underline"
                 >
                   Explorer <ExternalLink className="h-3 w-3" />
                 </Link>
@@ -511,7 +513,7 @@ export function DeployPanel({
           {/* Post-deploy contract interaction */}
           {deployed && contract?.abi && contract.abi.length > 0 && (
             <div className="border-t border-border pt-3">
-              <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-meta">
+              <div className="mb-2 font-mono text-[10.5px] uppercase tracking-wider text-meta">
                 Interact
               </div>
               <ContractInteractor

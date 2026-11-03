@@ -190,7 +190,7 @@ function EarningTile({
   return (
     <div className="flex items-end justify-between gap-3 rounded-lg border border-border bg-surface p-4">
       <div>
-        <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+        <div className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
           {label} · {currency}
         </div>
         <div className="mt-1 font-mono text-2xl font-bold text-foreground">
@@ -251,13 +251,13 @@ function ListingRow({
           <div className="flex flex-wrap items-center gap-2">
             <KindBadge kind={listing.kind} />
             {!listing.active && (
-              <span className="font-mono text-[10px] uppercase text-warning">Unlisted</span>
+              <span className="font-mono text-[10.5px] uppercase text-warning">Unlisted</span>
             )}
             {listing.hidden && (
-              <span className="font-mono text-[10px] uppercase text-danger">Taken down</span>
+              <span className="font-mono text-[10.5px] uppercase text-danger">Taken down</span>
             )}
             {featuredLeft && (
-              <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase text-primary">
+              <span className="inline-flex items-center gap-1 font-mono text-[10.5px] uppercase text-primary">
                 <Star className="h-3 w-3" /> Featured until{" "}
                 {new Date(listing.featuredUntil).toLocaleDateString()}
               </span>
@@ -270,7 +270,7 @@ function ListingRow({
           >
             {listing.name}
           </Link>
-          <div className="mt-1 flex flex-wrap items-center gap-3 font-mono text-[11px] text-meta">
+          <div className="mt-1 flex flex-wrap items-center gap-3 font-mono text-[11.5px] text-meta">
             <PriceTag item={listing} />
             <span>{listing.sales} sales</span>
             {listing.model === "per-deploy" && <span>{listing.deploys} deploys</span>}
@@ -286,7 +286,7 @@ function ListingRow({
               className="w-24 bg-transparent px-2 py-1.5 font-mono text-xs text-foreground focus:outline-none"
               aria-label="Price"
             />
-            <span className="px-2 font-mono text-[10px] text-meta">{listing.currency}</span>
+            <span className="px-2 font-mono text-[10.5px] text-meta">{listing.currency}</span>
           </div>
           <button
             onClick={() => void save(listing.active)}
@@ -309,7 +309,7 @@ function ListingRow({
       {listing.active && !listing.hidden && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
           <Star className="h-3.5 w-3.5 text-primary" />
-          <span className="font-mono text-[11px] text-muted-foreground">
+          <span className="font-mono text-[11.5px] text-muted-foreground">
             Feature at the top of the marketplace for
           </span>
           <select
@@ -323,7 +323,7 @@ function ListingRow({
               </option>
             ))}
           </select>
-          <span className="font-mono text-[11px] text-meta">
+          <span className="font-mono text-[11.5px] text-meta">
             {perDay > 0n
               ? `= ${formatPrice(perDay * BigInt(days), listing.currency)}`
               : "(not open yet)"}

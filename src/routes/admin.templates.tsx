@@ -183,8 +183,8 @@ function TemplatesAdmin() {
       ) : (
         <div className="space-y-6">
           <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">Templates</h1>
-            <p className="mt-1 max-w-2xl text-[13.5px] text-muted-foreground">
+            <h1 className="text-[22.5px] font-semibold tracking-tight">Templates</h1>
+            <p className="mt-1 max-w-2xl text-[14px] text-muted-foreground">
               Pick apps the community built and put them on the Templates tab, beside the built-in
               ones. A template is a copy of the app&apos;s files and build, without the
               conversation. It stays as it is until you refresh it from the builder&apos;s latest
@@ -203,7 +203,7 @@ function TemplatesAdmin() {
             {!data ? (
               <div className="h-24 animate-pulse rounded-xl bg-surface-2" />
             ) : chosen.length === 0 ? (
-              <p className="py-6 text-center text-[13px] text-muted-foreground">
+              <p className="py-6 text-center text-[13.5px] text-muted-foreground">
                 Only the built-in templates are showing.
               </p>
             ) : (
@@ -222,11 +222,11 @@ function TemplatesAdmin() {
                       />
                     </button>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[14px] font-medium">{t.name}</p>
-                      <p className="truncate text-[12.5px] text-muted-foreground">
+                      <p className="truncate text-[14.5px] font-medium">{t.name}</p>
+                      <p className="truncate text-[13px] text-muted-foreground">
                         {t.blurb || "No description"}
                       </p>
-                      <p className="mt-0.5 font-mono text-[11px] text-meta">
+                      <p className="mt-0.5 font-mono text-[11.5px] text-meta">
                         {t.builder} · {t.files} files · copied {when(t.updatedAt)}
                       </p>
                     </div>
@@ -296,7 +296,7 @@ function TemplatesAdmin() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search by project name"
-                className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-[13px] outline-none focus:border-primary"
+                className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-[13.5px] outline-none focus:border-primary"
               />
             </label>
             {!data ? (
@@ -306,7 +306,7 @@ function TemplatesAdmin() {
                 ))}
               </div>
             ) : data.projects.length === 0 ? (
-              <p className="py-8 text-center text-[13px] text-muted-foreground">
+              <p className="py-8 text-center text-[13.5px] text-muted-foreground">
                 {query ? "No project has that name." : "Nobody has saved a project yet."}
               </p>
             ) : (
@@ -324,25 +324,25 @@ function TemplatesAdmin() {
                           cacheKey={`${p.ref}:${p.updatedAt}`}
                           load={() => projectSnap(p)}
                         />
-                        <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-[11.5px] font-medium opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100">
+                        <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-[12px] font-medium opacity-0 shadow-sm backdrop-blur transition group-hover:opacity-100">
                           <Eye className="h-3 w-3" /> Look
                         </span>
                       </button>
                       <div className="mt-2.5 flex items-start gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[14px] font-medium">{p.name}</p>
-                          <p className="font-mono text-[11px] text-meta">
+                          <p className="truncate text-[14.5px] font-medium">{p.name}</p>
+                          <p className="font-mono text-[11.5px] text-meta">
                             {p.builder} · {ago(p.updatedAt)}
                           </p>
                         </div>
                         {p.template ? (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11.5px] font-medium text-primary">
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[12px] font-medium text-primary">
                             <Check className="h-3 w-3" /> On Templates
                           </span>
                         ) : (
                           <button
                             onClick={() => setAdding(p)}
-                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[12px] font-medium transition hover:bg-surface-2"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[12.5px] font-medium transition hover:bg-surface-2"
                           >
                             <Plus className="h-3 w-3" /> Add to Templates
                           </button>
@@ -356,7 +356,7 @@ function TemplatesAdmin() {
                     <button
                       onClick={() => void load(query, data.projects.length)}
                       disabled={loading}
-                      className="inline-flex items-center gap-2 rounded-lg border border-border px-3.5 py-2 text-[13px] transition hover:bg-surface-2 disabled:opacity-60"
+                      className="inline-flex items-center gap-2 rounded-lg border border-border px-3.5 py-2 text-[13.5px] transition hover:bg-surface-2 disabled:opacity-60"
                     >
                       {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Show more
                     </button>
@@ -464,7 +464,7 @@ function Dialog({
         )}
       >
         <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-          <p className="min-w-0 flex-1 truncate text-[14px] font-medium">{label}</p>
+          <p className="min-w-0 flex-1 truncate text-[14.5px] font-medium">{label}</p>
           <button
             onClick={onClose}
             aria-label="Close"
@@ -501,11 +501,11 @@ function LookDialog({
     <Dialog label={name} onClose={onClose} wide>
       <div className="relative min-h-0 flex-1">
         {snap === undefined ? (
-          <div className="flex h-full items-center justify-center gap-2 text-[13px] text-muted-foreground">
+          <div className="flex h-full items-center justify-center gap-2 text-[13.5px] text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading the app
           </div>
         ) : snap === null ? (
-          <div className="flex h-full items-center justify-center text-[13px] text-muted-foreground">
+          <div className="flex h-full items-center justify-center text-[13.5px] text-muted-foreground">
             This app could not be loaded.
           </div>
         ) : (
@@ -544,26 +544,26 @@ function DetailsDialog({
         }}
       >
         <label className="block">
-          <span className="text-[12.5px] font-medium">Name</span>
+          <span className="text-[13px] font-medium">Name</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={80}
             autoFocus
-            className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-3 text-[13.5px] outline-none focus:border-primary"
+            className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-3 text-[14px] outline-none focus:border-primary"
           />
         </label>
         <label className="block">
-          <span className="text-[12.5px] font-medium">What it is</span>
+          <span className="text-[13px] font-medium">What it is</span>
           <textarea
             value={blurb}
             onChange={(e) => setBlurb(e.target.value)}
             maxLength={240}
             rows={3}
             placeholder="One line people read on the card, e.g. A habit tracker with streaks and reminders."
-            className="mt-1 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-[13.5px] outline-none focus:border-primary"
+            className="mt-1 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-[14px] outline-none focus:border-primary"
           />
-          <span className="mt-1 block text-right font-mono text-[10.5px] text-meta">
+          <span className="mt-1 block text-right font-mono text-[11px] text-meta">
             {blurb.length}/240
           </span>
         </label>
@@ -571,14 +571,14 @@ function DetailsDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3.5 py-2 text-[13px] text-muted-foreground hover:text-foreground"
+            className="rounded-lg px-3.5 py-2 text-[13.5px] text-muted-foreground hover:text-foreground"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={!ok || busy}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-[13.5px] font-medium text-primary-foreground disabled:opacity-60"
           >
             {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} {action}
           </button>

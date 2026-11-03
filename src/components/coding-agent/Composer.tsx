@@ -275,8 +275,8 @@ export function Composer({
       className={cn(
         "block w-full resize-none bg-transparent text-foreground placeholder:text-meta focus:outline-none",
         hero
-          ? "min-h-[6rem] px-5 pt-5 text-[15px] leading-7"
-          : "max-h-[200px] py-2.5 text-[14px] leading-6",
+          ? "min-h-[6rem] px-5 pt-5 text-[15.5px] leading-7"
+          : "max-h-[200px] py-2.5 text-[14.5px] leading-6",
       )}
     />
   );
@@ -321,7 +321,7 @@ export function Composer({
     </div>
   ) : null;
   const listeningBar = dictation.listening ? (
-    <div role="status" className="flex items-center gap-2 text-[12px] text-danger">
+    <div role="status" className="flex items-center gap-2 text-[12.5px] text-danger">
       <span className="h-2 w-2 animate-pulse rounded-full bg-danger" />
       Listening. Tap the microphone to stop.
     </div>
@@ -422,7 +422,7 @@ export function ToolChip({
       onClick={onClick}
       title={title}
       className={cn(
-        "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 text-[12px] transition",
+        "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 text-[12.5px] transition",
         !children && "w-8 justify-center px-0",
         active
           ? "border-primary/50 bg-primary/10 text-primary"

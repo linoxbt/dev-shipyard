@@ -441,13 +441,13 @@ function DeployWizard() {
                         {templateLabel(t, chainId)}
                       </span>
                       <span
-                        className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${categoryColor(
+                        className={`rounded border px-1.5 py-0.5 font-mono text-[10.5px] uppercase tracking-wider ${categoryColor(
                           t.category,
                         )}`}
                       >
                         {t.category}
                       </span>
-                      <span className="ml-auto font-mono text-[10px] text-meta">
+                      <span className="ml-auto font-mono text-[10.5px] text-meta">
                         {t.deployCount} deploys
                       </span>
                     </div>
@@ -487,7 +487,7 @@ function DeployWizard() {
             <div className="rounded border border-border bg-surface p-4">
               <div className="mb-3 flex items-center gap-2">
                 <span
-                  className={`rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${categoryColor(
+                  className={`rounded border px-1.5 py-0.5 font-mono text-[10.5px] uppercase tracking-wider ${categoryColor(
                     template.category,
                   )}`}
                 >
@@ -501,7 +501,7 @@ function DeployWizard() {
             </div>
 
             <div className="rounded border border-border bg-surface p-4">
-              <h3 className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <h3 className="mb-3 font-mono text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Constructor Arguments
               </h3>
               <div className="space-y-4">
@@ -517,7 +517,7 @@ function DeployWizard() {
             </div>
 
             <div className="rounded border border-border bg-surface p-4">
-              <h3 className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <h3 className="mb-3 font-mono text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Project Label
               </h3>
               <label className="block">
@@ -528,7 +528,7 @@ function DeployWizard() {
                   placeholder={template.name}
                   className="mt-1 w-full rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
                 />
-                <span className="mt-1 block text-[10px] text-meta">
+                <span className="mt-1 block text-[10.5px] text-meta">
                   This name will appear in Routebook whenever this contract is involved in a
                   transaction.
                 </span>
@@ -563,7 +563,7 @@ function DeployWizard() {
                       onError={(e) => (e.currentTarget.style.display = "none")}
                     />
                   )}
-                  <span className="mt-1 block text-[10px] text-meta">
+                  <span className="mt-1 block text-[10.5px] text-meta">
                     Upload a file or paste a URL. Stored with the deployment record.
                   </span>
                 </div>
@@ -574,7 +574,7 @@ function DeployWizard() {
           {/* Preview */}
           <div className="space-y-4 lg:col-span-2">
             <div className="rounded border border-border bg-surface p-4">
-              <h3 className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <h3 className="mb-3 font-mono text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Deployment Preview
               </h3>
               <dl className="space-y-2 font-mono text-xs">
@@ -600,7 +600,7 @@ function DeployWizard() {
             </div>
 
             <div>
-              <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-meta">
+              <div className="mb-1 font-mono text-[10.5px] uppercase tracking-wider text-meta">
                 Generated Constructor Call
               </div>
               <CodeBlock
@@ -627,7 +627,7 @@ function DeployWizard() {
           <div className="flex items-center gap-3">
             {sponsorEligible ? (
               needsTopup === false ? (
-                <span className="flex items-center gap-1.5 font-mono text-[11px] text-meta opacity-60">
+                <span className="flex items-center gap-1.5 font-mono text-[11.5px] text-meta opacity-60">
                   <input
                     type="checkbox"
                     checked={false}
@@ -638,7 +638,7 @@ function DeployWizard() {
                   {nativeSymbol(chain.id)}
                 </span>
               ) : (
-                <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                <label className="flex items-center gap-1.5 font-mono text-[11.5px] text-muted-foreground">
                   <input
                     type="checkbox"
                     checked={useSponsor}
@@ -653,7 +653,7 @@ function DeployWizard() {
               )
             ) : (
               onSponsorChain && (
-                <span className="font-mono text-[10px] text-meta">
+                <span className="font-mono text-[10.5px] text-meta">
                   {sponsorChecking
                     ? "Checking gas sponsorship…"
                     : "Gas-free deploy isn't available right now: you'll pay gas from your own wallet."}
@@ -844,7 +844,7 @@ function DeployWizard() {
                 maxHeight="220px"
                 showLineNumbers={false}
               />
-              <p className="mt-2 text-[10px] text-meta">
+              <p className="mt-2 text-[10.5px] text-meta">
                 Pre-filled from your deployment. Add your GitHub and demo URL before submitting.
               </p>
             </ResultCard>
@@ -877,7 +877,7 @@ function DeployWizard() {
               <Link
                 to="/explorer/$network/address/$hash"
                 params={{ network: slugForChainId(chain.id), hash: deployResult.address }}
-                className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] text-meta hover:text-primary"
+                className="mt-2 inline-flex items-center gap-1 font-mono text-[10.5px] text-meta hover:text-primary"
               >
                 Or view the contract on the DevStation explorer <ArrowRight className="h-3 w-3" />
               </Link>
@@ -979,7 +979,7 @@ function ArgField({
           <button
             type="button"
             onClick={() => onChange([...items, ""].join(","))}
-            className="font-mono text-[11px] text-primary hover:underline"
+            className="font-mono text-[11.5px] text-primary hover:underline"
           >
             + Add item
           </button>
@@ -1013,13 +1013,13 @@ function Label({ arg }: { arg: ConstructorArg }) {
   return (
     <label className="flex items-center justify-between font-mono text-xs text-foreground">
       <span>{arg.label}</span>
-      <span className="text-[10px] text-meta">{arg.type}</span>
+      <span className="text-[10.5px] text-meta">{arg.type}</span>
     </label>
   );
 }
 
 function Helper({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-[10px] text-meta">{children}</p>;
+  return <p className="mt-1 text-[10.5px] text-meta">{children}</p>;
 }
 
 function PreviewRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -1052,7 +1052,7 @@ function ResultCard({
   return (
     <div className="flex flex-col rounded border border-border bg-surface">
       <div className="border-b border-border px-4 py-2.5">
-        <h3 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <h3 className="font-mono text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">
           {title}
         </h3>
       </div>

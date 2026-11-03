@@ -181,13 +181,13 @@ export function AiChat({ contextLabel, getContext, onUseCode, className, placeho
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <Sparkles className="h-4 w-4 text-primary" />
         <span className="font-mono text-xs font-semibold text-foreground">Code with AI</span>
-        <span className="font-mono text-[9px] uppercase tracking-wider text-meta">
+        <span className="font-mono text-[9.5px] uppercase tracking-wider text-meta">
           {settings.proxy
             ? "server proxy"
             : `${AI_PROVIDERS[settings.provider].label} · ${settings.model}`}
         </span>
         {!configured && (
-          <span className="flex items-center gap-1 font-mono text-[10px] text-warning">
+          <span className="flex items-center gap-1 font-mono text-[10.5px] text-warning">
             <AlertTriangle className="h-3 w-3" /> not configured
           </span>
         )}
@@ -241,7 +241,7 @@ export function AiChat({ contextLabel, getContext, onUseCode, className, placeho
       {/* Messages */}
       <div className="flex-1 space-y-3 overflow-y-auto p-3">
         {messages.length === 0 && (
-          <div className="space-y-2 font-mono text-[11px] text-meta">
+          <div className="space-y-2 font-mono text-[11.5px] text-meta">
             {configured ? (
               <>
                 <p>Ask me to write, debug, or explain a contract.</p>
@@ -267,7 +267,7 @@ export function AiChat({ contextLabel, getContext, onUseCode, className, placeho
           return <Message key={i} msg={m} onUseCode={onUseCode} />;
         })}
         {awaitingFirstToken && (
-          <div className="flex items-center gap-2 font-mono text-[11px] text-meta">
+          <div className="flex items-center gap-2 font-mono text-[11.5px] text-meta">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> thinking…
           </div>
         )}
@@ -276,7 +276,7 @@ export function AiChat({ contextLabel, getContext, onUseCode, className, placeho
       {/* Composer */}
       <div className="border-t border-border p-2">
         {getContext && (
-          <label className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] text-meta">
+          <label className="mb-1.5 flex items-center gap-1.5 font-mono text-[10.5px] text-meta">
             <input
               type="checkbox"
               checked={attachContext}
@@ -340,7 +340,7 @@ function SessionsPanel({
   return (
     <div className="max-h-56 space-y-0.5 overflow-y-auto border-b border-border bg-background/40 p-2">
       {sessions.length === 0 ? (
-        <p className="px-1 py-2 font-mono text-[10px] text-meta">No saved chats yet.</p>
+        <p className="px-1 py-2 font-mono text-[10.5px] text-meta">No saved chats yet.</p>
       ) : (
         sessions.map((s) => (
           <div
@@ -354,8 +354,8 @@ function SessionsPanel({
               onClick={() => onPick(s.id)}
               className="flex min-w-0 flex-1 items-baseline gap-1.5 text-left"
             >
-              <span className="truncate font-mono text-[11px] text-foreground">{s.title}</span>
-              <span className="shrink-0 font-mono text-[9px] text-meta">
+              <span className="truncate font-mono text-[11.5px] text-foreground">{s.title}</span>
+              <span className="shrink-0 font-mono text-[9.5px] text-meta">
                 {relTime(s.updatedAt)}
               </span>
             </button>
@@ -394,8 +394,8 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
   }, [s.provider, s.keys]);
 
   const fieldCls =
-    "w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none";
-  const labelCls = "mb-0.5 block font-mono text-[9px] uppercase tracking-wider text-meta";
+    "w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11.5px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none";
+  const labelCls = "mb-0.5 block font-mono text-[9.5px] uppercase tracking-wider text-meta";
 
   // Whether the operator has configured a default key on the server.
   const { data: proxyStatus } = useAiProxyStatus();
@@ -417,7 +417,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
           onClick={() => s.setProxy(true)}
           disabled={!proxyAvailable}
           className={cn(
-            "flex-1 rounded px-2 py-1 font-mono text-[10px] transition disabled:opacity-40",
+            "flex-1 rounded px-2 py-1 font-mono text-[10.5px] transition disabled:opacity-40",
             s.proxy ? "bg-primary text-primary-foreground" : "text-meta hover:text-foreground",
           )}
           title={proxyAvailable ? "" : "No default key is configured on this deployment"}
@@ -427,14 +427,14 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
         <button
           onClick={() => s.setProxy(false)}
           className={cn(
-            "flex-1 rounded px-2 py-1 font-mono text-[10px] transition",
+            "flex-1 rounded px-2 py-1 font-mono text-[10.5px] transition",
             !s.proxy ? "bg-primary text-primary-foreground" : "text-meta hover:text-foreground",
           )}
         >
           Use my own key
         </button>
       </div>
-      <p className="mt-1 font-mono text-[9px] leading-relaxed text-meta">
+      <p className="mt-1 font-mono text-[9.5px] leading-relaxed text-meta">
         {s.proxy
           ? "Using the built-in AI provided by this deployment. No key needed."
           : proxyAvailable
@@ -448,7 +448,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
     return (
       <div className="space-y-2.5 border-b border-border bg-background/40 p-3">
         {sourceSwitch}
-        <div className="rounded border border-primary/30 bg-primary/5 p-2.5 font-mono text-[10px] leading-relaxed text-muted-foreground">
+        <div className="rounded border border-primary/30 bg-primary/5 p-2.5 font-mono text-[10.5px] leading-relaxed text-muted-foreground">
           Requests route through this app&apos;s <span className="text-primary">server proxy</span>.
           The API key stays server-side and is never sent to the browser.
         </div>
@@ -478,7 +478,10 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
           </select>
         </div>
         <div className="flex justify-end">
-          <button onClick={onClose} className="font-mono text-[10px] text-primary hover:underline">
+          <button
+            onClick={onClose}
+            className="font-mono text-[10.5px] text-primary hover:underline"
+          >
             Done
           </button>
         </div>
@@ -499,7 +502,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
               key={p.id}
               onClick={() => s.setProvider(p.id)}
               className={cn(
-                "rounded border px-2 py-1 text-left font-mono text-[10px] transition",
+                "rounded border px-2 py-1 text-left font-mono text-[10.5px] transition",
                 s.provider === p.id
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border text-meta hover:text-foreground",
@@ -509,7 +512,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
-        {preset.blurb && <p className="mt-1 font-mono text-[10px] text-meta">{preset.blurb}</p>}
+        {preset.blurb && <p className="mt-1 font-mono text-[10.5px] text-meta">{preset.blurb}</p>}
       </div>
 
       {/* Model (from the provider's hardcoded list) */}
@@ -532,7 +535,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
       {/* Endpoint (read-only; resolved per model for providers that route by model) */}
       <div>
         <label className={labelCls}>Endpoint</label>
-        <div className="truncate rounded border border-border bg-surface px-2 py-1 font-mono text-[10px] text-meta">
+        <div className="truncate rounded border border-border bg-surface px-2 py-1 font-mono text-[10.5px] text-meta">
           {resolveEndpoint(s).endpoint}
         </div>
       </div>
@@ -549,24 +552,24 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
           placeholder={preset.keyPlaceholder}
         />
         {preset.keyHint && (
-          <p className="mt-0.5 font-mono text-[9px] text-meta">Get a key: {preset.keyHint}</p>
+          <p className="mt-0.5 font-mono text-[9.5px] text-meta">Get a key: {preset.keyHint}</p>
         )}
       </div>
 
-      <p className="font-mono text-[9px] leading-relaxed text-meta">
+      <p className="font-mono text-[9.5px] leading-relaxed text-meta">
         Stored in this browser only (until you clear your cache). Use a personal key, not a shared
         production one.
       </p>
       <div className="flex items-center justify-between">
         <button
           onClick={() => s.reset()}
-          className="font-mono text-[10px] text-meta hover:text-foreground"
+          className="font-mono text-[10.5px] text-meta hover:text-foreground"
         >
           Reset
         </button>
         <button
           onClick={saveKey}
-          className="rounded bg-primary px-3 py-1 font-mono text-[10px] font-medium text-primary-foreground hover:bg-primary-hover"
+          className="rounded bg-primary px-3 py-1 font-mono text-[10.5px] font-medium text-primary-foreground hover:bg-primary-hover"
         >
           Save
         </button>
@@ -579,9 +582,12 @@ function Message({ msg, onUseCode }: { msg: ChatMessage; onUseCode?: (code: stri
   const isUser = msg.role === "user";
   return (
     <div
-      className={cn("font-mono text-[11px]", isUser ? "text-foreground" : "text-muted-foreground")}
+      className={cn(
+        "font-mono text-[11.5px]",
+        isUser ? "text-foreground" : "text-muted-foreground",
+      )}
     >
-      <div className="mb-0.5 text-[9px] uppercase tracking-wider text-meta">
+      <div className="mb-0.5 text-[9.5px] uppercase tracking-wider text-meta">
         {isUser ? "You" : "AI"}
       </div>
       <div
@@ -629,7 +635,7 @@ function CodeChunk({ code, onUseCode }: { code: string; onUseCode?: (code: strin
   return (
     <div className="my-1.5 overflow-hidden rounded border border-border bg-background">
       <div className="flex items-center justify-between border-b border-border px-2 py-1">
-        <span className="font-mono text-[9px] uppercase tracking-wider text-meta">solidity</span>
+        <span className="font-mono text-[9.5px] uppercase tracking-wider text-meta">solidity</span>
         <div className="flex gap-2">
           <button
             onClick={() => {
@@ -637,13 +643,13 @@ function CodeChunk({ code, onUseCode }: { code: string; onUseCode?: (code: strin
               setCopied(true);
               setTimeout(() => setCopied(false), 1200);
             }}
-            className="flex items-center gap-1 text-[9px] text-meta hover:text-foreground"
+            className="flex items-center gap-1 text-[9.5px] text-meta hover:text-foreground"
           >
             {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
           </button>
           <button
             onClick={openInEditor}
-            className="flex items-center gap-1 text-[9px] text-primary hover:underline"
+            className="flex items-center gap-1 text-[9.5px] text-primary hover:underline"
             title="Open in Contract Editor"
           >
             <FileCode2 className="h-3 w-3" /> editor
@@ -651,14 +657,16 @@ function CodeChunk({ code, onUseCode }: { code: string; onUseCode?: (code: strin
           {onUseCode && (
             <button
               onClick={() => onUseCode(code)}
-              className="text-[9px] text-primary hover:underline"
+              className="text-[9.5px] text-primary hover:underline"
             >
               use code
             </button>
           )}
         </div>
       </div>
-      <pre className="overflow-x-auto p-2 text-[10px] leading-relaxed text-foreground">{code}</pre>
+      <pre className="overflow-x-auto p-2 text-[10.5px] leading-relaxed text-foreground">
+        {code}
+      </pre>
     </div>
   );
 }

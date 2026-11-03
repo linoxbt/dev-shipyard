@@ -99,7 +99,7 @@ function TxPage({ hash }: { hash: string }) {
             <span className="flex items-center gap-2">
               {tx.block_number != null ? <BlockLink height={tx.block_number} /> : "Pending"}
               {tx.confirmations != null && (
-                <span className="rounded border border-border px-1.5 py-0.5 text-[10px] text-meta">
+                <span className="rounded border border-border px-1.5 py-0.5 text-[10.5px] text-meta">
                   {withCommas(tx.confirmations)} confirmations
                 </span>
               )}
@@ -228,7 +228,7 @@ function TxPage({ hash }: { hash: string }) {
               <div className="font-mono text-xs text-foreground">
                 {tx.decoded_input.method_call}
               </div>
-              <table className="w-full font-mono text-[11px]">
+              <table className="w-full font-mono text-[11.5px]">
                 <thead className="text-meta">
                   <tr>
                     <th className="px-2 py-1 text-left font-normal">Name</th>
@@ -250,7 +250,7 @@ function TxPage({ hash }: { hash: string }) {
               </table>
             </div>
           ) : (
-            <pre className="overflow-x-auto p-4 font-mono text-[11px] leading-relaxed text-muted-foreground">
+            <pre className="overflow-x-auto p-4 font-mono text-[11.5px] leading-relaxed text-muted-foreground">
               {tx.raw_input || "0x"}
             </pre>
           )}
@@ -269,7 +269,7 @@ function TokenTransferLine({ t }: { t: ExTokenTransfer }) {
       ? `#${t.total.token_id}`
       : "";
   return (
-    <span className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+    <span className="flex flex-wrap items-center gap-1 text-[11.5px] text-muted-foreground">
       From {t.from ? <AddrLink hash={t.from.hash} name={t.from.name} /> : "-"} to{" "}
       {t.to ? <AddrLink hash={t.to.hash} name={t.to.name} /> : "-"} for{" "}
       <span className="text-foreground">
@@ -281,7 +281,7 @@ function TokenTransferLine({ t }: { t: ExTokenTransfer }) {
 
 function LogItem({ log }: { log: ExLog }) {
   return (
-    <div className="space-y-1.5 px-4 py-3 font-mono text-[11px]">
+    <div className="space-y-1.5 px-4 py-3 font-mono text-[11.5px]">
       <div className="flex items-center gap-2">
         <span className="text-meta">Address</span>
         <AddrLink hash={log.address.hash} name={log.address.name} isContract />

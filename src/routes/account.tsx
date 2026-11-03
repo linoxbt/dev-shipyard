@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   LayoutTemplate,
+  MessageSquareHeart,
+  Users,
   BarChart3,
   BookOpen,
   ChevronRight,
@@ -77,18 +79,18 @@ function AccountPage() {
   return (
     <PageShell title="Account" description="Your profile, plan and settings.">
       {!ready ? (
-        <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        <p className="flex items-center gap-2 text-[13.5px] text-muted-foreground">
           <LoaderCircle className="h-4 w-4 animate-spin" /> Loading
         </p>
       ) : !account ? (
         <div className="rounded-2xl border border-border bg-surface p-6 text-center">
-          <p className="text-[14px] font-medium">You are not signed in</p>
-          <p className="mt-1 text-[13px] text-muted-foreground">
+          <p className="text-[14.5px] font-medium">You are not signed in</p>
+          <p className="mt-1 text-[13.5px] text-muted-foreground">
             Sign in with your email to keep projects on every device.
           </p>
           <button
             onClick={() => setSigningIn(true)}
-            className="mt-4 rounded-lg bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground hover:bg-primary-hover"
+            className="mt-4 rounded-lg bg-primary px-4 py-2 text-[13.5px] font-medium text-primary-foreground hover:bg-primary-hover"
           >
             Sign in or create an account
           </button>
@@ -97,15 +99,15 @@ function AccountPage() {
         <div className="space-y-6">
           <section className="rounded-2xl border border-border bg-surface p-5">
             <div className="flex items-center gap-4">
-              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-surface-2 text-[17px] font-semibold text-foreground/85">
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-surface-2 text-[17.5px] font-semibold text-foreground/85">
                 {initials(account)}
               </span>
               <div className="min-w-0">
-                <p className="truncate text-[16px] font-semibold">
+                <p className="truncate text-[16.5px] font-semibold">
                   {account.name ?? account.email.split("@")[0]}
                 </p>
-                <p className="truncate text-[13px] text-muted-foreground">{account.email}</p>
-                <p className="mt-0.5 text-[12px] text-meta">
+                <p className="truncate text-[13.5px] text-muted-foreground">{account.email}</p>
+                <p className="mt-0.5 text-[12.5px] text-meta">
                   {projects.length} project{projects.length === 1 ? "" : "s"}
                 </p>
               </div>
@@ -118,19 +120,19 @@ function AccountPage() {
               className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-end"
             >
               <label className="flex-1">
-                <span className="text-[12px] font-medium text-muted-foreground">Your name</span>
+                <span className="text-[12.5px] font-medium text-muted-foreground">Your name</span>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   maxLength={60}
                   placeholder="What should we call you?"
-                  className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[13.5px] outline-none focus:border-primary/60"
+                  className="mt-1 h-10 w-full rounded-lg border border-border bg-background px-3 text-[14px] outline-none focus:border-primary/60"
                 />
               </label>
               <button
                 type="submit"
                 disabled={saving || !name.trim() || name.trim() === (account.name ?? "")}
-                className="h-10 rounded-lg bg-primary px-4 text-[13px] font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+                className="h-10 rounded-lg bg-primary px-4 text-[13.5px] font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save"}
               </button>
@@ -153,12 +155,18 @@ function AccountPage() {
                   href={pageHref("/admin/templates")}
                   label="Community templates"
                 />
+                <Row icon={Users} href={pageHref("/admin/access")} label="Access and waitlist" />
+                <Row
+                  icon={MessageSquareHeart}
+                  href={pageHref("/admin/feedback")}
+                  label="Feedback"
+                />
               </>
             )}
           </section>
 
           <section className="rounded-2xl border border-border bg-surface p-5">
-            <p className="text-[14px] font-medium">Appearance</p>
+            <p className="text-[14.5px] font-medium">Appearance</p>
             <div className="mt-3">
               <Segmented
                 value={theme}
@@ -189,7 +197,7 @@ function AccountPage() {
             onClick={() => {
               void signOut().then(() => window.location.assign("/"));
             }}
-            className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-[13px] text-muted-foreground transition hover:border-danger/50 hover:text-danger"
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-[13.5px] text-muted-foreground transition hover:border-danger/50 hover:text-danger"
           >
             <LogOut className="h-4 w-4" /> Sign out
           </button>
@@ -216,8 +224,8 @@ function Row({
   const body = (
     <>
       <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <span className="flex-1 text-[14px] text-foreground">{label}</span>
-      {detail && <span className="text-[12.5px] text-muted-foreground">{detail}</span>}
+      <span className="flex-1 text-[14.5px] text-foreground">{label}</span>
+      {detail && <span className="text-[13px] text-muted-foreground">{detail}</span>}
       <ChevronRight className="h-4 w-4 text-meta" />
     </>
   );

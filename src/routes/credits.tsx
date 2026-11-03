@@ -221,14 +221,14 @@ function CreditsPage() {
       {error ? (
         <Unavailable title="Credits are not available" message={error} />
       ) : !access || !usage ? (
-        <p className="flex items-center gap-2 py-10 text-[13px] text-muted-foreground">
+        <p className="flex items-center gap-2 py-10 text-[13.5px] text-muted-foreground">
           <LoaderCircle className="h-4 w-4 animate-spin" /> Loading your credit
         </p>
       ) : (
         <div className={cn("mx-auto max-w-5xl space-y-6", loading && "opacity-60")}>
           <div>
-            <h1 className="text-[20px] font-semibold tracking-tight">Credits</h1>
-            <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+            <h1 className="text-[20.5px] font-semibold tracking-tight">Credits</h1>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
               Qwen 3.8 27B is free every day up to an allowance. Everything else is paid from credit
               at the model&apos;s own price
               {billing ? ` plus ${Math.round((billing.markup - 1) * 100)}%` : ""}.
@@ -244,8 +244,8 @@ function CreditsPage() {
 
           <div className="flex flex-wrap items-end justify-between gap-2 pt-2">
             <div>
-              <h2 className="text-[16px] font-semibold">Usage</h2>
-              <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+              <h2 className="text-[16.5px] font-semibold">Usage</h2>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
                 {shortDay(usage.range.start)} – {shortDay(usage.range.end)} (UTC), compared with the{" "}
                 {usage.range.days} days before
               </p>
@@ -308,13 +308,13 @@ function Balance({
       <div className="rounded-2xl border border-border bg-surface p-5 lg:col-span-2">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[12.5px] font-medium text-muted-foreground">
+            <p className="text-[13px] font-medium text-muted-foreground">
               {unlimited ? "Plan" : "Credit balance"}
             </p>
-            <p className="mt-1.5 text-[36px] font-semibold leading-none tracking-tight tabular-nums">
+            <p className="mt-1.5 text-[36.5px] font-semibold leading-none tracking-tight tabular-nums">
               {unlimited ? "Unlimited" : usd(access.balance)}
             </p>
-            <p className="mt-2 text-[12.5px] text-muted-foreground">
+            <p className="mt-2 text-[13px] text-muted-foreground">
               {unlimited
                 ? "Pro granted by DevStation: every model, no charges"
                 : access.claimed > 0
@@ -323,13 +323,13 @@ function Balance({
             </p>
           </div>
           {access.plan === "pro" && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-primary/12 px-2 py-1 text-[11.5px] font-medium text-primary">
+            <span className="inline-flex items-center gap-1 rounded-md bg-primary/12 px-2 py-1 text-[12px] font-medium text-primary">
               <Crown className="h-3.5 w-3.5" /> Pro
             </span>
           )}
         </div>
         {lowCredit && (
-          <p className="mt-3 rounded-lg bg-warning/10 px-3 py-2 text-[12px] text-warning">
+          <p className="mt-3 rounded-lg bg-warning/10 px-3 py-2 text-[12.5px] text-warning">
             Your credit is running low. Add credit so premium models keep working.
           </p>
         )}
@@ -339,7 +339,7 @@ function Balance({
               onClick={onAdd}
               disabled={!canPay}
               title={canPay ? undefined : "Payments open soon"}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-4 text-[13px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-4 text-[13.5px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
             >
               <Plus className="h-4 w-4" /> Add credit
             </button>
@@ -348,7 +348,7 @@ function Balance({
             <button
               onClick={() => void claim()}
               disabled={busy || !access.available}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-4 text-[13px] font-medium text-foreground transition hover:bg-surface-2 disabled:opacity-50"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-4 text-[13.5px] font-medium text-foreground transition hover:bg-surface-2 disabled:opacity-50"
             >
               {busy ? (
                 <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -356,30 +356,30 @@ function Balance({
                 <Gift className="h-4 w-4" />
               )}
               Claim $5 launch credit
-              <span className="text-[11.5px] font-normal text-meta">{access.slotsLeft} left</span>
+              <span className="text-[12px] font-normal text-meta">{access.slotsLeft} left</span>
             </button>
           )}
           {access.portal && <ManageBilling />}
         </div>
         {!canPay && !unlimited && (
-          <p className="mt-2 text-[11.5px] text-meta">Card payments open soon.</p>
+          <p className="mt-2 text-[12px] text-meta">Card payments open soon.</p>
         )}
       </div>
 
       <div className="rounded-2xl border border-border bg-surface p-5">
-        <p className="text-[12.5px] font-medium text-muted-foreground">Free today</p>
+        <p className="text-[13px] font-medium text-muted-foreground">Free today</p>
         {allowance === null ? (
           <>
-            <p className="mt-1.5 text-[22px] font-semibold leading-none">No limit</p>
-            <p className="mt-2 text-[12px] text-muted-foreground">
+            <p className="mt-1.5 text-[22.5px] font-semibold leading-none">No limit</p>
+            <p className="mt-2 text-[12.5px] text-muted-foreground">
               Qwen 3.8 27B, as much as you like
             </p>
           </>
         ) : (
           <>
-            <p className="mt-1.5 text-[22px] font-semibold leading-none tabular-nums">
+            <p className="mt-1.5 text-[22.5px] font-semibold leading-none tabular-nums">
               {cents(Math.max(0, allowance - usedToday))}
-              <span className="ml-1 text-[13px] font-normal text-muted-foreground">
+              <span className="ml-1 text-[13.5px] font-normal text-muted-foreground">
                 left of {cents(allowance)}
               </span>
             </p>
@@ -394,7 +394,7 @@ function Balance({
                 }}
               />
             </div>
-            <p className="mt-2 text-[12px] text-muted-foreground">
+            <p className="mt-2 text-[12.5px] text-muted-foreground">
               Qwen 3.8 27B is free up to this much a day, then paid from credit. Resets at 00:00
               UTC.
             </p>
@@ -417,7 +417,7 @@ function ManageBilling() {
         else toast.error(r.message);
       }}
       disabled={busy}
-      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-4 text-[13px] font-medium text-foreground transition hover:bg-surface-2 disabled:opacity-50"
+      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-4 text-[13.5px] font-medium text-foreground transition hover:bg-surface-2 disabled:opacity-50"
     >
       {busy ? (
         <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -527,7 +527,7 @@ function Plans({
           )}
         >
           <div className="flex items-center justify-between">
-            <p className="flex items-center gap-2 text-[14px] font-semibold">
+            <p className="flex items-center gap-2 text-[14.5px] font-semibold">
               <p.icon
                 className={cn(
                   "h-4 w-4",
@@ -537,20 +537,20 @@ function Plans({
               {p.name}
             </p>
             {p.current && (
-              <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+              <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11.5px] text-muted-foreground">
                 Current
               </span>
             )}
           </div>
-          <p className="mt-3 text-[26px] font-semibold leading-none tracking-tight">
+          <p className="mt-3 text-[26.5px] font-semibold leading-none tracking-tight">
             {p.price}
             {p.per && (
-              <span className="ml-1 text-[12.5px] font-normal text-muted-foreground">{p.per}</span>
+              <span className="ml-1 text-[13px] font-normal text-muted-foreground">{p.per}</span>
             )}
           </p>
           <ul className="mt-4 flex-1 space-y-2">
             {p.points.map((pt) => (
-              <li key={pt} className="flex items-start gap-2 text-[12.5px] text-foreground/90">
+              <li key={pt} className="flex items-start gap-2 text-[13px] text-foreground/90">
                 <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
                 {pt}
               </li>
@@ -561,18 +561,18 @@ function Plans({
               <button
                 onClick={onAdd}
                 disabled={!providers.length}
-                className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-border text-[13px] font-medium transition hover:bg-surface-2 disabled:opacity-50"
+                className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-border text-[13.5px] font-medium transition hover:bg-surface-2 disabled:opacity-50"
               >
                 <Plus className="h-4 w-4" /> Add credit
               </button>
             )}
             {p.key === "pro" &&
               (access.unlimited ? (
-                <p className="text-center text-[12px] text-muted-foreground">
+                <p className="text-center text-[12.5px] text-muted-foreground">
                   Granted by DevStation
                 </p>
               ) : pro && access.proUntil ? (
-                <p className="text-center text-[12px] text-muted-foreground">
+                <p className="text-center text-[12.5px] text-muted-foreground">
                   {access.subscribed ? "Renews" : "Runs until"}{" "}
                   {new Date(access.proUntil).toLocaleDateString("en-US", {
                     month: "short",
@@ -587,7 +587,7 @@ function Plans({
                     onClick={() => void buyPro(provider)}
                     disabled={!!busy}
                     className={cn(
-                      "inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg text-[13px] font-medium transition disabled:opacity-60",
+                      "inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg text-[13.5px] font-medium transition disabled:opacity-60",
                       provider === providers[0]
                         ? "bg-primary text-primary-foreground hover:bg-primary-hover"
                         : "border border-border hover:bg-surface-2",
@@ -602,14 +602,14 @@ function Plans({
                   </button>
                 ))
               ) : access.proRequested ? (
-                <p className="text-center text-[12px] text-muted-foreground">
+                <p className="text-center text-[12.5px] text-muted-foreground">
                   Requested: we will be in touch
                 </p>
               ) : (
                 <button
                   onClick={() => void requestPro()}
                   disabled={!!busy}
-                  className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-primary text-[13px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-60"
+                  className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-primary text-[13.5px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-60"
                 >
                   {busy === "request" ? (
                     <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -646,7 +646,7 @@ function AddCredit({ billing, onClose }: { billing: BillingConfig; onClose: () =
   };
   return (
     <Modal title="Add credit" icon={Wallet} onClose={onClose}>
-      <p className="text-[12.5px] text-muted-foreground">
+      <p className="text-[13px] text-muted-foreground">
         Credit pays for every model call past the free allowance, at the model&apos;s price plus{" "}
         {Math.round((billing.markup - 1) * 100)}%. It never expires.
       </p>
@@ -659,7 +659,7 @@ function AddCredit({ billing, onClose }: { billing: BillingConfig; onClose: () =
               setCustom("");
             }}
             className={cn(
-              "h-11 rounded-xl border text-[14px] font-semibold tabular-nums transition",
+              "h-11 rounded-xl border text-[14.5px] font-semibold tabular-nums transition",
               !custom && amount === t
                 ? "border-primary bg-primary/10 text-primary"
                 : "border-border text-foreground hover:bg-surface-2",
@@ -670,18 +670,18 @@ function AddCredit({ billing, onClose }: { billing: BillingConfig; onClose: () =
         ))}
       </div>
       <label className="mt-3 flex h-10 items-center gap-2 rounded-xl border border-border px-3 focus-within:border-primary/60">
-        <span className="text-[13px] text-muted-foreground">$</span>
+        <span className="text-[13.5px] text-muted-foreground">$</span>
         <input
           inputMode="decimal"
           value={custom}
           onChange={(e) => setCustom(e.target.value.replace(/[^0-9.]/g, "").slice(0, 7))}
           placeholder={`Another amount (${billing.minTopUpUsd} to ${billing.maxTopUpUsd})`}
-          className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-meta"
+          className="min-w-0 flex-1 bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-meta"
         />
       </label>
       {billing.providers.length > 1 && (
         <div className="mt-4 space-y-2">
-          <p className="text-[12px] font-medium text-muted-foreground">Pay with</p>
+          <p className="text-[12.5px] font-medium text-muted-foreground">Pay with</p>
           {billing.providers.map((p) => (
             <button
               key={p}
@@ -693,12 +693,10 @@ function AddCredit({ billing, onClose }: { billing: BillingConfig; onClose: () =
             >
               <CreditCard className="h-4 w-4 text-muted-foreground" />
               <span className="flex-1">
-                <span className="block text-[13px] font-medium text-foreground">
+                <span className="block text-[13.5px] font-medium text-foreground">
                   {PROVIDER_LABEL[p]}
                 </span>
-                <span className="block text-[11.5px] text-muted-foreground">
-                  {PROVIDER_HINT[p]}
-                </span>
+                <span className="block text-[12px] text-muted-foreground">{PROVIDER_HINT[p]}</span>
               </span>
               {provider === p && <Check className="h-4 w-4 text-primary" />}
             </button>
@@ -706,19 +704,19 @@ function AddCredit({ billing, onClose }: { billing: BillingConfig; onClose: () =
         </div>
       )}
       {provider === "paystack" && billing.paystackCurrency !== "USD" && (
-        <p className="mt-2 text-[11.5px] text-meta">
+        <p className="mt-2 text-[12px] text-meta">
           Charged in {billing.paystackCurrency} at today&apos;s rate.
         </p>
       )}
       <button
         onClick={() => void pay()}
         disabled={!valid || busy}
-        className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-[14px] font-semibold text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
+        className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-[14.5px] font-semibold text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
       >
         {busy && <LoaderCircle className="h-4 w-4 animate-spin" />}
         {valid ? `Pay ${usd(value)}` : `Enter $${billing.minTopUpUsd} to $${billing.maxTopUpUsd}`}
       </button>
-      <p className="mt-2 text-center text-[11px] text-meta">
+      <p className="mt-2 text-center text-[11.5px] text-meta">
         Payments are handled by {provider === "paystack" ? "Paystack" : "Stripe"}. DevStation never
         sees your card.
       </p>
@@ -763,13 +761,13 @@ function Totals({ usage }: { usage: Usage }) {
     <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {tiles.map((tile) => (
         <div key={tile.label} className="rounded-2xl border border-border bg-surface p-4">
-          <p className="text-[12px] font-medium text-muted-foreground">{tile.label}</p>
-          <p className="mt-1.5 text-[22px] font-semibold leading-none tracking-tight tabular-nums">
+          <p className="text-[12.5px] font-medium text-muted-foreground">{tile.label}</p>
+          <p className="mt-1.5 text-[22.5px] font-semibold leading-none tracking-tight tabular-nums">
             {tile.value}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Delta value={tile.delta} invert={tile.invert} />
-            {tile.hint && <span className="text-[11px] text-meta">{tile.hint}</span>}
+            {tile.hint && <span className="text-[11.5px] text-meta">{tile.hint}</span>}
           </div>
         </div>
       ))}
@@ -851,11 +849,11 @@ function ModelCell({ id }: { id: string }) {
 
 function Billing({ billed }: { billed: number }) {
   return Number(billed) > 0 ? (
-    <span className="whitespace-nowrap rounded-md bg-primary/12 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-primary">
+    <span className="whitespace-nowrap rounded-md bg-primary/12 px-1.5 py-0.5 text-[11.5px] font-medium tabular-nums text-primary">
       {usd(billed)}
     </span>
   ) : (
-    <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+    <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11.5px] text-muted-foreground">
       Free
     </span>
   );
@@ -976,7 +974,7 @@ function History({ usage }: { usage: Usage }) {
           </td>
           <td className="text-foreground">
             {it.label}
-            {it.detail && <span className="ml-2 text-[11.5px] text-meta">{it.detail}</span>}
+            {it.detail && <span className="ml-2 text-[12px] text-meta">{it.detail}</span>}
           </td>
           <td
             className={cn(

@@ -93,13 +93,13 @@ export function ManualVerify({ chainId, address, defaultCompilerVersion }: Props
   return (
     <div className="space-y-2 rounded border border-border bg-background p-3">
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-meta">
+        <span className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
           Verify with source
         </span>
         <select
           value={version}
           onChange={(e) => setVersion(e.target.value)}
-          className="rounded border border-border bg-surface px-2 py-1 font-mono text-[10px] text-foreground"
+          className="rounded border border-border bg-surface px-2 py-1 font-mono text-[10.5px] text-foreground"
           title="solc version used to deploy"
         >
           {SOLC_VERSIONS.map((v) => (
@@ -114,15 +114,15 @@ export function ManualVerify({ chainId, address, defaultCompilerVersion }: Props
         onChange={(e) => setSource(e.target.value)}
         placeholder="// Paste the exact Solidity source you deployed (imports like @openzeppelin/... are resolved automatically)"
         spellCheck={false}
-        className="h-40 w-full resize-y rounded border border-border bg-surface p-2 font-mono text-[11px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
+        className="h-40 w-full resize-y rounded border border-border bg-surface p-2 font-mono text-[11.5px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
       />
-      <p className="font-mono text-[10px] text-meta">
+      <p className="font-mono text-[10.5px] text-meta">
         Use the same solc version you deployed with. DevStation deploys with the optimizer off (200
         runs).
       </p>
 
       {(message || error) && (
-        <div className="flex items-center gap-2 font-mono text-[11px]">
+        <div className="flex items-center gap-2 font-mono text-[11.5px]">
           {busy && <Loader2 className="h-3.5 w-3.5 animate-spin text-info" />}
           {verified && <CheckCircle2 className="h-3.5 w-3.5 text-success" />}
           {(error || state === "failed") && <AlertTriangle className="h-3.5 w-3.5 text-warning" />}
@@ -149,7 +149,7 @@ export function ManualVerify({ chainId, address, defaultCompilerVersion }: Props
         <Link
           to="/explorer/$network/address/$hash"
           params={{ network: slugForChainId(chainId), hash: address }}
-          className="inline-flex items-center gap-1 font-mono text-[10px] text-meta hover:text-primary"
+          className="inline-flex items-center gap-1 font-mono text-[10.5px] text-meta hover:text-primary"
         >
           View on explorer <Compass className="h-3 w-3" />
         </Link>

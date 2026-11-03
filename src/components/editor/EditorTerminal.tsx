@@ -92,7 +92,7 @@ export function EditorTerminal({ lines, onClear, onCollapse, onCommand }: Props)
     <div className="flex h-full flex-col border-t border-border bg-[#0a0e13]">
       {/* Header */}
       <div className="flex h-[28px] shrink-0 items-center justify-between border-b border-border px-3">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-amber-500">
+        <span className="font-mono text-[10.5px] uppercase tracking-wider text-amber-500">
           TERMINAL
         </span>
         <div className="flex gap-1">
@@ -116,7 +116,7 @@ export function EditorTerminal({ lines, onClear, onCollapse, onCommand }: Props)
       <div
         ref={ref}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 py-2 font-mono text-[11px] leading-relaxed"
+        className="flex-1 overflow-y-auto px-4 py-2 font-mono text-[11.5px] leading-relaxed"
       >
         {lines.length === 0 ? (
           <span className="text-meta">Type `help` for available commands.</span>
@@ -145,7 +145,7 @@ export function EditorTerminal({ lines, onClear, onCollapse, onCommand }: Props)
             spellCheck={false}
             autoComplete="off"
             placeholder="compile · deploy · solc <ver> · ls · cat <file> · clear · help"
-            className="flex-1 bg-transparent font-mono text-[11px] text-foreground placeholder:text-meta/60 focus:outline-none"
+            className="flex-1 bg-transparent font-mono text-[11.5px] text-foreground placeholder:text-meta/60 focus:outline-none"
           />
         </div>
       )}

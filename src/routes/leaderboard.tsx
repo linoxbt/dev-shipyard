@@ -61,7 +61,7 @@ function LeaderboardPage() {
             <p className="mt-3 font-mono text-xs text-muted-foreground">
               Rankings cannot be read right now.
             </p>
-            <p className="mt-1 font-mono text-[10px] text-meta">
+            <p className="mt-1 font-mono text-[10.5px] text-meta">
               Every source the board reads from was unreachable. Try again shortly.
             </p>
           </div>
@@ -108,7 +108,7 @@ function LeaderboardPage() {
                         >
                           <BuilderName address={e.address} link={false} avatar />
                         </Link>
-                        {isYou && <span className="ml-2 text-[10px] text-meta">you</span>}
+                        {isYou && <span className="ml-2 text-[10.5px] text-meta">you</span>}
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">{TIER_LABEL[e.tier]}</td>
                       <td className="px-3 py-2 text-right font-bold text-foreground">{e.points}</td>
@@ -141,7 +141,7 @@ function LeaderboardPage() {
         )}
 
         {data?.available && missing.length > 0 && (
-          <p className="font-mono text-[11px] text-meta">
+          <p className="font-mono text-[11.5px] text-meta">
             Not counted right now, because the source did not answer:{" "}
             {missing.map((key) => ACTIVITIES.find((a) => a.key === key)?.label ?? key).join(", ")}.
             Ranks use everything else.
@@ -196,7 +196,7 @@ function Formula() {
           </tbody>
         </table>
       </div>
-      <p className="mt-3 font-mono text-[10px] text-meta">
+      <p className="mt-3 font-mono text-[10.5px] text-meta">
         Tiers: Builder from 20 points, Regular from 60, Veteran from 120. Ties share a rank.
       </p>
     </section>

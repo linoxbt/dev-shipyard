@@ -80,7 +80,7 @@ function CliOverview() {
               {p.label}
               <ArrowRight className="h-4 w-4 text-meta transition group-hover:translate-x-0.5 group-hover:text-primary" />
             </span>
-            <span className="mt-1 block text-[13px] leading-5 text-muted-foreground">
+            <span className="mt-1 block text-[13.5px] leading-5 text-muted-foreground">
               {p.description}
             </span>
           </Link>

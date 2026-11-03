@@ -477,7 +477,7 @@ function EditorPage() {
         <select
           value={version}
           onChange={(e) => setVersion(e.target.value)}
-          className="rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground"
+          className="rounded border border-border bg-background px-2 py-1 font-mono text-[11.5px] text-foreground"
         >
           {SOLC_VERSIONS.map((v) => (
             <option key={v} value={v}>
@@ -487,7 +487,7 @@ function EditorPage() {
         </select>
 
         {/* Auto-compile */}
-        <label className="flex cursor-pointer items-center gap-1.5 font-mono text-[11px] text-meta">
+        <label className="flex cursor-pointer items-center gap-1.5 font-mono text-[11.5px] text-meta">
           <input
             type="checkbox"
             checked={autoCompile}
@@ -501,7 +501,7 @@ function EditorPage() {
         <button
           onClick={() => runCompile()}
           disabled={compiling || !activeSol.trim()}
-          className="flex items-center gap-1 rounded border border-primary px-2.5 py-1 font-mono text-[11px] text-primary hover:bg-primary/10 disabled:opacity-40"
+          className="flex items-center gap-1 rounded border border-primary px-2.5 py-1 font-mono text-[11.5px] text-primary hover:bg-primary/10 disabled:opacity-40"
         >
           <Play className="h-3 w-3" />
           Compile
@@ -513,7 +513,7 @@ function EditorPage() {
         <button
           onClick={() => setDeployPanelOpen(true)}
           disabled={!contracts || !isConnected}
-          className="flex items-center gap-1 rounded bg-primary px-2.5 py-1 font-mono text-[11px] font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
+          className="flex items-center gap-1 rounded bg-primary px-2.5 py-1 font-mono text-[11.5px] font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
         >
           <Rocket className="h-3 w-3" /> Compile & Deploy
         </button>
@@ -523,14 +523,14 @@ function EditorPage() {
           <>
             <button
               onClick={explainWithAi}
-              className="flex items-center gap-1 rounded border border-info px-2.5 py-1 font-mono text-[11px] text-info hover:bg-info/10"
+              className="flex items-center gap-1 rounded border border-info px-2.5 py-1 font-mono text-[11.5px] text-info hover:bg-info/10"
               title="Open the AI panel and explain this error"
             >
               <Sparkles className="h-3 w-3" /> Explain Error
             </button>
             <button
               onClick={fixWithAi}
-              className="flex items-center gap-1 rounded border border-warning px-2.5 py-1 font-mono text-[11px] text-warning hover:bg-warning/10"
+              className="flex items-center gap-1 rounded border border-warning px-2.5 py-1 font-mono text-[11.5px] text-warning hover:bg-warning/10"
               title="Send the compile errors to the AI assistant for a fix"
             >
               <Wrench className="h-3 w-3" /> Fix with AI
@@ -541,7 +541,7 @@ function EditorPage() {
         <div className="flex-1" />
 
         {/* Active file */}
-        <span className="font-mono text-[11px] text-muted-foreground">{ws.activePath}</span>
+        <span className="font-mono text-[11.5px] text-muted-foreground">{ws.activePath}</span>
 
         <div className="flex-1" />
 
@@ -552,7 +552,7 @@ function EditorPage() {
         <button
           onClick={() => setAiOpen((o) => !o)}
           className={cn(
-            "flex items-center gap-1 rounded border px-2.5 py-1 font-mono text-[11px] transition",
+            "flex items-center gap-1 rounded border px-2.5 py-1 font-mono text-[11.5px] transition",
             aiOpen
               ? "border-primary bg-primary/10 text-primary"
               : "border-border text-muted-foreground hover:border-primary hover:text-primary",
@@ -572,7 +572,7 @@ function EditorPage() {
         {!sidebarCollapsed && (
           <aside className="flex w-[200px] shrink-0 flex-col border-r border-border bg-[#0d1117]">
             <div className="flex items-center justify-between border-b border-border px-2 py-1.5">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground">
                 Files
               </span>
               <div className="flex gap-0.5">
@@ -656,7 +656,7 @@ function EditorPage() {
           {sidebarCollapsed && (
             <button
               onClick={() => setSidebarCollapsed(false)}
-              className="flex items-center gap-1 border-b border-border px-2 py-1 font-mono text-[10px] text-meta hover:text-foreground"
+              className="flex items-center gap-1 border-b border-border px-2 py-1 font-mono text-[10.5px] text-meta hover:text-foreground"
             >
               <Folder className="h-3 w-3" /> Show files
             </button>
@@ -715,7 +715,7 @@ function EditorPage() {
                 >
                   Inspector
                   {findings.length > 0 && (
-                    <span className="ml-1 rounded-full bg-[#c084fc]/20 px-1.5 text-[9px] text-[#c084fc]">
+                    <span className="ml-1 rounded-full bg-[#c084fc]/20 px-1.5 text-[9.5px] text-[#c084fc]">
                       {findings.length}
                     </span>
                   )}
@@ -740,10 +740,10 @@ function EditorPage() {
               className="flex h-[28px] shrink-0 cursor-pointer items-center justify-between border-t border-border bg-[#0a0e13] px-3"
               onClick={toggleTerminal}
             >
-              <span className="font-mono text-[10px] uppercase tracking-wider text-meta">
+              <span className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
                 TERMINAL
               </span>
-              <span className="font-mono text-[10px] text-meta">click to expand</span>
+              <span className="font-mono text-[10.5px] text-meta">click to expand</span>
             </div>
           )}
         </div>
@@ -801,7 +801,7 @@ function EditorPage() {
                 Replace {ws.activePath}?
               </span>
             </div>
-            <div className="px-4 py-2 font-mono text-[11px] text-meta">
+            <div className="px-4 py-2 font-mono text-[11.5px] text-meta">
               Overwrites the whole file -{" "}
               <span className="text-success">+{applyDiffStats.added}</span>{" "}
               <span className="text-danger">−{applyDiffStats.removed}</span> lines. Recoverable only
@@ -811,13 +811,13 @@ function EditorPage() {
             <div className="flex justify-end gap-2 border-t border-border px-4 py-2.5">
               <button
                 onClick={() => setPendingApply(null)}
-                className="rounded border border-border px-3 py-1 font-mono text-[11px] text-meta hover:text-foreground"
+                className="rounded border border-border px-3 py-1 font-mono text-[11.5px] text-meta hover:text-foreground"
               >
                 Cancel
               </button>
               <button
                 onClick={applyPending}
-                className="rounded bg-primary px-3 py-1 font-mono text-[11px] font-medium text-primary-foreground hover:bg-primary-hover"
+                className="rounded bg-primary px-3 py-1 font-mono text-[11.5px] font-medium text-primary-foreground hover:bg-primary-hover"
               >
                 Replace file
               </button>
@@ -832,7 +832,7 @@ function EditorPage() {
 /* ── Diff view (safe-apply confirm) ── */
 function DiffView({ ops }: { ops: ReturnType<typeof diffLines> }) {
   return (
-    <div className="mx-4 mb-2 flex-1 overflow-auto rounded border border-border bg-background font-mono text-[10px] leading-relaxed">
+    <div className="mx-4 mb-2 flex-1 overflow-auto rounded border border-border bg-background font-mono text-[10.5px] leading-relaxed">
       {ops.map((op, i) => (
         <div
           key={i}
@@ -867,7 +867,7 @@ function BottomTab({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center rounded-t px-3 py-1 font-mono text-[10px] uppercase tracking-wider transition",
+        "flex items-center rounded-t px-3 py-1 font-mono text-[10.5px] uppercase tracking-wider transition",
         active ? "bg-[#0a0e13] text-foreground" : "text-meta hover:text-foreground",
       )}
     >
@@ -886,7 +886,7 @@ function InspectorPanel({
 }) {
   if (findings.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 bg-[#0a0e13] font-mono text-[11px] text-meta">
+      <div className="flex h-full flex-col items-center justify-center gap-2 bg-[#0a0e13] font-mono text-[11.5px] text-meta">
         <ShieldCheck className="h-5 w-5 text-success" />
         No static-analysis findings. Compile a contract to run the inspector.
       </div>
@@ -923,24 +923,24 @@ function FindingCard({
       )}
     >
       <div className="flex items-center gap-2">
-        <span className="rounded bg-[#c084fc]/15 px-1.5 py-0.5 font-mono text-[9px] text-[#c084fc]">
+        <span className="rounded bg-[#c084fc]/15 px-1.5 py-0.5 font-mono text-[9.5px] text-[#c084fc]">
           {finding.code}
         </span>
-        <span className={cn("flex items-center gap-1 font-mono text-[9px]", sev.cls)}>
+        <span className={cn("flex items-center gap-1 font-mono text-[9.5px]", sev.cls)}>
           <sev.Icon className="h-3 w-3" />
           {sev.label}
         </span>
         {finding.line && (
-          <span className="ml-auto font-mono text-[9px] text-meta">line {finding.line}</span>
+          <span className="ml-auto font-mono text-[9.5px] text-meta">line {finding.line}</span>
         )}
       </div>
-      <div className="mt-1.5 font-mono text-[11px] font-semibold text-foreground">
+      <div className="mt-1.5 font-mono text-[11.5px] font-semibold text-foreground">
         {finding.title}
       </div>
-      <p className="mt-1 font-mono text-[10px] leading-relaxed text-muted-foreground">
+      <p className="mt-1 font-mono text-[10.5px] leading-relaxed text-muted-foreground">
         {finding.description}
       </p>
-      <p className="mt-1.5 whitespace-pre-wrap font-mono text-[10px] leading-relaxed text-primary">
+      <p className="mt-1.5 whitespace-pre-wrap font-mono text-[10.5px] leading-relaxed text-primary">
         Fix: {finding.hint}
       </p>
     </button>
@@ -1007,7 +1007,7 @@ function FileTree({
     <div>
       <div
         className={cn(
-          "group flex cursor-pointer items-center gap-1 rounded px-1 py-1 font-mono text-[11px] transition hover:bg-[#161b22]",
+          "group flex cursor-pointer items-center gap-1 rounded px-1 py-1 font-mono text-[11.5px] transition hover:bg-[#161b22]",
           node.path === activePath && "bg-[#1e2a38]",
         )}
         style={pad}

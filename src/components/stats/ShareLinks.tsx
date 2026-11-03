@@ -94,12 +94,12 @@ export function ShareLinks() {
           onChange={(e) => setLabel(e.target.value)}
           maxLength={80}
           placeholder="Who it is for (optional), e.g. Investors"
-          className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-[13px] text-foreground outline-none placeholder:text-meta focus:border-primary/60"
+          className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-[13.5px] text-foreground outline-none placeholder:text-meta focus:border-primary/60"
         />
         <button
           type="submit"
           disabled={busy === "new"}
-          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 text-[12.5px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-60"
+          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-60"
         >
           {busy === "new" ? (
             <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
@@ -111,7 +111,7 @@ export function ShareLinks() {
       </form>
 
       {shares === null ? (
-        <p className="flex items-center gap-2 py-4 text-[12.5px] text-muted-foreground">
+        <p className="flex items-center gap-2 py-4 text-[13px] text-muted-foreground">
           <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Loading links
         </p>
       ) : (
@@ -134,7 +134,7 @@ export function ShareLinks() {
                     <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <span className="truncate text-foreground">{s.label || "Untitled link"}</span>
                     {!live && (
-                      <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                      <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11.5px] text-muted-foreground">
                         Revoked
                       </span>
                     )}
@@ -153,7 +153,7 @@ export function ShareLinks() {
                       <button
                         onClick={() => void copyLink(s)}
                         disabled={!s.token}
-                        className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[12px] text-foreground transition hover:bg-surface-2 disabled:opacity-50"
+                        className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[12.5px] text-foreground transition hover:bg-surface-2 disabled:opacity-50"
                       >
                         {copied === s.id ? (
                           <Check className="h-3 w-3 text-success" />
@@ -165,7 +165,7 @@ export function ShareLinks() {
                       <button
                         onClick={() => void revoke(s)}
                         disabled={busy === s.id}
-                        className="rounded-lg border border-border px-2.5 py-1 text-[12px] text-muted-foreground transition hover:border-danger/50 hover:text-danger disabled:opacity-60"
+                        className="rounded-lg border border-border px-2.5 py-1 text-[12.5px] text-muted-foreground transition hover:border-danger/50 hover:text-danger disabled:opacity-60"
                       >
                         Revoke
                       </button>

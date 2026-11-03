@@ -18,11 +18,14 @@ import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as CreditsRouteImport } from './routes/credits'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as ExplorerRouteImport } from './routes/explorer'
+import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as PublishRouteImport } from './routes/publish'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as UpdatesRouteImport } from './routes/updates'
+import { Route as AdminAccessRouteImport } from './routes/admin.access'
+import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
 import { Route as AdminStatsRouteImport } from './routes/admin.stats'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as ApiAccessRouteImport } from './routes/api.access'
@@ -34,6 +37,7 @@ import { Route as ApiBillingRouteImport } from './routes/api.billing'
 import { Route as ApiBuildRouteImport } from './routes/api.build'
 import { Route as ApiConnectorsRouteImport } from './routes/api.connectors'
 import { Route as ApiCreditsRouteImport } from './routes/api.credits'
+import { Route as ApiFeedbackRouteImport } from './routes/api.feedback'
 import { Route as ApiGithubRouteImport } from './routes/api.github'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiLabelRelayRouteImport } from './routes/api.label-relay'
@@ -82,6 +86,8 @@ import { Route as RoutebookIndexRouteImport } from './routes/routebook.index'
 import { Route as RoutebookTxHashRouteImport } from './routes/routebook.$txHash'
 import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
 import { Route as ApiAccessSessionRouteImport } from './routes/api.access.session'
+import { Route as ApiAdminAccessRouteImport } from './routes/api.admin.access'
+import { Route as ApiAdminFeedbackRouteImport } from './routes/api.admin.feedback'
 import { Route as ApiAdminStatsRouteImport } from './routes/api.admin.stats'
 import { Route as ApiAdminTemplatesRouteImport } from './routes/api.admin.templates'
 import { Route as ApiCronSandboxesRouteImport } from './routes/api.cron.sandboxes'
@@ -169,6 +175,11 @@ const ExplorerRoute = ExplorerRouteImport.update({
   path: '/explorer',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FeedbackRoute = FeedbackRouteImport.update({
+  id: '/feedback',
+  path: '/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
@@ -192,6 +203,16 @@ const SettingsRoute = SettingsRouteImport.update({
 const UpdatesRoute = UpdatesRouteImport.update({
   id: '/updates',
   path: '/updates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAccessRoute = AdminAccessRouteImport.update({
+  id: '/admin/access',
+  path: '/admin/access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
+  id: '/admin/feedback',
+  path: '/admin/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminStatsRoute = AdminStatsRouteImport.update({
@@ -247,6 +268,11 @@ const ApiConnectorsRoute = ApiConnectorsRouteImport.update({
 const ApiCreditsRoute = ApiCreditsRouteImport.update({
   id: '/api/credits',
   path: '/api/credits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFeedbackRoute = ApiFeedbackRouteImport.update({
+  id: '/api/feedback',
+  path: '/api/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiGithubRoute = ApiGithubRouteImport.update({
@@ -489,6 +515,16 @@ const ApiAccessSessionRoute = ApiAccessSessionRouteImport.update({
   path: '/session',
   getParentRoute: () => ApiAccessRoute,
 } as any)
+const ApiAdminAccessRoute = ApiAdminAccessRouteImport.update({
+  id: '/api/admin/access',
+  path: '/api/admin/access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminFeedbackRoute = ApiAdminFeedbackRouteImport.update({
+  id: '/api/admin/feedback',
+  path: '/api/admin/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminStatsRoute = ApiAdminStatsRouteImport.update({
   id: '/api/admin/stats',
   path: '/api/admin/stats',
@@ -715,11 +751,14 @@ export interface FileRoutesByFullPath {
   '/credits': typeof CreditsRoute
   '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRouteWithChildren
+  '/feedback': typeof FeedbackRoute
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/publish': typeof PublishRoute
   '/settings': typeof SettingsRoute
   '/updates': typeof UpdatesRoute
+  '/admin/access': typeof AdminAccessRoute
+  '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/stats': typeof AdminStatsRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/api/access': typeof ApiAccessRouteWithChildren
@@ -731,6 +770,7 @@ export interface FileRoutesByFullPath {
   '/api/build': typeof ApiBuildRoute
   '/api/connectors': typeof ApiConnectorsRoute
   '/api/credits': typeof ApiCreditsRoute
+  '/api/feedback': typeof ApiFeedbackRoute
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/label-relay': typeof ApiLabelRelayRoute
@@ -779,6 +819,8 @@ export interface FileRoutesByFullPath {
   '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/api/access/session': typeof ApiAccessSessionRoute
+  '/api/admin/access': typeof ApiAdminAccessRoute
+  '/api/admin/feedback': typeof ApiAdminFeedbackRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
   '/api/admin/templates': typeof ApiAdminTemplatesRoute
   '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
@@ -829,11 +871,14 @@ export interface FileRoutesByTo {
   '/connections': typeof ConnectionsRoute
   '/cookies': typeof CookiesRoute
   '/credits': typeof CreditsRoute
+  '/feedback': typeof FeedbackRoute
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/publish': typeof PublishRoute
   '/settings': typeof SettingsRoute
   '/updates': typeof UpdatesRoute
+  '/admin/access': typeof AdminAccessRoute
+  '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/stats': typeof AdminStatsRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/api/access': typeof ApiAccessRouteWithChildren
@@ -845,6 +890,7 @@ export interface FileRoutesByTo {
   '/api/build': typeof ApiBuildRoute
   '/api/connectors': typeof ApiConnectorsRoute
   '/api/credits': typeof ApiCreditsRoute
+  '/api/feedback': typeof ApiFeedbackRoute
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/label-relay': typeof ApiLabelRelayRoute
@@ -891,6 +937,8 @@ export interface FileRoutesByTo {
   '/explorer': typeof ExplorerIndexRoute
   '/routebook': typeof RoutebookIndexRoute
   '/api/access/session': typeof ApiAccessSessionRoute
+  '/api/admin/access': typeof ApiAdminAccessRoute
+  '/api/admin/feedback': typeof ApiAdminFeedbackRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
   '/api/admin/templates': typeof ApiAdminTemplatesRoute
   '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
@@ -944,11 +992,14 @@ export interface FileRoutesById {
   '/credits': typeof CreditsRoute
   '/docs': typeof DocsRouteWithChildren
   '/explorer': typeof ExplorerRouteWithChildren
+  '/feedback': typeof FeedbackRoute
   '/leaderboard': typeof LeaderboardRoute
   '/overview': typeof OverviewRoute
   '/publish': typeof PublishRoute
   '/settings': typeof SettingsRoute
   '/updates': typeof UpdatesRoute
+  '/admin/access': typeof AdminAccessRoute
+  '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/stats': typeof AdminStatsRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/api/access': typeof ApiAccessRouteWithChildren
@@ -960,6 +1011,7 @@ export interface FileRoutesById {
   '/api/build': typeof ApiBuildRoute
   '/api/connectors': typeof ApiConnectorsRoute
   '/api/credits': typeof ApiCreditsRoute
+  '/api/feedback': typeof ApiFeedbackRoute
   '/api/github': typeof ApiGithubRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/label-relay': typeof ApiLabelRelayRoute
@@ -1008,6 +1060,8 @@ export interface FileRoutesById {
   '/explorer/': typeof ExplorerIndexRoute
   '/routebook/': typeof RoutebookIndexRoute
   '/api/access/session': typeof ApiAccessSessionRoute
+  '/api/admin/access': typeof ApiAdminAccessRoute
+  '/api/admin/feedback': typeof ApiAdminFeedbackRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
   '/api/admin/templates': typeof ApiAdminTemplatesRoute
   '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
@@ -1062,11 +1116,14 @@ export interface FileRouteTypes {
     | '/credits'
     | '/docs'
     | '/explorer'
+    | '/feedback'
     | '/leaderboard'
     | '/overview'
     | '/publish'
     | '/settings'
     | '/updates'
+    | '/admin/access'
+    | '/admin/feedback'
     | '/admin/stats'
     | '/admin/templates'
     | '/api/access'
@@ -1078,6 +1135,7 @@ export interface FileRouteTypes {
     | '/api/build'
     | '/api/connectors'
     | '/api/credits'
+    | '/api/feedback'
     | '/api/github'
     | '/api/health'
     | '/api/label-relay'
@@ -1126,6 +1184,8 @@ export interface FileRouteTypes {
     | '/explorer/'
     | '/routebook/'
     | '/api/access/session'
+    | '/api/admin/access'
+    | '/api/admin/feedback'
     | '/api/admin/stats'
     | '/api/admin/templates'
     | '/api/cron/sandboxes'
@@ -1176,11 +1236,14 @@ export interface FileRouteTypes {
     | '/connections'
     | '/cookies'
     | '/credits'
+    | '/feedback'
     | '/leaderboard'
     | '/overview'
     | '/publish'
     | '/settings'
     | '/updates'
+    | '/admin/access'
+    | '/admin/feedback'
     | '/admin/stats'
     | '/admin/templates'
     | '/api/access'
@@ -1192,6 +1255,7 @@ export interface FileRouteTypes {
     | '/api/build'
     | '/api/connectors'
     | '/api/credits'
+    | '/api/feedback'
     | '/api/github'
     | '/api/health'
     | '/api/label-relay'
@@ -1238,6 +1302,8 @@ export interface FileRouteTypes {
     | '/explorer'
     | '/routebook'
     | '/api/access/session'
+    | '/api/admin/access'
+    | '/api/admin/feedback'
     | '/api/admin/stats'
     | '/api/admin/templates'
     | '/api/cron/sandboxes'
@@ -1290,11 +1356,14 @@ export interface FileRouteTypes {
     | '/credits'
     | '/docs'
     | '/explorer'
+    | '/feedback'
     | '/leaderboard'
     | '/overview'
     | '/publish'
     | '/settings'
     | '/updates'
+    | '/admin/access'
+    | '/admin/feedback'
     | '/admin/stats'
     | '/admin/templates'
     | '/api/access'
@@ -1306,6 +1375,7 @@ export interface FileRouteTypes {
     | '/api/build'
     | '/api/connectors'
     | '/api/credits'
+    | '/api/feedback'
     | '/api/github'
     | '/api/health'
     | '/api/label-relay'
@@ -1354,6 +1424,8 @@ export interface FileRouteTypes {
     | '/explorer/'
     | '/routebook/'
     | '/api/access/session'
+    | '/api/admin/access'
+    | '/api/admin/feedback'
     | '/api/admin/stats'
     | '/api/admin/templates'
     | '/api/cron/sandboxes'
@@ -1407,11 +1479,14 @@ export interface RootRouteChildren {
   CreditsRoute: typeof CreditsRoute
   DocsRoute: typeof DocsRouteWithChildren
   ExplorerRoute: typeof ExplorerRouteWithChildren
+  FeedbackRoute: typeof FeedbackRoute
   LeaderboardRoute: typeof LeaderboardRoute
   OverviewRoute: typeof OverviewRoute
   PublishRoute: typeof PublishRoute
   SettingsRoute: typeof SettingsRoute
   UpdatesRoute: typeof UpdatesRoute
+  AdminAccessRoute: typeof AdminAccessRoute
+  AdminFeedbackRoute: typeof AdminFeedbackRoute
   AdminStatsRoute: typeof AdminStatsRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
   ApiAccessRoute: typeof ApiAccessRouteWithChildren
@@ -1423,6 +1498,7 @@ export interface RootRouteChildren {
   ApiBuildRoute: typeof ApiBuildRoute
   ApiConnectorsRoute: typeof ApiConnectorsRoute
   ApiCreditsRoute: typeof ApiCreditsRoute
+  ApiFeedbackRoute: typeof ApiFeedbackRoute
   ApiGithubRoute: typeof ApiGithubRouteWithChildren
   ApiHealthRoute: typeof ApiHealthRoute
   ApiLabelRelayRoute: typeof ApiLabelRelayRoute
@@ -1448,6 +1524,8 @@ export interface RootRouteChildren {
   RoutebookTxHashRoute: typeof RoutebookTxHashRoute
   RoutebookLabelsRoute: typeof RoutebookLabelsRoute
   RoutebookIndexRoute: typeof RoutebookIndexRoute
+  ApiAdminAccessRoute: typeof ApiAdminAccessRoute
+  ApiAdminFeedbackRoute: typeof ApiAdminFeedbackRoute
   ApiAdminStatsRoute: typeof ApiAdminStatsRoute
   ApiAdminTemplatesRoute: typeof ApiAdminTemplatesRoute
   ApiCronSandboxesRoute: typeof ApiCronSandboxesRoute
@@ -1528,6 +1606,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExplorerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/feedback': {
+      id: '/feedback'
+      path: '/feedback'
+      fullPath: '/feedback'
+      preLoaderRoute: typeof FeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/leaderboard': {
       id: '/leaderboard'
       path: '/leaderboard'
@@ -1561,6 +1646,20 @@ declare module '@tanstack/react-router' {
       path: '/updates'
       fullPath: '/updates'
       preLoaderRoute: typeof UpdatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/access': {
+      id: '/admin/access'
+      path: '/admin/access'
+      fullPath: '/admin/access'
+      preLoaderRoute: typeof AdminAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/feedback': {
+      id: '/admin/feedback'
+      path: '/admin/feedback'
+      fullPath: '/admin/feedback'
+      preLoaderRoute: typeof AdminFeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/stats': {
@@ -1638,6 +1737,13 @@ declare module '@tanstack/react-router' {
       path: '/api/credits'
       fullPath: '/api/credits'
       preLoaderRoute: typeof ApiCreditsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/feedback': {
+      id: '/api/feedback'
+      path: '/api/feedback'
+      fullPath: '/api/feedback'
+      preLoaderRoute: typeof ApiFeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/github': {
@@ -1975,6 +2081,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/access/session'
       preLoaderRoute: typeof ApiAccessSessionRouteImport
       parentRoute: typeof ApiAccessRoute
+    }
+    '/api/admin/access': {
+      id: '/api/admin/access'
+      path: '/api/admin/access'
+      fullPath: '/api/admin/access'
+      preLoaderRoute: typeof ApiAdminAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/feedback': {
+      id: '/api/admin/feedback'
+      path: '/api/admin/feedback'
+      fullPath: '/api/admin/feedback'
+      preLoaderRoute: typeof ApiAdminFeedbackRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/admin/stats': {
       id: '/api/admin/stats'
@@ -2454,11 +2574,14 @@ const rootRouteChildren: RootRouteChildren = {
   CreditsRoute: CreditsRoute,
   DocsRoute: DocsRouteWithChildren,
   ExplorerRoute: ExplorerRouteWithChildren,
+  FeedbackRoute: FeedbackRoute,
   LeaderboardRoute: LeaderboardRoute,
   OverviewRoute: OverviewRoute,
   PublishRoute: PublishRoute,
   SettingsRoute: SettingsRoute,
   UpdatesRoute: UpdatesRoute,
+  AdminAccessRoute: AdminAccessRoute,
+  AdminFeedbackRoute: AdminFeedbackRoute,
   AdminStatsRoute: AdminStatsRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
   ApiAccessRoute: ApiAccessRouteWithChildren,
@@ -2470,6 +2593,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBuildRoute: ApiBuildRoute,
   ApiConnectorsRoute: ApiConnectorsRoute,
   ApiCreditsRoute: ApiCreditsRoute,
+  ApiFeedbackRoute: ApiFeedbackRoute,
   ApiGithubRoute: ApiGithubRouteWithChildren,
   ApiHealthRoute: ApiHealthRoute,
   ApiLabelRelayRoute: ApiLabelRelayRoute,
@@ -2495,6 +2619,8 @@ const rootRouteChildren: RootRouteChildren = {
   RoutebookTxHashRoute: RoutebookTxHashRoute,
   RoutebookLabelsRoute: RoutebookLabelsRoute,
   RoutebookIndexRoute: RoutebookIndexRoute,
+  ApiAdminAccessRoute: ApiAdminAccessRoute,
+  ApiAdminFeedbackRoute: ApiAdminFeedbackRoute,
   ApiAdminStatsRoute: ApiAdminStatsRoute,
   ApiAdminTemplatesRoute: ApiAdminTemplatesRoute,
   ApiCronSandboxesRoute: ApiCronSandboxesRoute,

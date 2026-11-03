@@ -43,22 +43,22 @@ export function PageShell({
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
           <a
             href={back}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13.5px] text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" /> Back
           </a>
           <a href="/" className="ml-auto flex items-center gap-2" aria-label="DevStation">
             <LogoMark className="h-6 w-6" />
-            <span className="text-[13.5px] font-semibold">DevStation</span>
+            <span className="text-[14px] font-semibold">DevStation</span>
           </a>
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 pb-16 pt-8 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-[22px] font-semibold tracking-tight">{title}</h1>
+            <h1 className="text-[22.5px] font-semibold tracking-tight">{title}</h1>
             {description && (
-              <p className="mt-1 max-w-xl text-[13px] leading-5 text-muted-foreground">
+              <p className="mt-1 max-w-xl text-[13.5px] leading-5 text-muted-foreground">
                 {description}
               </p>
             )}

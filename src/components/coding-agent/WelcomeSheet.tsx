@@ -67,10 +67,10 @@ export function WelcomeSheet({
       )}
       <div className="flex flex-col items-center text-center">
         <LogoMark className="h-11 w-11" />
-        <p className="mt-3 text-[19px] font-semibold tracking-tight text-foreground">
+        <p className="mt-3 text-[19.5px] font-semibold tracking-tight text-foreground">
           {step === "name" ? "What should we call you?" : "Choose your look"}
         </p>
-        <p className="mt-1 max-w-xs text-[13px] leading-5 text-muted-foreground">
+        <p className="mt-1 max-w-xs text-[13.5px] leading-5 text-muted-foreground">
           {step === "name"
             ? "This is how DevStation greets you, and how builders you invite see you."
             : "Light or dark. You can change it any time from your account."}
@@ -86,13 +86,13 @@ export function WelcomeSheet({
             placeholder="Your name"
             autoComplete="name"
             maxLength={80}
-            className="w-full rounded-xl border border-border bg-background px-3.5 py-3 text-[14px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
+            className="w-full rounded-xl border border-border bg-background px-3.5 py-3 text-[14.5px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none"
           />
-          {error && <p className="text-[12px] text-danger">{error}</p>}
+          {error && <p className="text-[12.5px] text-danger">{error}</p>}
           <button
             type="submit"
             disabled={busy || !name.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-[14px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-[14.5px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
           >
             {busy && <LoaderCircle className="h-4 w-4 animate-spin" />}
             {only ? "Save" : "Continue"}
@@ -138,17 +138,17 @@ export function WelcomeSheet({
                   </div>
                 </div>
                 <div className="flex items-center justify-between bg-surface px-3 py-2">
-                  <span className="text-[13px] font-medium capitalize text-foreground">{t}</span>
+                  <span className="text-[13.5px] font-medium capitalize text-foreground">{t}</span>
                   {theme === t && <Check className="h-4 w-4 text-primary" />}
                 </div>
               </button>
             ))}
           </div>
-          {error && <p className="mt-3 text-[12px] text-danger">{error}</p>}
+          {error && <p className="mt-3 text-[12.5px] text-danger">{error}</p>}
           <button
             onClick={() => void finish()}
             disabled={busy}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-[14px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-[14.5px] font-medium text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
           >
             {busy && <LoaderCircle className="h-4 w-4 animate-spin" />}
             {only ? "Save" : "Start building"}

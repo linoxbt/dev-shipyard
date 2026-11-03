@@ -104,7 +104,7 @@ function Browse() {
       <section className="relative overflow-hidden border-b border-border">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-info/10" />
         <div className="relative px-5 py-10 sm:px-8 lg:px-12">
-          <div className="font-mono text-[10px] uppercase tracking-wider text-meta">
+          <div className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
             DevStation / LaunchKit / Marketplace
           </div>
           <div className="mt-3 flex flex-wrap items-end justify-between gap-6">
@@ -184,7 +184,7 @@ function Browse() {
                     {k.label}
                     <span className="font-normal text-meta">{countOf(k.kind)}</span>
                   </span>
-                  <span className="mt-0.5 line-clamp-2 block text-[11px] text-muted-foreground">
+                  <span className="mt-0.5 line-clamp-2 block text-[11.5px] text-muted-foreground">
                     {k.blurb}
                   </span>
                 </span>
@@ -236,7 +236,7 @@ function Browse() {
 
         {/* Grid */}
         <section>
-          <div className="mb-3 flex items-center justify-between font-mono text-[11px] text-meta">
+          <div className="mb-3 flex items-center justify-between font-mono text-[11.5px] text-meta">
             <span>
               {filtered.length} {filtered.length === 1 ? "listing" : "listings"}
               {kind ? ` in ${KINDS.find((k) => k.kind === kind)?.label}` : ""}
@@ -294,7 +294,7 @@ function Segmented<T extends string>({
           key={key}
           onClick={() => onChange(key)}
           className={cn(
-            "rounded px-2.5 py-1.5 font-mono text-[11px] transition",
+            "rounded px-2.5 py-1.5 font-mono text-[11.5px] transition",
             value === key
               ? "bg-primary/15 text-primary"
               : "text-muted-foreground hover:text-foreground",

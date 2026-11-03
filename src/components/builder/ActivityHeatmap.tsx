@@ -29,7 +29,7 @@ export function ActivityHeatmap({ timestamps }: { timestamps: number[] }) {
     <div>
       <div className="overflow-x-auto pb-1">
         <div className="inline-flex flex-col gap-1">
-          <div className="flex gap-[3px] pl-6 font-mono text-[9px] text-meta">
+          <div className="flex gap-[3px] pl-6 font-mono text-[9.5px] text-meta">
             {labels.map((label, i) => (
               <span key={i} className="w-[11px] overflow-visible whitespace-nowrap">
                 {label}
@@ -37,7 +37,7 @@ export function ActivityHeatmap({ timestamps }: { timestamps: number[] }) {
             ))}
           </div>
           <div className="flex gap-[3px]">
-            <div className="mr-1 flex w-5 flex-col justify-between py-[2px] font-mono text-[9px] text-meta">
+            <div className="mr-1 flex w-5 flex-col justify-between py-[2px] font-mono text-[9.5px] text-meta">
               <span>Mon</span>
               <span>Wed</span>
               <span>Fri</span>
@@ -63,7 +63,7 @@ export function ActivityHeatmap({ timestamps }: { timestamps: number[] }) {
           </div>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 font-mono text-[10px] text-meta">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 font-mono text-[10.5px] text-meta">
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           <span>
             <span className="text-foreground">{map.total}</span> actions in the last year

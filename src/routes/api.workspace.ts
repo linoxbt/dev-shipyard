@@ -12,6 +12,7 @@ import { recordTurn } from "@/lib/db/turns.server";
 import { bumpMetric, dbConfigured, select } from "@/lib/db/admin.server";
 import { publishSite, siteUrl, SITES_DOMAIN } from "@/lib/hosting/sites.server";
 import { waitForReach } from "@/lib/hosting/reach.server";
+import { isMember, WAITLISTED } from "@/lib/access/members.server";
 import { isControlPath, looksLikeSecret } from "@/lib/agent/workspace";
 import { AUTO_MODEL, MODEL_IDS } from "@/lib/coding-agent/models";
 import { accountAddress } from "@/lib/auth/account.server";
@@ -490,6 +491,12 @@ export const Route = createFileRoute("/api/workspace")({
         const data = parsed.data;
         const claims = claimsOf(request);
         const key = clientKeyFromRequest(request);
+        // An account whose access an admin took away keeps its cookie until
+        // it next signs in: it builds nothing meanwhile.
+        const signedIn = ownerOf(claims);
+        if (signedIn && !(await isMember(signedIn))) {
+          return Response.json({ ok: false, ...WAITLISTED }, { status: 403 });
+        }
 
         if (data.action === "create") {
           const owner = ownerOf(claims);

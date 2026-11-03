@@ -83,7 +83,7 @@ function TokenPage({ hash }: { hash: string }) {
         </h1>
         {/* This is the technical detail view, so it carries BOTH names -
             "QIE-20 (ERC-20)": keeping the real standard one glance away. */}
-        <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-meta">
+        <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10.5px] text-meta">
           {tokenStandardWithTechnical(token.type ?? "", chainId)}
         </span>
         <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
@@ -91,7 +91,7 @@ function TokenPage({ hash }: { hash: string }) {
         </span>
       </div>
       {label && label.name !== token.name && (
-        <p className="-mt-2 font-mono text-[11px] text-meta">
+        <p className="-mt-2 font-mono text-[11.5px] text-meta">
           Project: {label.name}
           {!label.trusted && (
             <span
@@ -276,7 +276,7 @@ function TokenHolders({
 function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
   return (
     <th
-      className={`px-3 py-2 text-left font-normal uppercase tracking-wider text-[10px] ${className ?? ""}`}
+      className={`px-3 py-2 text-left font-normal uppercase tracking-wider text-[10.5px] ${className ?? ""}`}
     >
       {children}
     </th>

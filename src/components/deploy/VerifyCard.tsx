@@ -70,7 +70,7 @@ export function VerifyCard({
     <div className="rounded border border-border bg-surface p-3">
       <div className="mb-2 flex items-center gap-2">
         <ShieldCheck className="h-4 w-4 text-primary" />
-        <h3 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <h3 className="font-mono text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">
           Source Verification
         </h3>
       </div>
@@ -99,7 +99,7 @@ export function VerifyCard({
         <Link
           to="/explorer/$network/address/$hash"
           params={{ network: slugForChainId(chainId), hash: address }}
-          className="inline-flex items-center gap-1 font-mono text-[10px] text-meta hover:text-primary"
+          className="inline-flex items-center gap-1 font-mono text-[10.5px] text-meta hover:text-primary"
         >
           View the contract on the DevStation explorer <Compass className="h-3 w-3" />
         </Link>

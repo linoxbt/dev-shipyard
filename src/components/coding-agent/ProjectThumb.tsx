@@ -110,7 +110,7 @@ function Placeholder({ icon: Icon, label }: { icon: typeof Box; label: string })
       <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-surface text-muted-foreground shadow-sm">
         <Icon className="h-5 w-5" />
       </span>
-      <span className="font-mono text-[10px] text-meta">{label}</span>
+      <span className="font-mono text-[10.5px] text-meta">{label}</span>
     </div>
   );
 }

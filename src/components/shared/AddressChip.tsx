@@ -55,7 +55,7 @@ export function AddressChip({
         >
           {label.name}
           {!label.trusted && (
-            <span className="ml-0.5 align-super text-[9px] text-warning" aria-label="unverified">
+            <span className="ml-0.5 align-super text-[9.5px] text-warning" aria-label="unverified">
               ?
             </span>
           )}

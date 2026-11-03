@@ -27,7 +27,7 @@ export function StatusBadge({ kind, className }: { kind: StatusKind; className?:
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider",
+        "inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-[10.5px] font-semibold uppercase tracking-wider",
         STYLES[kind],
         className,
       )}

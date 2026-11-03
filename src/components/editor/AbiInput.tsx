@@ -14,7 +14,7 @@ interface Props {
 }
 
 const inputCls =
-  "w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none";
+  "w-full rounded border border-border bg-background px-2 py-1 font-mono text-[11.5px] text-foreground placeholder:text-meta focus:border-primary focus:outline-none";
 
 // Renders the appropriate input control for a single Solidity ABI parameter.
 export function AbiInput({ param, value, onChange }: Props) {
@@ -67,14 +67,14 @@ export function AbiInput({ param, value, onChange }: Props) {
           className={inputCls}
         />
         <div className="mt-0.5 flex items-center justify-between">
-          <span className="font-mono text-[9px] text-meta">In wei (no decimals)</span>
+          <span className="font-mono text-[9.5px] text-meta">In wei (no decimals)</span>
           <button
             type="button"
             onClick={() => {
               const n = value.trim();
               if (/^\d+$/.test(n)) onChange((BigInt(n) * 10n ** 18n).toString());
             }}
-            className="font-mono text-[9px] text-primary hover:underline"
+            className="font-mono text-[9.5px] text-primary hover:underline"
             title="Multiply the current value by 1e18 (parse as ether)"
           >
             ×1e18
@@ -188,7 +188,7 @@ function DynamicList({
       <button
         type="button"
         onClick={() => write([...items, ""])}
-        className="flex items-center gap-1 font-mono text-[9px] text-primary hover:underline"
+        className="flex items-center gap-1 font-mono text-[9.5px] text-primary hover:underline"
       >
         <Plus className="h-3 w-3" /> Add {kind === "address" ? "address" : "value"}
       </button>

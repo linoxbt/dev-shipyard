@@ -28,14 +28,16 @@ export function CodeBlock({
       )}
     >
       <div className="flex items-center justify-between border-b border-border bg-surface px-3 py-1.5">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-meta">{language}</span>
+        <span className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
+          {language}
+        </span>
         <button
           onClick={() => {
             navigator.clipboard.writeText(code);
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}
-          className="flex items-center gap-1 font-mono text-[10px] text-meta transition hover:text-foreground"
+          className="flex items-center gap-1 font-mono text-[10.5px] text-meta transition hover:text-foreground"
         >
           {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
           {copied ? "copied" : "copy"}

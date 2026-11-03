@@ -37,7 +37,7 @@ function StatusDot({ chainId }: { chainId: number }) {
   const { data } = useNetworkStatus(chainId);
   const online = data?.status === "online";
   return (
-    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-meta">
+    <span className="inline-flex items-center gap-1.5 font-mono text-[10.5px] text-meta">
       <i
         className={cn(
           "h-1.5 w-1.5 rounded-full",
@@ -55,7 +55,7 @@ export function ChainsBand() {
     <section className="border-b border-border">
       <div className="mx-auto w-full max-w-[2000px] py-14 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl">
-          <div className="font-mono text-[11px] uppercase tracking-wider text-primary">
+          <div className="font-mono text-[11.5px] uppercase tracking-wider text-primary">
             Two chains, one console
           </div>
           <h2 className="mt-2 font-mono text-2xl font-bold text-foreground sm:text-3xl">
@@ -84,7 +84,7 @@ export function ChainsBand() {
 
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{f.blurb}</p>
 
-              <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-4 font-mono text-[11px]">
+              <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-4 font-mono text-[11.5px]">
                 <div>
                   <dt className="text-meta">Mainnet</dt>
                   <dd className="text-foreground">{f.mainnet.id}</dd>
@@ -106,7 +106,7 @@ export function ChainsBand() {
               <Link
                 to="/explorer/$network"
                 params={{ network: f.slug }}
-                className="mt-4 inline-flex items-center gap-1.5 font-mono text-[11px] text-primary hover:underline"
+                className="mt-4 inline-flex items-center gap-1.5 font-mono text-[11.5px] text-primary hover:underline"
               >
                 Open the {f.label} explorer
                 <ArrowRight className="h-3 w-3" />

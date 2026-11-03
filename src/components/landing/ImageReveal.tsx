@@ -40,13 +40,13 @@ export function ImageReveal({
         )}
       >
         <div className={cn(inView && "animate-reveal", side === "left" && "lg:order-2")}>
-          <p className="font-mono text-[11px] uppercase tracking-wider text-primary">{eyebrow}</p>
+          <p className="font-mono text-[11.5px] uppercase tracking-wider text-primary">{eyebrow}</p>
           <h2 className="mt-3 font-mono text-2xl font-bold leading-tight text-foreground sm:text-3xl">
             {title}
           </h2>
           <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">{body}</p>
           {footnote && (
-            <div className="mt-5 border-t border-border pt-4 font-mono text-[11px] text-meta">
+            <div className="mt-5 border-t border-border pt-4 font-mono text-[11.5px] text-meta">
               {footnote}
             </div>
           )}

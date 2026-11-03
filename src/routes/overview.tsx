@@ -224,7 +224,7 @@ function Overview() {
       <div className="border-b border-border px-5 pb-6 pt-8 sm:px-8 lg:px-12">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-primary">
+            <p className="font-mono text-[11.5px] uppercase tracking-[0.14em] text-primary">
               DevStation console
             </p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">Overview</h1>
@@ -269,7 +269,7 @@ function Overview() {
             {stats.onChain && !stats.error && stats.chains.length > 0 ? (
               <div className="space-y-1.5">
                 {stats.chains.map((c) => (
-                  <div key={c.chainId} className="flex items-center gap-2 font-mono text-[10px]">
+                  <div key={c.chainId} className="flex items-center gap-2 font-mono text-[10.5px]">
                     <span className="w-24 truncate text-meta">{chainConfig(c.chainId).name}</span>
                     <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
                       <span
@@ -311,7 +311,7 @@ function Overview() {
             </p>
             <Link
               to="/leaderboard"
-              className="mt-2 inline-flex items-center gap-1 font-mono text-[11px] text-primary hover:underline"
+              className="mt-2 inline-flex items-center gap-1 font-mono text-[11.5px] text-primary hover:underline"
             >
               Leaderboard <ArrowRight className="h-3 w-3" />
             </Link>
@@ -355,7 +355,7 @@ function Overview() {
             </p>
             <Link
               to="/launchkit/marketplace"
-              className="mt-2 inline-flex items-center gap-1 font-mono text-[11px] text-primary hover:underline"
+              className="mt-2 inline-flex items-center gap-1 font-mono text-[11.5px] text-primary hover:underline"
             >
               Browse <ArrowRight className="h-3 w-3" />
             </Link>
@@ -363,7 +363,7 @@ function Overview() {
         </div>
 
         {!stats.loading && stats.onChain && (unreadChains.length > 0 || stats.error) && (
-          <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 font-mono text-[11px] text-warning">
+          <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 font-mono text-[11.5px] text-warning">
             <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
               {stats.error
@@ -380,7 +380,10 @@ function Overview() {
             title="Latest deployments"
             subtitle="Recorded through DevStation, on every network"
             action={
-              <Link to="/analytics" className="font-mono text-[11px] text-primary hover:underline">
+              <Link
+                to="/analytics"
+                className="font-mono text-[11.5px] text-primary hover:underline"
+              >
                 Analytics →
               </Link>
             }
@@ -412,11 +415,11 @@ function Overview() {
                         <span className="truncate text-sm font-medium text-foreground">
                           {d.projectName || "Untitled"}
                         </span>
-                        <span className="hidden shrink-0 rounded border border-border px-1.5 py-px font-mono text-[10px] text-meta sm:inline">
+                        <span className="hidden shrink-0 rounded border border-border px-1.5 py-px font-mono text-[10.5px] text-meta sm:inline">
                           {templateName(d.templateId)}
                         </span>
                       </div>
-                      <div className="mt-0.5 flex min-w-0 items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                      <div className="mt-0.5 flex min-w-0 items-center gap-1.5 font-mono text-[11.5px] text-muted-foreground">
                         <span
                           className={cn(
                             "h-1.5 w-1.5 shrink-0 rounded-full",
@@ -429,7 +432,7 @@ function Overview() {
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="font-mono text-[11px] text-meta">
+                      <div className="font-mono text-[11.5px] text-meta">
                         {d.timestamp > 0
                           ? formatDistanceToNow(d.timestamp * 1000, { addSuffix: true })
                           : "-"}
@@ -437,7 +440,7 @@ function Overview() {
                       <Link
                         to="/explorer/$network/address/$hash"
                         params={{ network: slugForChainId(d.chainId), hash: d.contractAddress }}
-                        className="mt-0.5 inline-flex items-center gap-0.5 font-mono text-[11px] text-primary hover:underline"
+                        className="mt-0.5 inline-flex items-center gap-0.5 font-mono text-[11.5px] text-primary hover:underline"
                         title={d.contractAddress}
                       >
                         {shortAddr(d.contractAddress)} <ArrowUpRight className="h-3 w-3" />
@@ -476,7 +479,7 @@ function Overview() {
                   <MiniStat label="Networks" value={rows === null ? null : networksUsed} />
                   <MiniStat label="Verified" value={rows === null ? null : verifiedCount} />
                 </div>
-                <p className="mt-3 font-mono text-[11px] text-meta">
+                <p className="mt-3 font-mono text-[11.5px] text-meta">
                   {rows === null
                     ? "Reading your deployments…"
                     : rows.length > 0 && rows[0].deployedAt > 0
@@ -509,7 +512,7 @@ function Overview() {
             className="lg:col-span-2"
             title="Your deployments"
             action={
-              <Link to="/activity" className="font-mono text-[11px] text-primary hover:underline">
+              <Link to="/activity" className="font-mono text-[11.5px] text-primary hover:underline">
                 Dashboard →
               </Link>
             }
@@ -579,7 +582,7 @@ function Overview() {
                   <div className="border-t border-border px-4 py-2 text-right">
                     <Link
                       to="/activity"
-                      className="font-mono text-[11px] text-primary hover:underline"
+                      className="font-mono text-[11.5px] text-primary hover:underline"
                     >
                       All {rows.length} on your dashboard →
                     </Link>
@@ -607,7 +610,7 @@ function Overview() {
               />
             </div>
             <div className="border-t border-border p-3">
-              <label className="font-mono text-[10px] uppercase tracking-wider text-meta">
+              <label className="font-mono text-[10.5px] uppercase tracking-wider text-meta">
                 Inspect a transaction
               </label>
               <form
@@ -648,7 +651,7 @@ function Overview() {
                 )}
               </form>
               {quickHash.trim() && !/^0x[0-9a-fA-F]{64}$/.test(quickHash.trim()) && (
-                <p className="mt-1.5 text-[10px] text-meta">
+                <p className="mt-1.5 text-[10.5px] text-meta">
                   A transaction hash is 0x followed by 64 hex characters.
                 </p>
               )}
@@ -660,7 +663,7 @@ function Overview() {
                       <Link
                         to="/routebook/$txHash"
                         params={{ txHash: hash }}
-                        className="font-mono text-[11px] text-primary hover:underline"
+                        className="font-mono text-[11.5px] text-primary hover:underline"
                       >
                         Re-open
                       </Link>
@@ -681,7 +684,7 @@ function Overview() {
             action={
               <Link
                 to="/launchkit/marketplace"
-                className="font-mono text-[11px] text-primary hover:underline"
+                className="font-mono text-[11.5px] text-primary hover:underline"
               >
                 Marketplace →
               </Link>
@@ -720,16 +723,16 @@ function Overview() {
                         {s.name}
                       </span>
                       {s.featuredUntil > Date.now() && (
-                        <span className="shrink-0 rounded bg-primary/15 px-1.5 py-px font-mono text-[9px] uppercase text-primary">
+                        <span className="shrink-0 rounded bg-primary/15 px-1.5 py-px font-mono text-[9.5px] uppercase text-primary">
                           Featured
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 flex items-center justify-between font-mono text-[11px] text-muted-foreground">
+                    <div className="mt-1 flex items-center justify-between font-mono text-[11.5px] text-muted-foreground">
                       <span>{KIND_LABEL[s.kind] ?? s.kind}</span>
                       <span className="text-foreground">{formatPrice(s.price, s.currency)}</span>
                     </div>
-                    <div className="mt-2 flex items-center justify-between font-mono text-[10px] text-meta">
+                    <div className="mt-2 flex items-center justify-between font-mono text-[10.5px] text-meta">
                       <BuilderName address={s.creator} link={false} className="min-w-0" />
                       <span className="shrink-0">
                         {(s.sales + s.deploys).toLocaleString()} sold
@@ -747,7 +750,7 @@ function Overview() {
               <Link
                 to="/explorer/$network"
                 params={{ network: slugForChainId(chainId) }}
-                className="inline-flex items-center gap-1 font-mono text-[11px] text-primary hover:underline"
+                className="inline-flex items-center gap-1 font-mono text-[11.5px] text-primary hover:underline"
               >
                 Explorer <ArrowRight className="h-3 w-3" />
               </Link>
@@ -783,7 +786,7 @@ function Overview() {
                       />
                       <span className="truncate text-foreground">{c.name}</span>
                       {c.id === chainId && (
-                        <span className="text-[9px] uppercase text-primary">selected</span>
+                        <span className="text-[9.5px] uppercase text-primary">selected</span>
                       )}
                     </span>
                     {q.isLoading ? (
@@ -791,7 +794,7 @@ function Overview() {
                     ) : online ? (
                       <span className="shrink-0 text-right text-muted-foreground">
                         #{net!.blockNumber.toLocaleString()}
-                        <span className="block text-[10px] text-meta">{gas.text}</span>
+                        <span className="block text-[10.5px] text-meta">{gas.text}</span>
                       </span>
                     ) : (
                       <span className="shrink-0 text-danger">unreachable</span>
@@ -804,7 +807,7 @@ function Overview() {
         </div>
 
         {stats.updatedAt > 0 && (
-          <p className="flex items-center gap-1.5 font-mono text-[10px] text-meta">
+          <p className="flex items-center gap-1.5 font-mono text-[10.5px] text-meta">
             <ShieldCheck className="h-3 w-3" />
             Read from each network&apos;s ProjectRegistry, explorer and the Marketplace contract ·
             updated {formatDistanceToNow(stats.updatedAt, { addSuffix: true })}
@@ -831,7 +834,7 @@ function Kpi({
   return (
     <div className="flex flex-col rounded-lg border border-border bg-surface p-4">
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-meta">{label}</span>
+        <span className="font-mono text-[10.5px] uppercase tracking-wider text-meta">{label}</span>
         <Icon className="h-4 w-4 text-meta" />
       </div>
       {loading ? (
@@ -860,7 +863,7 @@ function MiniStat({ label, value }: { label: string; value: number | null }) {
       ) : (
         <div className="text-lg font-bold text-foreground">{value.toLocaleString()}</div>
       )}
-      <div className="font-mono text-[9px] uppercase tracking-wider text-meta">{label}</div>
+      <div className="font-mono text-[9.5px] uppercase tracking-wider text-meta">{label}</div>
     </div>
   );
 }
@@ -889,7 +892,7 @@ function Action({
       <div className="mt-2 text-xs font-semibold text-foreground group-hover:text-primary">
         {label}
       </div>
-      <div className="font-mono text-[10px] text-meta">{hint}</div>
+      <div className="font-mono text-[10.5px] text-meta">{hint}</div>
     </Link>
   );
 }
@@ -907,7 +910,7 @@ function SourceTag({ source }: { source: Row["source"] }) {
     unchecked: "not checked",
     local: "this browser",
   }[source];
-  return <span className={cn("text-[11px]", style)}>{label}</span>;
+  return <span className={cn("text-[11.5px]", style)}>{label}</span>;
 }
 
 function Panel({
@@ -930,7 +933,7 @@ function Panel({
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-          {subtitle && <p className="truncate text-[11px] text-meta">{subtitle}</p>}
+          {subtitle && <p className="truncate text-[11.5px] text-meta">{subtitle}</p>}
         </div>
         {action}
       </div>

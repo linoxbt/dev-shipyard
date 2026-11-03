@@ -124,14 +124,14 @@ export function HeroStage({ className }: { className?: string }) {
             type="button"
             onClick={() => setStep(i)}
             className={cn(
-              "shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] transition",
+              "shrink-0 rounded px-1.5 py-0.5 font-mono text-[10.5px] transition",
               i === step ? "bg-primary/15 text-primary" : "text-meta hover:text-foreground",
             )}
           >
             {s.label}
           </button>
         ))}
-        <span className="ml-auto flex shrink-0 items-center gap-1.5 pl-2 font-mono text-[10px] text-meta">
+        <span className="ml-auto flex shrink-0 items-center gap-1.5 pl-2 font-mono text-[10.5px] text-meta">
           <ChainLogo family={chain.family} size={12} />
           <span className="hidden sm:inline">{chain.name}</span>
         </span>
@@ -144,7 +144,7 @@ export function HeroStage({ className }: { className?: string }) {
             <p
               key={line.text}
               className={cn(
-                "font-mono text-[11px] leading-relaxed sm:text-xs",
+                "font-mono text-[11.5px] leading-relaxed sm:text-xs",
                 TONE[line.tone ?? "meta"],
                 !reduced.current && "animate-fade-up",
               )}
