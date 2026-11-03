@@ -1,5 +1,17 @@
 import { useContext, useEffect, useState } from "react";
-import { Download, ExternalLink, FileArchive, FileText, LoaderCircle, X } from "lucide-react";
+import {
+  Download,
+  ExternalLink,
+  File,
+  FileArchive,
+  FileCode2,
+  FileSpreadsheet,
+  FileText,
+  LoaderCircle,
+  Presentation,
+  X,
+} from "lucide-react";
+import { Markdown } from "./Markdown";
 import type { SharedMedia } from "@/lib/agent/media";
 import { downloadRanges, MEDIA_CHUNK } from "@/lib/coding-agent/media-range";
 import { ShotSource } from "@/lib/coding-agent/shots";
@@ -21,9 +33,39 @@ function size(n: number): string {
   return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
-/** Save a shared file: in one go when it is small, otherwise in ranges joined
+const extOf = (name: string) => name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? "";
+
+/** What a document is called and drawn as, from its name. */
+function look(media: SharedMedia): { label: string; Icon: typeof File } {
+  const ext = extOf(media.name);
+  if (media.kind === "pdf") return { label: "PDF", Icon: FileText };
+  if (["docx", "doc", "odt", "rtf"].includes(ext))
+    return { label: "Word document", Icon: FileText };
+  if (["xlsx", "xls", "ods"].includes(ext))
+    return { label: "Excel spreadsheet", Icon: FileSpreadsheet };
+  if (["csv", "tsv"].includes(ext)) return { label: "Spreadsheet (CSV)", Icon: FileSpreadsheet };
+  if (ext === "pptx") return { label: "PowerPoint deck", Icon: Presentation };
+  if (ext === "md") return { label: "Markdown", Icon: FileText };
+  if (ext === "txt") return { label: "Text", Icon: FileText };
+  if (["json", "xml", "yaml", "yml", "html"].includes(ext)) {
+    return { label: ext.toUpperCase(), Icon: FileCode2 };
+  }
+  if (ext === "zip") return { label: "Zip archive", Icon: FileArchive };
+  if (ext === "epub") return { label: "E-book", Icon: FileText };
+  return { label: ext ? ext.toUpperCase() : "File", Icon: File };
+}
+
+/** Files small and plain enough to read right in the chat. */
+const READABLE = new Set(["md", "txt", "csv", "tsv", "json", "yaml", "yml", "xml", "log"]);
+const PREVIEW_BYTES = 64 * 1024;
+
+/** The whole file: in one go when it is small, otherwise in ranges joined
  *  here (no single answer may be larger than MEDIA_CHUNK). */
-async function save(url: string, media: SharedMedia, progress: (f: number) => void) {
+async function assemble(
+  url: string,
+  media: SharedMedia,
+  progress: (f: number) => void,
+): Promise<Blob> {
   let blob: Blob;
   if (media.size <= MEDIA_CHUNK) {
     const res = await fetch(url);
@@ -40,7 +82,11 @@ async function save(url: string, media: SharedMedia, progress: (f: number) => vo
     }
     blob = new Blob(parts, { type: media.type });
   }
-  const href = URL.createObjectURL(blob);
+  return blob;
+}
+
+async function save(url: string, media: SharedMedia, progress: (f: number) => void) {
+  const href = URL.createObjectURL(await assemble(url, media, progress));
   const a = document.createElement("a");
   a.href = href;
   a.download = media.name;
@@ -66,6 +112,24 @@ export function MediaCard({ media }: { media: SharedMedia }) {
 
   if (!workspaceId) return null;
   const url = mediaUrl(workspaceId, media.id);
+  const { label, Icon } = look(media);
+
+  // A PDF larger than one answer is joined first, then opened.
+  const openPdf = (e: React.MouseEvent) => {
+    if (media.size <= MEDIA_CHUNK) return;
+    e.preventDefault();
+    const tab = window.open("", "_blank");
+    void assemble(url, media, () => undefined)
+      .then((blob) => {
+        const href = URL.createObjectURL(blob);
+        if (tab) tab.location.href = href;
+        else window.location.href = href;
+      })
+      .catch(() => {
+        tab?.close();
+        setSaveFailed(true);
+      });
+  };
 
   const download = async () => {
     if (saving !== null) return;
@@ -128,16 +192,14 @@ export function MediaCard({ media }: { media: SharedMedia }) {
             className="mx-auto block max-h-[420px] w-auto max-w-full object-contain"
           />
         </button>
+      ) : READABLE.has(extOf(media.name)) ? (
+        <TextPreview url={url} name={media.name} />
       ) : null}
 
       <figcaption className="flex items-center gap-3 px-3.5 py-3">
         {(media.kind === "pdf" || media.kind === "file") && (
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-muted-foreground">
-            {media.kind === "pdf" ? (
-              <FileText className="h-5 w-5" />
-            ) : (
-              <FileArchive className="h-5 w-5" />
-            )}
+            <Icon className="h-5 w-5" />
           </span>
         )}
         <div className="min-w-0 flex-1">
@@ -147,9 +209,13 @@ export function MediaCard({ media }: { media: SharedMedia }) {
           <p className="truncate text-[12.5px] text-meta">
             {saveFailed
               ? "The download did not finish. Try again."
-              : media.caption
-                ? `${media.caption} · ${size(media.size)}`
-                : size(media.size)}
+              : [
+                  media.caption,
+                  media.kind === "pdf" || media.kind === "file" ? label : null,
+                  size(media.size),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
           </p>
         </div>
         {media.kind === "pdf" && (
@@ -157,6 +223,7 @@ export function MediaCard({ media }: { media: SharedMedia }) {
             href={url}
             target="_blank"
             rel="noreferrer"
+            onClick={openPdf}
             className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 text-[13px] text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
           >
             <ExternalLink className="h-3.5 w-3.5" /> Open
@@ -210,4 +277,107 @@ export function MediaCard({ media }: { media: SharedMedia }) {
       )}
     </figure>
   );
+}
+
+/** The start of a plain document, read in the chat: Markdown rendered, a CSV
+ *  as a table, anything else as text. */
+function TextPreview({ url, name }: { url: string; name: string }) {
+  const [text, setText] = useState<string | null>(null);
+  const [cut, setCut] = useState(false);
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void fetch(url, { headers: { range: `bytes=0-${PREVIEW_BYTES - 1}` } })
+      .then(async (r) => {
+        if (!r.ok) return;
+        const total = Number(r.headers.get("content-range")?.split("/")[1]);
+        const body = await r.text();
+        if (!alive) return;
+        setCut(Number.isFinite(total) && total > PREVIEW_BYTES);
+        setText(body);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [url]);
+  if (text === null) return <div className="ds-skeleton m-3.5 h-24 rounded-xl" />;
+  const ext = extOf(name);
+  // Worth a "Show more" only when there is more than the short view holds.
+  const long =
+    cut ||
+    text.length > 1200 ||
+    text.split("\n").length > (ext === "csv" || ext === "tsv" ? 12 : 10);
+  let body: React.ReactNode;
+  if (ext === "md") {
+    body = <Markdown text={text} className="text-[14px] leading-6" />;
+  } else if (ext === "csv" || ext === "tsv") {
+    const rows = text
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .slice(0, more ? 200 : 12)
+      .map((line) => splitRow(line, ext === "tsv" ? "\t" : ","));
+    body = (
+      <table className="w-full text-[12.5px]">
+        <tbody className="divide-y divide-border">
+          {rows.map((cells, i) => (
+            <tr
+              key={i}
+              className={i === 0 ? "font-medium text-foreground" : "text-muted-foreground"}
+            >
+              {cells.slice(0, 12).map((c, j) => (
+                <td key={j} className="max-w-[180px] truncate px-2 py-1">
+                  {c}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  } else {
+    body = (
+      <pre className="whitespace-pre-wrap break-words font-mono text-[12.5px] leading-5 text-muted-foreground">
+        {text}
+      </pre>
+    );
+  }
+  return (
+    <div className="border-b border-border">
+      <div className={cn("overflow-auto px-3.5 py-3", more ? "max-h-[520px]" : "max-h-[220px]")}>
+        {body}
+      </div>
+      {long && (
+        <button
+          onClick={() => setMore((v) => !v)}
+          className="w-full border-t border-border px-3.5 py-1.5 text-left text-[12.5px] text-meta hover:text-foreground"
+        >
+          {more ? "Show less" : cut ? "Show more (download for the whole file)" : "Show more"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** One CSV line into cells, honouring quotes. */
+function splitRow(line: string, sep: string): string[] {
+  const out: string[] = [];
+  let cell = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (quoted) {
+      if (ch === '"' && line[i + 1] === '"') {
+        cell += '"';
+        i++;
+      } else if (ch === '"') quoted = false;
+      else cell += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === sep) {
+      out.push(cell);
+      cell = "";
+    } else cell += ch;
+  }
+  out.push(cell);
+  return out;
 }

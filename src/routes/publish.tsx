@@ -47,7 +47,37 @@ interface DomainStatus {
   verified: boolean;
   configured: boolean;
   owned?: boolean;
-  records: { type: string; name: string; value: string }[];
+  /** host is the name as DNS hosts ask for it ("@", "_devstation"). */
+  records: { type: string; name: string; host?: string; value: string }[];
+  problems?: string[];
+  /** The domain the hosts are relative to. */
+  zone?: string;
+}
+
+/** How often a domain still waiting for its DNS is checked again. */
+const DOMAIN_POLL_MS = 20_000;
+
+/** A value to type at a DNS host, with a button that copies it. */
+function CopyText({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        void navigator.clipboard?.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      title="Copy"
+      className="group inline-flex max-w-full items-start gap-1.5 text-left"
+    >
+      <span className="break-all">{text}</span>
+      {copied ? (
+        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+      ) : (
+        <Copy className="mt-0.5 h-3.5 w-3.5 shrink-0 text-meta group-hover:text-foreground" />
+      )}
+    </button>
+  );
 }
 
 function slugify(name: string): string {
@@ -216,6 +246,8 @@ function PublishPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [domain, setDomain] = useState("");
   const [status, setStatus] = useState<DomainStatus | null>(null);
+  const [checkedAt, setCheckedAt] = useState<number | null>(null);
+  const [autoChecking, setAutoChecking] = useState(false);
   const [confirmDown, setConfirmDown] = useState(false);
   const live = useReach(site?.id ?? null, "site", !!site);
   const domainLive = useReach(
@@ -305,23 +337,49 @@ function PublishPage() {
     }
   };
 
-  const checkDomain = async (say = true) => {
+  const checkDomain = async (say = true, auto = false) => {
     if (!site) return;
-    setBusy("check");
+    if (auto) setAutoChecking(true);
+    else setBusy("check");
     const r = await api<{ site: SiteView; status: DomainStatus }>("/api/sites", {
       method: "POST",
       body: JSON.stringify({ action: "check_domain", siteId: site.id }),
     });
-    setBusy(null);
+    if (auto) setAutoChecking(false);
+    else setBusy(null);
     if (!r.ok) return void (say && toast.error(r.message));
+    const wasLive = site.domainVerified;
     setStatus(r.data.status);
     setSite(r.data.site);
-    if (say) {
-      if (r.data.status.verified && r.data.status.configured && r.data.status.owned)
-        toast.success("Your domain is live.");
-      else toast.message("Not yet: DNS changes can take a few minutes, sometimes longer.");
+    setCheckedAt(Date.now());
+    if (r.data.site.domainVerified && !wasLive) {
+      toast.success("Your domain is live.");
+    } else if (say && !r.data.site.domainVerified) {
+      toast.message(
+        r.data.status.problems?.length
+          ? "Not yet: see what to change below."
+          : "Not yet: the records look right, so this is the DNS host catching up. It is checked again automatically.",
+      );
     }
   };
+
+  // While a domain waits for its DNS, check again by itself, so it goes live
+  // without anyone pressing a button (paused while the tab is hidden).
+  const pending = !!site?.customDomain && !site.domainVerified && customDomains;
+  const checkRef = useRef(checkDomain);
+  checkRef.current = checkDomain;
+  useEffect(() => {
+    if (!pending) return;
+    const tick = () => {
+      if (document.visibilityState === "visible") void checkRef.current(false, true);
+    };
+    const t = setInterval(tick, DOMAIN_POLL_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [pending, site?.id]);
 
   const addDomain = async () => {
     if (!site) return;
@@ -566,32 +624,61 @@ function PublishPage() {
                   )}
                   {!site.domainVerified && status && (
                     <>
+                      {status.problems && status.problems.length > 0 && (
+                        <div className="mt-3 rounded-xl border border-warning/30 bg-warning/5 px-3.5 py-3">
+                          <p className="text-[13px] font-medium text-foreground">
+                            What to change at your DNS host
+                          </p>
+                          <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[13px] leading-5 text-muted-foreground">
+                            {status.problems.map((p) => (
+                              <li key={p}>{p}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                       <p className="mt-3 text-[13px] text-muted-foreground">
-                        Add these records where your domain is managed (your registrar or DNS host),
-                        then check again. The TXT record proves the domain is yours, so nobody else
-                        can claim it:
+                        Add these records where your domain is managed (your registrar or DNS host).
+                        Type the Host exactly as shown: your DNS host adds{" "}
+                        <span className="font-mono">{status.zone ?? status.domain}</span> by itself.
+                        The TXT record proves the domain is yours, so nobody else can claim it.
                       </p>
                       <div className="mt-2 overflow-x-auto rounded-xl border border-border">
                         <table className="w-full text-[13px]">
                           <thead>
                             <tr className="border-b border-border text-left text-[11.5px] uppercase tracking-wide text-meta">
                               <th className="px-3 py-2 font-medium">Type</th>
-                              <th className="px-3 py-2 font-medium">Name</th>
+                              <th className="px-3 py-2 font-medium">Host</th>
                               <th className="px-3 py-2 font-medium">Value</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border font-mono">
                             {status.records.map((r) => (
                               <tr key={`${r.type}-${r.name}-${r.value}`}>
-                                <td className="px-3 py-2">{r.type}</td>
-                                <td className="px-3 py-2">{r.name}</td>
-                                <td className="break-all px-3 py-2">{r.value}</td>
+                                <td className="px-3 py-2 align-top">{r.type}</td>
+                                <td className="px-3 py-2 align-top">
+                                  <CopyText text={r.host ?? r.name} />
+                                </td>
+                                <td className="px-3 py-2 align-top">
+                                  <CopyText text={r.value} />
+                                </td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
                     </>
+                  )}
+                  {!site.domainVerified && (
+                    <p className="mt-3 flex items-center gap-1.5 text-[12.5px] text-meta">
+                      {autoChecking || busy === "check" ? (
+                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      )}
+                      Checked automatically every {DOMAIN_POLL_MS / 1000} seconds, straight from
+                      your domain's nameservers
+                      {checkedAt ? `, last at ${new Date(checkedAt).toLocaleTimeString()}` : ""}.
+                    </p>
                   )}
                   <div className="mt-4 flex flex-wrap gap-2">
                     {!site.domainVerified && (

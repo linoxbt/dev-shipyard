@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { dbConfigured, select } from "@/lib/db/admin.server";
 import { fail, requestOwner } from "@/lib/db/request.server";
+import { hostFor } from "@/lib/hosting/dns-check.server";
 import {
   SITES_DOMAIN,
   addDomain,
@@ -177,7 +178,7 @@ export const Route = createFileRoute("/api/sites")({
                 const proof = ownershipRecord(site.id, data.domain);
                 return fail(
                   "domain_taken",
-                  `That domain is on another DevStation site. If it is yours, add a TXT record named ${proof.name} with the value ${proof.value} at your DNS host, then add it again.`,
+                  `That domain is on another DevStation site. If it is yours, add a TXT record at your DNS host with the Host ${hostFor(proof.name, data.domain.split(".").slice(-2).join("."))} (the full name is ${proof.name}) and the value ${proof.value}, then add it again.`,
                   409,
                 );
               }

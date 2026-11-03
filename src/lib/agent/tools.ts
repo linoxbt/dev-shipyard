@@ -546,7 +546,7 @@ export const TOOLS: Record<string, ToolDefinition> = {
     name: "share_file",
     usage: 'share_file {"path", "caption?"}',
     description:
-      "Send a file from the project to the person in the chat, where they can play it (video, audio), view it (image, PDF) or download it, with nothing published. Use it whenever you produce something they asked for that is a file rather than an app: a rendered video, a voice-over or song, an image, a PDF, a zip or a data export. Share the finished file once it is complete, not drafts.",
+      "Send a file from the project to the person in the chat, where they can play it (video, audio), view it (image, PDF) or download it, with nothing published. Use it whenever you produce something they asked for that is a file rather than an app: a document (Markdown, PDF, Word), a spreadsheet (Excel, CSV), a deck, a rendered video, a voice-over or song, an image, a zip or a data export. Share the finished file once it is complete, not drafts.",
     // Changes nothing in the project: a copy is kept under .devstation/.
     operation: "project.inspect",
     schema: z.object({ path: filePath, caption: z.string().max(300).optional() }),

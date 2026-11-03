@@ -1,5 +1,5 @@
 import { createHmac, randomBytes } from "node:crypto";
-import { promises as dns } from "node:dns";
+import { authoritative, diagnose, hostFor, type DnsRecord } from "./dns-check.server";
 import { dbConfigured, insertReturning, remove, select, update } from "@/lib/db/admin.server";
 
 // DevStation hosting: an app published here is served at
@@ -412,22 +412,30 @@ export interface DomainStatus {
   /** The ownership TXT record is in place (see ownershipRecord). */
   owned?: boolean;
   /** The DNS records to create at the domain's registrar. */
-  records: { type: string; name: string; value: string }[];
+  records: DnsRecord[];
+  /** What is wrong with the DNS as it stands, for the person to fix. */
+  problems?: string[];
+  /** The domain the records' hosts are relative to. */
+  zone?: string;
 }
 
 /** The records a domain needs: an A record at the apex, a CNAME below it, and
  *  any verification TXT record Vercel asks for. */
-function recordsFor(
+export function recordsFor(
   domain: string,
+  zone: string,
   verification: { type: string; domain: string; value: string }[] = [],
-): DomainStatus["records"] {
-  const apex = domain.split(".").length === 2;
-  const host = apex ? "@" : domain.split(".").slice(0, -2).join(".");
+): DnsRecord[] {
+  const apex = domain === zone;
+  const named = (type: string, name: string, value: string): DnsRecord => ({
+    type,
+    name,
+    host: hostFor(name, zone),
+    value,
+  });
   return [
-    apex
-      ? { type: "A", name: "@", value: "76.76.21.21" }
-      : { type: "CNAME", name: host, value: "cname.vercel-dns.com" },
-    ...verification.map((v) => ({ type: v.type, name: v.domain, value: v.value })),
+    apex ? named("A", domain, "76.76.21.21") : named("CNAME", domain, "cname.vercel-dns.com"),
+    ...verification.map((v) => named(v.type, v.domain, v.value)),
   ];
 }
 
@@ -455,7 +463,8 @@ export function ownershipRecord(
 export async function provesOwnership(
   siteId: string,
   domain: string,
-  resolveTxt: (name: string) => Promise<string[][]> = (n) => dns.resolveTxt(n),
+  resolveTxt: (name: string) => Promise<string[][]> = async (n) =>
+    (await (await authoritative(domain)).txt(n)).map((t) => [t]),
 ): Promise<boolean> {
   const want = ownershipRecord(siteId, domain);
   try {
@@ -507,12 +516,24 @@ export async function domainStatus(domain: string, siteId: string): Promise<Doma
       { method: "POST" },
     ).catch(() => undefined);
   }
+  const lookup = await authoritative(domain);
+  const zone = await lookup.zone(domain);
+  const proof = ownershipRecord(siteId, domain);
+  const records = [
+    ...recordsFor(domain, zone, project.data.verification),
+    { ...proof, host: hostFor(proof.name, zone) },
+  ];
+  const found = await diagnose(domain, records, proof, lookup);
   return {
     domain,
     verified: project.ok && project.data.verified !== false,
-    configured: config.ok && config.data.misconfigured === false,
-    owned: await provesOwnership(siteId, domain),
-    records: [...recordsFor(domain, project.data.verification), ownershipRecord(siteId, domain)],
+    // Vercel's own check lags behind DNS by minutes; the records being right
+    // at the domain's nameservers is the same answer, sooner.
+    configured: (config.ok && config.data.misconfigured === false) || found.pointed,
+    owned: found.owned,
+    records,
+    problems: found.problems,
+    zone,
   };
 }
 
