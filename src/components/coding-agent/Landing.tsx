@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, ArrowUpRight, Bell, Ellipsis, Globe, Menu } from "lucide-react";
 import { LogoMark } from "@/components/shared/Logo";
@@ -7,6 +7,7 @@ import type { AppProject } from "@/lib/appgen/projects";
 import { APP_TEMPLATES, type AppTemplate } from "@/lib/coding-agent/app-templates";
 import { CODING_AGENT_ONLY } from "@/lib/features";
 import { ago } from "@/lib/coding-agent/steps";
+import { greeting } from "@/lib/coding-agent/greeting";
 import { cn } from "@/lib/utils";
 import { Dropdown, MenuItem, RoundButton } from "./primitives";
 import { ProjectThumb, RemoteThumb, TemplateThumb } from "./ProjectThumb";
@@ -60,6 +61,18 @@ export function Landing({
 }) {
   const account = useAuth((s) => s.account);
   const recent = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
+  // Chosen in the browser, once per visit: the time of day is the visitor's,
+  // and the server cannot know it (nor who is signed in).
+  const [roll, setRoll] = useState<number | null>(null);
+  useEffect(() => setRoll(Math.random()), []);
+  const name = firstName(account);
+  const hello = useMemo(
+    () =>
+      roll === null ? null : greeting(name, new Date(), { returning: projects.length > 0, roll }),
+    // Picked again when the name arrives, not on every project change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [roll, name],
+  );
   const community = useCommunityTemplates();
 
   return (
@@ -102,11 +115,16 @@ export function Landing({
       </header>
 
       <section className="mx-auto w-full max-w-3xl px-4 pb-10 pt-[6vh] sm:px-6">
-        <h1 className="text-center text-[33.5px] font-semibold leading-[1.1] tracking-tight text-foreground sm:text-[47.5px]">
-          Hi {firstName(account) ?? "there"}
-          <span className="text-primary">.</span>
+        <h1
+          className={cn(
+            "text-center text-[33.5px] font-semibold leading-[1.1] tracking-tight text-foreground transition-opacity duration-500 sm:text-[47.5px]",
+            hello ? "opacity-100" : "opacity-0",
+          )}
+        >
+          {hello?.hello ?? "Hi there"}
+          <span className="text-primary">{hello?.mark ?? "."}</span>
           <br />
-          What will you build next?
+          {hello?.ask ?? "What will you build next?"}
         </h1>
         <div className="mt-9">{composer}</div>
         {below && <div className="mt-2">{below}</div>}

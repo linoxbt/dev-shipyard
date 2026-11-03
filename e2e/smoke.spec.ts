@@ -96,7 +96,10 @@ test("with only the Coding Agent on, the app opens straight into it", async ({ p
   test.skip(!AGENT_ONLY, "the full app has a landing page");
   const home = await page.goto("/", { waitUntil: "networkidle" });
   expect(home?.status()).toBe(200);
-  await expect(page.getByText("What will you build next?")).toBeVisible();
+  // The greeting changes with the time of day and the visit; it always asks
+  // a question above the box to describe the app in.
+  await expect(page.locator("[data-agent-home] h1")).toContainText("?");
+  await expect(page.getByPlaceholder(/Describe the app/)).toBeVisible();
   // Every other page, the agent's old address included, does not exist.
   // Nothing forwards anywhere: the address stays what was asked for.
   for (const path of [
