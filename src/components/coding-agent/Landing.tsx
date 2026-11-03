@@ -10,7 +10,6 @@ import { ago } from "@/lib/coding-agent/steps";
 import { cn } from "@/lib/utils";
 import { Dropdown, MenuItem, RoundButton } from "./primitives";
 import { ProjectThumb, RemoteThumb, TemplateThumb } from "./ProjectThumb";
-import { FeedbackPrompt } from "./FeedbackPrompt";
 import {
   templateSnapshot,
   useCommunityTemplates,
@@ -142,7 +141,6 @@ export function Landing({
       </div>
 
       <section className="mx-auto w-full max-w-6xl px-4 pb-16 pt-6 sm:px-6">
-        <FeedbackPrompt projects={projects} />
         {tab === "recent" ? (
           recent.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border px-6 py-14 text-center">

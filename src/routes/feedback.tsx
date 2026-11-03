@@ -4,15 +4,15 @@ import { Check, LoaderCircle, Star } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, useBackHref } from "@/components/coding-agent/PageShell";
 import { AuthSheet } from "@/components/coding-agent/AuthSheet";
-import { fetchWithGrant } from "@/lib/agent-access/grant";
+import { sendFeedback } from "@/components/coding-agent/FeedbackPrompt";
 import { useAuth } from "@/hooks/useAuth";
 import { useProjects } from "@/lib/appgen/projects";
 import { cn } from "@/lib/utils";
 
-// Feedback, asked once someone has built or published an app with
-// DevStation (FeedbackPrompt): a rating, what they built, what worked, what
-// to improve, and whether they would recommend it. The admins read it on
-// /admin/feedback.
+// Feedback as a page: a rating, what they built, what worked, what to
+// improve, and whether they would recommend DevStation. The pop-up on the
+// project screen (FeedbackPrompt.tsx) asks the same while people build; this
+// page is linked after publishing. The admins read it on /admin/feedback.
 
 export const Route = createFileRoute("/feedback")({
   head: () => ({
@@ -62,22 +62,17 @@ function FeedbackPage() {
   const send = async () => {
     if (!rating) return void toast.error("Choose a rating first.");
     setSending(true);
-    const res = await fetchWithGrant("/api/feedback", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        rating,
-        recommend,
-        built,
-        worked,
-        improve,
-        project: context.project,
-        siteUrl: context.siteUrl?.startsWith("https://") ? context.siteUrl : null,
-      }),
-    }).catch(() => null);
+    const problem = await sendFeedback({
+      rating,
+      recommend,
+      built,
+      worked,
+      improve,
+      project: context.project,
+      siteUrl: context.siteUrl,
+    });
     setSending(false);
-    const body = (await res?.json().catch(() => ({}))) as { message?: string } | undefined;
-    if (!res?.ok) return void toast.error(body?.message || "That did not send. Try again.");
+    if (problem) return void toast.error(problem);
     setSent(true);
   };
 

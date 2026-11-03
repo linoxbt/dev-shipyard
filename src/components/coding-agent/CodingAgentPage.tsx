@@ -67,6 +67,7 @@ import {
   type View,
 } from "@/components/coding-agent/TopBar";
 import { AssistantMessage, LiveTurn, UserMessage } from "@/components/coding-agent/Transcript";
+import { FeedbackPopup } from "@/components/coding-agent/FeedbackPrompt";
 import {
   nameFromPrompt,
   useProjects,
@@ -1977,6 +1978,7 @@ export function CodingAgentPage() {
         )}
         {dialogs}
         {picturePicker}
+        <FeedbackPopup projects={projects} current={project} mobile />
       </div>
     );
   }
@@ -1992,6 +1994,7 @@ export function CodingAgentPage() {
       />
       {dialogs}
       {picturePicker}
+      <FeedbackPopup projects={projects} current={project} />
     </div>
   );
 }
