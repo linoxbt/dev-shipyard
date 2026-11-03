@@ -154,7 +154,8 @@ export function ModelSheet({
         </button>
         {more && AGENT_MODELS.filter((m) => m.more).map((m) => row(m.id, m.label, true))}
         <p className="mt-3 px-2 text-[11.5px] leading-5 text-meta">
-          Auto and Qwen 3.8 27B are free. The others need Pro or launch credit: tap the crown.
+          Auto runs Qwen 3.8 27B, free up to a daily allowance. The others are paid from credit or
+          included with Pro: tap the crown.
         </p>
       </div>
     </Modal>

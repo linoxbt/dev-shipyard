@@ -120,3 +120,21 @@ describe("recording the owner of a machine made before owners were", () => {
     }
   });
 });
+
+describe("keeping a machine up", () => {
+  it("extends only by the shortfall, never stacking hours of idle time", async () => {
+    const { extensionNeeded } = await import("./sandbox.server");
+    const now = 1_000_000_000;
+    const at = (ms: number) => new Date(now + ms);
+    const want = 45 * 60_000;
+    // 40 minutes left: top up 5.
+    expect(extensionNeeded(at(40 * 60_000), want, now)).toBe(5 * 60_000);
+    // Already 45 or more left: nothing.
+    expect(extensionNeeded(at(45 * 60_000), want, now)).toBe(0);
+    expect(extensionNeeded(at(4 * 60 * 60_000), want, now)).toBe(0);
+    // Under a minute short is not worth a call.
+    expect(extensionNeeded(at(want - 30_000), want, now)).toBe(0);
+    // No expiry known: the whole window.
+    expect(extensionNeeded(undefined, want, now)).toBe(want);
+  });
+});

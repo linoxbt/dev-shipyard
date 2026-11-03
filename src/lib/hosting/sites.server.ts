@@ -1,4 +1,5 @@
-import { randomBytes } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
+import { promises as dns } from "node:dns";
 import { dbConfigured, insertReturning, remove, select, update } from "@/lib/db/admin.server";
 
 // DevStation hosting: an app published here is served at
@@ -74,7 +75,9 @@ const CACHE_MS = 30_000;
 async function cached(key: string, load: () => Promise<Site | null>): Promise<Site | null> {
   const hit = cache.get(key);
   if (hit && hit.until > Date.now()) return hit.site;
-  const site = await load().catch(() => null);
+  // A failed lookup is not remembered as "no site": it throws, and the next
+  // request asks again.
+  const site = await load();
   cache.set(key, { site, until: Date.now() + CACHE_MS });
   if (cache.size > 2000) cache.delete(cache.keys().next().value as string);
   return site;
@@ -187,6 +190,21 @@ async function removePrefix(prefix: string): Promise<void> {
   }
 }
 
+/** Remove a site's deploys other than `keep` (its folders in storage). */
+async function pruneDeploys(siteId: string, keep: (string | null)[]): Promise<void> {
+  const res = await fetch(`${storageUrl()}/storage/v1/object/list/sites`, {
+    method: "POST",
+    headers: storageHeaders({ "content-type": "application/json" }),
+    body: JSON.stringify({ prefix: siteId, limit: 1000 }),
+  });
+  if (!res.ok) return;
+  const items = (await res.json()) as { name: string; id: string | null }[];
+  for (const it of items) {
+    if (it.id || keep.includes(it.name)) continue;
+    await removePrefix(`${siteId}/${it.name}`);
+  }
+}
+
 export const TYPES: Record<string, string> = {
   html: "text/html; charset=utf-8",
   htm: "text/html; charset=utf-8",
@@ -262,6 +280,14 @@ export async function publishSite(input: {
   if (existing && existing.owner !== input.owner) {
     return { ok: false, message: `${input.slug}.${SITES_DOMAIN} is taken. Choose another name.` };
   }
+  // One of this person's other projects lives there: publishing would put
+  // this one in its place without a word. Moving an address is a choice.
+  if (existing && existing.workspace && existing.workspace !== input.workspace) {
+    return {
+      ok: false,
+      message: `You already publish ${existing.name || "another project"} at ${input.slug}.${SITES_DOMAIN}. Choose another name for this one.`,
+    };
+  }
 
   const files: { path: string; body: Uint8Array }[] = [];
   for (const [path, text] of Object.entries(input.dist)) {
@@ -312,9 +338,10 @@ export async function publishSite(input: {
     deployed_at: now,
   });
   forgetSite(site);
-  if (site.current_deploy && site.current_deploy !== deploy) {
-    void removePrefix(`${site.id}/${site.current_deploy}`).catch(() => undefined);
-  }
+  // The deploy before this one stays: other servers may still have the site
+  // cached (for up to CACHE_MS) and serve its files until they look again.
+  // Any older one goes.
+  await pruneDeploys(site.id, [deploy, site.current_deploy]).catch(() => undefined);
   return { ok: true, site: saved ?? { ...site, current_deploy: deploy } };
 }
 
@@ -382,6 +409,8 @@ export interface DomainStatus {
   domain: string;
   verified: boolean;
   configured: boolean;
+  /** The ownership TXT record is in place (see ownershipRecord). */
+  owned?: boolean;
   /** The DNS records to create at the domain's registrar. */
   records: { type: string; name: string; value: string }[];
 }
@@ -402,7 +431,45 @@ function recordsFor(
   ];
 }
 
-export async function addDomain(domain: string): Promise<DomainStatus | { error: string }> {
+// ------------------------------------------------------------------ ownership
+
+/**
+ * The TXT record that proves a domain belongs to the person adding it, for
+ * one site: a value only this server can make for that site and domain.
+ * Pointing a domain at the host is not proof: anyone could add a domain
+ * they do not own, wait for its owner to point it here, and take it.
+ */
+export function ownershipRecord(
+  siteId: string,
+  domain: string,
+  secret = process.env.SESSION_SECRET || process.env.RUNNER_TOKEN || "devstation",
+): { type: string; name: string; value: string } {
+  const proof = createHmac("sha256", secret)
+    .update(`site-domain:${siteId}:${domain.toLowerCase()}`)
+    .digest("hex")
+    .slice(0, 40);
+  return { type: "TXT", name: `_devstation.${domain}`, value: `devstation-site=${proof}` };
+}
+
+/** Whether the domain's DNS carries this site's ownership record. */
+export async function provesOwnership(
+  siteId: string,
+  domain: string,
+  resolveTxt: (name: string) => Promise<string[][]> = (n) => dns.resolveTxt(n),
+): Promise<boolean> {
+  const want = ownershipRecord(siteId, domain);
+  try {
+    const found = await resolveTxt(want.name);
+    return found.some((chunks) => chunks.join("") === want.value);
+  } catch {
+    return false;
+  }
+}
+
+export async function addDomain(
+  domain: string,
+  siteId: string,
+): Promise<DomainStatus | { error: string }> {
   const id = encodeURIComponent(process.env.VERCEL_PROJECT_ID ?? "");
   const r = await vercel<{
     verified?: boolean;
@@ -415,10 +482,14 @@ export async function addDomain(domain: string): Promise<DomainStatus | { error:
   if (!r.ok && r.data.error?.code !== "domain_already_in_use") {
     return { error: r.data.error?.message ?? "The domain could not be added." };
   }
-  return domainStatus(domain);
+  return domainStatus(domain, siteId);
 }
 
-export async function domainStatus(domain: string): Promise<DomainStatus> {
+/** Whether a domain is live for a site: on the host, pointed at it, and
+ *  proven to be the site owner's. */
+export const domainLive = (s: DomainStatus) => s.verified && s.configured && s.owned === true;
+
+export async function domainStatus(domain: string, siteId: string): Promise<DomainStatus> {
   const id = encodeURIComponent(process.env.VERCEL_PROJECT_ID ?? "");
   const [project, config] = await Promise.all([
     vercel<{
@@ -440,7 +511,8 @@ export async function domainStatus(domain: string): Promise<DomainStatus> {
     domain,
     verified: project.ok && project.data.verified !== false,
     configured: config.ok && config.data.misconfigured === false,
-    records: recordsFor(domain, project.data.verification),
+    owned: await provesOwnership(siteId, domain),
+    records: [...recordsFor(domain, project.data.verification), ownershipRecord(siteId, domain)],
   };
 }
 

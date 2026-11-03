@@ -139,7 +139,7 @@ function TemplatesAdmin() {
   useEffect(() => {
     if (!authReady) return;
     if (!signedIn) {
-      setError("Sign in on DevStation with an admin email, then open this page again.");
+      setError("Sign in with an admin email to see this page.");
       return;
     }
     const t = setTimeout(() => void load(query), query ? 300 : 0);
@@ -179,7 +179,7 @@ function TemplatesAdmin() {
       }
     >
       {error && !data ? (
-        <Unavailable title="Templates are not available" message={error} />
+        <Unavailable title="Templates are not available" message={error} signIn />
       ) : (
         <div className="space-y-6">
           <div>

@@ -27,6 +27,7 @@ export function Markdown({ text, className }: { text: string; className?: string
             return (
               <Tag
                 key={i}
+                start={b.ordered ? b.start : undefined}
                 className={cn(
                   "space-y-[0.4em] pl-[1.4em] marker:text-meta",
                   b.ordered ? "list-decimal" : "list-disc",

@@ -61,7 +61,39 @@ function textMap(value: unknown): Record<string, string> {
 export function snapshotOf(project: unknown): Snapshot {
   const p = (project ?? {}) as { files?: unknown; dist?: unknown };
   const dist = textMap(p.dist);
-  return { files: textMap(p.files), dist: Object.keys(dist).length ? dist : null };
+  const files = textMap(p.files);
+  for (const path of Object.keys(files)) {
+    if (path === "package.json" || path.endsWith("/package.json")) {
+      files[path] = withoutInstallScripts(files[path]);
+    }
+  }
+  return { files, dist: Object.keys(dist).length ? dist : null };
+}
+
+/** Scripts npm runs by itself on install: a template someone opens is
+ *  installed on their machine, with their connected accounts beside it, so a
+ *  template carries none. The app's own scripts (dev, build, test) stay. */
+const INSTALL_SCRIPTS = [
+  "preinstall",
+  "install",
+  "postinstall",
+  "prepublish",
+  "preprepare",
+  "prepare",
+  "postprepare",
+];
+
+export function withoutInstallScripts(text: string): string {
+  try {
+    const pkg = JSON.parse(text) as { scripts?: Record<string, unknown> };
+    if (!pkg.scripts || typeof pkg.scripts !== "object") return text;
+    const found = INSTALL_SCRIPTS.filter((k) => k in pkg.scripts!);
+    if (!found.length) return text;
+    for (const k of found) delete pkg.scripts[k];
+    return `${JSON.stringify(pkg, null, 2)}\n`;
+  } catch {
+    return text;
+  }
 }
 
 export function encodeBody(value: unknown): string {

@@ -20,8 +20,15 @@ import {
 // our infrastructure, whereas an OAuth token is issued TO this app and the
 // server is where it belongs.
 
-const COOKIE = "devstation_gh";
-const STATE_COOKIE = "devstation_gh_state";
+/** In production these are __Host- cookies: only this exact host can set
+ *  them, so a published app on a sibling subdomain (<name>.devstation.online)
+ *  cannot plant a sign-in state or a GitHub session in someone's browser. */
+const HOST_ONLY = process.env.NODE_ENV === "production" ? "__Host-" : "";
+const COOKIE = `${HOST_ONLY}devstation_gh`;
+const STATE_COOKIE = `${HOST_ONLY}devstation_gh_state`;
+/** A __Host- cookie is only kept with Secure. */
+const secureFor = (name: string, secure: boolean) =>
+  secure || name.startsWith("__Host-") ? "; Secure" : "";
 /** GitHub tokens do not expire on their own; this caps how long one session
  *  stays usable so an abandoned browser is not indefinitely authorised. */
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -142,7 +149,7 @@ export function readCookie(header: string | null, name: string): string | undefi
 }
 
 export const COOKIE_NAME = COOKIE;
-export const RETURN_COOKIE_NAME = "devstation_gh_return";
+export const RETURN_COOKIE_NAME = `${HOST_ONLY}devstation_gh_return`;
 
 /** A path on this site to come back to after signing in, or null. Only a plain
  *  same-site path: anything else would make the sign-in an open redirect. */
@@ -154,9 +161,10 @@ export function safeReturnPath(raw: string | null | undefined): string | null {
 }
 
 export function returnCookie(path: string, secure: boolean): string {
-  return `${RETURN_COOKIE_NAME}=${encodeURIComponent(path)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${
-    secure ? "; Secure" : ""
-  }`;
+  return `${RETURN_COOKIE_NAME}=${encodeURIComponent(path)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${secureFor(
+    RETURN_COOKIE_NAME,
+    secure,
+  )}`;
 }
 export const STATE_COOKIE_NAME = STATE_COOKIE;
 
@@ -165,17 +173,18 @@ export function sessionCookie(value: string, secure: boolean): string {
   // it survives the redirect back from GitHub but is not sent cross-site.
   return `${COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(
     SESSION_TTL_MS / 1000,
-  )}${secure ? "; Secure" : ""}`;
+  )}${secureFor(COOKIE, secure)}`;
 }
 
 export function clearedCookie(name: string, secure: boolean): string {
-  return `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`;
+  return `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureFor(name, secure)}`;
 }
 
 export function stateCookie(value: string, secure: boolean): string {
-  return `${STATE_COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${
-    secure ? "; Secure" : ""
-  }`;
+  return `${STATE_COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${secureFor(
+    STATE_COOKIE,
+    secure,
+  )}`;
 }
 
 /** The callback URL for whichever origin the request arrived on, so the same

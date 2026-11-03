@@ -42,7 +42,8 @@ function Contents() {
   return (
     <nav
       aria-label="On this page"
-      className="rounded-xl border border-border bg-surface px-5 py-4 text-[14.5px]"
+      // Wide screens have the docs' own "On this page" rail beside the text.
+      className="rounded-xl border border-border bg-surface px-5 py-4 text-[14.5px] xl:hidden"
     >
       <p className="font-mono text-[11.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
         On this page
@@ -50,7 +51,7 @@ function Contents() {
       <ol className="mt-2 grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
         {SECTIONS.map(([id, label], i) => (
           <li key={id} className="flex gap-2">
-            <span className="w-5 shrink-0 text-right font-mono text-[12.5px] text-muted-foreground">
+            <span className="w-6 shrink-0 text-right font-mono text-[12.5px] tabular-nums text-muted-foreground">
               {i + 1}.
             </span>
             <a href={`#${id}`} className="text-foreground hover:text-primary hover:underline">
@@ -144,9 +145,10 @@ function CodingAgentDocs() {
 
       <H3>Models</H3>
       <P>
-        The model picker beside the mode sets which model does the work. <C>Auto</C> is Qwen 3.8
-        27B, which is free every day up to an allowance (see Credits and plans). Other models, such
-        as Claude, GPT and Gemini, are paid from credit or included with Pro.
+        The model picker beside the mode sets which model does the work. <C>Auto</C> runs Qwen 3.8
+        27B on Fortytwo, which the picker also lists by name; it is free every day up to an
+        allowance (see Credits and plans). Other models, such as Claude, GPT and Gemini, are paid
+        from credit or included with Pro.
       </P>
 
       <H3>What you see while it works</H3>
@@ -376,7 +378,7 @@ function CodingAgentDocs() {
       <Bullets
         items={[
           "A single turn stops after about 60 minutes or 150 steps; send another message to carry on.",
-          "An import or upload can bring in up to 12 MB of text.",
+          "Importing files or a folder brings in text files of up to 1 MB each and 5 MB in all; pictures you attach can be up to 20 MB.",
           "A published app can be up to 80 MB.",
           "Project machines sleep when idle and are recreated from your saved files when you come back.",
         ]}

@@ -60,7 +60,7 @@ function StatsPage() {
   useEffect(() => {
     if (!authReady) return;
     if (!signedIn) {
-      setError("Sign in on DevStation with an admin email, then open this page again.");
+      setError("Sign in with an admin email to see this page.");
       return;
     }
     void load(range);
@@ -83,22 +83,25 @@ function StatsPage() {
     <Shell
       label="Analytics"
       controls={
-        <>
-          <RangePicker value={range} onChange={setRange} />
-          <button
-            onClick={() => void load(range)}
-            disabled={loading}
-            aria-label="Refresh"
-            className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted-foreground transition hover:bg-surface-2 hover:text-foreground disabled:opacity-60"
-          >
-            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-          </button>
-          <ExportMenu hrefFor={(file) => `/api/admin/stats?download=${file}`} />
-        </>
+        // Nothing to refresh or export until there are figures to show.
+        data ? (
+          <>
+            <RangePicker value={range} onChange={setRange} />
+            <button
+              onClick={() => void load(range)}
+              disabled={loading}
+              aria-label="Refresh"
+              className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted-foreground transition hover:bg-surface-2 hover:text-foreground disabled:opacity-60"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+            </button>
+            <ExportMenu hrefFor={(file) => `/api/admin/stats?download=${file}`} />
+          </>
+        ) : undefined
       }
     >
       {error ? (
-        <Unavailable title="The figures are not available" message={error} />
+        <Unavailable title="The figures are not available" message={error} signIn />
       ) : !d ? (
         <Skeleton />
       ) : (

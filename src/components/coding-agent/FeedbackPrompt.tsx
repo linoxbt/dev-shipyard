@@ -47,14 +47,22 @@ function snooze(email: string) {
   }
 }
 
-/** Whether this account still owes feedback: asked of the server once per visit. */
-let owed: Promise<boolean> | null = null;
-function stillOwed(): Promise<boolean> {
-  owed ??= fetchWithGrant("/api/feedback")
-    .then((r) => (r.ok ? r.json() : null))
-    .then((d: { submitted?: number } | null) => !!d && !d.submitted)
-    .catch(() => false);
-  return owed;
+/** Whether each account still owes feedback, asked of the server once per
+ *  visit and account. A failed answer is not kept: the next look asks again. */
+const owed = new Map<string, Promise<boolean | null>>();
+function stillOwed(email: string): Promise<boolean | null> {
+  let p = owed.get(email);
+  if (!p) {
+    p = fetchWithGrant("/api/feedback")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { submitted?: number } | null) => (d ? !d.submitted : null))
+      .catch(() => null);
+    owed.set(email, p);
+    void p.then((v) => {
+      if (v === null) owed.delete(email);
+    });
+  }
+  return p;
 }
 
 export interface FeedbackAnswers {
@@ -75,7 +83,8 @@ export async function sendFeedback(a: FeedbackAnswers): Promise<string | null> {
     body: JSON.stringify({ ...a, siteUrl: a.siteUrl?.startsWith("https://") ? a.siteUrl : null }),
   }).catch(() => null);
   if (res?.ok) {
-    owed = Promise.resolve(false);
+    const email = useAuth.getState().account?.email;
+    if (email) owed.set(email, Promise.resolve(false));
     return null;
   }
   const body = (await res?.json().catch(() => ({}))) as { message?: string } | undefined;
@@ -108,16 +117,18 @@ export function FeedbackPopup({
   const [recommend, setRecommend] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
-  const asked = useRef(false);
+  /** The account already asked in this visit (another account signing in
+   *  here is asked for itself). */
+  const asked = useRef<string | null>(null);
 
   // Once something is built, and they have been at it a little while.
   useEffect(() => {
-    if (!email || !subject || asked.current || snoozed(email)) return;
+    if (!email || !subject || asked.current === email || snoozed(email)) return;
     let live = true;
     const t = setTimeout(() => {
-      void stillOwed().then((due) => {
-        if (!live || !due || asked.current) return;
-        asked.current = true;
+      void stillOwed(email).then((due) => {
+        if (!live || !due || asked.current === email) return;
+        asked.current = email;
         setOpen(true);
       });
     }, SETTLE_MS);

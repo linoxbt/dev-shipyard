@@ -21,7 +21,7 @@ export const Route = createFileRoute("/docs/cli/install")({
 function CliInstall() {
   return (
     <DocPage
-      title="Installation"
+      title="Install the CLI"
       icon={Download}
       intro="Three ways to install, all verified against the same published checksums. Pick one, then run devstation doctor."
     >

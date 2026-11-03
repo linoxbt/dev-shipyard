@@ -18,6 +18,8 @@ import {
   setCollaborator,
   startWorkspacePreview,
   trimHistory,
+  settledHistory,
+  accountsForNow,
   whenWorkspaceIdle,
   workspaceFiles,
   workspaceMembers,
@@ -530,5 +532,50 @@ describe("connected accounts the agent may not use", () => {
     expect(connectorsNote(undefined, [])).toBe("");
     // With the tokens, the usual note: how to use them.
     expect(connectorsNote({ NETLIFY_AUTH_TOKEN: "n" })).toContain("netlify-cli");
+  });
+});
+
+describe("a turn that stops part way", () => {
+  it("keeps what it did, without calls that never got their results", () => {
+    const history: ProviderMessage[] = [
+      { role: "user", content: "Build it" },
+      {
+        role: "assistant",
+        content: "Reading first.",
+        toolCalls: [{ id: "a", name: "read_file", input: {} }],
+        raw: [{ type: "thinking" }],
+      },
+      { role: "tool", toolCallId: "a", content: "file" },
+      {
+        role: "assistant",
+        content: "Writing two files.",
+        toolCalls: [
+          { id: "b", name: "write_file", input: {} },
+          { id: "c", name: "write_file", input: {} },
+        ],
+      },
+      { role: "tool", toolCallId: "b", content: "ok" },
+    ];
+    const kept = settledHistory(history);
+    // The finished batch stays, without the provider's own blocks.
+    expect(kept[1]).not.toHaveProperty("raw");
+    expect(kept[2]).toMatchObject({ role: "tool", toolCallId: "a" });
+    // The unfinished one keeps its words, not its calls or partial results.
+    expect(kept).toHaveLength(4);
+    expect(kept[3]).toEqual({ role: "assistant", content: "Writing two files." });
+  });
+});
+
+describe("connected accounts and other builders", () => {
+  it("takes the owner's accounts out of a turn once someone else builds there", () => {
+    const opts = { env: { GITHUB_TOKEN: "ghp_x", NETLIFY_AUTH_TOKEN: "nfp_y" } };
+    const alone = { collaborators: [] } as unknown as Parameters<typeof accountsForNow>[0];
+    const shared = { collaborators: ["0xbuilder"] } as unknown as Parameters<
+      typeof accountsForNow
+    >[0];
+    expect(accountsForNow(alone, opts)).toBe(opts);
+    const out = accountsForNow(shared, opts);
+    expect(out.env).toBeUndefined();
+    expect(out.withheld?.length).toBeGreaterThan(0);
   });
 });

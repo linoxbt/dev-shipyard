@@ -56,6 +56,20 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
+      // An API address asked with a method it does not answer falls through
+      // to the app's page: answer as an API instead.
+      const path = new URL(request.url).pathname;
+      if (
+        path.startsWith("/api/") &&
+        (response.headers.get("content-type") ?? "").includes("text/html")
+      ) {
+        return withSecurityHeaders(
+          Response.json(
+            { ok: false, reason: "method_not_allowed", message: "Not supported here." },
+            { status: 405 },
+          ),
+        );
+      }
       return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);

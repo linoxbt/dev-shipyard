@@ -113,7 +113,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
       },
-      { title: "DevStation: the AI agent for apps and smart contracts" },
+      {
+        title: CODING_AGENT_ONLY
+          ? "DevStation: build apps and contracts with an agent"
+          : "DevStation: the AI agent for apps and smart contracts",
+      },
       // PWA: installable as an app ("Add to Home Screen").
       { name: "theme-color", content: "#0a0e13" },
       { name: "mobile-web-app-capable", content: "yes" },
@@ -192,7 +196,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{if(localStorage.getItem('devstation-theme')==='light'){document.documentElement.classList.add('light');document.documentElement.classList.remove('dark')}}catch(e){}",
+              "try{var t=null;try{t=localStorage.getItem('devstation-theme')}catch(e){}if(t==='light'||(t!=='dark'&&window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)){document.documentElement.classList.add('light');document.documentElement.classList.remove('dark')}}catch(e){}",
           }}
         />
         <HeadContent />

@@ -1,5 +1,9 @@
 // Single source of truth for the docs navigation: the sidebar, the search
 // palette, the breadcrumb above each page, and the prev/next links under it.
+// With only the Coding Agent on, the pages that deployment does not serve
+// are left out, so nothing in the docs leads to a "not found".
+
+import { switchedOff } from "@/lib/features";
 
 export interface DocLink {
   to: string;
@@ -13,7 +17,7 @@ export interface DocGroup {
   items: DocLink[];
 }
 
-export const DOC_NAV: DocGroup[] = [
+const ALL_DOCS: DocGroup[] = [
   {
     group: "Getting Started",
     items: [
@@ -195,6 +199,11 @@ export const DOC_NAV: DocGroup[] = [
     ],
   },
 ];
+
+export const DOC_NAV: DocGroup[] = ALL_DOCS.map((g) => ({
+  ...g,
+  items: g.items.filter((i) => !switchedOff(i.to)),
+})).filter((g) => g.items.length > 0);
 
 // Flat, ordered list for prev/next navigation.
 export const DOC_ORDER: DocLink[] = DOC_NAV.flatMap((g) => g.items);

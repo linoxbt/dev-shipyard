@@ -300,3 +300,27 @@ describe("a stored project with one bad field", () => {
     expect(repairProject(null)).toBeNull();
   });
 });
+
+describe("merging another device's copies", () => {
+  it("never replaces a project changed here since, nor drops it for an older deletion", () => {
+    const base = { createdAt: 1, files: {}, history: [], turns: [] };
+    useProjects.setState({
+      projects: [
+        { ...base, id: "x", name: "Mine, newer", updatedAt: 20 },
+        { ...base, id: "y", name: "Older here", updatedAt: 5 },
+        { ...base, id: "z", name: "Edited after deletion", updatedAt: 30 },
+      ] as AppProject[],
+    });
+    useProjects
+      .getState()
+      .mergeRemote(
+        [
+          { ...base, id: "x", name: "Remote, older", updatedAt: 10 } as AppProject,
+          { ...base, id: "y", name: "Remote, newer", updatedAt: 8 } as AppProject,
+        ],
+        [{ id: "z", upTo: 25 }],
+      );
+    const byId = Object.fromEntries(useProjects.getState().projects.map((p) => [p.id, p.name]));
+    expect(byId).toEqual({ x: "Mine, newer", y: "Remote, newer", z: "Edited after deletion" });
+  });
+});

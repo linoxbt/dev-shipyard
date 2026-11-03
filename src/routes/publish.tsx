@@ -46,6 +46,7 @@ interface DomainStatus {
   domain: string;
   verified: boolean;
   configured: boolean;
+  owned?: boolean;
   records: { type: string; name: string; value: string }[];
 }
 
@@ -116,7 +117,12 @@ function useReach(siteId: string | null, target: "site" | "domain", enabled: boo
         body: JSON.stringify({ action: "reach", siteId, target }),
       });
       setChecking(false);
-      if (!r.ok) return null;
+      if (!r.ok) {
+        // The check itself failed (a network blip, a rate limit): try again
+        // later rather than stop quietly while the line says it will.
+        if (again > 0) timer.current = setTimeout(() => void check(again - 1), RECHECK_MS);
+        return null;
+      }
       setReach(r.data.reach);
       return r.data.reach;
     },
@@ -252,12 +258,12 @@ function PublishPage() {
     const t = setTimeout(async () => {
       const r = await api<{ available: boolean; message: string | null }>("/api/sites", {
         method: "POST",
-        body: JSON.stringify({ action: "check", slug }),
+        body: JSON.stringify({ action: "check", slug, workspace }),
       });
       if (r.ok) setSlugState({ ok: r.data.available, message: r.data.message });
     }, 400);
     return () => clearTimeout(t);
-  }, [slug, site]);
+  }, [slug, site, workspace]);
 
   useEffect(() => {
     if (site?.customDomain && customDomains) void checkDomain(false);
@@ -311,7 +317,8 @@ function PublishPage() {
     setStatus(r.data.status);
     setSite(r.data.site);
     if (say) {
-      if (r.data.status.verified && r.data.status.configured) toast.success("Your domain is live.");
+      if (r.data.status.verified && r.data.status.configured && r.data.status.owned)
+        toast.success("Your domain is live.");
       else toast.message("Not yet: DNS changes can take a few minutes, sometimes longer.");
     }
   };
@@ -561,7 +568,8 @@ function PublishPage() {
                     <>
                       <p className="mt-3 text-[13px] text-muted-foreground">
                         Add these records where your domain is managed (your registrar or DNS host),
-                        then check again:
+                        then check again. The TXT record proves the domain is yours, so nobody else
+                        can claim it:
                       </p>
                       <div className="mt-2 overflow-x-auto rounded-xl border border-border">
                         <table className="w-full text-[13px]">

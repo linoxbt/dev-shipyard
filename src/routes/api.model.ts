@@ -12,6 +12,7 @@ import { accessOf, chargeFor, type Access } from "@/lib/db/access.server";
 import { billingConfig } from "@/lib/billing/config.server";
 import { dbConfigured, insert, insertReturning, update } from "@/lib/db/admin.server";
 import { passFromRequest } from "@/lib/db/turn-token.server";
+import { refuseNonMember } from "@/lib/access/members.server";
 import { checkRateLimit } from "@/lib/rateLimit.server";
 
 // The model proxy. A sandbox never holds a model key: for each model call of a
@@ -40,8 +41,9 @@ const body = z.object({
   maxTokens: z.number().int().min(1).max(128_000).optional(),
 });
 
-/** Calls one account may make in ten minutes: a turn takes at most 60 steps. */
-const CALLS_PER_WINDOW = 240;
+/** Calls one account may make in ten minutes: a turn takes at most 150
+ *  steps, and a queued message or a second project may run beside it. */
+const CALLS_PER_WINDOW = 600;
 
 /** Premium calls one account may start in a minute. A turn makes one call at
  *  a time, so this only bites calls fired side by side to outrun the balance. */
@@ -84,6 +86,9 @@ export const Route = createFileRoute("/api/model")({
       POST: async ({ request }) => {
         const pass = passFromRequest(request);
         if (!pass) return fail(401, "This turn's pass is missing or has expired.");
+        // A pass outlives a removal of access by up to its renewals: ask.
+        const refused = await refuseNonMember(pass.owner);
+        if (refused) return refused;
         if (!(await checkRateLimit(`model:${pass.owner}`, CALLS_PER_WINDOW, 10 * 60_000))) {
           return fail(429, "Too many model calls. Wait a moment.");
         }
@@ -94,6 +99,9 @@ export const Route = createFileRoute("/api/model")({
         // How this call is paid for: free (the free model within today's
         // allowance), or charged to credit at cost times the margin.
         let pay: "free" | "credit" = "free";
+        // Whether a free call counts against a daily allowance (not for an
+        // account with unlimited use, nor when the plan could not be read).
+        let allowance = false;
         if (dbConfigured()) {
           let access: Access;
           try {
@@ -107,6 +115,7 @@ export const Route = createFileRoute("/api/model")({
           const charge = chargeFor(access, pass.model);
           if ("refused" in charge) return fail(402, charge.refused);
           pay = charge.pay;
+          allowance = pay === "free" && !access.unlimited && access.freeDailyUsd !== null;
         } else if (premium) {
           return fail(402, "Premium models need the database to be set up.");
         }
@@ -133,8 +142,12 @@ export const Route = createFileRoute("/api/model")({
           const cost = Math.max(0, costOfUsage(usage, rates));
           return {
             cost_usd: cost,
-            // What the account is charged: nothing on the free allowance.
-            billed_usd: pay === "credit" ? Number((cost * markup).toFixed(6)) : null,
+            // What the account is charged: nothing on the free allowance, and
+            // nothing for an account with unlimited use. Written as 0, not
+            // left empty: an empty charge on a premium call reads as "billed
+            // at cost" in the balance, so a premium call made while unlimited
+            // would later eat into credit bought after.
+            billed_usd: pay === "credit" ? Number((cost * markup).toFixed(6)) : 0,
             input_tokens: usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens,
             output_tokens: usage.outputTokens,
           };
@@ -149,9 +162,11 @@ export const Route = createFileRoute("/api/model")({
         // A call paid from credit is charged before it starts, at the most it
         // can cost, and settled to what it did cost when it ends. Calls fired
         // side by side each see the others' charges, and a call cut off midway
-        // keeps a charge: the provider bills it either way.
+        // keeps a charge: the provider bills it either way. A free call on a
+        // daily allowance is held the same way (at no charge), so calls fired
+        // side by side cannot all spend the same remaining allowance.
         let reserved: number | null = null;
-        if (pay === "credit") {
+        if (pay === "credit" || allowance) {
           try {
             const held = await insertReturning<{ id: number }>("model_usage", {
               ...usageRow,
@@ -166,7 +181,9 @@ export const Route = createFileRoute("/api/model")({
           } catch {
             reserved = null;
           }
-          if (reserved === null) {
+          // A free call is not refused for want of a reservation: it is
+          // recorded when it ends, as before.
+          if (reserved === null && pay === "credit") {
             return fail(503, "This call could not be metered just now. Try again in a moment.");
           }
         }

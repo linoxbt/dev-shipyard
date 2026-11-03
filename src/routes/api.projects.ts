@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { dbConfigured, rpc, select } from "@/lib/db/admin.server";
 import { fail, requestOwner } from "@/lib/db/request.server";
+import { refuseNonMember } from "@/lib/access/members.server";
 import { checkRateLimit } from "@/lib/rateLimit.server";
 
 // The signed-in account's projects, kept here so they open the same on every
@@ -95,6 +96,8 @@ export const Route = createFileRoute("/api/projects")({
       POST: async ({ request }) => {
         const owner = requestOwner(request);
         if (!owner) return fail("no_grant", "Sign in with your email first.", 401);
+        const refused = await refuseNonMember(owner);
+        if (refused) return refused;
         if (!dbConfigured()) return fail(...NOT_SET_UP);
         if (!(await checkRateLimit(`projects-write:${owner}`, 900, 10 * 60_000))) {
           return fail("rate_limited", "Too many saves. Wait a moment.", 429);

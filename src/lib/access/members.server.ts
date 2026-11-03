@@ -68,6 +68,13 @@ export async function isMember(owner: string): Promise<boolean> {
   }
 }
 
+/** A 403 for an account without access (taken away since its session began),
+ *  or null when it may go on. For the endpoints that spend or write. */
+export async function refuseNonMember(owner: string | null): Promise<Response | null> {
+  if (!owner || (await isMember(owner))) return null;
+  return Response.json({ ok: false, ...WAITLISTED }, { status: 403 });
+}
+
 export const WAITLISTED = {
   reason: "waitlisted",
   message: "You are on the DevStation waitlist. You can build as soon as an admin lets you in.",

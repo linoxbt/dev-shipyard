@@ -79,7 +79,10 @@ describe("the house style", () => {
     expect(text("**Done** — next step")).toBe("bold|, next step");
     expect(text("— a dash that opens the line")).toBe("a dash that opens the line");
     expect(text("it ends here —.")).toBe("it ends here.");
-    expect(text("pages 3 – 5")).toBe("pages 3, 5");
+    // A range keeps its meaning, with a short dash or "to".
+    expect(text("pages 3 – 5, in 2024—2025")).toBe("pages 3–5, in 2024–2025");
+    expect(text("open 9 am — 5 pm")).toBe("open 9 am to 5 pm");
+    expect(text("fast – and cheap")).toBe("fast, and cheap");
     expect(text("keep `a — b` as written")).toBe("keep |a — b| as written");
   });
 
@@ -98,5 +101,22 @@ describe("the house style", () => {
     expect(table.rows).toHaveLength(2);
     // A lone line with pipes is not a table.
     expect(parseMarkdown("| just | pipes |").map((b) => b.kind)).toEqual(["paragraph"]);
+  });
+});
+
+describe("lists as models write them", () => {
+  it("keeps a numbered list whole across blank lines, and its first number", async () => {
+    const { parseMarkdown } = await import("./markdown");
+    const one = parseMarkdown("1. one\n\n2. two\n\n3. three");
+    expect(one).toHaveLength(1);
+    expect(one[0].kind === "list" && one[0].items.length).toBe(3);
+    const later = parseMarkdown("3. three\n4. four");
+    expect(later[0].kind === "list" && later[0].start).toBe(3);
+  });
+
+  it("ends a list at a fence, so the code stays code", async () => {
+    const { parseMarkdown } = await import("./markdown");
+    const blocks = parseMarkdown("1. first\n   ```js\n   x\n   ```\n2. second");
+    expect(blocks.map((b) => b.kind)).toEqual(["list", "code", "list"]);
   });
 });

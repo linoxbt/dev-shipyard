@@ -14,11 +14,19 @@ export type Theme = "dark" | "light";
 
 const KEY = "devstation-theme";
 
+/** The theme chosen here, else the device's own setting (light or dark),
+ *  else dark. */
 function load(): Theme {
+  let stored: string | null = null;
   try {
-    return localStorage.getItem(KEY) === "light" ? "light" : "dark";
+    stored = localStorage.getItem(KEY);
   } catch {
-    // No storage (SSR, a private window, blocked site data): the default.
+    // No storage (SSR, a private window, blocked site data).
+  }
+  if (stored === "light" || stored === "dark") return stored;
+  try {
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  } catch {
     return "dark";
   }
 }

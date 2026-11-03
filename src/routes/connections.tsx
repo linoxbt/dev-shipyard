@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ConnectorsList } from "@/components/coding-agent/ConnectorsList";
 import { PageShell } from "@/components/coding-agent/PageShell";
+import { AuthSheet } from "@/components/coding-agent/AuthSheet";
 import { useAuth } from "@/hooks/useAuth";
 import { connectError, providerName } from "@/lib/coding-agent/account-client";
 
@@ -18,6 +19,9 @@ export const Route = createFileRoute("/connections")({
 });
 
 function ConnectionsPage() {
+  const ready = useAuth((s) => s.ready);
+  const signedIn = useAuth((s) => !!s.account);
+  const [signingIn, setSigningIn] = useState(false);
   useEffect(() => {
     useAuth.getState().init();
     const params = new URLSearchParams(window.location.search);
@@ -38,7 +42,21 @@ function ConnectionsPage() {
       title="Connected accounts"
       description="Connect an account and the agent can work on it for you: push to your repositories, deploy, manage databases. You approve access on the provider's own page and can remove it here at any time. DevStation never sees your password."
     >
-      <ConnectorsList />
+      {!ready ? null : signedIn ? (
+        <ConnectorsList />
+      ) : (
+        // Signed out there is nothing to list: asking would only fail.
+        <div className="rounded-2xl border border-border bg-surface p-6 text-center">
+          <p className="text-[14.5px]">Sign in with your email to connect your accounts.</p>
+          <button
+            onClick={() => setSigningIn(true)}
+            className="mt-4 rounded-full bg-primary px-5 py-2 text-[14px] font-medium text-primary-foreground hover:bg-primary-hover"
+          >
+            Sign in
+          </button>
+          {signingIn && <AuthSheet onClose={() => setSigningIn(false)} />}
+        </div>
+      )}
       <p className="mt-6 text-[12.5px] leading-5 text-meta">
         In a project you share with other builders, the agent does not use your connected accounts:
         their access never goes into a machine someone else can work in.

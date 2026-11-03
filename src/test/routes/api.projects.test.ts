@@ -86,7 +86,10 @@ describe("/api/projects", () => {
     calls.length = 0;
     const won = await send({ id: "app-1", name: "One", updatedAt: 12, body: "H4sI" });
     expect(await won.json()).toMatchObject({ applied: true, stored: 12 });
-    expect((calls[0].body as { p_owner: string }).p_owner).toBe(OWNER);
+    const save = calls.find((c) => c.path.endsWith("/rpc/save_project"));
+    expect((save?.body as { p_owner: string }).p_owner).toBe(OWNER);
+    // It first asked whether the account still has access.
+    expect(calls.some((c) => c.path.includes("/platform_members"))).toBe(true);
 
     const lost = await send({ id: "app-1", name: "One", updatedAt: 5, body: "H4sI" });
     expect(await lost.json()).toMatchObject({ applied: false, stored: 9 });

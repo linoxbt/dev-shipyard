@@ -20,6 +20,14 @@ export interface WaitlistPlace {
   email: string;
 }
 let gateListener: ((w: WaitlistPlace | null) => void) | null = null;
+/** On the waitlist right now: requests that need a session are not retried
+ *  with a new sign-in exchange (the waitlist screen asks, at its own pace),
+ *  so the app under it cannot flood the sign-in endpoint. */
+let waiting = false;
+const tellGate = (w: WaitlistPlace | null) => {
+  waiting = w !== null;
+  gateListener?.(w);
+};
 
 /** Called by the sign-in store, to show the waitlist when it applies. */
 export function setGateListener(next: ((w: WaitlistPlace | null) => void) | null) {
@@ -55,7 +63,7 @@ export async function ensureGrant(): Promise<boolean> {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ accessToken }),
     }).catch(() => null);
-    if (res?.ok) gateListener?.(null);
+    if (res?.ok) tellGate(null);
     else if (res?.status === 403) {
       const body = (await res.json().catch(() => null)) as {
         reason?: string;
@@ -63,7 +71,7 @@ export async function ensureGrant(): Promise<boolean> {
         email?: string;
       } | null;
       if (body?.reason === "waitlisted") {
-        gateListener?.({ place: Number(body.place) || 1, email: body.email ?? "" });
+        tellGate({ place: Number(body.place) || 1, email: body.email ?? "" });
       }
     }
     return !!res?.ok;
@@ -89,9 +97,10 @@ export async function fetchWithGrant(input: string, init?: RequestInit): Promise
     .catch(() => null)) as { reason?: string } | null;
   // Access taken away since this session began: the waitlist, not an error.
   if (first.status === 403 && body?.reason === "waitlisted") {
-    void ensureGrant();
+    if (!waiting) void ensureGrant();
     return first;
   }
+  if (waiting) return first;
   const missing = first.status === 401 && body?.reason === "no_grant";
   const stale = first.status === 403 && body?.reason === "owner_mismatch";
   if (!missing && !stale) return first;

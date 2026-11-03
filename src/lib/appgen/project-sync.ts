@@ -242,7 +242,7 @@ export function startProjectSync(
     const local = new Map(store.projects.map((p) => [p.id, p]));
     const deletedHere = stamps(load(DELETED_KEY));
     const incoming: AppProject[] = [];
-    const gone: string[] = [];
+    const gone: { id: string; upTo: number }[] = [];
     const seen = new Set<string>();
 
     for (const r of list) {
@@ -262,7 +262,7 @@ export function startProjectSync(
         if (r.deleted) continue;
       }
       if (r.deleted) {
-        if (here && here.updatedAt <= r.updatedAt) gone.push(r.id);
+        if (here && here.updatedAt <= r.updatedAt) gone.push({ id: r.id, upTo: r.updatedAt });
         remember(r.id, r.updatedAt);
         continue;
       }

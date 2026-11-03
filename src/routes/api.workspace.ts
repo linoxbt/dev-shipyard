@@ -670,6 +670,17 @@ export const Route = createFileRoute("/api/workspace")({
             workspace: data.id,
             dist: (built.body.dist as Record<string, string>) ?? {},
             assets: (built.body.assets as Record<string, string>) ?? {},
+          }).catch((error: unknown) => {
+            // An upload that failed, or another publish taking the same
+            // name a moment earlier: say so plainly.
+            console.error("publish", error);
+            const taken = /duplicate|unique|23505/i.test(String(error));
+            return {
+              ok: false as const,
+              message: taken
+                ? `${data.slug}.${SITES_DOMAIN} was just taken. Choose another name.`
+                : "The app could not be uploaded just now. Try publishing again in a moment.",
+            };
           });
           if (!published.ok) return fail("publish", published.message, 400);
           await bumpMetric("sites_published");

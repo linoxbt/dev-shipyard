@@ -1,4 +1,4 @@
-import { fileUrl, siteForHost, typeOf, type Site } from "./sites.server";
+import { SITES_DOMAIN, fileUrl, siteForHost, typeOf, type Site } from "./sites.server";
 
 // Serving a published app: the request's hostname names the site (a
 // <slug>.devstation.online subdomain or a verified domain of its own), the
@@ -18,10 +18,25 @@ function appHosts(): string[] {
  *  is for DevStation itself. */
 export async function siteResponse(request: Request): Promise<Response | null> {
   const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
-  const site = await siteForHost(host, appHosts());
+  let site: Site | null;
+  try {
+    site = await siteForHost(host, appHosts());
+  } catch (error) {
+    // The sites could not be read. A published app's own address answers
+    // that it is briefly unavailable, never with DevStation's app in its place.
+    const name = host.split(":")[0].toLowerCase();
+    if (!name.endsWith(`.${SITES_DOMAIN}`) || appHosts().includes(name)) return null;
+    console.error("site lookup", error);
+    return new Response(UNAVAILABLE, {
+      status: 503,
+      headers: { "content-type": "text/html; charset=utf-8", "retry-after": "30" },
+    });
+  }
   if (!site) return null;
   return serveSite(site, request);
 }
+
+const UNAVAILABLE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Back in a moment</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0a0e13;color:#e2e8f0;font:15px/1.5 system-ui,sans-serif}main{text-align:center;padding:24px}p{color:#94a3b8}</style></head><body><main><h1>Back in a moment</h1><p>This app could not be loaded just now. Refresh in a few seconds.</p></main></body></html>`;
 
 const NOT_PUBLISHED = (name: string) =>
   `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${name}</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0a0e13;color:#e2e8f0;font:15px/1.5 system-ui,sans-serif}main{text-align:center;padding:24px}p{color:#94a3b8}a{color:#e67e22}</style></head><body><main><h1>${name}</h1><p>This app is not published yet.</p><p><a href="https://devstation.online">Built with DevStation</a></p></main></body></html>`;

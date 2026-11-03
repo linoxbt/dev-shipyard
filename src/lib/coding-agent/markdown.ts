@@ -13,7 +13,7 @@ export type Inline =
 export type Block =
   | { kind: "paragraph"; inline: Inline[] }
   | { kind: "heading"; level: 1 | 2 | 3; inline: Inline[] }
-  | { kind: "list"; ordered: boolean; items: Inline[][] }
+  | { kind: "list"; ordered: boolean; items: Inline[][]; start?: number }
   | { kind: "code"; lang: string; text: string }
   | { kind: "quote"; inline: Inline[] }
   | { kind: "table"; head: Inline[][]; rows: Inline[][][] };
@@ -24,11 +24,17 @@ export type Block =
  * stop or other closing mark is dropped. Only prose: code is left as written.
  */
 export function plainDashes(text: string): string {
-  return text
-    .replace(/\s*\u2014\s*([.;:!?)\]])/g, "$1")
-    .replace(/\s*\u2014\s*/g, ", ")
-    .replace(/\s+\u2013\s+/g, ", ")
-    .replace(/,\s*,/g, ",");
+  return (
+    text
+      // A range keeps its meaning: "9 am — 5 pm" reads "9 am to 5 pm", and
+      // "10—20" or "2024—2025" keeps a short (en) dash.
+      .replace(/(\d\s?[ap]\.?m\.?)\s*[\u2013\u2014]\s*(\d)/gi, "$1 to $2")
+      .replace(/(\d)\s*[\u2013\u2014]\s*(\d)/g, "$1\u2013$2")
+      .replace(/\s*\u2014\s*([.;:!?)\]])/g, "$1")
+      .replace(/\s*\u2014\s*/g, ", ")
+      .replace(/\s+\u2013\s+/g, ", ")
+      .replace(/,\s*,/g, ",")
+  );
 }
 
 /** Only web links: a `javascript:` or `data:` href would run in DevStation. */
@@ -169,7 +175,20 @@ export function parseMarkdown(source: string): Block[] {
       const ordered = !!numbered;
       const items: Inline[][] = [];
       const re = ordered ? NUMBERED : BULLET;
+      const start = ordered ? Number(/^\s*(\d+)/.exec(line)?.[1] ?? 1) : undefined;
       while (i < lines.length) {
+        // A fence ends the list: the code is its own block, not item text.
+        if (/^\s*```/.test(lines[i])) break;
+        if (!lines[i].trim()) {
+          // Items with blank lines between them are still one list.
+          let next = i + 1;
+          while (next < lines.length && !lines[next].trim()) next++;
+          if (next < lines.length && re.test(lines[next])) {
+            i = next;
+            continue;
+          }
+          break;
+        }
         const item = re.exec(lines[i]);
         if (item) items.push(parseInline(item[1]));
         else if (lines[i].trim() && /^\s{2,}/.test(lines[i]) && items.length) {
@@ -179,7 +198,7 @@ export function parseMarkdown(source: string): Block[] {
         i++;
       }
       i--;
-      blocks.push({ kind: "list", ordered, items });
+      blocks.push({ kind: "list", ordered, items, ...(start && start !== 1 ? { start } : {}) });
       continue;
     }
     para.push(line.trim());

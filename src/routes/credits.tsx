@@ -167,7 +167,7 @@ function CreditsPage() {
   useEffect(() => {
     if (!authReady) return;
     if (!signedIn) {
-      setError("Sign in on DevStation to see your credit and usage.");
+      setError("Sign in to see your credit and usage.");
       return;
     }
     void load(range);
@@ -219,7 +219,7 @@ function CreditsPage() {
       }
     >
       {error ? (
-        <Unavailable title="Credits are not available" message={error} />
+        <Unavailable title="Credits are not available" message={error} signIn />
       ) : !access || !usage ? (
         <p className="flex items-center gap-2 py-10 text-[13.5px] text-muted-foreground">
           <LoaderCircle className="h-4 w-4 animate-spin" /> Loading your credit

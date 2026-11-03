@@ -93,7 +93,7 @@ function AccessAdmin() {
   useEffect(() => {
     if (!authReady) return;
     if (!signedIn) {
-      setError("Sign in on DevStation with an admin email, then open this page again.");
+      setError("Sign in with an admin email to see this page.");
       return;
     }
     void load();
@@ -129,7 +129,7 @@ function AccessAdmin() {
       }
     >
       {error && !data ? (
-        <Unavailable title="Access settings are not available" message={error} />
+        <Unavailable title="Access settings are not available" message={error} signIn />
       ) : !data ? (
         <div className="space-y-4">
           <div className="ds-skeleton h-40 rounded-2xl" />

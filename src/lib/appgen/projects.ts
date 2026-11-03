@@ -201,7 +201,7 @@ interface ProjectsState {
   /** Take versions saved from another device: replaces each by id (or adds
    *  it) as it is, without touching its updatedAt, and drops the ids in
    *  `gone`. The open project is left open unless it was deleted. */
-  mergeRemote: (incoming: AppProject[], gone?: string[]) => void;
+  mergeRemote: (incoming: AppProject[], gone?: { id: string; upTo: number }[]) => void;
   /** Copy a project into a new one and open it: same files, preview and
    *  conversation, but its own workspace, address and repository, so nothing
    *  done to the remix touches the original. Returns the new id. */
@@ -521,11 +521,22 @@ export const useProjects = create<ProjectsState>((set, get) => ({
 
   mergeRemote: (incoming, gone = []) => {
     if (!incoming.length && !gone.length) return;
+    // Against the projects as they are now, not as they were when the pull
+    // began: a project changed here while its newer-looking remote copy was
+    // being fetched keeps the change here (it is the newer one, and is sent
+    // up next), and is not dropped by a deletion older than it.
     const byId = new Map(incoming.map((p) => [p.id, p]));
-    const drop = new Set(gone);
-    const kept = get()
-      .projects.filter((p) => !drop.has(p.id))
-      .map((p) => byId.get(p.id) ?? p);
+    const now = get().projects;
+    const liveAt = new Map(now.map((p) => [p.id, p.updatedAt]));
+    const drop = new Set(
+      gone.filter((g) => (liveAt.get(g.id) ?? -Infinity) <= g.upTo).map((g) => g.id),
+    );
+    const kept = now
+      .filter((p) => !drop.has(p.id))
+      .map((p) => {
+        const remote = byId.get(p.id);
+        return remote && remote.updatedAt >= p.updatedAt ? remote : p;
+      });
     const known = new Set(kept.map((p) => p.id));
     const added = incoming.filter((p) => !known.has(p.id) && !drop.has(p.id));
     const next = [...added, ...kept].sort((a, b) => b.updatedAt - a.updatedAt);

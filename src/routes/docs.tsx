@@ -5,6 +5,14 @@ import { DOC_NAV, DOC_ORDER, normaliseDocPath, type DocLink } from "@/components
 import { LogoMark } from "@/components/shared/Logo";
 import { useTheme } from "@/lib/theme";
 import { consoleHref, siteHref } from "@/lib/site-hosts";
+import { AGENT_PATH, CODING_AGENT_ONLY } from "@/lib/features";
+
+/** Where "home" and "open the app" lead: the agent itself when it is all this
+ *  deployment serves (the marketing site and console are another product). */
+const APP_HOME = CODING_AGENT_ONLY ? AGENT_PATH : siteHref();
+const APP_HREF = CODING_AGENT_ONLY ? AGENT_PATH : consoleHref();
+const APP_LABEL = CODING_AGENT_ONLY ? "Open DevStation" : "Open Console";
+const DOCS_HOME = CODING_AGENT_ONLY ? "/docs/coding-agent" : "/docs";
 import { useDialog } from "@/components/shared/useDialog";
 
 // The documentation site. In production it is docs.devstation.online, with its
@@ -125,7 +133,7 @@ function DocsHeader({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => 
         >
           <Menu className="h-5 w-5" />
         </button>
-        <Link to="/docs" className="flex items-center gap-2" aria-label="DevStation Docs">
+        <Link to={DOCS_HOME} className="flex items-center gap-2" aria-label="DevStation Docs">
           <LogoMark className="h-7 w-7" />
           <span className="font-mono text-sm font-bold tracking-tight">
             Dev<span className="text-primary">Station</span>
@@ -148,7 +156,7 @@ function DocsHeader({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => 
         </button>
 
         <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex">
-          <a href={siteHref()} className="hover:text-foreground">
+          <a href={APP_HOME} className="hover:text-foreground">
             Home
           </a>
           <Link to="/docs/cli" className="hover:text-foreground">
@@ -172,10 +180,10 @@ function DocsHeader({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => 
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
         <a
-          href={consoleHref()}
+          href={APP_HREF}
           className="hidden items-center gap-1 rounded-md bg-primary px-3 py-2 font-mono text-xs font-semibold text-primary-foreground hover:bg-primary-hover sm:inline-flex"
         >
-          Open Console <ArrowUpRight className="h-3.5 w-3.5" />
+          {APP_LABEL} <ArrowUpRight className="h-3.5 w-3.5" />
         </a>
       </div>
     </header>
@@ -395,12 +403,20 @@ function DocsFooter() {
         <LogoMark className="h-5 w-5" /> DevStation
       </span>
       <nav className="flex flex-wrap gap-x-4 gap-y-1 sm:ml-auto">
-        <a href={siteHref()} className="hover:text-foreground">
-          devstation.online
-        </a>
-        <a href={consoleHref()} className="hover:text-foreground">
-          Console
-        </a>
+        {CODING_AGENT_ONLY ? (
+          <a href={APP_HOME} className="hover:text-foreground">
+            DevStation
+          </a>
+        ) : (
+          <>
+            <a href={siteHref()} className="hover:text-foreground">
+              devstation.online
+            </a>
+            <a href={consoleHref()} className="hover:text-foreground">
+              Console
+            </a>
+          </>
+        )}
         <Link to="/docs/cli/install" className="hover:text-foreground">
           Install the CLI
         </Link>
@@ -430,16 +446,16 @@ function DocsNotFound() {
       </p>
       <div className="mt-6 flex flex-wrap gap-3">
         <Link
-          to="/docs"
+          to={DOCS_HOME}
           className="rounded-md bg-primary px-4 py-2 font-mono text-xs font-semibold text-primary-foreground hover:bg-primary-hover"
         >
           Docs home
         </Link>
         <a
-          href={consoleHref()}
+          href={APP_HREF}
           className="rounded-md border border-border px-4 py-2 font-mono text-xs text-muted-foreground hover:border-primary hover:text-primary"
         >
-          Open the console
+          {APP_LABEL}
         </a>
       </div>
     </div>

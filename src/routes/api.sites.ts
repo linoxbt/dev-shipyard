@@ -6,8 +6,11 @@ import {
   SITES_DOMAIN,
   addDomain,
   customDomainsEnabled,
+  domainLive,
   domainProblem,
   domainStatus,
+  ownershipRecord,
+  provesOwnership,
   removeDomain,
   setDomain,
   siteUrl,
@@ -16,6 +19,7 @@ import {
   type Site,
 } from "@/lib/hosting/sites.server";
 import { checkReach } from "@/lib/hosting/reach.server";
+import { refuseNonMember } from "@/lib/access/members.server";
 import { checkRateLimit } from "@/lib/rateLimit.server";
 
 // The signed-in account's published apps (publishing itself is
@@ -33,7 +37,11 @@ import { checkRateLimit } from "@/lib/rateLimit.server";
 //                               own domain) right now, and if not, why
 
 const body = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("check"), slug: z.string().trim().toLowerCase().max(60) }),
+  z.object({
+    action: z.literal("check"),
+    slug: z.string().trim().toLowerCase().max(60),
+    workspace: z.string().max(120).optional(),
+  }),
   z.object({
     action: z.literal("add_domain"),
     siteId: z.string().uuid(),
@@ -92,6 +100,8 @@ export const Route = createFileRoute("/api/sites")({
       POST: async ({ request }) => {
         const owner = requestOwner(request);
         if (!owner) return fail("no_grant", "Sign in with your email first.", 401);
+        const refused = await refuseNonMember(owner);
+        if (refused) return refused;
         if (!dbConfigured()) return fail("not_configured", "Hosting is not set up yet.", 503);
         if (!(await checkRateLimit(`sites:${owner}`, 120, 10 * 60_000))) {
           return fail("rate_limited", "Too many requests. Wait a moment.", 429);
@@ -105,14 +115,22 @@ export const Route = createFileRoute("/api/sites")({
             if (problem) return Response.json({ ok: true, available: false, message: problem });
             const [taken] = await select<Site>(
               "sites",
-              `slug=eq.${encodeURIComponent(data.slug)}&select=owner`,
+              `slug=eq.${encodeURIComponent(data.slug)}&select=owner,workspace`,
             );
-            const free = !taken || taken.owner === owner;
+            const mine = !!taken && taken.owner === owner;
+            // An address of the person's own other project is not free for
+            // this one (publishing would replace that app).
+            const elsewhere = mine && !!data.workspace && taken.workspace !== data.workspace;
+            const free = !taken || (mine && !elsewhere);
             return Response.json({
               ok: true,
               available: free,
-              mine: !!taken && taken.owner === owner,
-              message: free ? null : `${data.slug}.${SITES_DOMAIN} is taken.`,
+              mine,
+              message: free
+                ? null
+                : elsewhere
+                  ? `You already use ${data.slug}.${SITES_DOMAIN} for another project.`
+                  : `${data.slug}.${SITES_DOMAIN} is taken.`,
             });
           }
 
@@ -150,17 +168,27 @@ export const Route = createFileRoute("/api/sites")({
             if (problem) return fail("invalid_domain", problem, 400);
             const [other] = await select<Site>(
               "sites",
-              `custom_domain=eq.${encodeURIComponent(data.domain)}&select=id`,
+              `custom_domain=eq.${encodeURIComponent(data.domain)}&select=*`,
             );
             if (other && other.id !== site.id) {
-              return fail("domain_taken", "That domain is already on another site.", 409);
+              // A domain another site holds moves only to someone who proves
+              // it is theirs, with this site's TXT record in its DNS.
+              if (!(await provesOwnership(site.id, data.domain))) {
+                const proof = ownershipRecord(site.id, data.domain);
+                return fail(
+                  "domain_taken",
+                  `That domain is on another DevStation site. If it is yours, add a TXT record named ${proof.name} with the value ${proof.value} at your DNS host, then add it again.`,
+                  409,
+                );
+              }
+              await setDomain(other, null, false);
             }
             if (site.custom_domain && site.custom_domain !== data.domain) {
               await removeDomain(site.custom_domain).catch(() => undefined);
             }
-            const status = await addDomain(data.domain);
+            const status = await addDomain(data.domain, site.id);
             if ("error" in status) return fail("domain", status.error, 400);
-            const saved = await setDomain(site, data.domain, status.verified && status.configured);
+            const saved = await setDomain(site, data.domain, domainLive(status));
             return Response.json({ ok: true, site: view(saved), status });
           }
 
@@ -168,8 +196,8 @@ export const Route = createFileRoute("/api/sites")({
             return fail("no_domain", "This site has no domain of its own.", 404);
 
           if (data.action === "check_domain") {
-            const status = await domainStatus(site.custom_domain);
-            const live = status.verified && status.configured;
+            const status = await domainStatus(site.custom_domain, site.id);
+            const live = domainLive(status);
             const saved =
               live !== site.domain_verified
                 ? await setDomain(site, site.custom_domain, live)

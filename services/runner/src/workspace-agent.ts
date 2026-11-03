@@ -498,6 +498,11 @@ export function setCollaborator(
       };
     }
     s.collaborators = [...current, who];
+    // Messages already waiting were sent with the owner's accounts: take
+    // them out now, not only when each one starts.
+    for (const [key, opts] of queuedOpts) {
+      if (key.startsWith(`${id}:`)) queuedOpts.set(key, accountsForNow(s, opts));
+    }
     // From now on the owner's turns carry no connected accounts (server.ts).
     // Commands an earlier turn left running may still hold them, and the new
     // builder's commands would run beside them: stop them all.
@@ -529,6 +534,32 @@ export function workspaceMessages(id: string): ProviderMessage[] {
   const s = sessions.get(id);
   if (!s) return [];
   return readJson<ProviderMessage[]>(messagesFile(s)) ?? [];
+}
+
+/**
+ * A history cut off part way, made safe to send again: provider-only blocks
+ * are dropped, and a last batch of tool calls that never got its results is
+ * removed (a model refuses a call without a result after it).
+ */
+export function settledHistory(messages: ProviderMessage[]): ProviderMessage[] {
+  const out = messages.map((m) => {
+    if (m.role !== "assistant" || !("raw" in m) || !m.raw) return m;
+    const { raw: _raw, ...plain } = m;
+    return plain as ProviderMessage;
+  });
+  const answered = new Set(
+    out.flatMap((m) => (m.role === "tool" && "toolCallId" in m ? [m.toolCallId] : [])),
+  );
+  for (let i = out.length - 1; i >= 0; i--) {
+    const m = out[i];
+    if (m.role !== "assistant" || !("toolCalls" in m) || !m.toolCalls?.length) continue;
+    if (m.toolCalls.every((c) => answered.has(c.id))) break;
+    // Keep what it said, without the calls that never ran to the end, and
+    // drop any partial results after it.
+    out.splice(i, out.length - i, { role: "assistant", content: m.content || "[Stopped here.]" });
+    break;
+  }
+  return out;
 }
 
 export function trimHistory(
@@ -646,8 +677,20 @@ export function sendWorkspaceMessage(
 }
 
 /** Run one message now. The caller has checked nothing else is running. */
-function startTurn(session: WorkspaceSession, text: string, opts: SendOptions): void {
+/**
+ * A turn's options as they may run now: once the project has other builders,
+ * the owner's connected accounts stay out of it (they are named as withheld
+ * instead), even for a message queued before the builder joined.
+ */
+export function accountsForNow(session: WorkspaceSession, opts: SendOptions): SendOptions {
+  if (!opts.env || !(session.collaborators ?? []).length) return opts;
+  const { env, ...rest } = opts;
+  return { ...rest, withheld: [...new Set([...(opts.withheld ?? []), ...providersOf(env)])] };
+}
+
+function startTurn(session: WorkspaceSession, text: string, given: SendOptions): void {
   const id = session.id;
+  const opts = accountsForNow(session, given);
   Object.assign(session, {
     phase: "running" as const,
     status: "Starting",
@@ -981,6 +1024,9 @@ async function runTurn(
   let proxy: ProxyProvider | null = null;
   /** Spend so far this turn, from the usage events. */
   let spentSoFar = 0;
+  // The conversation as it stood at the last step, so a turn that fails or
+  // is stopped part way keeps what it did in the history the next one reads.
+  let lastMessages: ProviderMessage[] | null = null;
   /** Reasoning since the last step, for the status line's count. */
   let thinkingChars = 0;
   let lastWrite = 0;
@@ -1103,6 +1149,9 @@ async function runTurn(
       : "";
 
     const result = await new Orchestrator({
+      onProgress: (snapshot) => {
+        lastMessages = snapshot.messages;
+      },
       executor,
       provider,
       workspace: new Workspace(session.root, { allowMcpConfig: isolatedHost() }),
@@ -1204,6 +1253,18 @@ async function runTurn(
   } catch (error) {
     // What the turn spent before it failed still counts.
     if (session.lastTurn) session.lastTurn.costUsd = spentSoFar;
+    // And what it did is remembered: the next message would otherwise start
+    // with no memory of the steps that changed the files.
+    if (lastMessages) {
+      try {
+        writeAtomic(
+          messagesFile(session),
+          JSON.stringify(trimHistory(settledHistory(lastMessages))),
+        );
+      } catch {
+        /* the files are what matter; the history is best effort */
+      }
+    }
     finish({
       phase: signal.aborted ? "cancelled" : "error",
       error: signal.aborted ? null : error instanceof Error ? error.message : String(error),

@@ -69,7 +69,7 @@ function FeedbackAdmin() {
   useEffect(() => {
     if (!authReady) return;
     if (!signedIn) {
-      setError("Sign in on DevStation with an admin email, then open this page again.");
+      setError("Sign in with an admin email to see this page.");
       return;
     }
     void load();
@@ -86,26 +86,29 @@ function FeedbackAdmin() {
     <Shell
       label="Feedback"
       controls={
-        <>
-          <button
-            onClick={() => void load()}
-            disabled={loading}
-            aria-label="Refresh"
-            className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted-foreground transition hover:bg-surface-2 hover:text-foreground disabled:opacity-60"
-          >
-            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-          </button>
-          <a
-            href="/api/admin/feedback?download=csv"
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-[13px] text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
-          >
-            <Download className="h-3.5 w-3.5" /> CSV
-          </a>
-        </>
+        // Nothing to refresh or export until there are figures to show.
+        data ? (
+          <>
+            <button
+              onClick={() => void load()}
+              disabled={loading}
+              aria-label="Refresh"
+              className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted-foreground transition hover:bg-surface-2 hover:text-foreground disabled:opacity-60"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+            </button>
+            <a
+              href="/api/admin/feedback?download=csv"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-[13px] text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+            >
+              <Download className="h-3.5 w-3.5" /> CSV
+            </a>
+          </>
+        ) : undefined
       }
     >
       {error && !data ? (
-        <Unavailable title="Feedback is not available" message={error} />
+        <Unavailable title="Feedback is not available" message={error} signIn />
       ) : !data || !s ? (
         <div className="space-y-4">
           <div className="ds-skeleton h-32 rounded-2xl" />

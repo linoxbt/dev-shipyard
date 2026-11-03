@@ -7,7 +7,7 @@ import { useConsent } from "@/lib/consent";
 // what it is for and how long it lasts, and how to change your choice.
 
 export const Route = createFileRoute("/cookies")({
-  head: () => ({ meta: [{ title: "Cookie policy: DevStation" }] }),
+  head: () => ({ meta: [{ title: "Cookie policy · DevStation" }] }),
   component: CookiePolicy,
 });
 

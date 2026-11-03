@@ -193,3 +193,34 @@ describe("hosting", () => {
     ]);
   });
 });
+
+describe("a domain of one's own", () => {
+  it("is proven with a TXT record only this server can make for that site", async () => {
+    const { ownershipRecord, provesOwnership } = await import("./sites.server");
+    const mine = ownershipRecord("site-a", "Shop.Example.com", "secret");
+    expect(mine.type).toBe("TXT");
+    expect(mine.name).toBe("_devstation.Shop.Example.com");
+    expect(ownershipRecord("site-a", "shop.example.com", "secret").value).toBe(mine.value);
+    // Another site, or another server's secret, makes another value.
+    expect(ownershipRecord("site-b", "shop.example.com", "secret").value).not.toBe(mine.value);
+
+    const record = ownershipRecord("site-a", "shop.example.com");
+    const dns = (values: string[][]) => async () => values;
+    expect(await provesOwnership("site-a", "shop.example.com", dns([[record.value]]))).toBe(true);
+    // Long TXT values arrive in chunks.
+    const half = Math.floor(record.value.length / 2);
+    expect(
+      await provesOwnership(
+        "site-a",
+        "shop.example.com",
+        dns([[record.value.slice(0, half), record.value.slice(half)]]),
+      ),
+    ).toBe(true);
+    expect(await provesOwnership("site-b", "shop.example.com", dns([[record.value]]))).toBe(false);
+    expect(
+      await provesOwnership("site-a", "shop.example.com", async () => {
+        throw new Error("ENOTFOUND");
+      }),
+    ).toBe(false);
+  });
+});

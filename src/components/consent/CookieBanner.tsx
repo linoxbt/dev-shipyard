@@ -24,10 +24,11 @@ export function CookieBanner() {
       aria-label="Cookie preferences"
       className="fixed inset-x-0 bottom-0 z-[70] sm:bottom-4 sm:left-4 sm:right-auto sm:max-w-md"
     >
-      <div className="ds-sheet rounded-t-[28px] border border-black/10 bg-white px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-6 text-[#3f3f46] shadow-2xl shadow-black/40 sm:rounded-[24px] sm:pb-6">
-        <p className="text-[15px] leading-7">
-          We use cookies to enhance your experience. By clicking "Accept," you consent to the use of
-          all cookies. Learn more in our{" "}
+      <div className="ds-sheet rounded-t-[24px] border border-black/10 bg-white px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 text-[#3f3f46] shadow-2xl shadow-black/40 sm:rounded-[24px] sm:pb-6">
+        <p className="text-[14.5px] leading-6">
+          DevStation uses the cookies it needs to work, and with your consent a few that remember
+          your preferences, like your theme. No analytics, advertising or tracking. Learn more in
+          our{" "}
           <a href="/cookies" className="font-medium text-[#b45309] underline underline-offset-2">
             cookie policy
           </a>
@@ -54,7 +55,7 @@ export function CookieBanner() {
           </div>
         )}
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-2 gap-3">
           {managing ? (
             <>
               <button

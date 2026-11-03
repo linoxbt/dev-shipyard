@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { passFromRequest, renewTurnPass } from "@/lib/db/turn-token.server";
+import { refuseNonMember } from "@/lib/access/members.server";
 import { keepSandboxAwake } from "@/lib/orchestrator/sandbox.server";
 import { checkRateLimit } from "@/lib/rateLimit.server";
 
@@ -16,6 +17,10 @@ export const Route = createFileRoute("/api/model/heartbeat")({
       POST: async ({ request }) => {
         const pass = passFromRequest(request);
         if (!pass) return Response.json({ ok: false, reason: "expired" }, { status: 401 });
+        // No renewal for an account whose access was taken away.
+        if (await refuseNonMember(pass.owner)) {
+          return Response.json({ ok: false, reason: "expired" }, { status: 401 });
+        }
         if (!(await checkRateLimit(`model-heartbeat:${pass.owner}`, 240, 10 * 60_000))) {
           return Response.json({ ok: false, reason: "rate_limited" }, { status: 429 });
         }

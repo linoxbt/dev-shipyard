@@ -69,6 +69,28 @@ function timeoutMs(env: NodeJS.ProcessEnv = process.env): number {
   return Math.max(5, Math.min(300, Number.isFinite(minutes) ? minutes : 45)) * 60_000;
 }
 
+/**
+ * How much to extend a machine's timeout so it has `want` left: only the
+ * shortfall. extendTimeout adds to what is left, so asking for the full
+ * window on every heartbeat stacked hours of idle (billed) time onto a
+ * machine whose work had ended. Below a minute is not worth a call.
+ */
+export function extensionNeeded(
+  expiresAt: Date | undefined,
+  want: number,
+  now = Date.now(),
+): number {
+  if (!expiresAt) return want;
+  const need = want - (expiresAt.getTime() - now);
+  return need >= 60_000 ? Math.ceil(need) : 0;
+}
+
+/** Make sure a running machine stays up for `want` more, and no longer. */
+async function keepUpFor(sandbox: Sandbox, want = timeoutMs()): Promise<void> {
+  const need = extensionNeeded(sandbox.expiresAt, want);
+  if (need > 0) await sandbox.extendTimeout(need);
+}
+
 /** Where a sandbox keeps the token its server answers to. It is made at
  *  random when the sandbox is, and read back through the Vercel API (which
  *  only this project can call), so no secret has to be configured. */
@@ -420,8 +442,15 @@ export async function sandboxRunner(
               { method: "GET", owner: init.owner },
               caller,
             ).catch(() => null);
-            const phase = (view?.body.workspace as { phase?: unknown } | undefined)?.phase;
-            return phase !== "running";
+            // Restart only when the machine says plainly that nothing is
+            // running or queued: an unanswered or refused lookup is not
+            // "idle", and restarting then would kill a turn in progress.
+            const ws = view?.ok
+              ? (view.body.workspace as { phase?: unknown; queue?: unknown } | undefined)
+              : undefined;
+            return (
+              !!ws && ws.phase !== "running" && !(Array.isArray(ws.queue) && ws.queue.length > 0)
+            );
           }
         : undefined,
     });
@@ -439,7 +468,7 @@ export async function sandboxRunner(
     }
     // A message is work about to happen: keep the machine up for it.
     if (action === "/messages" && init.method === "POST") {
-      await sandbox.extendTimeout(timeoutMs()).catch(() => undefined);
+      await keepUpFor(sandbox).catch(() => undefined);
     }
     return outward(await forward(base, token, inner, init, caller), ids.name);
   } catch (error) {
@@ -460,7 +489,7 @@ export async function keepSandboxAwake(workspace: string): Promise<boolean> {
   try {
     const sandbox = await Sandbox.get({ name: ids.name });
     if (sandbox.status !== "running") return false;
-    await sandbox.extendTimeout(timeoutMs());
+    await keepUpFor(sandbox);
     return true;
   } catch {
     return false;

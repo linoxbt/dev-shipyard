@@ -24,6 +24,9 @@ export class ProxyProvider implements ModelProvider {
     target: ProxyTarget,
     readonly model: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    /** Silence on the stream after which it counts as dead (keep-alives
+     *  arrive every 15 seconds). */
+    private readonly idleMs = 90_000,
   ) {
     // A copy: the pass is renewed in place on each heartbeat.
     this.target = { ...target };
@@ -101,8 +104,28 @@ export class ProxyProvider implements ModelProvider {
       if (frame.r) result = frame.r;
       if (typeof frame.e === "string") failure = frame.e;
     };
+    // The service sends a keep-alive every 15 seconds while the model works,
+    // so a long silence means the stream is dead, not slow: give up rather
+    // than leave the turn "running" with nothing coming.
+    const read = () =>
+      new Promise<Awaited<ReturnType<typeof reader.read>>>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          void reader.cancel().catch(() => undefined);
+          reject(new Error("DevStation's model service stopped answering. Try again."));
+        }, this.idleMs);
+        reader.read().then(
+          (r) => {
+            clearTimeout(timer);
+            resolve(r);
+          },
+          (e) => {
+            clearTimeout(timer);
+            reject(e);
+          },
+        );
+      });
     for (;;) {
-      const { done, value } = await reader.read();
+      const { done, value } = await read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");

@@ -126,3 +126,26 @@ describe("the heartbeat", () => {
     ]);
   });
 });
+
+describe("a stream that goes silent", () => {
+  it("gives up instead of leaving the turn running forever", async () => {
+    const silent = (async () =>
+      new Response(
+        new ReadableStream({
+          start() {
+            /* never sends a frame */
+          },
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch;
+    const provider = new ProxyProvider(
+      { url: "https://x/api/model", token: "t" },
+      "auto",
+      silent,
+      50,
+    );
+    await expect(provider.generate({ system: "", messages: [], maxTokens: 10 })).rejects.toThrow(
+      /stopped answering/,
+    );
+  });
+});

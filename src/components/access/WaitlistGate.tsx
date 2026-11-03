@@ -6,10 +6,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { ensureGrant } from "@/lib/agent-access/grant";
 
 // What someone sees after signing in while DevStation is closed or full: their
-// place on the waitlist, instead of the app. The page asks again every minute
-// (and on demand), so it opens by itself the moment an admin lets them in.
+// place on the waitlist, instead of the app. The page asks again every two
+// minutes (and on demand), so it opens by itself soon after an admin lets them in.
 
-const RECHECK_MS = 60_000;
+const RECHECK_MS = 120_000;
+/** Coming back to the tab asks again, at most this often. */
+const FOCUS_GAP_MS = 30_000;
 
 /** Pages anyone can read, waitlisted or not. */
 const OPEN_PAGES = /^\/(docs|cookies|stats\/shared)(\/|$)/;
@@ -36,7 +38,12 @@ export function WaitlistGate() {
       () => void ensureGrant().then(() => setCheckedAt(Date.now())),
       RECHECK_MS,
     );
-    const onFocus = () => void ensureGrant();
+    let lastFocus = 0;
+    const onFocus = () => {
+      if (Date.now() - lastFocus < FOCUS_GAP_MS) return;
+      lastFocus = Date.now();
+      void ensureGrant();
+    };
     window.addEventListener("focus", onFocus);
     return () => {
       clearInterval(t);

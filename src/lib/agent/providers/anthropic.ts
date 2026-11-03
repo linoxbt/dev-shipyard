@@ -185,6 +185,16 @@ export class AnthropicProvider implements ModelProvider {
     }
 
     const message = await stream.finalMessage();
+    // Cut off at the output limit while writing a tool call: the SDK
+    // partially parses its JSON, so the call would run with half its input
+    // (a write_file with half the file). Drop that last, unfinished call,
+    // from the reply and from what is replayed; with no calls left, the
+    // orchestrator treats it as a cut-off reply and asks for smaller steps.
+    // Only the last block can be unfinished; calls before it are whole.
+    if (message.stop_reason === "max_tokens") {
+      const blocks = message.content as unknown as Array<{ type: string }>;
+      if (blocks[blocks.length - 1]?.type === "tool_use") blocks.pop();
+    }
 
     let text = "";
     const notes: string[] = [];
