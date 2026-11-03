@@ -55,3 +55,6 @@ playwright-report/
 
 # Built by scripts/build-agent-server.ts before vite build.
 src/lib/orchestrator/agent-server.gen.mjs
+
+# Rendered demo videos (large binaries; shared directly, not kept in history)
+demo/*.mp4
