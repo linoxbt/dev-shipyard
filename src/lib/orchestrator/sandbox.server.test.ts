@@ -3,7 +3,6 @@ import {
   ownerOfSandbox,
   routeOf,
   sandboxHostEnabled,
-  snapshotQuota,
   sandboxRunner,
   splitId,
 } from "./sandbox.server";
@@ -144,19 +143,5 @@ describe("keeping a machine up", () => {
     expect(extensionNeeded(at(want - 30_000), want, now)).toBe(0);
     // No expiry known: the whole window.
     expect(extensionNeeded(undefined, want, now)).toBe(want);
-  });
-});
-
-describe("snapshotQuota", () => {
-  it("knows Vercel's refusal for used-up snapshot storage, and nothing else", () => {
-    expect(
-      snapshotQuota(
-        new Error(
-          "Status code 402 is not ok: Hobby plan usage limit exceeded for Snapshots Storage. Limit will be reset on 2026-12-01T00:00:00.000Z.",
-        ),
-      ),
-    ).toBe(true);
-    expect(snapshotQuota(new Error("Status code 404: sandbox not found"))).toBe(false);
-    expect(snapshotQuota(new Error("Snapshot created"))).toBe(false);
   });
 });

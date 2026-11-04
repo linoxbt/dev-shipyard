@@ -129,12 +129,6 @@ export function splitId(id: string): { name: string; inner: string } | null {
  *  bounded and an abandoned project expires (api/cron/sandboxes deletes it). */
 const RETENTION = { count: 1, expiration: SNAPSHOT_MS, deleteEvicted: true };
 
-/** Vercel refused because the plan's snapshot storage is used up. */
-export function snapshotQuota(error: unknown): boolean {
-  const why = String((error as Error)?.message ?? error ?? "");
-  return /snapshots?\s*storage/i.test(why) && /limit|exceeded|upgrade/i.test(why);
-}
-
 const fail = (status: number, message: string): RunnerReply => ({
   ok: false,
   status,
@@ -406,13 +400,6 @@ export async function sandboxRunner(
         keepLastSnapshots: RETENTION,
       };
       const sandbox = await Sandbox.create(options).catch((error: unknown) => {
-        // Snapshot storage used up for the month: a machine that keeps no
-        // snapshot still works. Its files live in the browser and the
-        // person's saved project, so when it stops the next message starts
-        // another from them.
-        if (snapshotQuota(error)) {
-          return Sandbox.create({ ...options, persistent: false, keepLastSnapshots: undefined });
-        }
         // A tag the platform will not take must not cost the person their
         // project: without it, the project simply never receives connected
         // accounts (ownerOfSandbox answers null).
@@ -453,21 +440,9 @@ export async function sandboxRunner(
       return { ok: true, status: 200, body: { ok: true, asleep: true } };
     }
 
-    if (sandbox.status !== "running" && !sandbox.persistent) {
-      // Made without snapshots (storage was used up): once stopped it has
-      // nothing to wake into, so the browser starts it again from its files.
-      return fail(404, "That workspace is gone.");
-    }
     if (sandbox.status !== "running") {
       // Real work (a message, the files, a screenshot): wake it.
-      try {
-        sandbox = await Sandbox.get({ name: ids.name, resume: true });
-      } catch (error) {
-        // Its snapshot cannot be used this month: answered as gone, so the
-        // browser starts the project again from its files.
-        if (snapshotQuota(error)) return fail(404, "That workspace is gone.");
-        throw error;
-      }
+      sandbox = await Sandbox.get({ name: ids.name, resume: true });
     }
     // Machines made before the retention policy kept every snapshot they
     // ever took: give them the policy, so only the latest stays.
