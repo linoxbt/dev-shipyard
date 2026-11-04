@@ -1,13 +1,23 @@
 // Who may use which model, and what it costs them (lib/billing/
 // config.server.ts has the figures).
 //
-// The free model (Qwen, and Auto) costs nothing up to a daily allowance; past
-// it, calls are charged to credit. Every other model is charged to credit.
-// Credit is launch credit ($5 for each of the first 20 accounts), top-ups and
-// the credit Pro includes each month. Pro granted by an admin is unlimited.
+// The free model (Qwen, and Auto) costs nothing up to a daily allowance an
+// admin sets (none by default); past it, calls are charged to credit. Every
+// other model is charged to credit. Credit is launch credit (an amount, for a
+// number of accounts, both set by an admin), top-ups and the credit Pro
+// includes each month. Pro granted by an admin is unlimited. On top of that,
+// the limits an admin sets (lib/billing/limits.server.ts) cap a run, a day
+// and the runs in a day.
 
 import { isPremiumModel, modelLabel } from "@/lib/coding-agent/models";
-import { billingConfig } from "@/lib/billing/config.server";
+import {
+  accountLimits,
+  effectiveLimits,
+  limitProblem,
+  usageSettings,
+  usageState,
+  type Limits,
+} from "@/lib/billing/limits.server";
 import { dbConfigured, rpc } from "./admin.server";
 
 export interface Access {
@@ -31,8 +41,12 @@ export interface Access {
   spent: number;
   /** Claimed minus spent, never below zero. */
   balance: number;
-  /** Launch credits still unclaimed, of 20. */
+  /** Launch credits still unclaimed (1000000 when there is no cap). */
   slotsLeft: number;
+  /** The launch credit an account gets, in dollars (0: none is offered). */
+  launchCreditUsd: number;
+  /** The limits an admin set, which the model proxy enforces. */
+  limits: Limits;
   /** Premium models are usable now. */
   premium: boolean;
   /** The free model's cost today (UTC) that was not charged. */
@@ -42,6 +56,15 @@ export interface Access {
   /** False when the database is not set up: premium stays locked. */
   available: boolean;
 }
+
+export const NO_LIMITS: Limits = {
+  runLimitUsd: null,
+  dailyLimitUsd: null,
+  runsPerDay: null,
+  freeDailyUsd: null,
+  paused: false,
+  custom: false,
+};
 
 const LOCKED: Access = {
   plan: "free",
@@ -56,6 +79,8 @@ const LOCKED: Access = {
   spent: 0,
   balance: 0,
   slotsLeft: 0,
+  launchCreditUsd: 0,
+  limits: NO_LIMITS,
   premium: false,
   freeUsedToday: 0,
   freeDailyUsd: null,
@@ -78,12 +103,13 @@ export async function accessOf(owner: string): Promise<Access> {
     free_used_today?: number | string;
     slots_left?: number;
   }>("account_access", { p_owner: owner });
-  const config = billingConfig();
+  const [settings, own] = await Promise.all([usageSettings(), accountLimits(owner)]);
   const claimed = Number(raw.claimed ?? 0);
   const spent = Number(raw.spent ?? 0);
   const balance = Math.max(0, Number((claimed - spent).toFixed(6)));
   const plan = raw.plan === "pro" ? "pro" : "free";
   const unlimited = plan === "pro" && Boolean(raw.unlimited);
+  const limits = effectiveLimits({ plan, unlimited }, settings, own);
   return {
     plan,
     unlimited,
@@ -97,9 +123,11 @@ export async function accessOf(owner: string): Promise<Access> {
     spent,
     balance,
     slotsLeft: Number(raw.slots_left ?? 0),
+    launchCreditUsd: settings.launchCreditUsd,
+    limits,
     premium: unlimited || balance > 0,
     freeUsedToday: Number(raw.free_used_today ?? 0),
-    freeDailyUsd: unlimited ? null : plan === "pro" ? config.proFreeDailyUsd : config.freeDailyUsd,
+    freeDailyUsd: limits.freeDailyUsd,
     available: true,
   };
 }
@@ -114,24 +142,35 @@ export function chargeFor(
   model: string | undefined,
 ): { pay: "free" | "credit" } | { refused: string } {
   if (access.unlimited) return { pay: "free" };
+  const allowance = access.freeDailyUsd;
+  const qwenFree = allowance === null || allowance > 0;
   if (isPremiumModel(model)) {
+    const instead = qwenFree ? ", or use Qwen, which is free each day" : "";
     return access.balance > 0
       ? { pay: "credit" }
       : {
           refused:
             access.claimed > 0
-              ? `Your credit is used up. Add credit to keep using ${modelLabel(model)}, or switch to Qwen, which is free each day.`
-              : `${modelLabel(model)} is paid for with credit. Add credit or upgrade to Pro, or use Qwen, which is free each day.`,
+              ? `Your credit is used up. Add credit to keep using ${modelLabel(model)}${instead}.`
+              : `${modelLabel(model)} is paid for with credit. Add credit or upgrade to Pro${instead}.`,
         };
   }
-  const allowance = access.freeDailyUsd;
   if (allowance === null || access.freeUsedToday < allowance) return { pay: "free" };
-  return access.balance > 0
-    ? { pay: "credit" }
-    : {
-        refused:
-          "Today's free allowance is used up. Add credit to keep going now, or come back tomorrow: it resets at 00:00 UTC.",
-      };
+  if (access.balance > 0) return { pay: "credit" };
+  if (allowance > 0) {
+    return {
+      refused:
+        "Today's free allowance is used up. Add credit to keep going now, or come back tomorrow: it resets at 00:00 UTC.",
+    };
+  }
+  return {
+    refused:
+      access.claimed > 0
+        ? "Your credit is used up. Add credit to keep building."
+        : access.slotsLeft > 0 && access.launchCreditUsd > 0
+          ? "Claim your launch credit on the Credits page to start building."
+          : "Add credit to start building.",
+  };
 }
 
 /** Null when this account may run the model now, or why not (with the status
@@ -157,5 +196,21 @@ export async function modelProblem(
       : null;
   }
   const charge = chargeFor(access, model);
-  return "refused" in charge ? { status: 402, message: charge.refused } : null;
+  if ("refused" in charge) return { status: 402, message: charge.refused };
+  // The limits an admin set: checked as the message is sent, so a person
+  // over a limit hears it now rather than from a run that stops at once.
+  const problem = await startProblem(owner, access);
+  return problem ? { status: 402, message: problem } : null;
+}
+
+/** Whether a new run may start under the account's limits (null: it may). */
+export async function startProblem(owner: string, access: Access): Promise<string | null> {
+  const l = access.limits;
+  if (!l.paused && l.dailyLimitUsd === null && l.runsPerDay === null) return null;
+  try {
+    return limitProblem({ ...l, runLimitUsd: null }, await usageState(owner, null));
+  } catch {
+    // The proxy checks again on every call.
+    return null;
+  }
 }

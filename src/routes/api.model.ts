@@ -8,7 +8,8 @@ import {
 } from "@/lib/agent/providers";
 import { costOfUsage, ratesFor } from "@/lib/agent/pricing";
 import { isPremiumModel } from "@/lib/coding-agent/models";
-import { accessOf, chargeFor, type Access } from "@/lib/db/access.server";
+import { accessOf, chargeFor, NO_LIMITS, type Access } from "@/lib/db/access.server";
+import { limitProblem, turnKey, usageState } from "@/lib/billing/limits.server";
 import { billingConfig } from "@/lib/billing/config.server";
 import { dbConfigured, insert, insertReturning, update } from "@/lib/db/admin.server";
 import { passFromRequest } from "@/lib/db/turn-token.server";
@@ -72,6 +73,8 @@ const FREE_FALLBACK: Access = {
   spent: 0,
   balance: 0,
   slotsLeft: 0,
+  launchCreditUsd: 0,
+  limits: NO_LIMITS,
   premium: false,
   freeUsedToday: 0,
   freeDailyUsd: null,
@@ -102,6 +105,9 @@ export const Route = createFileRoute("/api/model")({
         // Whether a free call counts against a daily allowance (not for an
         // account with unlimited use, nor when the plan could not be read).
         let allowance = false;
+        // The run this call belongs to, so its spend can be added up and held
+        // to the run limit an admin set.
+        const turn = turnKey(pass.workspace, pass.started);
         if (dbConfigured()) {
           let access: Access;
           try {
@@ -114,6 +120,26 @@ export const Route = createFileRoute("/api/model")({
           }
           const charge = chargeFor(access, pass.model);
           if ("refused" in charge) return fail(402, charge.refused);
+          // The limits an admin set, on every call: a run, a day, the runs in
+          // a day, or the account paused. Unread usage stops a charged call
+          // (it could run past a limit) but not a free one.
+          const l = access.limits;
+          if (
+            l.paused ||
+            l.runLimitUsd !== null ||
+            l.dailyLimitUsd !== null ||
+            l.runsPerDay !== null
+          ) {
+            let problem: string | null = null;
+            try {
+              problem = limitProblem(l, await usageState(pass.owner, turn));
+            } catch {
+              if (l.paused || charge.pay === "credit") {
+                return fail(503, "Usage could not be checked just now. Try again in a moment.");
+              }
+            }
+            if (problem) return fail(402, problem);
+          }
           pay = charge.pay;
           allowance = pay === "free" && !access.unlimited && access.freeDailyUsd !== null;
         } else if (premium) {
@@ -157,6 +183,7 @@ export const Route = createFileRoute("/api/model")({
           workspace: pass.workspace.slice(0, 120),
           model: pass.model.slice(0, 60),
           premium,
+          turn,
         };
 
         // A call paid from credit is charged before it starts, at the most it

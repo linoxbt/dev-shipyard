@@ -88,16 +88,20 @@ export function UpgradeSheet({
             ) : (
               <>
                 <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
-                  $5 for each of the first 20 accounts, to spend on any model.{" "}
-                  {access ? `${access.slotsLeft} of 20 left.` : ""}
+                  ${(access?.launchCreditUsd ?? 5).toFixed(2)} to spend on any model, Qwen included.{" "}
+                  {access && access.slotsLeft < 1_000_000 ? `${access.slotsLeft} left.` : ""}
                 </p>
                 <button
                   onClick={() => void act("claim")}
-                  disabled={!!busy || !access || access.slotsLeft === 0}
+                  disabled={
+                    !!busy || !access || access.slotsLeft === 0 || access.launchCreditUsd === 0
+                  }
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-2.5 text-[14px] font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
                 >
                   {busy === "claim" && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                  {access?.slotsLeft === 0 ? "All claimed" : "Claim $5 credit"}
+                  {access?.slotsLeft === 0 || access?.launchCreditUsd === 0
+                    ? "All claimed"
+                    : `Claim $${(access?.launchCreditUsd ?? 5).toFixed(2)} credit`}
                 </button>
               </>
             )}

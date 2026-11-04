@@ -24,6 +24,7 @@ import {
   Trash2,
   UserRound,
   Users,
+  Gauge,
 } from "lucide-react";
 import { CODING_AGENT_ONLY, servedInAgentOnly } from "@/lib/features";
 import { useTheme } from "@/lib/theme";
@@ -136,6 +137,9 @@ export function AccountSheet({
           </SheetRow>
           <SheetRow icon={Users} href="/admin/access">
             Access and waitlist
+          </SheetRow>
+          <SheetRow icon={Gauge} href="/admin/limits">
+            Credit and limits
           </SheetRow>
           <SheetRow icon={MessageSquareHeart} href="/admin/feedback">
             Feedback

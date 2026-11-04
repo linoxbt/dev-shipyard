@@ -16,6 +16,7 @@ import {
   Plug,
   Sun,
   Terminal,
+  Gauge,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell, pageHref } from "@/components/coding-agent/PageShell";
@@ -156,6 +157,7 @@ function AccountPage() {
                   label="Community templates"
                 />
                 <Row icon={Users} href={pageHref("/admin/access")} label="Access and waitlist" />
+                <Row icon={Gauge} href={pageHref("/admin/limits")} label="Credit and limits" />
                 <Row
                   icon={MessageSquareHeart}
                   href={pageHref("/admin/feedback")}

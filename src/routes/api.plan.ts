@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { accessOf } from "@/lib/db/access.server";
+import { usageState } from "@/lib/billing/limits.server";
 import { dbConfigured, insert, rpc } from "@/lib/db/admin.server";
 import { fail, isAdmin, personOf, requestEmail, requestOwner } from "@/lib/db/request.server";
 import { checkRateLimit, clientKeyFromRequest } from "@/lib/rateLimit.server";
 
-// The signed-in account's plan and launch credit: read it, claim the $5
-// launch credit (first 20 accounts), or ask for Pro.
+// The signed-in account's plan, launch credit and limits: read them, claim
+// the launch credit (an amount for a number of accounts, set by an admin), or
+// ask for Pro.
 
 const body = z.object({ action: z.enum(["claim", "request_pro"]) });
 
@@ -17,7 +19,19 @@ export const Route = createFileRoute("/api/plan")({
         const owner = requestOwner(request);
         if (!owner) return fail("no_grant", "Sign in with your email first.", 401);
         try {
-          return Response.json({ ok: true, access: await accessOf(owner), admin: isAdmin(owner) });
+          const [access, today] = await Promise.all([
+            accessOf(owner),
+            // What today used, against the limits shown beside it.
+            dbConfigured() ? usageState(owner, null).catch(() => null) : null,
+          ]);
+          return Response.json({
+            ok: true,
+            access: {
+              ...access,
+              today: today ? { spent: today.daySpent, runs: today.runsToday } : null,
+            },
+            admin: isAdmin(owner),
+          });
         } catch {
           return fail("db", "Your plan could not be read. Try again in a moment.", 502);
         }

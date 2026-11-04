@@ -26,6 +26,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as UpdatesRouteImport } from './routes/updates'
 import { Route as AdminAccessRouteImport } from './routes/admin.access'
 import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
+import { Route as AdminLimitsRouteImport } from './routes/admin.limits'
 import { Route as AdminStatsRouteImport } from './routes/admin.stats'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as ApiAccessRouteImport } from './routes/api.access'
@@ -89,6 +90,7 @@ import { Route as RoutebookLabelsRouteImport } from './routes/routebook.labels'
 import { Route as ApiAccessSessionRouteImport } from './routes/api.access.session'
 import { Route as ApiAdminAccessRouteImport } from './routes/api.admin.access'
 import { Route as ApiAdminFeedbackRouteImport } from './routes/api.admin.feedback'
+import { Route as ApiAdminLimitsRouteImport } from './routes/api.admin.limits'
 import { Route as ApiAdminStatsRouteImport } from './routes/api.admin.stats'
 import { Route as ApiAdminTemplatesRouteImport } from './routes/api.admin.templates'
 import { Route as ApiCronSandboxesRouteImport } from './routes/api.cron.sandboxes'
@@ -214,6 +216,11 @@ const AdminAccessRoute = AdminAccessRouteImport.update({
 const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
   id: '/admin/feedback',
   path: '/admin/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLimitsRoute = AdminLimitsRouteImport.update({
+  id: '/admin/limits',
+  path: '/admin/limits',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminStatsRoute = AdminStatsRouteImport.update({
@@ -531,6 +538,11 @@ const ApiAdminFeedbackRoute = ApiAdminFeedbackRouteImport.update({
   path: '/api/admin/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminLimitsRoute = ApiAdminLimitsRouteImport.update({
+  id: '/api/admin/limits',
+  path: '/api/admin/limits',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminStatsRoute = ApiAdminStatsRouteImport.update({
   id: '/api/admin/stats',
   path: '/api/admin/stats',
@@ -765,6 +777,7 @@ export interface FileRoutesByFullPath {
   '/updates': typeof UpdatesRoute
   '/admin/access': typeof AdminAccessRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/limits': typeof AdminLimitsRoute
   '/admin/stats': typeof AdminStatsRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/api/access': typeof ApiAccessRouteWithChildren
@@ -828,6 +841,7 @@ export interface FileRoutesByFullPath {
   '/api/access/session': typeof ApiAccessSessionRoute
   '/api/admin/access': typeof ApiAdminAccessRoute
   '/api/admin/feedback': typeof ApiAdminFeedbackRoute
+  '/api/admin/limits': typeof ApiAdminLimitsRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
   '/api/admin/templates': typeof ApiAdminTemplatesRoute
   '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
@@ -886,6 +900,7 @@ export interface FileRoutesByTo {
   '/updates': typeof UpdatesRoute
   '/admin/access': typeof AdminAccessRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/limits': typeof AdminLimitsRoute
   '/admin/stats': typeof AdminStatsRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/api/access': typeof ApiAccessRouteWithChildren
@@ -947,6 +962,7 @@ export interface FileRoutesByTo {
   '/api/access/session': typeof ApiAccessSessionRoute
   '/api/admin/access': typeof ApiAdminAccessRoute
   '/api/admin/feedback': typeof ApiAdminFeedbackRoute
+  '/api/admin/limits': typeof ApiAdminLimitsRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
   '/api/admin/templates': typeof ApiAdminTemplatesRoute
   '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
@@ -1008,6 +1024,7 @@ export interface FileRoutesById {
   '/updates': typeof UpdatesRoute
   '/admin/access': typeof AdminAccessRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/limits': typeof AdminLimitsRoute
   '/admin/stats': typeof AdminStatsRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/api/access': typeof ApiAccessRouteWithChildren
@@ -1071,6 +1088,7 @@ export interface FileRoutesById {
   '/api/access/session': typeof ApiAccessSessionRoute
   '/api/admin/access': typeof ApiAdminAccessRoute
   '/api/admin/feedback': typeof ApiAdminFeedbackRoute
+  '/api/admin/limits': typeof ApiAdminLimitsRoute
   '/api/admin/stats': typeof ApiAdminStatsRoute
   '/api/admin/templates': typeof ApiAdminTemplatesRoute
   '/api/cron/sandboxes': typeof ApiCronSandboxesRoute
@@ -1133,6 +1151,7 @@ export interface FileRouteTypes {
     | '/updates'
     | '/admin/access'
     | '/admin/feedback'
+    | '/admin/limits'
     | '/admin/stats'
     | '/admin/templates'
     | '/api/access'
@@ -1196,6 +1215,7 @@ export interface FileRouteTypes {
     | '/api/access/session'
     | '/api/admin/access'
     | '/api/admin/feedback'
+    | '/api/admin/limits'
     | '/api/admin/stats'
     | '/api/admin/templates'
     | '/api/cron/sandboxes'
@@ -1254,6 +1274,7 @@ export interface FileRouteTypes {
     | '/updates'
     | '/admin/access'
     | '/admin/feedback'
+    | '/admin/limits'
     | '/admin/stats'
     | '/admin/templates'
     | '/api/access'
@@ -1315,6 +1336,7 @@ export interface FileRouteTypes {
     | '/api/access/session'
     | '/api/admin/access'
     | '/api/admin/feedback'
+    | '/api/admin/limits'
     | '/api/admin/stats'
     | '/api/admin/templates'
     | '/api/cron/sandboxes'
@@ -1375,6 +1397,7 @@ export interface FileRouteTypes {
     | '/updates'
     | '/admin/access'
     | '/admin/feedback'
+    | '/admin/limits'
     | '/admin/stats'
     | '/admin/templates'
     | '/api/access'
@@ -1438,6 +1461,7 @@ export interface FileRouteTypes {
     | '/api/access/session'
     | '/api/admin/access'
     | '/api/admin/feedback'
+    | '/api/admin/limits'
     | '/api/admin/stats'
     | '/api/admin/templates'
     | '/api/cron/sandboxes'
@@ -1499,6 +1523,7 @@ export interface RootRouteChildren {
   UpdatesRoute: typeof UpdatesRoute
   AdminAccessRoute: typeof AdminAccessRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
+  AdminLimitsRoute: typeof AdminLimitsRoute
   AdminStatsRoute: typeof AdminStatsRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
   ApiAccessRoute: typeof ApiAccessRouteWithChildren
@@ -1539,6 +1564,7 @@ export interface RootRouteChildren {
   RoutebookIndexRoute: typeof RoutebookIndexRoute
   ApiAdminAccessRoute: typeof ApiAdminAccessRoute
   ApiAdminFeedbackRoute: typeof ApiAdminFeedbackRoute
+  ApiAdminLimitsRoute: typeof ApiAdminLimitsRoute
   ApiAdminStatsRoute: typeof ApiAdminStatsRoute
   ApiAdminTemplatesRoute: typeof ApiAdminTemplatesRoute
   ApiCronSandboxesRoute: typeof ApiCronSandboxesRoute
@@ -1673,6 +1699,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/feedback'
       fullPath: '/admin/feedback'
       preLoaderRoute: typeof AdminFeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/limits': {
+      id: '/admin/limits'
+      path: '/admin/limits'
+      fullPath: '/admin/limits'
+      preLoaderRoute: typeof AdminLimitsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/stats': {
@@ -2114,6 +2147,13 @@ declare module '@tanstack/react-router' {
       path: '/api/admin/feedback'
       fullPath: '/api/admin/feedback'
       preLoaderRoute: typeof ApiAdminFeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/limits': {
+      id: '/api/admin/limits'
+      path: '/api/admin/limits'
+      fullPath: '/api/admin/limits'
+      preLoaderRoute: typeof ApiAdminLimitsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/admin/stats': {
@@ -2602,6 +2642,7 @@ const rootRouteChildren: RootRouteChildren = {
   UpdatesRoute: UpdatesRoute,
   AdminAccessRoute: AdminAccessRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
+  AdminLimitsRoute: AdminLimitsRoute,
   AdminStatsRoute: AdminStatsRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
   ApiAccessRoute: ApiAccessRouteWithChildren,
@@ -2642,6 +2683,7 @@ const rootRouteChildren: RootRouteChildren = {
   RoutebookIndexRoute: RoutebookIndexRoute,
   ApiAdminAccessRoute: ApiAdminAccessRoute,
   ApiAdminFeedbackRoute: ApiAdminFeedbackRoute,
+  ApiAdminLimitsRoute: ApiAdminLimitsRoute,
   ApiAdminStatsRoute: ApiAdminStatsRoute,
   ApiAdminTemplatesRoute: ApiAdminTemplatesRoute,
   ApiCronSandboxesRoute: ApiCronSandboxesRoute,

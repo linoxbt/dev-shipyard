@@ -295,7 +295,7 @@ function Balance({
     setBusy(false);
     if (!r.ok) return void toast.error(r.message);
     onChange(r.data);
-    toast.success("$5 of launch credit is yours.");
+    toast.success(`${usd(access.launchCreditUsd ?? 5)} of launch credit is yours.`);
   };
   const unlimited = !!access.unlimited;
   const canPay = (billing?.providers.length ?? 0) > 0;
@@ -344,21 +344,26 @@ function Balance({
               <Plus className="h-4 w-4" /> Add credit
             </button>
           )}
-          {!unlimited && (access.launch ?? 0) === 0 && access.slotsLeft > 0 && (
-            <button
-              onClick={() => void claim()}
-              disabled={busy || !access.available}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-4 text-[13.5px] font-medium text-foreground transition hover:bg-surface-2 disabled:opacity-50"
-            >
-              {busy ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" />
-              ) : (
-                <Gift className="h-4 w-4" />
-              )}
-              Claim $5 launch credit
-              <span className="text-[12px] font-normal text-meta">{access.slotsLeft} left</span>
-            </button>
-          )}
+          {!unlimited &&
+            (access.launch ?? 0) === 0 &&
+            access.slotsLeft > 0 &&
+            (access.launchCreditUsd ?? 5) > 0 && (
+              <button
+                onClick={() => void claim()}
+                disabled={busy || !access.available}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-4 text-[13.5px] font-medium text-foreground transition hover:bg-surface-2 disabled:opacity-50"
+              >
+                {busy ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Gift className="h-4 w-4" />
+                )}
+                Claim {usd(access.launchCreditUsd ?? 5)} launch credit
+                {access.slotsLeft < 1_000_000 && (
+                  <span className="text-[12px] font-normal text-meta">{access.slotsLeft} left</span>
+                )}
+              </button>
+            )}
           {access.portal && <ManageBilling />}
         </div>
         {!canPay && !unlimited && (
@@ -366,42 +371,77 @@ function Balance({
         )}
       </div>
 
-      <div className="rounded-2xl border border-border bg-surface p-5">
-        <p className="text-[13px] font-medium text-muted-foreground">Free today</p>
-        {allowance === null ? (
-          <>
-            <p className="mt-1.5 text-[22.5px] font-semibold leading-none">No limit</p>
-            <p className="mt-2 text-[12.5px] text-muted-foreground">
-              Qwen 3.8 27B, as much as you like
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="mt-1.5 text-[22.5px] font-semibold leading-none tabular-nums">
-              {cents(Math.max(0, allowance - usedToday))}
-              <span className="ml-1 text-[13.5px] font-normal text-muted-foreground">
-                left of {cents(allowance)}
-              </span>
-            </p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-              <div
-                className={cn(
-                  "h-full rounded-full",
-                  usedToday >= allowance ? "bg-[var(--crit)]" : "bg-[var(--s1)]",
-                )}
-                style={{
-                  width: `${Math.min(100, (usedToday / Math.max(allowance, 0.0001)) * 100)}%`,
-                }}
-              />
-            </div>
-            <p className="mt-2 text-[12.5px] text-muted-foreground">
-              Qwen 3.8 27B is free up to this much a day, then paid from credit. Resets at 00:00
-              UTC.
-            </p>
-          </>
-        )}
-      </div>
+      <Limits access={access} allowance={allowance} usedToday={usedToday} />
     </section>
+  );
+}
+
+/** Today's use against the limits an admin set, and the free allowance. */
+function Limits({
+  access,
+  allowance,
+  usedToday,
+}: {
+  access: Access;
+  allowance: number | null;
+  usedToday: number;
+}) {
+  const l = access.limits;
+  const spent = access.today?.spent ?? 0;
+  const runs = access.today?.runs ?? 0;
+  const daily = l?.dailyLimitUsd ?? null;
+  const rows: [string, string][] = [
+    ["Each run", l?.runLimitUsd != null ? `Up to ${cents(l.runLimitUsd)}` : "No limit"],
+    ["Runs a day", l?.runsPerDay != null ? `${runs} of ${l.runsPerDay}` : "No limit"],
+  ];
+  if (allowance !== null && allowance > 0) {
+    rows.push([
+      "Free Qwen a day",
+      `${cents(Math.max(0, allowance - usedToday))} of ${cents(allowance)} left`,
+    ]);
+  }
+  const bar = (used: number, of: number) => (
+    <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+      <div
+        className={cn("h-full rounded-full", used >= of ? "bg-[var(--crit)]" : "bg-[var(--s1)]")}
+        style={{ width: `${Math.min(100, (used / Math.max(of, 0.0001)) * 100)}%` }}
+      />
+    </div>
+  );
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-5">
+      <p className="text-[13px] font-medium text-muted-foreground">Today</p>
+      {l?.paused ? (
+        <p className="mt-1.5 text-[16px] font-semibold text-danger">Paused by DevStation</p>
+      ) : daily !== null ? (
+        <>
+          <p className="mt-1.5 text-[22.5px] font-semibold leading-none tabular-nums">
+            {cents(spent)}
+            <span className="ml-1 text-[13.5px] font-normal text-muted-foreground">
+              used of {cents(daily)}
+            </span>
+          </p>
+          {bar(spent, daily)}
+        </>
+      ) : (
+        <p className="mt-1.5 text-[22.5px] font-semibold leading-none tabular-nums">
+          {cents(spent)}
+          <span className="ml-1 text-[13.5px] font-normal text-muted-foreground">used</span>
+        </p>
+      )}
+      <dl className="mt-4 space-y-1.5 text-[13px]">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">{k}</dt>
+            <dd className="text-right tabular-nums text-foreground">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-3 text-[12px] text-meta">
+        {allowance === 0 ? "Every run is paid from your credit, at each model's cost. " : ""}
+        Limits reset at 00:00 UTC.
+      </p>
+    </div>
   );
 }
 
@@ -475,7 +515,11 @@ function Plans({
         "Qwen 3.8 27B, the agent's default",
         free === null || free === undefined
           ? "No daily limit"
-          : `${cents(free)} of free use every day`,
+          : free > 0
+            ? `${cents(free)} of free use every day`
+            : (billing?.launchCreditUsd ?? 0) > 0
+              ? `${cents(billing!.launchCreditUsd!)} launch credit to start`
+              : "Paid from credit, at cost",
         "Projects saved to your account",
         "Your own machine for every project",
       ],
@@ -493,7 +537,7 @@ function Plans({
           ? `Each call at the model's price + ${margin}%`
           : "Each call at the model's price",
         "Credit never expires",
-        "Keeps Qwen going past the free allowance",
+        free ? "Keeps Qwen going past the free allowance" : "Pays for Qwen and every other model",
       ],
     },
     {

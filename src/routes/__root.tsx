@@ -226,6 +226,7 @@ function RootComponent() {
     pathname === "/admin/templates" ||
     pathname === "/admin/access" ||
     pathname === "/admin/feedback" ||
+    pathname === "/admin/limits" ||
     pathname === "/feedback" ||
     pathname === "/credits" ||
     pathname === "/account" ||

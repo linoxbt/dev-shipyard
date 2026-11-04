@@ -34,6 +34,7 @@ export function servedInAgentOnly(pathname: string): boolean {
     pathname === "/admin/templates" ||
     pathname === "/admin/access" ||
     pathname === "/admin/feedback" ||
+    pathname === "/admin/limits" ||
     pathname === "/feedback" ||
     // Credit and usage, and a shared read-only copy of the figures.
     pathname === "/credits" ||
@@ -74,7 +75,7 @@ const AGENT_API = [
   /^\/api\/connectors$/,
   /^\/api\/oauth\/[a-z]+(\/callback)?$/,
   /^\/api\/metrics$/,
-  /^\/api\/admin\/(stats|templates|access|feedback)$/,
+  /^\/api\/admin\/(stats|templates|access|feedback|limits)$/,
   /^\/api\/feedback$/,
   /^\/api\/templates$/,
   /^\/api\/access(\/session)?$/,

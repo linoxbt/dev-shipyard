@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { billingConfig, publicBillingConfig } from "@/lib/billing/config.server";
+import { fallbackSettings, usageSettings } from "@/lib/billing/limits.server";
 import { applyPaystack, applyStripeSession } from "@/lib/billing/ledger.server";
 import { paystackCheckout, paystackVerify } from "@/lib/billing/paystack.server";
 import { stripeCheckout, stripePortal, stripeSession } from "@/lib/billing/stripe.server";
@@ -34,11 +35,22 @@ const body = z.discriminatedUnion("action", [
 export const Route = createFileRoute("/api/billing")({
   server: {
     handlers: {
-      GET: () =>
-        Response.json(
-          { ok: true, ...publicBillingConfig() },
+      GET: async () => {
+        // The free allowance and the limits are the admin's settings.
+        const settings = dbConfigured() ? await usageSettings() : fallbackSettings();
+        return Response.json(
+          {
+            ok: true,
+            ...publicBillingConfig(),
+            freeDailyUsd: settings.freeDailyUsd,
+            launchCreditUsd: settings.launchCreditUsd,
+            runLimitUsd: settings.runLimitUsd,
+            dailyLimitUsd: settings.dailyLimitUsd,
+            runsPerDay: settings.runsPerDay,
+          },
           { headers: { "cache-control": "no-store" } },
-        ),
+        );
+      },
 
       POST: async ({ request }) => {
         const owner = requestOwner(request);

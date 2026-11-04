@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { billingConfig, publicBillingConfig } from "./config.server";
 import { formEncode, stripeSignatureValid } from "./stripe.server";
 import { paystackMinor, paystackSignatureValid } from "./paystack.server";
-import { chargeFor, type Access } from "@/lib/db/access.server";
+import { chargeFor, NO_LIMITS, type Access } from "@/lib/db/access.server";
 
 const OWNER = `0x${"b".repeat(40)}`;
 
@@ -20,6 +20,8 @@ const access = (patch: Partial<Access> = {}): Access => ({
   spent: 0,
   balance: 0,
   slotsLeft: 0,
+  launchCreditUsd: 5,
+  limits: { ...NO_LIMITS, freeDailyUsd: 0.5 },
   premium: false,
   freeUsedToday: 0,
   freeDailyUsd: 0.5,

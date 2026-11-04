@@ -28,6 +28,18 @@ export interface Access {
   freeDailyUsd?: number | null;
   available: boolean;
   admin?: boolean;
+  /** The launch credit an account gets (0: none offered). */
+  launchCreditUsd?: number;
+  /** The limits an admin set for this account (null: no limit). */
+  limits?: {
+    runLimitUsd: number | null;
+    dailyLimitUsd: number | null;
+    runsPerDay: number | null;
+    freeDailyUsd: number | null;
+    paused: boolean;
+  };
+  /** What today used, against those limits. */
+  today?: { spent: number; runs: number } | null;
 }
 
 /** What credit costs and buys (api/billing). */
@@ -42,6 +54,10 @@ export interface BillingConfig {
   maxTopUpUsd: number;
   providers: ("stripe" | "paystack")[];
   paystackCurrency: string;
+  launchCreditUsd?: number;
+  runLimitUsd?: number | null;
+  dailyLimitUsd?: number | null;
+  runsPerDay?: number | null;
 }
 
 export async function fetchBilling(): Promise<BillingConfig | null> {
