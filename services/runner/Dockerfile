@@ -7,7 +7,7 @@
 # Pinned by digest, not just tag: a tag is a pointer anyone with push access
 # to it can move, and this image runs every user's build. Bump both together
 # (the tag documents which release the digest is).
-FROM node:22.22.0-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
+FROM node:26.13.0-bookworm-slim@sha256:bc0a2afd3b74ce12222fc8bab99271e66257f021078f5f4a5d687a77d280c1d9
 
 # Chromium's shared libraries, for the Playwright browser installed below.
 RUN apt-get update && apt-get install -y --no-install-recommends \
