@@ -3,9 +3,10 @@
 --
 -- usage_settings (one row): the launch credit (how much, for how many
 -- accounts), the free model's daily allowance (0: none, so every call is paid
--- from credit and the whole credit can be used), and the limits on the free
--- plan: the most one run (one message's work) may spend, the most a day may
--- spend, and how many runs a day. Null means no limit.
+-- from credit and the whole credit can be used), and optional limits on the
+-- free plan: the most one run (one message's work) may spend, the most a day
+-- may spend, and how many runs a day. Null means no limit, the default: an
+-- account then runs until its credit is used up.
 --
 -- account_limits: the same limits for one account, set by an admin; a field
 -- left null there uses the setting above. paused stops the account's model
@@ -28,7 +29,7 @@ create table if not exists public.usage_settings (
   updated_by text
 );
 insert into public.usage_settings (id, launch_credit_usd, launch_slots, free_daily_usd, run_limit_usd, daily_limit_usd)
-values (true, 5, 20, 0, 2, 5)
+values (true, 5, 20, 0, null, null)
 on conflict (id) do nothing;
 
 create table if not exists public.account_limits (

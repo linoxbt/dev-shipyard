@@ -157,10 +157,10 @@ function LimitsAdmin() {
           <div>
             <h1 className="text-[22.5px] font-semibold tracking-tight">Credit and limits</h1>
             <p className="mt-1 max-w-2xl text-[14px] text-muted-foreground">
-              What new accounts get, and how fast they may spend it. Every model call is checked
-              against these limits before it runs, so a run, a day or an account stops exactly where
-              you set it. Pro and admin-granted accounts follow only the limits you set for them by
-              name.
+              What new accounts get. An account runs until its credit is used up, with nothing else
+              in the way. If you want to, you can also cap how much one run or one day may use, for
+              everyone here or for one account under Edit; leave a field empty for no limit. Pro and
+              admin-granted accounts follow only the limits you set for them by name.
             </p>
           </div>
           <SettingsCard
