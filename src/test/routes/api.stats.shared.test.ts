@@ -24,7 +24,7 @@ beforeAll(() => {
       if (url.pathname.endsWith("/rpc/devstation_dashboard")) {
         return Response.json({
           kpis: { accounts: 3 },
-          top_accounts: [{ account: "ada@example.com", owner: "0xabc", turns: 4 }],
+          top_accounts: [{ account: "adalovelace@example.com", owner: "0xabc", turns: 4 }],
           recent_accounts: [{ account: "kim@example.com", owner: "0xdef", turns: 1 }],
         });
       }
@@ -63,18 +63,24 @@ describe("/api/stats/shared", () => {
     expect((await get("")).status).toBe(404);
   });
 
-  it("shows the figures for a live link, with every account a pseudonym", async () => {
+  it("shows the figures for a live link, emails starred out and no account id", async () => {
     const res = await get(`token=${TOKEN}&days=7`);
     expect(res.status).toBe(200);
     const text = await res.text();
-    expect(text).not.toContain("@example.com");
+    expect(text).not.toContain("adalovelace");
+    expect(text).not.toContain("kim@");
     expect(text).not.toContain("0xabc");
     const body = JSON.parse(text) as {
       label: string;
-      dashboard: { top_accounts: { account: string }[] };
+      dashboard: {
+        top_accounts: { account: string; owner: string }[];
+        recent_accounts: { account: string }[];
+      };
     };
     expect(body.label).toBe("Investors");
-    expect(body.dashboard.top_accounts[0].account).toMatch(/^acct_[0-9a-f]{12}$/);
+    expect(body.dashboard.top_accounts[0].account).toBe("ad******e@example.com");
+    expect(body.dashboard.recent_accounts[0].account).toBe("k***@example.com");
+    expect(body.dashboard.top_accounts[0].owner).toMatch(/^acct_[0-9a-f]{12}$/);
   });
 
   it("offers only the three downloads", async () => {

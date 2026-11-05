@@ -6,7 +6,8 @@ import { billingConfig } from "@/lib/billing/config.server";
 // DevStation's figures, read for the admins (routes/api.admin.stats.ts) and
 // for whoever holds a share link (routes/api.stats.shared.ts): the dashboard
 // for a period, and the three downloads. A shared copy never names an
-// account: each one is a stable pseudonym instead.
+// account in full: emails show with their middle starred out, and account ids
+// are stable pseudonyms.
 
 type Row = Record<string, unknown>;
 
@@ -28,6 +29,23 @@ export function csv(rows: Row[], columns: string[]): string {
 export function pseudonym(owner: unknown): string {
   const key = process.env.SESSION_SECRET || process.env.RUNNER_TOKEN || "devstation";
   return `acct_${createHmac("sha256", key).update(String(owner)).digest("hex").slice(0, 12)}`;
+}
+
+/** An email with the middle of its name starred out, for shared figures:
+ *  web3paths@gmail.com reads web******s@gmail.com. Anything that is not an
+ *  email is left to the pseudonym. */
+export function maskEmail(email: unknown): string | null {
+  if (typeof email !== "string") return null;
+  const at = email.lastIndexOf("@");
+  if (at < 1 || at === email.length - 1) return null;
+  const name = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const stars = (n: number) => "*".repeat(Math.min(6, Math.max(3, n)));
+  const masked =
+    name.length <= 3
+      ? `${name[0]}${stars(name.length - 1)}`
+      : `${name.slice(0, 2)}${stars(name.length - 3)}${name.slice(-1)}`;
+  return `${masked}@${domain}`;
 }
 
 /** The first day of the last 90. */
@@ -103,7 +121,8 @@ interface AccountRow {
 
 /**
  * The dashboard for the last `days` days (devstation_dashboard). `shared`
- * replaces every email and account id with its pseudonym.
+ * stars out the middle of every email and replaces every account id with its
+ * pseudonym.
  */
 export async function statsDashboard(days: number, shared: boolean): Promise<Row> {
   const raw = await rpc<Row>("devstation_dashboard", { p_days: days });
@@ -113,7 +132,8 @@ export async function statsDashboard(days: number, shared: boolean): Promise<Row
   const hide = (rows: unknown) =>
     (Array.isArray(rows) ? (rows as AccountRow[]) : []).map((r) => {
       const name = pseudonym(r.owner);
-      return { ...r, account: name, owner: name };
+      // The email shows, with its middle starred out; the account id never.
+      return { ...r, account: maskEmail(r.account) ?? name, owner: name };
     });
   return { ...d, top_accounts: hide(d.top_accounts), recent_accounts: hide(d.recent_accounts) };
 }
